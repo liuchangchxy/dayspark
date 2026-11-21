@@ -370,8 +370,15 @@ void main() {
     await tester.tap(find.text('Calendar').last);
     await _settle(tester);
 
-    // The week grid is the default view; every day column is one tap target
-    // that resolves to the half-hour slot under the pointer.
+    // The spec's phone week view is a grouped list with no time axis; the
+    // pointer-to-slot contract lives on the day grid.
+    await tester.tap(find.byKey(const ValueKey('calendar-view-menu')));
+    await _settle(tester);
+    await tester.tap(find.text('Day').last);
+    await _settle(tester);
+
+    // Every day column is one tap target that resolves to the half-hour slot
+    // under the pointer.
     final grid = find.byType(A2TimeGridView);
     expect(grid, findsOneWidget);
     final rect = tester.getRect(grid);

@@ -421,6 +421,28 @@
       }
     }
   },
+  "calendarMonthDay": "{month} {day}",
+  "@calendarMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarDateRange": "{start} – {end}",
+  "@calendarDateRange": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
   "openUpdatePage": "View release",
   "checkUpdate": "Check for Updates",
   "upToDate": "Already up to date",

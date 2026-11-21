@@ -224,5 +224,34 @@ void main() {
         await tester.pump(Duration.zero);
       },
     );
+
+    testWidgets(
+      'week header names both month-day ends and uses the spec weekday',
+      (tester) async {
+        tester.view.physicalSize = const Size(1440, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+
+        final page = A2CalendarPage(
+          events: const [],
+          allocations: const [],
+          deadlines: const [],
+        );
+
+        await tester.pumpWidget(_testApp(page, db: db));
+        await tester.pumpAndSettle();
+
+        // Spec md(): each end carries its month, with spaces around 月/日.
+        expect(find.text('11 月 16 日 – 11 月 22 日'), findsOneWidget);
+        // Spec weekHead()/month week strip: 周一…周日, not 一…日.
+        expect(find.text('周一'), findsOneWidget);
+        expect(find.text('周日'), findsOneWidget);
+        // Spec .tool filter control is a funnel.
+        expect(find.byIcon(Icons.filter_alt_outlined), findsOneWidget);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(Duration.zero);
+      },
+    );
   });
 }

@@ -15,6 +15,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
+import 'package:dayspark/ui/pages/calendar/a2_calendar_views.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_filter_sheet.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
@@ -151,18 +152,19 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
-    // A week block carries only the title: the column already says when.
+    // The phone week is a grouped list, so the entry carries its own time.
+    expect(find.textContaining('整理周会纪要并发群'), findsOneWidget);
+    expect(find.text('08:00'), findsNothing);
+
+    // The hour axis belongs to the day view (and the desktop week grid).
+    await _switchView(tester, 'Day');
+    await _settle(tester);
     expect(find.text('整理周会纪要并发群'), findsOneWidget);
     // Authoritative frozen spec axis is 08:00–20:00.
     expect(find.text('00:00'), findsNothing);
     expect(find.text('08:00'), findsOneWidget);
     expect(find.text('20:00'), findsOneWidget);
     expect(find.text('23:00'), findsNothing);
-
-    // Day view prints the span, in local time.
-    await _switchView(tester, 'Day');
-    await _settle(tester);
-    expect(find.text('整理周会纪要并发群'), findsOneWidget);
     expect(find.textContaining('16:00 – 17:00'), findsOneWidget);
 
     // Every view stays reachable from every other one: the menu lists all
@@ -368,6 +370,9 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
+    // The spec's phone week list has no hour axis; the axis is the day view.
+    await _switchView(tester, 'Day');
+    await _settle(tester);
 
     // Authoritative frozen spec: 08:00–20:00 scale with 2-hour increments
     expect(find.text('08:00'), findsOneWidget);
@@ -398,6 +403,9 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
+    // The pct clamp is a time-axis contract; the phone week is a list now.
+    await _switchView(tester, 'Day');
+    await _settle(tester);
 
     // Items before 08:00 map via pct clamp to 0%, remaining visible
     expect(find.text('整理周会纪要并发群'), findsOneWidget);
@@ -424,6 +432,9 @@ void main() {
       deadlines: const [],
     );
     await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    // Dawn-band clamping is a time-axis contract; the phone week is a list.
+    await _switchView(tester, 'Day');
     await _settle(tester);
 
     // Spec contract: strictly [08, 10, 12, 14, 16, 18, 20] hour labels
@@ -478,6 +489,9 @@ void main() {
       deadlines: const [],
     );
     await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    // The now line is drawn on a time axis; the phone week list has none.
+    await _switchView(tester, 'Day');
     await _settle(tester);
 
     // Under frozen spec, .now-line-cal is drawn at pct(NOW)% on today column
@@ -559,6 +573,180 @@ void main() {
     await tester.pump(Duration.zero);
   });
 
+  testWidgets('the phone week is a grouped day list, not a 7-column grid', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Standup',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    // Spec mobileCalendar('week') is .m-week-list: one group per day with a
+    // date head, not the compressed 7-column desktop grid.
+    expect(find.byKey(const ValueKey('phone-week-list')), findsOneWidget);
+    expect(find.byType(A2TimeGridView), findsNothing);
+    expect(find.text('Sun · 15'), findsOneWidget);
+    expect(find.textContaining('10:00 Standup'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('tapping an empty phone week day opens its slot', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final ranges = <DateTimeRange>[];
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+      onTimeSlotTapped: ranges.add,
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    // The spec list has no time axis, so the empty day itself is the slot:
+    // its first hour is handed to the same slot sheet the grid used.
+    await tester.tap(find.text('No schedule').first);
+    await _settle(tester);
+    expect(ranges, hasLength(1));
+    expect(ranges.single.start, DateTime(2026, 11, 9, 9));
+    expect(ranges.single.end, DateTime(2026, 11, 9, 10));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the phone day view hides an empty deadline row and keeps 08:00 whole', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await _switchView(tester, 'Day');
+    await _settle(tester);
+
+    // Spec mobileCalendar draws no empty 截止 row.
+    expect(find.text('Deadline'), findsNothing);
+    // The centred 08:00 reading must not be clipped by the scroll viewport.
+    final labelTop = tester.getTopLeft(find.text('08:00')).dy;
+    final viewportTop = tester
+        .getTopLeft(find.byType(SingleChildScrollView).first)
+        .dy;
+    expect(labelTop, greaterThanOrEqualTo(viewportTop));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the desktop week keeps its fixed deadline lane when empty', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    // The desktop lane is a 30px alignment row even with nothing in it.
+    expect(find.text('Deadline'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the calendars control uses the spec funnel icon', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    expect(find.byIcon(Icons.filter_alt_outlined), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('dragging a phone week row shifts the plan by half-hours', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final captured = <TaskAllocationCalendarItem>[];
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: [
+        _allocation(
+          start: DateTime(2026, 11, 15, 16),
+          end: DateTime(2026, 11, 15, 17),
+        ),
+      ],
+      deadlines: const [],
+      onAllocationChanged: (item) async => captured.add(item),
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final row = find.textContaining('整理周会纪要并发群');
+    expect(row, findsOneWidget);
+    final gesture = await tester.startGesture(tester.getCenter(row));
+    await tester.pump(const Duration(milliseconds: 600));
+    await gesture.moveBy(const Offset(0, 54));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(captured, hasLength(1));
+    expect(captured.single.allocation.startAt.toLocal().hour, 17);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
   testWidgets('a date-only deadline never shows a clock', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -619,7 +807,9 @@ void main() {
   testWidgets('a full week deadline lane folds the overflow into +N', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    // Desktop week grid: the phone week list spells out every deadline row
+    // instead of folding them into a lane.
+    tester.view.physicalSize = const Size(800, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -656,7 +846,8 @@ void main() {
   testWidgets('an all-day event gets its own lane, not an hour block', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    // The all-day lane is a grid structure: desktop week and both day views.
+    tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -701,7 +892,7 @@ void main() {
     expect(chipTop, lessThan(gridTop));
 
     // Day view keeps the same lane, one column wide.
-    await _switchView(tester, 'Day');
+    await tester.tap(find.text('Day').last);
     await _settle(tester);
     expect(find.text('All day'), findsOneWidget);
     expect(find.text('Company offsite'), findsOneWidget);
@@ -748,7 +939,8 @@ void main() {
   });
 
   testWidgets('the week all-day lane folds a busy day into +N', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
+    // The phone week list shows every all-day row; only the desktop lane folds.
+    tester.view.physicalSize = const Size(800, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 

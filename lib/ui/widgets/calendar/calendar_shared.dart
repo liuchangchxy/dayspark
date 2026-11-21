@@ -27,6 +27,33 @@ String calWeekdayShort(String locale, DateTime date) {
   return full;
 }
 
+// The spec's weekday() spelling is 周一…周日. calWeekdayShort stays for the
+// mobile month header, whose spec cells are single characters (一…日).
+String calWeekdayLong(String locale, DateTime date) =>
+    DateFormat.E(locale).format(date);
+
+// The spec's md() spelling is "11 月 16 日" (en uses the month name).
+String calMonthDayLabel(
+  AppLocalizations l,
+  String locale,
+  DateTime date,
+) {
+  final month = locale.startsWith('zh')
+      ? '${date.month}'
+      : DateFormat.MMM(locale).format(date);
+  return l.calendarMonthDay(month, '${date.day}');
+}
+
+String calDateRangeLabel(
+  AppLocalizations l,
+  String locale,
+  DateTime start,
+  DateTime end,
+) => l.calendarDateRange(
+  calMonthDayLabel(l, locale, start),
+  calMonthDayLabel(l, locale, end),
+);
+
 String calDuration(AppLocalizations l, Duration duration) {
   final minutes = duration.inMinutes;
   final hours = minutes ~/ 60;

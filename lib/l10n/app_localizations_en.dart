@@ -764,6 +764,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String calendarMonthDay(String month, String day) {
+    return '$month $day';
+  }
+
+  @override
+  String calendarDateRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
   String get openUpdatePage => 'View release';
 
   @override

@@ -283,6 +283,28 @@
       }
     }
   },
+  "calendarMonthDay": "{month} 月 {day} 日",
+  "@calendarMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarDateRange": "{start} – {end}",
+  "@calendarDateRange": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
   "openUpdatePage": "查看更新",
   "checkUpdate": "检查更新",
   "upToDate": "已是最新版本",

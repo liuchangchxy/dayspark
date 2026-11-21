@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
@@ -347,7 +348,7 @@ class A2PhoneMonthGrid extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${DateFormat.MMMd(locale).format(selected)} · ${calWeekdayShort(locale, selected)}',
+                '${DateFormat.MMMd(locale).format(selected)} · ${calWeekdayLong(locale, selected)}',
                 style: _a2Text(11.5, FontWeight.w600, ds.ink),
               ),
               Text(
@@ -675,7 +676,7 @@ class A2DesktopMonthGrid extends StatelessWidget {
                 Expanded(
                   child: Center(
                     child: Text(
-                      calWeekdayShort(
+                      calWeekdayLong(
                         locale,
                         gridStart.add(Duration(days: i)),
                       ),
@@ -1129,33 +1130,39 @@ class A2TimeGridView extends StatelessWidget {
         _deadlineLane(context, l),
         Expanded(
           child: SingleChildScrollView(
-            child: Container(
-              decoration: const BoxDecoration(
-                border: Border(
-                  left: BorderSide(color: SpecTokens.hair, width: 1),
-                  bottom: BorderSide(color: SpecTokens.hair, width: 1),
-                ),
-              ),
-              height: _axis.height,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: _a2Gutter,
-                    child: _hourGutter(context),
+            child: Padding(
+              // The 08:00 reading is centred on the axis origin, so half of it
+              // falls above the scroll viewport; the phone inset keeps it whole
+              // without changing any hour-to-hour distance.
+              padding: EdgeInsets.only(top: isDesktop ? 0 : 6),
+              child: Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: SpecTokens.hair, width: 1),
+                    bottom: BorderSide(color: SpecTokens.hair, width: 1),
                   ),
-                  for (var index = 0; index < days.length; index++)
-                    Expanded(
-                      child: _column(
-                        context,
-                        days[index],
-                        blocks[calDayOf(days[index])] ?? const [],
-                        lanes[calDayOf(days[index])] ?? const [],
-                        allocationItems,
-                        isToday: calSameDay(days[index], today),
-                      ),
+                ),
+                height: _axis.height,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: _a2Gutter,
+                      child: _hourGutter(context),
                     ),
-                ],
+                    for (var index = 0; index < days.length; index++)
+                      Expanded(
+                        child: _column(
+                          context,
+                          days[index],
+                          blocks[calDayOf(days[index])] ?? const [],
+                          lanes[calDayOf(days[index])] ?? const [],
+                          allocationItems,
+                          isToday: calSameDay(days[index], today),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -1192,7 +1199,7 @@ class A2TimeGridView extends StatelessWidget {
             TextSpan(
               children: [
                 TextSpan(
-                  text: calWeekdayShort(locale, day),
+                  text: calWeekdayLong(locale, day),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -1404,6 +1411,12 @@ class A2TimeGridView extends StatelessWidget {
   }
 
   Widget _deadlineLane(BuildContext context, AppLocalizations l) {
+    final hasDeadlines = deadlines.any(
+      (deadline) => days.any((day) => calSameDay(deadline.due, day)),
+    );
+    // Spec mobileCalendar never draws an empty 截止 row; the desktop keeps the
+    // fixed 30px lane so the 7 columns stay aligned.
+    if (!isDesktop && !hasDeadlines) return const SizedBox.shrink();
     final label = Container(
       width: _a2Gutter,
       alignment: Alignment.centerRight,
@@ -1803,7 +1816,7 @@ class _DayHeadCellState extends State<_DayHeadCell> {
 
   @override
   Widget build(BuildContext context) {
-    final weekdayStr = calWeekdayShort(widget.locale, widget.day);
+    final weekdayStr = calWeekdayLong(widget.locale, widget.day);
     final dayNum = widget.day.day.toString();
 
     final Widget content = Container(
@@ -2196,10 +2209,12 @@ class A2PhoneWeekList extends StatelessWidget {
     required this.events,
     required this.allocations,
     required this.deadlines,
-    this.onSelectDay,
     this.onEvent,
     this.onAllocation,
     this.onDeadline,
+    this.onReschedule,
+    this.onCreateAtDay,
+    this.onSlot,
   });
 
   final List<DateTime> days;
@@ -2207,156 +2222,345 @@ class A2PhoneWeekList extends StatelessWidget {
   final List<CalendaEventAdapter> events;
   final List<TaskAllocationCalendarItem> allocations;
   final List<CalendarDeadline> deadlines;
-  final ValueChanged<DateTime>? onSelectDay;
   final ValueChanged<CalendaEventAdapter>? onEvent;
   final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
   final ValueChanged<CalendarDeadline>? onDeadline;
+  final void Function(CalBlockItem item, int minutes)? onReschedule;
+  final ValueChanged<DateTime>? onCreateAtDay;
+  final ValueChanged<DateTimeRange>? onSlot;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      key: const ValueKey('phone-week-list-view'),
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
+      itemCount: days.length,
+      itemBuilder: (context, index) => _A2PhoneWeekDay(
+        day: days[index],
+        today: today,
+        events: events,
+        allocations: allocations,
+        deadlines: deadlines,
+        onEvent: onEvent,
+        onAllocation: onAllocation,
+        onDeadline: onDeadline,
+        onReschedule: onReschedule,
+        onCreateAtDay: onCreateAtDay,
+        onSlot: onSlot,
+      ),
+    );
+  }
+}
+
+// One day group of the spec's .m-week-list: a date head, then the day's
+// events, plans and deadlines as rows. The desktop 7-column grid is a
+// separate widget; this list is the phone structure.
+class _A2PhoneWeekDay extends StatelessWidget {
+  const _A2PhoneWeekDay({
+    required this.day,
+    required this.today,
+    required this.events,
+    required this.allocations,
+    required this.deadlines,
+    this.onEvent,
+    this.onAllocation,
+    this.onDeadline,
+    this.onReschedule,
+    this.onCreateAtDay,
+    this.onSlot,
+  });
+
+  final DateTime day;
+  final DateTime today;
+  final List<CalendaEventAdapter> events;
+  final List<TaskAllocationCalendarItem> allocations;
+  final List<CalendarDeadline> deadlines;
+  final ValueChanged<CalendaEventAdapter>? onEvent;
+  final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
+  final ValueChanged<CalendarDeadline>? onDeadline;
+  final void Function(CalBlockItem item, int minutes)? onReschedule;
+  final ValueChanged<DateTime>? onCreateAtDay;
+  final ValueChanged<DateTimeRange>? onSlot;
+
+  static const double _dragHourHeight = 54;
+
+  bool _eventOnDay(CalendaEventAdapter event) {
+    if (calSameDay(event.start, day)) return true;
+    if (event.isAllDay || !calSameDay(event.start, event.end)) {
+      return calAllDayEvents(day: day, events: [event]).isNotEmpty;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final locale = Localizations.localeOf(context).toString();
     final l = AppLocalizations.of(context)!;
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-      itemCount: days.length,
-      itemBuilder: (context, index) {
-        final day = days[index];
-        final isDayToday = calSameDay(day, today);
-        final dayEvents = [
-          for (final e in events)
-            if (calSameDay(e.start, day) || calSameDay(e.seriesStart, day)) e,
-        ];
-        final dayAllocations = [
-          for (final a in allocations)
-            if (calSameDay(a.allocation.startAt.toLocal(), day)) a,
-        ];
-        final dayDeadlines = [
-          for (final d in deadlines)
-            if (calSameDay(d.due, day)) d,
-        ];
-        final totalCount =
-            dayEvents.length + dayAllocations.length + dayDeadlines.length;
+    final locale = Localizations.localeOf(context).toString();
+    final isToday = calSameDay(day, today);
+    final dayEvents = [
+      for (final event in events)
+        if (_eventOnDay(event)) event,
+    ]..sort((a, b) => a.start.compareTo(b.start));
+    final dayAllocations = [
+      for (final item in allocations)
+        if (calSameDay(item.allocation.startAt.toLocal(), day)) item,
+    ]..sort(
+        (a, b) => a.allocation.startAt.compareTo(b.allocation.startAt),
+      );
+    final dayDeadlines = [
+      for (final deadline in deadlines)
+        if (calSameDay(deadline.due, day)) deadline,
+    ]..sort((a, b) => a.due.compareTo(b.due));
+    final count = dayEvents.length + dayAllocations.length + dayDeadlines.length;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: ds.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isDayToday ? ds.primary.withValues(alpha: 0.3) : ds.line,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Day head
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isDayToday ? ds.primaryTint : ds.surface2,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                  border: Border(bottom: BorderSide(color: ds.lineSoft)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${calWeekdayShort(locale, day)} · ${day.day}',
-                      style: _a2Text(
-                        12,
-                        FontWeight.w600,
-                        isDayToday ? ds.primary : ds.ink,
-                      ),
+    return Container(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF2F2ED))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${calWeekdayLong(locale, day)} · ${day.day}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isToday ? SpecTokens.red : SpecTokens.ink2,
+                      fontFamilyFallback: AppTypography.fallback,
                     ),
-                    Text(
-                      l.dayItemCount(totalCount),
-                      style: _a2Text(10.5, FontWeight.w400, ds.ink3),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              // Items list stacked
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  children: [
-                    for (final event in dayEvents)
-                      _mobileWeekItem(
-                        context,
-                        title: '${event.isAllDay ? l.allDayLabel : DateFormatters.formatTime(event.start)} ${event.title}',
-                        color: ds.eventAccent(event.color ?? ds.primary),
-                        isPlan: false,
-                        onTap: () => onEvent?.call(event),
-                      ),
-                    for (final alloc in dayAllocations)
-                      _mobileWeekItem(
-                        context,
-                        title: '${DateFormatters.formatTime(alloc.allocation.startAt.toLocal())} ${alloc.todo.summary}',
-                        color: ds.work,
-                        isPlan: true,
-                        onTap: () => onAllocation?.call(alloc),
-                      ),
-                    for (final dl in dayDeadlines)
-                      _mobileWeekItem(
-                        context,
-                        title: '${l.deadline} ${dl.title}',
-                        color: dl.due.isBefore(today) ? ds.danger : ds.warn,
-                        isPlan: false,
-                        onTap: () => onDeadline?.call(dl),
-                      ),
-                    if (totalCount == 0)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          l.noSchedule,
-                          style: _a2Text(10.5, FontWeight.w400, ds.ink3),
+                Text(
+                  l.dayItemCount(count),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: SpecTokens.muted,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                if (onCreateAtDay != null)
+                  Semantics(
+                    button: true,
+                    label: l.newEvent,
+                    child: InkResponse(
+                      key: ValueKey('phone-week-add-${day.toIso8601String()}'),
+                      onTap: () => onCreateAtDay!(day),
+                      radius: 22,
+                      child: const SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: Icon(
+                          CupertinoIcons.add,
+                          size: 15,
+                          color: SpecTokens.faint,
                         ),
                       ),
-                  ],
-                ),
-              ),
-            ],
+                    ),
+                  ),
+              ],
+            ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _mobileWeekItem(
-    BuildContext context, {
-    required String title,
-    required Color color,
-    required bool isPlan,
-    required VoidCallback onTap,
-  }) {
-    final ds = context.ds;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: isPlan ? const Color(0xFFF1F0EA) : ds.surface2,
-          borderRadius: BorderRadius.circular(4),
-          border: Border(left: BorderSide(color: color, width: 3)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _a2Text(
-                  11,
-                  FontWeight.w400,
-                  isPlan ? const Color(0xFF3B3B33) : ds.ink,
+          if (count == 0)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onSlot == null && onCreateAtDay == null
+                  ? null
+                  : () {
+                      if (onSlot != null) {
+                        onSlot!(
+                          DateTimeRange(
+                            start: DateTime(day.year, day.month, day.day, 9),
+                            end: DateTime(day.year, day.month, day.day, 10),
+                          ),
+                        );
+                      } else {
+                        onCreateAtDay!(day);
+                      }
+                    },
+              child: SizedBox(
+                height: 32,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    l.noSchedule,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      color: ds.ink3,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
                 ),
               ),
             ),
-          ],
+          for (final event in dayEvents)
+            _A2PhoneWeekItem(
+              color: event.color ?? ds.ink3,
+              label: TextSpan(
+                children: [
+                  TextSpan(
+                    text: event.isAllDay
+                        ? '${l.allDayLabel} '
+                        : '${DateFormatters.formatTime(event.start)} ',
+                    style: const TextStyle(color: SpecTokens.muted),
+                  ),
+                  TextSpan(text: event.title),
+                  if (event.rrule != null || event.isRecurringOccurrence)
+                    const TextSpan(text: ' ↻'),
+                ],
+              ),
+              onTap: onEvent == null ? null : () => onEvent!(event),
+              onReschedule: onReschedule == null || !CalBlockItem.event(event).canDrag
+                  ? null
+                  : (minutes) => onReschedule!(
+                        CalBlockItem.event(event),
+                        minutes,
+                      ),
+              dragHourHeight: _dragHourHeight,
+            ),
+          for (final item in dayAllocations)
+            _A2PhoneWeekItem(
+              color: ds.work,
+              label: TextSpan(
+                children: [
+                  TextSpan(
+                    text:
+                        '${DateFormatters.formatTime(item.allocation.startAt.toLocal())} ',
+                    style: const TextStyle(color: SpecTokens.muted),
+                  ),
+                  TextSpan(text: item.todo.summary),
+                  TextSpan(
+                    text: ' ${l.scheduledLabel}',
+                    style: const TextStyle(color: SpecTokens.faint),
+                  ),
+                ],
+              ),
+              onTap: onAllocation == null ? null : () => onAllocation!(item),
+              onReschedule: onReschedule == null
+                  ? null
+                  : (minutes) => onReschedule!(
+                        CalBlockItem.allocation(
+                          TaskAllocationCalendarAdapter.fromItem(item),
+                        ),
+                        minutes,
+                      ),
+              dragHourHeight: _dragHourHeight,
+            ),
+          for (final deadline in dayDeadlines)
+            _A2PhoneWeekItem(
+              color: deadline.due.isBefore(today)
+                  ? SpecTokens.red
+                  : SpecTokens.amber,
+              label: TextSpan(
+                text: '${l.deadline} ${deadline.title}',
+                style: TextStyle(
+                  color: deadline.due.isBefore(today)
+                      ? SpecTokens.red
+                      : SpecTokens.amber,
+                ),
+              ),
+              onTap: onDeadline == null ? null : () => onDeadline!(deadline),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _A2PhoneWeekItem extends StatefulWidget {
+  const _A2PhoneWeekItem({
+    required this.color,
+    required this.label,
+    this.onTap,
+    this.onReschedule,
+    this.dragHourHeight = 54,
+  });
+
+  final Color color;
+  final InlineSpan label;
+  final VoidCallback? onTap;
+  final ValueChanged<int>? onReschedule;
+  final double dragHourHeight;
+
+  @override
+  State<_A2PhoneWeekItem> createState() => _A2PhoneWeekItemState();
+}
+
+class _A2PhoneWeekItemState extends State<_A2PhoneWeekItem> {
+  double _dragDy = 0;
+
+  bool get _canDrag => widget.onReschedule != null;
+
+  void _finishDrag() {
+    final minutes = (_dragDy / widget.dragHourHeight * 60).round();
+    setState(() => _dragDy = 0);
+    final snapped = (minutes / 30).round() * 30;
+    if (snapped != 0) widget.onReschedule!(snapped);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        onLongPressStart: _canDrag
+            ? (_) {
+                HapticFeedback.mediumImpact();
+                setState(() => _dragDy = 0);
+              }
+            : null,
+        onLongPressMoveUpdate: _canDrag
+            ? (details) => setState(() => _dragDy = details.offsetFromOrigin.dy)
+            : null,
+        onLongPressEnd: _canDrag ? (_) => _finishDrag() : null,
+        child: Transform.translate(
+          offset: Offset(0, _dragDy),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 28),
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+            decoration: _dragDy == 0
+                ? null
+                : BoxDecoration(
+                    color: SpecTokens.wash,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+            child: Row(
+              children: [
+                Container(
+                  width: 3,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: widget.color,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text.rich(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      height: 1.45,
+                      color: SpecTokens.ink2,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -2430,7 +2634,7 @@ class A2PhoneDayList extends StatelessWidget {
                 TextSpan(
                   children: [
                     TextSpan(
-                      text: isToday ? l.today : calWeekdayShort(locale, day),
+                      text: isToday ? l.today : calWeekdayLong(locale, day),
                       style: _a2Text(12, FontWeight.w500, ds.ink),
                     ),
                     TextSpan(

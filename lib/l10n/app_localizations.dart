@@ -1481,6 +1481,18 @@ abstract class AppLocalizations {
   /// **'{month}/{day}'**
   String dateLabel(int month, int day);
 
+  /// No description provided for @calendarMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{month} {day}'**
+  String calendarMonthDay(String month, String day);
+
+  /// No description provided for @calendarDateRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} – {end}'**
+  String calendarDateRange(String start, String end);
+
   /// No description provided for @openUpdatePage.
   ///
   /// In en, this message translates to:

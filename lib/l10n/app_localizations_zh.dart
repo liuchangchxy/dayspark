@@ -752,6 +752,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String calendarMonthDay(String month, String day) {
+    return '$month 月 $day 日';
+  }
+
+  @override
+  String calendarDateRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
   String get openUpdatePage => '查看更新';
 
   @override

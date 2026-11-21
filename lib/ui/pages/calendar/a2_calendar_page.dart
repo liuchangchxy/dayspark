@@ -242,9 +242,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         return (l.calendar, subtitle);
       case CalendarViewMode.week:
         final end = weekStart.add(const Duration(days: 6));
-        final title =
-            '${DateFormat.MMMd(locale).format(weekStart)} – '
-            '${DateFormat.d(locale).format(end)}';
+        final title = calDateRangeLabel(l, locale, weekStart, end);
         final subtitle =
             '${_yearMonth(l, weekStart)} · '
             '${l.weekNumberLabel(_isoWeek(weekStart))}';
@@ -375,7 +373,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     final actions = <Widget>[
       A2IconAction(
         key: const ValueKey('calendar-filter-button'),
-        icon: CupertinoIcons.line_horizontal_3_decrease,
+        icon: Icons.filter_alt_outlined,
         tooltip: l.showCalendars,
         onPressed: () => CalendarFilterSheet.show(context),
       ),
@@ -430,16 +428,19 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
             onNext: () => _shift(1),
           ),
           Expanded(
-            child: _timeGrid(
+            child: A2PhoneWeekList(
+              key: const ValueKey('phone-week-list'),
               days: days,
-              selected: browse,
-              now: now,
-              names: names,
+              today: calDayOf(now),
               events: visibleEvents,
               allocations: visibleAllocations,
               deadlines: visibleDeadlines,
-              dayMode: false,
-              isDesktop: false,
+              onEvent: widget.onEventTapped,
+              onAllocation: widget.onAllocationTapped,
+              onDeadline: widget.onDeadlineTapped,
+              onReschedule: _reschedule,
+              onCreateAtDay: widget.onCreateAtDay,
+              onSlot: widget.onTimeSlotTapped,
             ),
           ),
         ],
@@ -612,11 +613,10 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     final weekEnd = weekStart.add(const Duration(days: 6));
     final sub = switch (mode) {
       CalendarViewMode.month => _yearMonth(l, browse),
-      CalendarViewMode.week => weekStart.month == weekEnd.month
-          ? '${DateFormat.MMMd(locale).format(weekStart)} – ${DateFormat.d(locale).format(weekEnd)}'
-          : '${DateFormat.MMMd(locale).format(weekStart)} – ${DateFormat.MMMd(locale).format(weekEnd)}',
+      CalendarViewMode.week => calDateRangeLabel(l, locale, weekStart, weekEnd),
       CalendarViewMode.day =>
-        '${calWeekdayShort(locale, browse)} · ${DateFormat.MMMd(locale).format(browse)}',
+        '${calWeekdayLong(locale, browse)} · '
+            '${calMonthDayLabel(l, locale, browse)}',
     };
 
     final left = Row(
@@ -668,7 +668,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       ),
       _SpecToolButton(
         key: const ValueKey('calendar-filter-button'),
-        icon: CupertinoIcons.line_horizontal_3_decrease,
+        icon: Icons.filter_alt_outlined,
         label: l.showCalendars,
         active: hidden.isNotEmpty,
         onTap: () => CalendarFilterSheet.show(context),
