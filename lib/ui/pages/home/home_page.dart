@@ -1192,14 +1192,15 @@ class _DesktopBar extends StatelessWidget {
                           color: SpecTokens.muted,
                         ),
                         const SizedBox(width: 5),
-                        Text(
-                          l.search,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            color: SpecTokens.muted,
-                            fontFamilyFallback: AppTypography.fallback,
+                        if (isWide)
+                          Text(
+                            l.search,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: SpecTokens.muted,
+                              fontFamilyFallback: AppTypography.fallback,
+                            ),
                           ),
-                        ),
                         if (isWide) ...[
                           const SizedBox(width: 5),
                           Container(
