@@ -1366,5 +1366,20 @@
         "type": "String"
       }
     }
+  },
+  "tasksZoneLabel": "TASKS",
+  "timeZoneLabel": "TIME",
+  "captureDefaultSub": "No date · Personal",
+  "planTagLabel": "Plan",
+  "todayDateSubtitle": "{date} · {weekday}",
+  "@todayDateSubtitle": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "weekday": {
+        "type": "String"
+      }
+    }
   }
 }

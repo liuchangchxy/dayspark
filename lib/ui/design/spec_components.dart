@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 
 /// Frozen spec checkbox: 16x16 circle, 1.4px border.
 /// When checked: SpecTokens.ink fill and white checkmark icon.
@@ -296,7 +297,7 @@ class SpecTimeBlock extends StatelessWidget {
     this.checked = false,
     this.onToggle,
     this.done = false,
-    this.planLabel = '计划',
+    this.planLabel,
   });
 
   final SpecTimeBlockKind kind;
@@ -308,7 +309,7 @@ class SpecTimeBlock extends StatelessWidget {
   final bool checked;
   final ValueChanged<bool>? onToggle;
   final bool done;
-  final String planLabel;
+  final String? planLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -352,7 +353,7 @@ class SpecTimeBlock extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
-                    planLabel,
+                    planLabel ?? AppLocalizations.of(context)?.planTagLabel ?? 'Plan',
                     style: const TextStyle(
                       fontSize: 8.5,
                       fontWeight: FontWeight.w600,

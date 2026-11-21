@@ -4294,6 +4294,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Marked completed · {title}'**
   String markedCompleted(String title);
+
+  /// No description provided for @tasksZoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TASKS'**
+  String get tasksZoneLabel;
+
+  /// No description provided for @timeZoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TIME'**
+  String get timeZoneLabel;
+
+  /// No description provided for @captureDefaultSub.
+  ///
+  /// In en, this message translates to:
+  /// **'No date · Personal'**
+  String get captureDefaultSub;
+
+  /// No description provided for @planTagLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get planTagLabel;
+
+  /// No description provided for @todayDateSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {weekday}'**
+  String todayDateSubtitle(String date, String weekday);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

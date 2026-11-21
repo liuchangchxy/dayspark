@@ -2295,4 +2295,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String markedCompleted(String title) {
     return '已标记完成 · $title';
   }
+
+  @override
+  String get tasksZoneLabel => '任务';
+
+  @override
+  String get timeZoneLabel => '时间';
+
+  @override
+  String get captureDefaultSub => '无日期 · 个人';
+
+  @override
+  String get planTagLabel => '计划';
+
+  @override
+  String todayDateSubtitle(String date, String weekday) {
+    return '$date · $weekday';
+  }
 }

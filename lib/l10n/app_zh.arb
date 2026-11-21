@@ -1089,5 +1089,20 @@
         "type": "String"
       }
     }
+  },
+  "tasksZoneLabel": "任务",
+  "timeZoneLabel": "时间",
+  "captureDefaultSub": "无日期 · 个人",
+  "planTagLabel": "计划",
+  "todayDateSubtitle": "{date} · {weekday}",
+  "@todayDateSubtitle": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "weekday": {
+        "type": "String"
+      }
+    }
   }
 }

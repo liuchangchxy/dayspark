@@ -2319,4 +2319,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String markedCompleted(String title) {
     return 'Marked completed · $title';
   }
+
+  @override
+  String get tasksZoneLabel => 'TASKS';
+
+  @override
+  String get timeZoneLabel => 'TIME';
+
+  @override
+  String get captureDefaultSub => 'No date · Personal';
+
+  @override
+  String get planTagLabel => 'Plan';
+
+  @override
+  String todayDateSubtitle(String date, String weekday) {
+    return '$date · $weekday';
+  }
 }

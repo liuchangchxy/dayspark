@@ -49,200 +49,209 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
     final tab = ref.watch(workspaceTabProvider);
     final now = (widget.clock ?? DateTime.now)();
 
-    return Container(
-      height: SparkTopBar.height,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: const BoxDecoration(
-        color: SpecTokens.paper,
-        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1.0)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: SpecTokens.ink,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Text(
-              'D',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                height: 1,
-                color: Colors.white,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 900;
+        return Container(
+          height: SparkTopBar.height,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: const BoxDecoration(
+            color: SpecTokens.paper,
+            border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1.0)),
           ),
-          const SizedBox(width: 8),
-          const Text(
-            'DaySpark',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.13,
-              color: SpecTokens.ink,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
-          ),
-          const SizedBox(width: 26),
-          Row(
+          child: Row(
             children: [
-              _DesktopNavButton(
-                label: l.today,
-                selected: tab == AppTab.action,
-                onTap: () => _goToday(now),
-              ),
-              _DesktopNavButton(
-                key: const ValueKey('nav-todos'),
-                label: l.todos,
-                selected: tab == AppTab.todos,
-                onTap: () => _selectTodos(),
-              ),
-              _DesktopNavButton(
-                label: l.calendar,
-                selected: tab == AppTab.calendar,
-                onTap: () => _selectCalendar(),
-              ),
-            ],
-          ),
-          const Spacer(),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              key: const ValueKey('nav-search'),
-              behavior: HitTestBehavior.opaque,
-              onTap: () => context.push('/search'),
-              child: Container(
-                height: 28,
-                padding: const EdgeInsets.symmetric(horizontal: 9),
+              Container(
+                width: 20,
+                height: 20,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: SpecTokens.wash,
-                  border: Border.all(color: SpecTokens.hair2, width: 1.0),
-                  borderRadius: BorderRadius.circular(6),
+                  color: SpecTokens.ink,
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      CupertinoIcons.search,
-                      size: 12,
-                      color: SpecTokens.muted,
+                child: const Text(
+                  'D',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
+                    color: Colors.white,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'DaySpark',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.13,
+                  color: SpecTokens.ink,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Row(
+                children: [
+                  _DesktopNavButton(
+                    label: l.today,
+                    selected: tab == AppTab.action,
+                    onTap: () => _goToday(now),
+                  ),
+                  _DesktopNavButton(
+                    key: const ValueKey('nav-todos'),
+                    label: l.todos,
+                    selected: tab == AppTab.todos,
+                    onTap: () => _selectTodos(),
+                  ),
+                  _DesktopNavButton(
+                    label: l.calendar,
+                    selected: tab == AppTab.calendar,
+                    onTap: () => _selectCalendar(),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  key: const ValueKey('nav-search'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => context.push('/search'),
+                  child: Container(
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: SpecTokens.wash,
+                      border: Border.all(color: SpecTokens.hair2, width: 1.0),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      l.search,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: SpecTokens.muted,
-                        fontFamilyFallback: AppTypography.fallback,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.search,
+                          size: 12,
+                          color: SpecTokens.muted,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          l.search,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: SpecTokens.muted,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                        ),
+                        if (isWide) ...[
+                          const SizedBox(width: 5),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 3,
+                              vertical: 1,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: SpecTokens.hair2, width: 1.0),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: const Text(
+                              '⌘ K',
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                color: SpecTokens.faint,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => context.push('/quick-add'),
+                  child: Container(
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: SpecTokens.ink,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.plus,
+                          size: 12,
+                          color: SpecTokens.paper,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          l.captureQuickAddLabel,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: SpecTokens.paper,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (isWide) ...[
+                const SizedBox(width: 10),
+                Text(
+                  DateFormatters.formatTime(now),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: SpecTokens.faint,
+                    fontFeatures: AppTypography.tabular,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 10),
+              Tooltip(
+                message: l.settings,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => context.push('/settings'),
+                    child: Container(
+                      width: 26,
+                      height: 26,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: SpecTokens.hair,
+                        shape: BoxShape.circle,
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: SpecTokens.hair2, width: 1.0),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: const Text(
-                        '⌘ K',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          color: SpecTokens.faint,
+                      child: Text(
+                        l.meLabel,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: SpecTokens.ink2,
                           fontFamilyFallback: AppTypography.fallback,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => context.push('/quick-add'),
-              child: Container(
-                height: 28,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: SpecTokens.ink,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      CupertinoIcons.plus,
-                      size: 12,
-                      color: SpecTokens.paper,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      l.captureQuickAddLabel,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: SpecTokens.paper,
-                        fontFamilyFallback: AppTypography.fallback,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            DateFormatters.formatTime(now),
-            style: const TextStyle(
-              fontSize: 12,
-              color: SpecTokens.faint,
-              fontFeatures: AppTypography.tabular,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Tooltip(
-            message: l.settings,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => context.push('/settings'),
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: SpecTokens.hair,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    l.meLabel,
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: SpecTokens.ink2,
-                      fontFamilyFallback: AppTypography.fallback,
-                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

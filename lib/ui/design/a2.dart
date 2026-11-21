@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 
 /// A″ primitives: the shapes the accepted final design defines once and every
@@ -573,6 +575,8 @@ class A2CaptureBar extends StatefulWidget {
     required this.onSubmit,
     this.onFocusChange,
     this.fieldKey,
+    this.initialDraft,
+    this.onDraftChanged,
   });
 
   final String placeholder;
@@ -580,19 +584,27 @@ class A2CaptureBar extends StatefulWidget {
   final Future<void> Function(String text) onSubmit;
   final ValueChanged<bool>? onFocusChange;
   final Key? fieldKey;
+  final String? initialDraft;
+  final ValueChanged<String>? onDraftChanged;
 
   @override
   State<A2CaptureBar> createState() => A2CaptureBarState();
 }
 
 class A2CaptureBarState extends State<A2CaptureBar> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller;
   final FocusNode _focus = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    _controller = TextEditingController(text: widget.initialDraft);
+    _controller.addListener(_onTextChanged);
     _focus.addListener(_onFocus);
+  }
+
+  void _onTextChanged() {
+    widget.onDraftChanged?.call(_controller.text);
   }
 
   void _onFocus() {
@@ -601,8 +613,19 @@ class A2CaptureBarState extends State<A2CaptureBar> {
   }
 
   @override
+  void didUpdateWidget(covariant A2CaptureBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialDraft != null &&
+        widget.initialDraft != oldWidget.initialDraft &&
+        widget.initialDraft != _controller.text) {
+      _controller.text = widget.initialDraft!;
+    }
+  }
+
+  @override
   void dispose() {
     _focus.removeListener(_onFocus);
+    _controller.removeListener(_onTextChanged);
     _focus.dispose();
     _controller.dispose();
     super.dispose();
@@ -612,6 +635,7 @@ class A2CaptureBarState extends State<A2CaptureBar> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
+    widget.onDraftChanged?.call('');
     await widget.onSubmit(text);
     if (!mounted) return;
     _focus.requestFocus();
@@ -620,59 +644,130 @@ class A2CaptureBarState extends State<A2CaptureBar> {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
     final active = _focus.hasFocus;
-    return Container(
-      height: kA2CaptureHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: ds.bg,
-        border: Border(top: BorderSide(color: ds.lineSoft)),
-      ),
-      child: Row(
-        children: [
-          Icon(CupertinoIcons.plus, size: 16, color: ds.ink3),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-                key: widget.fieldKey,
-                controller: _controller,
-                focusNode: _focus,
-                maxLines: 1,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-                cursorColor: ds.primary,
-                style: _t(
-                  15,
-                  FontWeight.w400,
-                  active ? ds.ink : ds.ink3,
-                  height: 1.45,
+    final l = AppLocalizations.of(context);
+    final typeText = l?.captureTypeTodo ?? 'Task';
+    final subText = l?.captureDefaultDate ?? 'No date · Personal';
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 500;
+        return Container(
+          height: kA2CaptureHeight,
+          margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
+          decoration: BoxDecoration(
+            color: SpecTokens.paper,
+            border: Border.all(color: SpecTokens.hair2),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A191918),
+                blurRadius: 26,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: SpecTokens.wash,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                decoration: InputDecoration(
-                  isDense: true,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintText: widget.placeholder,
-                  hintStyle: _t(
-                    15,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.checkmark,
+                      size: 9.5,
+                      color: SpecTokens.ink,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      typeText,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: SpecTokens.ink,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (!isNarrow) ...[
+                const SizedBox(width: 6),
+                Text(
+                  subText,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    color: SpecTokens.faint,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  key: widget.fieldKey,
+                  controller: _controller,
+                  focusNode: _focus,
+                  maxLines: 1,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
+                  cursorColor: SpecTokens.ink,
+                  style: _t(
+                    13,
                     FontWeight.w400,
-                    ds.ink3,
+                    active ? SpecTokens.ink : SpecTokens.muted,
                     height: 1.45,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintText: widget.placeholder,
+                    hintStyle: _t(
+                      13,
+                      FontWeight.w400,
+                      SpecTokens.faint,
+                      height: 1.45,
+                    ),
                   ),
                 ),
               ),
+              if (widget.hint.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  widget.hint,
+                  style: _t(11, FontWeight.w400, SpecTokens.faint).copyWith(
+                    fontFeatures: AppTypography.tabular,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: _submit,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: SpecTokens.wash,
+                  ),
+                  child: const Icon(
+                    CupertinoIcons.plus,
+                    size: 14,
+                    color: SpecTokens.ink,
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text(
-            widget.hint,
-            style: _t(11, FontWeight.w400, ds.faint).copyWith(
-              fontFeatures: AppTypography.tabular,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -990,38 +1085,39 @@ class A2TimelineItem extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: timeColumn,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(0, 12, 10, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  timeLabel,
-                  maxLines: 1,
-                  softWrap: false,
-                  style: _t(
-                    12,
-                    FontWeight.w400,
-                    timeColor ?? ds.ink3,
-                    height: 1,
-                  ).copyWith(fontFeatures: AppTypography.tabular),
-                ),
-                if (durationLabel != null) ...[
-                  const SizedBox(height: 3),
+        if (timeColumn > 0)
+          SizedBox(
+            width: timeColumn,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 12, 10, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    durationLabel!,
+                    timeLabel,
                     maxLines: 1,
                     softWrap: false,
-                    style: _t(11, FontWeight.w400, ds.faint, height: 1),
+                    style: _t(
+                      12,
+                      FontWeight.w400,
+                      timeColor ?? ds.ink3,
+                      height: 1,
+                    ).copyWith(fontFeatures: AppTypography.tabular),
                   ),
+                  if (durationLabel != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      durationLabel!,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: _t(11, FontWeight.w400, ds.faint, height: 1),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
-        ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 16, 8),

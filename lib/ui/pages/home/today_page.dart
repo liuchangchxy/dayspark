@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -19,6 +20,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
@@ -66,6 +68,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Timer? _toastTimer;
   bool _capturing = false;
   bool _captureFocused = false;
+  String _captureDraft = '';
   double? _lastViewport;
 
   /// The one row that was just completed and can still be undone. It is kept
@@ -671,6 +674,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             fieldKey: const ValueKey('today-capture-field'),
             placeholder: l.capturePlaceholder,
             hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
+            initialDraft: _captureDraft,
+            onDraftChanged: (draft) => _captureDraft = draft,
             onSubmit: _capture,
             onFocusChange: (focused) {
               if (_captureFocused != focused) {
@@ -689,6 +694,99 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   // -------------------------------------------------------------- desktop
 
+  Widget _zoneLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.3,
+              color: SpecTokens.faint,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: SpecTokens.hair,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopHead(
+    AppLocalizations l,
+    AsyncValue<ActionProjectionData> data,
+    DayAgenda agenda,
+    int unplannedCount,
+  ) {
+    final projection = data.valueOrNull;
+    final overdueCount = agenda.overdueTodos.length +
+        (projection?.missedTaskInstances.length ?? 0);
+    final dueCount = agenda.dueTodos.length;
+    final doneCount = (projection?.completedTodayTodos.length ?? 0) +
+        (projection?.completedTodayTaskInstances.length ?? 0);
+    final isEmpty = overdueCount == 0 &&
+        dueCount == 0 &&
+        unplannedCount == 0 &&
+        doneCount == 0 &&
+        agenda.events.isEmpty &&
+        agenda.allocations.isEmpty;
+
+    final summary = isEmpty
+        ? l.emptyTodayTitle
+        : '$overdueCount ${l.sectionOverdueLabel} · $dueCount ${l.sectionDueToday} · $unplannedCount ${l.inbox} · $doneCount ${l.completed}';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 14),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            DateFormat.MMMd(_locale).format(widget.now),
+            style: SpecTokens.t26.copyWith(
+              fontWeight: FontWeight.w700,
+              color: SpecTokens.ink,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            DateFormat.E(_locale).format(widget.now),
+            style: SpecTokens.t13.copyWith(
+              color: SpecTokens.muted,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              summary,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: SpecTokens.t11.copyWith(
+                color: SpecTokens.faint,
+                fontFeatures: AppTypography.tabular,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _desktop(
     AppLocalizations l,
     AsyncValue<ActionProjectionData> data,
@@ -696,120 +794,340 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     List<Todo> unplanned,
     int unplannedCount,
   ) {
-    final ds = context.ds;
     final projection = data.valueOrNull;
     final noDue = <Todo>[
       for (final todo in unplanned)
         if (todo.dueDate == null) todo,
     ];
-    // Rule 20 caps the shelf at three rows on every platform. The panel keeps
-    // its scroll position honest by counting every hidden row, including the
-    // deadline-bearing ones the shelf never previews.
     final shelfSource = _injectRecentTodos(noDue, _RecentSection.unplanned);
     final preview = shelfSource.take(3).toList();
     final hidden = unplannedCount - preview.length;
-    final sections = _sections(
-      l,
-      agenda,
-      timeColumn: 46,
-      projection: projection,
+
+    final allCompletedTodos = projection?.completedTodayTodos ?? const <Todo>[];
+    final allCompletedInstances =
+        projection?.completedTodayTaskInstances ??
+        const <ProjectedTaskInstance>[];
+    final recent = _recent;
+    final recentKey = recent == null
+        ? null
+        : _keyOf(recent.todo.id, recent.occurrenceId);
+    final completedTodos = recentKey == null
+        ? allCompletedTodos
+        : [
+            for (final todo in allCompletedTodos)
+              if (_keyOf(todo.id, null) != recentKey) todo,
+          ];
+    final completedInstances = recentKey == null
+        ? allCompletedInstances
+        : [
+            for (final instance in allCompletedInstances)
+              if (_keyOf(instance.todo.id, instance.occurrenceId) != recentKey)
+                instance,
+          ];
+    final completedCount = completedTodos.length + completedInstances.length;
+
+    final overdueItems = _injectRecentDayItems(
+      agenda.overdueTodos,
+      _RecentSection.overdue,
     );
-    final hasShelf = shelfSource.isNotEmpty || unplannedCount > 0;
-    final empty = sections.isEmpty && !hasShelf;
-    final left = sections.isNotEmpty
-        ? sections
-        : empty
-        ? <Widget>[
-            SizedBox(
-              height: 320,
-              child: A2Empty(title: l.emptyTodayTitle, hint: l.emptyTodayHint),
+    final dueItems = _injectRecentDayItems(
+      agenda.dueTodos,
+      _RecentSection.dueToday,
+    );
+    final missed =
+        projection?.missedTaskInstances ?? const <ProjectedTaskInstance>[];
+    final missedItems = _injectRecentInstances(missed, _RecentSection.missed);
+
+    final timed = agenda.timed;
+    bool isRunning(DayItem item) {
+      final start = item.start;
+      final end = item.end;
+      if (start == null || end == null || item.allDay) return false;
+      return !start.isAfter(widget.now) && end.isAfter(widget.now);
+    }
+
+    final running = timed.where(isRunning).toList();
+    final rest = timed
+        .where((item) => !isRunning(item) && !_hasEnded(item))
+        .toList();
+    final ended = timed.where(_hasEnded).toList();
+    final endedItems = _injectRecentDayItems(ended, _RecentSection.ended);
+    final runningItems = _injectRecentDayItems(running, _RecentSection.now);
+
+    final upcoming = <({DayItem item, bool instance})>[
+      for (final item in rest) (item: item, instance: false),
+      for (final instance in agenda.instances) (item: instance, instance: true),
+    ];
+    final upcomingItems = _injectRecentUpcoming(upcoming);
+
+    final allDayEvents = agenda.events.where((e) => e.allDay).toList();
+
+    final taskChildren = <Widget>[
+      _zoneLabel(l.tasksZoneLabel),
+      if (agenda.allocations.isNotEmpty) ...[
+        A2GroupHead(
+          label: l.planTagLabel,
+          count: agenda.allocations.length,
+          countLabel: l.groupCountItems(agenda.allocations.length),
+          tone: SpecTokens.work,
+          topBorder: false,
+        ),
+        for (var i = 0; i < agenda.allocations.length; i++)
+          _timelineItem(
+            agenda.allocations[i],
+            0,
+            section: _RecentSection.upcoming,
+            index: i,
+          ),
+      ],
+      if (overdueItems.isNotEmpty) ...[
+        A2GroupHead(
+          label: l.sectionOverdueLabel,
+          count: overdueItems.length,
+          countLabel: l.groupCountItems(overdueItems.length),
+          danger: true,
+          tone: SpecTokens.red,
+          topBorder: false,
+        ),
+        for (var i = 0; i < overdueItems.length; i++)
+          _timelineItem(
+            overdueItems[i],
+            0,
+            section: _RecentSection.overdue,
+            index: i,
+          ),
+      ],
+      if (dueItems.isNotEmpty) ...[
+        A2GroupHead(
+          label: l.sectionDueToday,
+          count: dueItems.length,
+          countLabel: l.groupCountItems(dueItems.length),
+          tone: SpecTokens.amber,
+          topBorder: false,
+        ),
+        for (var i = 0; i < dueItems.length; i++)
+          _timelineItem(
+            dueItems[i],
+            0,
+            section: _RecentSection.dueToday,
+            index: i,
+          ),
+      ],
+      if (missedItems.isNotEmpty) ...[
+        A2GroupHead(
+          label: l.missed,
+          count: missedItems.length,
+          countLabel: l.groupCountItems(missedItems.length),
+          danger: true,
+          tone: SpecTokens.red,
+          topBorder: false,
+        ),
+        for (var i = 0; i < missedItems.length; i++)
+          _missedInstanceRow(
+            missedItems[i],
+            section: _RecentSection.missed,
+            index: i,
+          ),
+      ],
+      A2GroupHead(
+        label: l.inbox,
+        count: unplannedCount,
+        countLabel: l.groupCountItems(unplannedCount),
+        topBorder: false,
+        trailing: const Icon(
+          CupertinoIcons.chevron_up,
+          size: 14,
+          color: SpecTokens.faint,
+        ),
+        onTap: widget.onOpenUnplanned,
+      ),
+      if (preview.isEmpty && unplannedCount == 0 && shelfSource.isEmpty)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Text(
+            l.unplannedGroupEmpty,
+            style: SpecTokens.t11.copyWith(
+              color: SpecTokens.faint,
             ),
-          ]
-        : <Widget>[
-            // The timeline has nothing, but the shelf carries the day: say so
-            // instead of drawing an empty box that contradicts the panel.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(2, 24, 2, 0),
-              child: Text(
-                l.todayStillOpen(unplannedCount),
-                style: TextStyle(
-                  fontSize: 13,
-                  color: ds.ink3,
-                  fontFamilyFallback: AppTypography.fallback,
+          ),
+        ),
+      for (final (index, todo) in preview.indexed)
+        _unplannedRow(l, todo, compact: true, index: index),
+      if (hidden > 0) _showAllRow(l, hidden),
+      const SizedBox(height: 16),
+    ];
+
+    final timeChildren = <Widget>[
+      _zoneLabel(l.timeZoneLabel),
+      if (allDayEvents.isNotEmpty)
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: SpecTokens.wash,
+            borderRadius: BorderRadius.circular(SpecTokens.r6),
+            border: Border.all(color: SpecTokens.hair),
+          ),
+          child: Row(
+            children: [
+              Text(
+                l.allDayLabel,
+                style: SpecTokens.t11.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: SpecTokens.muted,
                 ),
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final ev in allDayEvents)
+                      SpecChip(
+                        label: ev.title,
+                        tone: SpecChipTone.plan,
+                        onTap: () => _openEvent(ev.event!),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      if (endedItems.isNotEmpty) ...[
+        A2GroupHead(
+          label: l.actionEarlierToday,
+          count: endedItems.length,
+          topBorder: false,
+        ),
+        for (var i = 0; i < endedItems.length; i++)
+          _timelineItem(
+            endedItems[i],
+            46,
+            section: _RecentSection.ended,
+            index: i,
+          ),
+      ],
+      SpecNowLine(time: DateFormatters.formatTime(widget.now)),
+      if (runningItems.isNotEmpty) ...[
+        A2GroupHead(
+          label: l.sectionNow,
+          tone: SpecTokens.scheduleBlue,
+          topBorder: false,
+        ),
+        for (var i = 0; i < runningItems.length; i++)
+          _timelineItem(
+            runningItems[i],
+            46,
+            section: _RecentSection.now,
+            index: i,
+          ),
+      ],
+      if (upcomingItems.isNotEmpty) ...[
+        A2GroupHead(
+          label: l.sectionUpcoming,
+          count: upcomingItems.length,
+          topBorder: false,
+        ),
+        for (var i = 0; i < upcomingItems.length; i++)
+          if (upcomingItems[i].instance)
+            A2TimelineItem(
+              timeLabel: upcomingItems[i].item.start == null ||
+                      upcomingItems[i].item.allDay
+                  ? l.allDayLabel
+                  : DateFormatters.formatTime(upcomingItems[i].item.start!),
+              timeColumn: 46,
+              child: _block(
+                l,
+                upcomingItems[i].item,
+                kind: A2BlockKind.due,
+                accent: SpecTokens.work,
+                section: _RecentSection.upcoming,
+                index: i,
+              ),
+            )
+          else
+            _timelineItem(
+              upcomingItems[i].item,
+              46,
+              section: _RecentSection.upcoming,
+              index: i,
             ),
-          ];
+      ],
+      if (completedCount > 0) ...[
+        A2GroupHead(
+          label: l.completedTodaySection,
+          count: completedCount,
+          countLabel: l.groupCountItems(completedCount),
+          topBorder: false,
+          trailing: Icon(
+            _completedExpanded
+                ? CupertinoIcons.chevron_up
+                : CupertinoIcons.chevron_down,
+            size: 14,
+            color: SpecTokens.faint,
+          ),
+          onTap: () => setState(() => _completedExpanded = !_completedExpanded),
+        ),
+        if (_completedExpanded) ...[
+          for (final todo in completedTodos) _completedTodoRow(todo),
+          for (final instance in completedInstances)
+            _completedInstanceRow(instance),
+        ],
+      ],
+      if (allDayEvents.isEmpty &&
+          endedItems.isEmpty &&
+          runningItems.isEmpty &&
+          upcomingItems.isEmpty &&
+          completedCount == 0)
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Text(
+              l.emptyTodayTitle,
+              style: SpecTokens.t13.copyWith(
+                color: SpecTokens.muted,
+              ),
+            ),
+          ),
+        ),
+      const SizedBox(height: 16),
+    ];
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1240),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+    final desktopContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _desktopHead(l, data, agenda, unplannedCount),
+        Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: _listSlot(
-                  l,
-                  data,
-                  Listener(
+              SizedBox(
+                width: 380,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: SpecTokens.paper,
+                    border: Border(
+                      right: BorderSide(color: SpecTokens.hair, width: 1),
+                    ),
+                  ),
+                  child: Listener(
                     onPointerDown: _onListPointerDown,
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: left,
-                      ),
+                    child: ListView(
+                      padding: const EdgeInsets.only(top: 8),
+                      children: taskChildren,
                     ),
                   ),
                 ),
               ),
-              SizedBox(
-                width: 320,
+              Expanded(
                 child: Container(
-                  decoration: BoxDecoration(
-                    color: ds.surface,
-                    border: Border.all(color: ds.line),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  clipBehavior: Clip.antiAlias,
+                  color: SpecTokens.paper,
                   child: Listener(
                     onPointerDown: _onListPointerDown,
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
-                      children: [
-                        A2GroupHead(
-                          label: l.inbox,
-                          count: unplannedCount,
-                          countLabel: l.groupCountItems(unplannedCount),
-                          topBorder: false,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          trailing: Icon(
-                            CupertinoIcons.chevron_up,
-                            size: 14,
-                            color: ds.ink3,
-                          ),
-                          onTap: widget.onOpenUnplanned,
-                        ),
-                        if (preview.isEmpty &&
-                            unplannedCount == 0 &&
-                            shelfSource.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                            child: Text(
-                              l.unplannedGroupEmpty,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: ds.ink3,
-                                fontFamilyFallback: AppTypography.fallback,
-                              ),
-                            ),
-                          ),
-                        for (final (index, todo) in preview.indexed)
-                          _unplannedRow(l, todo, compact: true, index: index),
-                        if (hidden > 0) _showAllRow(l, hidden),
-                      ],
+                      padding: const EdgeInsets.only(top: 8),
+                      children: timeChildren,
                     ),
                   ),
                 ),
@@ -817,8 +1135,10 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             ],
           ),
         ),
-      ),
+      ],
     );
+
+    return _listSlot(l, data, desktopContent);
   }
 
   // ------------------------------------------------------------- sections

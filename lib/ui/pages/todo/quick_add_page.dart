@@ -1002,7 +1002,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
           ),
           const SizedBox(width: 10),
           DsButton(
-            label: l.addTodoShort,
+            label: l.quickAddTodo,
             tone: DsButtonTone.secondary,
             small: true,
             onPressed: _saving ? null : () => _saveTodo(_draft()),
