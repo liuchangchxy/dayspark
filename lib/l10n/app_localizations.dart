@@ -1493,6 +1493,12 @@ abstract class AppLocalizations {
   /// **'{start} – {end}'**
   String calendarDateRange(String start, String end);
 
+  /// No description provided for @calendarWeekSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'This week · 7 days'**
+  String get calendarWeekSummary;
+
   /// No description provided for @openUpdatePage.
   ///
   /// In en, this message translates to:

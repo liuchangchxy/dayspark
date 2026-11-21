@@ -1,11 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
-import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart' show Calendar;
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
@@ -219,45 +217,6 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     return l.yearMonthTitle('${date.year}', '${date.month}');
   }
 
-  int _isoWeek(DateTime date) {
-    final day = DateTime.utc(date.year, date.month, date.day);
-    final first = DateTime.utc(date.year, 1, 1);
-    final dayOfYear = day.difference(first).inDays + 1;
-    return ((dayOfYear - date.weekday + 10) / 7).floor();
-  }
-
-  (String, String?) _header(
-    AppLocalizations l,
-    String locale,
-    CalendarViewMode mode,
-    DateTime browse,
-    DateTime now,
-    DateTime weekStart,
-  ) {
-    switch (mode) {
-      case CalendarViewMode.month:
-        final subtitle =
-            '${DateFormat.MMMd(locale).format(browse)} · '
-            '${DateFormat.E(locale).format(browse)} · ${browse.year}';
-        return (l.calendar, subtitle);
-      case CalendarViewMode.week:
-        final end = weekStart.add(const Duration(days: 6));
-        final title = calDateRangeLabel(l, locale, weekStart, end);
-        final subtitle =
-            '${_yearMonth(l, weekStart)} · '
-            '${l.weekNumberLabel(_isoWeek(weekStart))}';
-        return (title, subtitle);
-      case CalendarViewMode.day:
-        final title =
-            '${DateFormat.MMMd(locale).format(browse)} '
-            '${DateFormat.E(locale).format(browse)}';
-        final subtitle = calSameDay(browse, now)
-            ? '${l.today} · ${_yearMonth(l, browse)}'
-            : _yearMonth(l, browse);
-        return (title, subtitle);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -337,12 +296,10 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     }
     return _phone(
       l,
-      locale,
       mode,
       browse,
       now,
       names,
-      weekStart,
       days,
       hidden,
       hiddenTotalItems,
@@ -355,12 +312,10 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
 
   Widget _phone(
     AppLocalizations l,
-    String locale,
     CalendarViewMode mode,
     DateTime browse,
     DateTime now,
     Map<int, String> names,
-    DateTime weekStart,
     List<DateTime> days,
     Set<int> hidden,
     int hiddenItemsCount,
@@ -369,8 +324,20 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     List<TaskAllocationCalendarItem> visibleAllocations,
     List<CalendarDeadline> visibleDeadlines,
   ) {
-    final (title, subtitle) = _header(l, locale, mode, browse, now, weekStart);
+    final title = l.calendar;
     final actions = <Widget>[
+      if (mode == CalendarViewMode.week) ...[
+        A2IconAction(
+          icon: CupertinoIcons.chevron_left,
+          tooltip: l.previousPeriod,
+          onPressed: () => _shift(-1),
+        ),
+        A2IconAction(
+          icon: CupertinoIcons.chevron_right,
+          tooltip: l.nextPeriod,
+          onPressed: () => _shift(1),
+        ),
+      ],
       A2IconAction(
         key: const ValueKey('calendar-filter-button'),
         icon: Icons.filter_alt_outlined,
@@ -419,31 +386,19 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           ),
         ],
       ),
-      CalendarViewMode.week => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          A2MonthStrip(
-            label: l.weekNumberLabel(_isoWeek(weekStart)),
-            onPrevious: () => _shift(-1),
-            onNext: () => _shift(1),
-          ),
-          Expanded(
-            child: A2PhoneWeekList(
-              key: const ValueKey('phone-week-list'),
-              days: days,
-              today: calDayOf(now),
-              events: visibleEvents,
-              allocations: visibleAllocations,
-              deadlines: visibleDeadlines,
-              onEvent: widget.onEventTapped,
-              onAllocation: widget.onAllocationTapped,
-              onDeadline: widget.onDeadlineTapped,
-              onReschedule: _reschedule,
-              onCreateAtDay: widget.onCreateAtDay,
-              onSlot: widget.onTimeSlotTapped,
-            ),
-          ),
-        ],
+      CalendarViewMode.week => A2PhoneWeekList(
+        key: const ValueKey('phone-week-list'),
+        days: days,
+        today: calDayOf(now),
+        events: visibleEvents,
+        allocations: visibleAllocations,
+        deadlines: visibleDeadlines,
+        onEvent: widget.onEventTapped,
+        onAllocation: widget.onAllocationTapped,
+        onDeadline: widget.onDeadlineTapped,
+        onReschedule: _reschedule,
+        onCreateAtDay: widget.onCreateAtDay,
+        onSlot: widget.onTimeSlotTapped,
       ),
       CalendarViewMode.day => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -474,8 +429,6 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       children: [
         A2DayHead(
           title: title,
-          subtitle: subtitle,
-          clock: DateFormatters.formatTime(now),
           actions: actions,
         ),
         if (hidden.isNotEmpty)

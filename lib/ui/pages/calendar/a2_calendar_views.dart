@@ -2231,23 +2231,48 @@ class A2PhoneWeekList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
+    final l = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).toString();
+    return ListView(
       key: const ValueKey('phone-week-list-view'),
-      padding: const EdgeInsets.fromLTRB(16, 2, 16, 24),
-      itemCount: days.length,
-      itemBuilder: (context, index) => _A2PhoneWeekDay(
-        day: days[index],
-        today: today,
-        events: events,
-        allocations: allocations,
-        deadlines: deadlines,
-        onEvent: onEvent,
-        onAllocation: onAllocation,
-        onDeadline: onDeadline,
-        onReschedule: onReschedule,
-        onCreateAtDay: onCreateAtDay,
-        onSlot: onSlot,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      children: [
+        Text(
+          calDateRangeLabel(l, locale, days.first, days.last),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
+            letterSpacing: 0.01,
+            color: SpecTokens.ink,
+            fontFamilyFallback: AppTypography.fallback,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          l.calendarWeekSummary,
+          style: const TextStyle(
+            fontSize: 10.5,
+            color: SpecTokens.muted,
+            fontFamilyFallback: AppTypography.fallback,
+          ),
+        ),
+        const SizedBox(height: 6),
+        for (final day in days)
+          _A2PhoneWeekDay(
+            day: day,
+            today: today,
+            events: events,
+            allocations: allocations,
+            deadlines: deadlines,
+            onEvent: onEvent,
+            onAllocation: onAllocation,
+            onDeadline: onDeadline,
+            onReschedule: onReschedule,
+            onCreateAtDay: onCreateAtDay,
+            onSlot: onSlot,
+          ),
+      ],
     );
   }
 }
@@ -2292,6 +2317,21 @@ class _A2PhoneWeekDay extends StatelessWidget {
     return false;
   }
 
+  bool get _canCreate => onSlot != null || onCreateAtDay != null;
+
+  void _openCreate() {
+    if (onSlot != null) {
+      onSlot!(
+        DateTimeRange(
+          start: DateTime(day.year, day.month, day.day, 9),
+          end: DateTime(day.year, day.month, day.day, 10),
+        ),
+      );
+    } else {
+      onCreateAtDay?.call(day);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
@@ -2322,70 +2362,42 @@ class _A2PhoneWeekDay extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: 44,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${calWeekdayLong(locale, day)} · ${day.day}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isToday ? SpecTokens.red : SpecTokens.ink2,
-                      fontFamilyFallback: AppTypography.fallback,
-                    ),
-                  ),
-                ),
-                Text(
-                  l.dayItemCount(count),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: SpecTokens.muted,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-                if (onCreateAtDay != null)
-                  Semantics(
-                    button: true,
-                    label: l.newEvent,
-                    child: InkResponse(
-                      key: ValueKey('phone-week-add-${day.toIso8601String()}'),
-                      onTap: () => onCreateAtDay!(day),
-                      radius: 22,
-                      child: const SizedBox(
-                        width: 48,
-                        height: 48,
-                        child: Icon(
-                          CupertinoIcons.add,
-                          size: 15,
-                          color: SpecTokens.faint,
-                        ),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _canCreate ? _openCreate : null,
+            child: SizedBox(
+              height: 44,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${calWeekdayLong(locale, day)} · ${day.day}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isToday ? SpecTokens.red : SpecTokens.ink2,
+                        fontFamilyFallback: AppTypography.fallback,
                       ),
                     ),
                   ),
-              ],
+                  Text(
+                    l.dayItemCount(count),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: SpecTokens.muted,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           if (count == 0)
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: onSlot == null && onCreateAtDay == null
-                  ? null
-                  : () {
-                      if (onSlot != null) {
-                        onSlot!(
-                          DateTimeRange(
-                            start: DateTime(day.year, day.month, day.day, 9),
-                            end: DateTime(day.year, day.month, day.day, 10),
-                          ),
-                        );
-                      } else {
-                        onCreateAtDay!(day);
-                      }
-                    },
+              onTap: _canCreate ? _openCreate : null,
               child: SizedBox(
                 height: 32,
                 child: Align(

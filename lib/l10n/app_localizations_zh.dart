@@ -762,6 +762,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get calendarWeekSummary => '本周 · 7 天';
+
+  @override
   String get openUpdatePage => '查看更新';
 
   @override

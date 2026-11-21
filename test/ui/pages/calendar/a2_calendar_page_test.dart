@@ -607,6 +607,35 @@ void main() {
     await tester.pump(Duration.zero);
   });
 
+  testWidgets('the phone calendar header keeps the spec title, not the range', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    // Spec mobileShell('日历'): the top bar is the title, prev/next and the
+    // filter; the range and "本周 · 7 天" are the scrolling body's m-date/m-sub.
+    expect(find.text('Calendar'), findsOneWidget);
+    expect(find.text('15:00'), findsNothing);
+    expect(find.text('Week 46'), findsNothing);
+    expect(find.byTooltip('Previous'), findsOneWidget);
+    expect(find.byTooltip('Next'), findsOneWidget);
+    expect(find.text('Nov 9 – Nov 15'), findsOneWidget);
+    expect(find.text('This week · 7 days'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
   testWidgets('tapping an empty phone week day opens its slot', (
     tester,
   ) async {
@@ -631,6 +660,13 @@ void main() {
     expect(ranges, hasLength(1));
     expect(ranges.single.start, DateTime(2026, 11, 9, 9));
     expect(ranges.single.end, DateTime(2026, 11, 9, 10));
+
+    // The date head is the same slot target, since the spec head carries no
+    // trailing "+" button of its own.
+    await tester.tap(find.text('Mon · 9'));
+    await _settle(tester);
+    expect(ranges, hasLength(2));
+    expect(ranges.last.start, DateTime(2026, 11, 9, 9));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);

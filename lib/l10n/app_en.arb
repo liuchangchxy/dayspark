@@ -443,6 +443,7 @@
       }
     }
   },
+  "calendarWeekSummary": "This week · 7 days",
   "openUpdatePage": "View release",
   "checkUpdate": "Check for Updates",
   "upToDate": "Already up to date",

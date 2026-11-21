@@ -774,6 +774,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get calendarWeekSummary => 'This week · 7 days';
+
+  @override
   String get openUpdatePage => 'View release';
 
   @override
