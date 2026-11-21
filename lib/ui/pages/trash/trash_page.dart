@@ -17,7 +17,9 @@ import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
 class TrashPage extends ConsumerWidget {
-  const TrashPage({super.key});
+  const TrashPage({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -27,6 +29,106 @@ class TrashPage extends ConsumerWidget {
     final todos = deletedAsync.valueOrNull ?? [];
     final events = deletedEventsAsync.valueOrNull ?? [];
     final hasAny = todos.isNotEmpty || events.isNotEmpty;
+
+    final content = deletedAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => _loadFailure(context, ref, l),
+      data: (todoRows) => deletedEventsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => _loadFailure(context, ref, l),
+        data: (eventRows) {
+          if (todoRows.isEmpty && eventRows.isEmpty) {
+            return EmptyState(
+              icon: CupertinoIcons.trash,
+              title: l.trashEmpty,
+              hint: l.trashEmptyHint,
+              action: DsButton(
+                // "Back to todos" has to land on Todos — the Home root
+                // defaults to whichever tab was last open.
+                label: l.trashEmptyAction,
+                onPressed: () {
+                  ref
+                      .read(workspaceTabProvider.notifier)
+                      .setTab(AppTab.todos);
+                  context.go('/?tab=2');
+                },
+              ),
+            );
+          }
+          if (embedded) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (todoRows.isNotEmpty) ...[
+                  _sectionHeader(l.todos, todoRows.length),
+                  for (final todo in todoRows)
+                    _buildTodoTile(context, ref, l, todo),
+                ],
+                if (eventRows.isNotEmpty) ...[
+                  _sectionHeader(l.events, eventRows.length),
+                  for (final event in eventRows)
+                    _buildEventTile(context, ref, l, event),
+                ],
+                if (hasAny)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s4,
+                      AppSpacing.s3,
+                      AppSpacing.s4,
+                      AppSpacing.s1,
+                    ),
+                    child: DsButton(
+                      label: l.emptyTrash,
+                      icon: CupertinoIcons.delete,
+                      tone: DsButtonTone.danger,
+                      expand: true,
+                      onPressed: () => _confirmEmptyTrash(
+                        context,
+                        ref,
+                        l,
+                        todos.length + events.length,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }
+          return CustomScrollView(
+            slivers: [
+              if (todoRows.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: _sectionHeader(l.todos, todoRows.length),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        _buildTodoTile(context, ref, l, todoRows[index]),
+                    childCount: todoRows.length,
+                  ),
+                ),
+              ],
+              if (eventRows.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: _sectionHeader(l.events, eventRows.length),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        _buildEventTile(context, ref, l, eventRows[index]),
+                    childCount: eventRows.length,
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+
+    if (embedded) {
+      return content;
+    }
 
     return WorkspacePage(
       title: l.trash,
@@ -41,62 +143,7 @@ class TrashPage extends ConsumerWidget {
                 _confirmEmptyTrash(context, ref, l, todos.length + events.length),
           ),
       ],
-      child: deletedAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _loadFailure(context, ref, l),
-        data: (todoRows) => deletedEventsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _loadFailure(context, ref, l),
-          data: (eventRows) {
-            if (todoRows.isEmpty && eventRows.isEmpty) {
-              return EmptyState(
-                icon: CupertinoIcons.trash,
-                title: l.trashEmpty,
-                hint: l.trashEmptyHint,
-                action: DsButton(
-                  // "Back to todos" has to land on Todos — the Home root
-                  // defaults to whichever tab was last open.
-                  label: l.trashEmptyAction,
-                  onPressed: () {
-                    ref
-                        .read(workspaceTabProvider.notifier)
-                        .setTab(AppTab.todos);
-                    context.go('/?tab=2');
-                  },
-                ),
-              );
-            }
-            return CustomScrollView(
-              slivers: [
-                if (todoRows.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: _sectionHeader(l.todos, todoRows.length),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _buildTodoTile(context, ref, l, todoRows[index]),
-                      childCount: todoRows.length,
-                    ),
-                  ),
-                ],
-                if (eventRows.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: _sectionHeader(l.events, eventRows.length),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _buildEventTile(context, ref, l, eventRows[index]),
-                      childCount: eventRows.length,
-                    ),
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
+      child: content,
     );
   }
 

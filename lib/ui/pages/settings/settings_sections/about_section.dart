@@ -12,11 +12,26 @@ class AboutSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return SettingsRow(
-      label: l.appName,
-      value: version,
-      chevron: SettingsChevron.right,
-      onTap: () => context.push('/about'),
+    return SettingsRows(
+      children: [
+        SettingsRow(
+          label: l.versionLabel,
+          subtitle: l.versionDesc,
+          value: version.isEmpty ? '0.35.0' : version,
+        ),
+        SettingsRow(
+          label: l.dataLocation,
+          subtitle: l.dataDesc,
+          value: l.dataLocationDesc,
+        ),
+        SettingsRow(
+          label: l.license,
+          subtitle: l.licenseDesc,
+          value: l.viewLicense,
+          chevron: SettingsChevron.right,
+          onTap: () => context.push('/about'),
+        ),
+      ],
     );
   }
 }

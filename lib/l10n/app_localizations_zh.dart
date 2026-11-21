@@ -2779,4 +2779,57 @@ class AppLocalizationsZh extends AppLocalizations {
   String todayViewNoDate(int count) {
     return '查看无日期 $count 项';
   }
+
+  @override
+  String get importAndBackup => '导入与备份';
+
+  @override
+  String get userAccount => '账号';
+
+  @override
+  String get dataSectionDesc => '标签、回收站、导入导出和备份。';
+
+  @override
+  String get accountSectionDesc => '当前登录账号与设备会话管理。';
+
+  @override
+  String get aiSectionDesc => '智能建议与助手设置。';
+
+  @override
+  String get notify => '通知';
+
+  @override
+  String get versionLabel => '版本';
+
+  @override
+  String get versionDesc => '当前构建。';
+
+  @override
+  String get dataDesc => '存储位置。';
+
+  @override
+  String get licenseDesc => '开源许可。';
+
+  @override
+  String get mobileGeneralDesc => '默认日历、启动时打开';
+
+  @override
+  String mobileCalendarsDesc(int count) {
+    return '$count 个日历';
+  }
+
+  @override
+  String get mobileDataDesc => '标签 / 回收站 / 导入';
+
+  @override
+  String get mobileNotifyDesc => '权限与提醒';
+
+  @override
+  String get mobileSyncDesc => '账号、失败、冲突';
+
+  @override
+  String get sync => '同步';
+
+  @override
+  String get mobileAboutDesc => '版本与许可';
 }

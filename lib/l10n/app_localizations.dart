@@ -5146,6 +5146,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'View {count} undated'**
   String todayViewNoDate(int count);
+
+  /// No description provided for @importAndBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Import & Backup'**
+  String get importAndBackup;
+
+  /// No description provided for @userAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get userAccount;
+
+  /// No description provided for @dataSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags, trash, import/export, and backups.'**
+  String get dataSectionDesc;
+
+  /// No description provided for @accountSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Current account and device session management.'**
+  String get accountSectionDesc;
+
+  /// No description provided for @aiSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart suggestions and assistant settings.'**
+  String get aiSectionDesc;
+
+  /// No description provided for @notify.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notify;
+
+  /// No description provided for @versionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get versionLabel;
+
+  /// No description provided for @versionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Current build.'**
+  String get versionDesc;
+
+  /// No description provided for @dataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage location.'**
+  String get dataDesc;
+
+  /// No description provided for @licenseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open source license.'**
+  String get licenseDesc;
+
+  /// No description provided for @mobileGeneralDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar, open on launch'**
+  String get mobileGeneralDesc;
+
+  /// No description provided for @mobileCalendarsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} calendars'**
+  String mobileCalendarsDesc(int count);
+
+  /// No description provided for @mobileDataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags / Trash / Import'**
+  String get mobileDataDesc;
+
+  /// No description provided for @mobileNotifyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions & reminders'**
+  String get mobileNotifyDesc;
+
+  /// No description provided for @mobileSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Account, failure, conflict'**
+  String get mobileSyncDesc;
+
+  /// No description provided for @sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get sync;
+
+  /// No description provided for @mobileAboutDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Version & license'**
+  String get mobileAboutDesc;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

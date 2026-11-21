@@ -2803,4 +2803,57 @@ class AppLocalizationsEn extends AppLocalizations {
   String todayViewNoDate(int count) {
     return 'View $count undated';
   }
+
+  @override
+  String get importAndBackup => 'Import & Backup';
+
+  @override
+  String get userAccount => 'Account';
+
+  @override
+  String get dataSectionDesc => 'Tags, trash, import/export, and backups.';
+
+  @override
+  String get accountSectionDesc => 'Current account and device session management.';
+
+  @override
+  String get aiSectionDesc => 'Smart suggestions and assistant settings.';
+
+  @override
+  String get notify => 'Notifications';
+
+  @override
+  String get versionLabel => 'Version';
+
+  @override
+  String get versionDesc => 'Current build.';
+
+  @override
+  String get dataDesc => 'Storage location.';
+
+  @override
+  String get licenseDesc => 'Open source license.';
+
+  @override
+  String get mobileGeneralDesc => 'Default calendar, open on launch';
+
+  @override
+  String mobileCalendarsDesc(int count) {
+    return '$count calendars';
+  }
+
+  @override
+  String get mobileDataDesc => 'Tags / Trash / Import';
+
+  @override
+  String get mobileNotifyDesc => 'Permissions & reminders';
+
+  @override
+  String get mobileSyncDesc => 'Account, failure, conflict';
+
+  @override
+  String get sync => 'Sync';
+
+  @override
+  String get mobileAboutDesc => 'Version & license';
 }

@@ -1461,5 +1461,29 @@
         "type": "int"
       }
     }
-  }
+  },
+  "importAndBackup": "导入与备份",
+  "userAccount": "账号",
+  "dataSectionDesc": "标签、回收站、导入导出和备份。",
+  "accountSectionDesc": "当前登录账号与设备会话管理。",
+  "aiSectionDesc": "智能建议与助手设置。",
+  "notify": "通知",
+  "versionLabel": "版本",
+  "versionDesc": "当前构建。",
+  "dataDesc": "存储位置。",
+  "licenseDesc": "开源许可。",
+  "mobileGeneralDesc": "默认日历、启动时打开",
+  "mobileCalendarsDesc": "{count} 个日历",
+  "@mobileCalendarsDesc": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mobileDataDesc": "标签 / 回收站 / 导入",
+  "mobileNotifyDesc": "权限与提醒",
+  "mobileSyncDesc": "账号、失败、冲突",
+  "sync": "同步",
+  "mobileAboutDesc": "版本与许可"
 }
