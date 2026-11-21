@@ -228,19 +228,13 @@ class SettingsGroupBlock extends StatelessWidget {
         ),
         Container(
           clipBehavior: Clip.antiAlias,
-          decoration: mobile
-              ? const BoxDecoration(
-                  color: SpecTokens.paper,
-                  border: Border(
-                    top: BorderSide(color: SpecTokens.hair, width: 1),
-                    bottom: BorderSide(color: SpecTokens.hair, width: 1),
-                  ),
-                )
-              : BoxDecoration(
-                  color: SpecTokens.paper,
-                  borderRadius: BorderRadius.circular(SpecTokens.r8),
-                  border: Border.all(color: SpecTokens.hair, width: 1),
-                ),
+          decoration: const BoxDecoration(
+            color: SpecTokens.paper,
+            border: Border(
+              top: BorderSide(color: SpecTokens.hair, width: 1),
+              bottom: BorderSide(color: SpecTokens.hair, width: 1),
+            ),
+          ),
           child: child,
         ),
       ],

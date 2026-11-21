@@ -11,7 +11,6 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
-import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'default_calendar_view.dart';
 import 'settings_sections/about_section.dart';
@@ -124,6 +123,46 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     (l.about, AboutSection(version: _cachedVersion ?? '')),
   ];
 
+  Widget _settingsHead(AppLocalizations l) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 13),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Text(
+            l.settings,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.1,
+              height: 1.22,
+              color: SpecTokens.ink,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              l.settingsSubtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: SpecTokens.muted,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -170,89 +209,40 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
 
     final selected = _section.clamp(0, sections.length - 1);
-    return WorkspacePage(
-      title: '',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s6),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: SizedBox(
-              height: double.infinity,
+    return Scaffold(
+      backgroundColor: SpecTokens.paper,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _settingsHead(l),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(30, 24, 30, 0),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Left Nav: .set-nav (width 176px)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      0,
-                      AppSpacing.s2,
-                      AppSpacing.s3,
-                      AppSpacing.s6,
-                    ),
-                    child: SizedBox(
-                      width: 176,
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                9,
-                                4,
-                                0,
-                                14,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    l.settings,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: SpecTokens.ink,
-                                      fontFamilyFallback: AppTypography.fallback,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    l.settingsSubtitle,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: SpecTokens.muted,
-                                      fontFamilyFallback: AppTypography.fallback,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                  SizedBox(
+                    width: 176,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (var i = 0; i < sections.length; i++)
+                            _NavItem(
+                              label: sections[i].$1,
+                              selected:
+                                  !_showingDefaultCalendar && selected == i,
+                              onTap: () => _goTo(i),
                             ),
-                            for (var i = 0; i < sections.length; i++)
-                              _NavItem(
-                                label: sections[i].$1,
-                                selected: !_showingDefaultCalendar && selected == i,
-                                onTap: () => _goTo(i),
-                              ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
-                  const VerticalDivider(
-                    width: 1,
-                    thickness: 1,
-                    color: SpecTokens.hair,
-                  ),
-                  // Right Content: .set-content (max-width 700px)
+                  const SizedBox(width: 46),
                   Expanded(
                     child: SingleChildScrollView(
                       controller: _scroll,
-                      padding: const EdgeInsets.fromLTRB(
-                        28,
-                        AppSpacing.s2,
-                        AppSpacing.s6,
-                        AppSpacing.s8,
-                      ),
+                      padding: const EdgeInsets.only(bottom: 80),
                       child: Align(
                         alignment: Alignment.topLeft,
                         child: ConstrainedBox(
@@ -284,7 +274,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

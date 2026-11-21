@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
@@ -232,7 +233,8 @@ class DsButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ds = context.ds;
     final (bg, fg, border) = switch (tone) {
-      DsButtonTone.primary => (ds.primary, ds.onPrimary, Colors.transparent),
+      // The frozen spec paints every primary action in ink, never the accent.
+      DsButtonTone.primary => (SpecTokens.ink, Colors.white, Colors.transparent),
       DsButtonTone.secondary => (
         ds.surface,
         ds.ink,
