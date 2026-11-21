@@ -34,7 +34,9 @@
   "categoryCount": "{count} 个",
   "@categoryCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "newCalendar": "新建日历",
@@ -77,7 +79,11 @@
   "plannedShort": "计划",
   "overdueDays": "逾期 {count} 天",
   "@overdueDays": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "dayItemCount": "{count} 项",
   "deadlineLane": "截止（不占用时间） · {count}",
@@ -124,7 +130,7 @@
   "day": "日",
   "week": "周",
   "month": "月",
-  "overdue": "已逾期",
+  "overdue": "逾期",
   "tomorrow": "明天",
   "notSet": "未设置",
   "events": "日程",
@@ -142,7 +148,6 @@
   "scheduledLabel": "已排",
   "freeLabel": "空闲",
   "remainingMinutes": "还剩 {minutes} 分钟",
-  "overdue": "逾期",
   "eventsAndFree": "{count} 项日程",
   "nextUp": "接下来",
   "syncedAt": "已同步 {time}",
@@ -306,7 +311,9 @@
   "deletedOn": "删除于 {date}",
   "@deletedOn": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "snoozedFor": "已延后 {duration}",
@@ -763,9 +770,21 @@
   "captureAddedToast": "已加入「未安排」· 继续输入",
   "justAddedLabel": "刚加入",
   "groupCountItems": "{count} 项",
-  "@groupCountItems": {"placeholders": {"count": {"type": "int"}}},
+  "@groupCountItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "expandRemaining": "还有 {count} 项 · 展开全部",
-  "@expandRemaining": {"placeholders": {"count": {"type": "int"}}},
+  "@expandRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "collapseLabel": "收起",
   "sectionNow": "现在",
   "sectionUpcoming": "接下来",
@@ -774,13 +793,37 @@
   "scheduleAction": "去安排",
   "noExecutionSlot": "未安排执行时段",
   "plannedRangeLabel": "计划执行 {range}",
-  "@plannedRangeLabel": {"placeholders": {"range": {"type": "String"}}},
+  "@plannedRangeLabel": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
   "plannedShortRangeLabel": "计划 {range}",
-  "@plannedShortRangeLabel": {"placeholders": {"range": {"type": "String"}}},
+  "@plannedShortRangeLabel": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
   "dueValueLabel": "截止 {value}",
-  "@dueValueLabel": {"placeholders": {"value": {"type": "String"}}},
+  "@dueValueLabel": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "dueTodayTimeLabel": "截止今天 {time}",
-  "@dueTodayTimeLabel": {"placeholders": {"time": {"type": "String"}}},
+  "@dueTodayTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "allDayLabel": "全天",
   "emptyTodayTitle": "今天还没有安排",
   "emptyTodayHint": "想好的事随时记下来，回车直接进「未安排」",
@@ -798,27 +841,84 @@
   "dateDueSection": "截止",
   "dateEventsSection": "事件",
   "todoUnplannedContext": "{count} 项 · 含 {withDue} 项带截止",
-  "@todoUnplannedContext": {"placeholders": {"count": {"type": "int"}, "withDue": {"type": "int"}}},
+  "@todoUnplannedContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "withDue": {
+        "type": "int"
+      }
+    }
+  },
   "todoAllSummary": "{count} 项 · 进行中 {active}",
-  "@todoAllSummary": {"placeholders": {"count": {"type": "int"}, "active": {"type": "int"}}},
+  "@todoAllSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "active": {
+        "type": "int"
+      }
+    }
+  },
   "byDateTitle": "按日期",
   "byDateContext": "待办 · 与日历共享浏览日期",
   "planThisDay": "安排到这一天",
   "planToDate": "安排到 {date}",
-  "@planToDate": {"placeholders": {"date": {"type": "String"}}},
+  "@planToDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "inDaysCount": "{count} 天后",
-  "@inDaysCount": {"placeholders": {"count": {"type": "int"}}},
+  "@inDaysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "daysAgo": "{count} 天前",
-  "@daysAgo": {"placeholders": {"count": {"type": "int"}}},
+  "@daysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "yearMonthTitle": "{year} 年 {month}",
-  "@yearMonthTitle": {"placeholders": {"year": {"type": "String"}, "month": {"type": "String"}}},
+  "@yearMonthTitle": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
   "yearLabel": "年",
   "composerPlaceholder": "要做什么？",
   "saveToUnplanned": "保存到未安排",
   "savePlannedTo": "计划执行到 {date}",
-  "@savePlannedTo": {"placeholders": {"date": {"type": "String"}}},
+  "@savePlannedTo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "saveWithDueDate": "保存（截止 {date}）",
-  "@saveWithDueDate": {"placeholders": {"date": {"type": "String"}}},
+  "@saveWithDueDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "composerHintNoSlot": "不选时段直接保存，这条会进「未安排」。",
   "composerHintAlloc": "这是「计划执行」，不是截止；需要截止请单独设置。",
   "composerHintDue": "截止 = 最晚完成时间，过了算逾期；计划执行 = 你选定的执行时段。",
@@ -827,7 +927,13 @@
   "composerCustomSlot": "自定…",
   "moreActions": "更多",
   "weekNumberLabel": "第 {week} 周",
-  "@weekNumberLabel": {"placeholders": {"week": {"type": "int"}}},
+  "@weekNumberLabel": {
+    "placeholders": {
+      "week": {
+        "type": "int"
+      }
+    }
+  },
   "daySegmentLabel": "日",
   "captureQuickAddLabel": "记一笔",
   "calendarTodayHint": "回到今天",
@@ -836,16 +942,152 @@
   "moreItemsHint": "更多",
   "startPlanning": "去安排",
   "eventCountLabel": "{count}",
-  "@eventCountLabel": {"placeholders": {"count": {"type": "int"}}},
+  "@eventCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "composerOptional": "可选",
   "previousDay": "前一天",
   "nextDay": "后一天",
   "undoOccurrence": "撤销 · {label}",
-  "@undoOccurrence": {"placeholders": {"label": {"type": "String"}}},
+  "@undoOccurrence": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "backToNow": "回到现在",
   "dawnQuiet": "{start}–{end} · 凌晨无事",
-  "@dawnQuiet": {"placeholders": {"start": {"type": "String"}, "end": {"type": "String"}}},
+  "@dawnQuiet": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
   "slotRangeExistingEvent": "已有日程",
   "slotRangeDefaultEditable": "默认，可改",
-  "slotEmptyCreateHint": "暂无可安排的待办，新建后会直接排到这个时段。"
+  "slotEmptyCreateHint": "暂无可安排的待办，新建后会直接排到这个时段。",
+  "navMe": "我的",
+  "todayCleanTitle": "今天清空了",
+  "todayCleanSub": "用下面的捕获条记下一件事，它会先进未安排。",
+  "todayEmptyTime": "今天没有时间安排。",
+  "todayEmptyTimeWithHint": "今天没有时间安排。可以从日历把待办安排到时间上。",
+  "captureInputPlaceholder": "记一件事，回车记下",
+  "captureTypeTodo": "待办",
+  "captureDefaultDate": "无日期 · 个人",
+  "deleteConfirmTitle": "删除「{title}」？",
+  "@deleteConfirmTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteConfirmBody": "删除后将移至回收站。",
+  "todaySummary": "{overdue} 逾期 · {due} 今天截止 · {unplanned} 无日期 · {done} 已完成",
+  "@todaySummary": {
+    "placeholders": {
+      "overdue": {
+        "type": "int"
+      },
+      "due": {
+        "type": "int"
+      },
+      "unplanned": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      }
+    }
+  },
+  "todaySummaryEmpty": "今天没有安排",
+  "todayCompletedGroup": "今日已完成",
+  "todayEarlyGroup": "今日早前",
+  "todayNowGroup": "现在",
+  "todayUpcomingGroup": "接下来",
+  "todayOverdueGroup": "已逾期",
+  "todayDueGroup": "今天截止",
+  "todayUnplannedGroup": "无日期",
+  "expandTodayDone": "今日已完成 {count} · 展开",
+  "@expandTodayDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "expandTodayEarly": "今日早前 {count} · 展开",
+  "@expandTodayEarly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collapseTodayEarly": "今日早前 {count} · 收起",
+  "@collapseTodayEarly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewAllNItems": "查看全部 {count} 项",
+  "@viewAllNItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plannedBitsNote": "另有 {items}，显示在右侧时间区。",
+  "@plannedBitsNote": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "plannedBitsOverdue": "{count} 项已逾期 / 已遗漏",
+  "@plannedBitsOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plannedBitsDue": "{count} 项今天截止",
+  "@plannedBitsDue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sortDeadline": "按截止日排序",
+  "nItemsOverdue": "{count} 项已逾期",
+  "@nItemsOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "markedCompleted": "已标记完成 · {title}",
+  "@markedCompleted": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  }
 }

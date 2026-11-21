@@ -4120,6 +4120,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing to schedule yet — create one and it lands in this slot.'**
   String get slotEmptyCreateHint;
+
+  /// No description provided for @navMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Me'**
+  String get navMe;
+
+  /// No description provided for @todayCleanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today is clear'**
+  String get todayCleanTitle;
+
+  /// No description provided for @todayCleanSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a task below, it will land in Unplanned.'**
+  String get todayCleanSub;
+
+  /// No description provided for @todayEmptyTime.
+  ///
+  /// In en, this message translates to:
+  /// **'No time scheduled today.'**
+  String get todayEmptyTime;
+
+  /// No description provided for @todayEmptyTimeWithHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No time scheduled today. You can schedule tasks onto time slots from Calendar.'**
+  String get todayEmptyTimeWithHint;
+
+  /// No description provided for @captureInputPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a task, press Enter'**
+  String get captureInputPlaceholder;
+
+  /// No description provided for @captureTypeTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get captureTypeTodo;
+
+  /// No description provided for @captureDefaultDate.
+  ///
+  /// In en, this message translates to:
+  /// **'No date · Personal'**
+  String get captureDefaultDate;
+
+  /// No description provided for @deleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\"?'**
+  String deleteConfirmTitle(String title);
+
+  /// No description provided for @deleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Will be moved to Trash.'**
+  String get deleteConfirmBody;
+
+  /// No description provided for @todaySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{overdue} overdue · {due} due today · {unplanned} no date · {done} completed'**
+  String todaySummary(int overdue, int due, int unplanned, int done);
+
+  /// No description provided for @todaySummaryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks scheduled today'**
+  String get todaySummaryEmpty;
+
+  /// No description provided for @todayCompletedGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed Today'**
+  String get todayCompletedGroup;
+
+  /// No description provided for @todayEarlyGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier Today'**
+  String get todayEarlyGroup;
+
+  /// No description provided for @todayNowGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get todayNowGroup;
+
+  /// No description provided for @todayUpcomingGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Up'**
+  String get todayUpcomingGroup;
+
+  /// No description provided for @todayOverdueGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get todayOverdueGroup;
+
+  /// No description provided for @todayDueGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Due Today'**
+  String get todayDueGroup;
+
+  /// No description provided for @todayUnplannedGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'No Date'**
+  String get todayUnplannedGroup;
+
+  /// No description provided for @expandTodayDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed today {count} · Expand'**
+  String expandTodayDone(int count);
+
+  /// No description provided for @expandTodayEarly.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier today {count} · Expand'**
+  String expandTodayEarly(int count);
+
+  /// No description provided for @collapseTodayEarly.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier today {count} · Collapse'**
+  String collapseTodayEarly(int count);
+
+  /// No description provided for @viewAllNItems.
+  ///
+  /// In en, this message translates to:
+  /// **'View all {count} items'**
+  String viewAllNItems(int count);
+
+  /// No description provided for @plannedBitsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'{items} more items shown in the time section.'**
+  String plannedBitsNote(String items);
+
+  /// No description provided for @plannedBitsOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overdue / missed'**
+  String plannedBitsOverdue(int count);
+
+  /// No description provided for @plannedBitsDue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} due today'**
+  String plannedBitsDue(int count);
+
+  /// No description provided for @sortDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by deadline'**
+  String get sortDeadline;
+
+  /// No description provided for @nItemsOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overdue'**
+  String nItemsOverdue(int count);
+
+  /// No description provided for @markedCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Marked completed · {title}'**
+  String markedCompleted(String title);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

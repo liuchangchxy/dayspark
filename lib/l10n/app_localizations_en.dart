@@ -2210,4 +2210,113 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get slotEmptyCreateHint => 'Nothing to schedule yet — create one and it lands in this slot.';
+
+  @override
+  String get navMe => 'Me';
+
+  @override
+  String get todayCleanTitle => 'Today is clear';
+
+  @override
+  String get todayCleanSub => 'Capture a task below, it will land in Unplanned.';
+
+  @override
+  String get todayEmptyTime => 'No time scheduled today.';
+
+  @override
+  String get todayEmptyTimeWithHint => 'No time scheduled today. You can schedule tasks onto time slots from Calendar.';
+
+  @override
+  String get captureInputPlaceholder => 'Capture a task, press Enter';
+
+  @override
+  String get captureTypeTodo => 'Task';
+
+  @override
+  String get captureDefaultDate => 'No date · Personal';
+
+  @override
+  String deleteConfirmTitle(String title) {
+    return 'Delete \"$title\"?';
+  }
+
+  @override
+  String get deleteConfirmBody => 'Will be moved to Trash.';
+
+  @override
+  String todaySummary(int overdue, int due, int unplanned, int done) {
+    return '$overdue overdue · $due due today · $unplanned no date · $done completed';
+  }
+
+  @override
+  String get todaySummaryEmpty => 'No tasks scheduled today';
+
+  @override
+  String get todayCompletedGroup => 'Completed Today';
+
+  @override
+  String get todayEarlyGroup => 'Earlier Today';
+
+  @override
+  String get todayNowGroup => 'Now';
+
+  @override
+  String get todayUpcomingGroup => 'Next Up';
+
+  @override
+  String get todayOverdueGroup => 'Overdue';
+
+  @override
+  String get todayDueGroup => 'Due Today';
+
+  @override
+  String get todayUnplannedGroup => 'No Date';
+
+  @override
+  String expandTodayDone(int count) {
+    return 'Completed today $count · Expand';
+  }
+
+  @override
+  String expandTodayEarly(int count) {
+    return 'Earlier today $count · Expand';
+  }
+
+  @override
+  String collapseTodayEarly(int count) {
+    return 'Earlier today $count · Collapse';
+  }
+
+  @override
+  String viewAllNItems(int count) {
+    return 'View all $count items';
+  }
+
+  @override
+  String plannedBitsNote(String items) {
+    return '$items more items shown in the time section.';
+  }
+
+  @override
+  String plannedBitsOverdue(int count) {
+    return '$count overdue / missed';
+  }
+
+  @override
+  String plannedBitsDue(int count) {
+    return '$count due today';
+  }
+
+  @override
+  String get sortDeadline => 'Sort by deadline';
+
+  @override
+  String nItemsOverdue(int count) {
+    return '$count overdue';
+  }
+
+  @override
+  String markedCompleted(String title) {
+    return 'Marked completed · $title';
+  }
 }

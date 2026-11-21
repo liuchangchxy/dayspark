@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -45,7 +46,6 @@ import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
-import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 
 /// A todo belongs in the calendar deadline lane only when it is an ordinary
@@ -496,7 +496,7 @@ class _HomePageState extends ConsumerState<HomePage>
           child: Focus(
             autofocus: true,
             onKeyEvent: _handleEscape,
-            child: Scaffold(backgroundColor: context.ds.bg, body: body),
+            child: Scaffold(backgroundColor: SpecTokens.paper, body: body),
           ),
         ),
       );
@@ -506,7 +506,7 @@ class _HomePageState extends ConsumerState<HomePage>
     return _withSystemBack(
       tab,
       Scaffold(
-        backgroundColor: context.ds.bg,
+        backgroundColor: SpecTokens.paper,
         resizeToAvoidBottomInset: true,
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1094,7 +1094,7 @@ class _HomePageState extends ConsumerState<HomePage>
 
 /// 56-high desktop bar: brand, date navigation, the clock, the three
 /// destinations, capture and search. There is no sidebar in this product.
-class _DesktopBar extends ConsumerWidget {
+class _DesktopBar extends StatelessWidget {
   const _DesktopBar({
     required this.current,
     required this.now,
@@ -1108,279 +1108,258 @@ class _DesktopBar extends ConsumerWidget {
   final VoidCallback onCapture;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
-    final browseDate = ref.watch(viewedDateProvider);
-    final locale = Localizations.localeOf(context).toString();
     final items = [
-      (l.today, CupertinoIcons.house, AppTab.action),
-      (l.todos, CupertinoIcons.checkmark_circle, AppTab.todos),
-      (l.calendar, CupertinoIcons.calendar, AppTab.calendar),
+      (l.today, AppTab.action, 0),
+      (l.todos, AppTab.todos, 2),
+      (l.calendar, AppTab.calendar, 1),
     ];
-    // Today answers to the clock, so its date is a read-out rather than a
-    // browsable day: the arrows would move a date the page ignores.
-    final isTodayTab = current == AppTab.action;
-    final monthMode =
-        current == AppTab.calendar &&
-        ref.watch(calendarViewModeProvider) == CalendarViewMode.month;
-    final shownDate = isTodayTab ? now : browseDate;
-    // A wide face in a half-screen window cannot hold the wordmark, the date
-    // and three labelled destinations; below the design's own width the
-    // destinations keep their icons and drop their words.
-    final iconOnly = !isMasterDetailLayout(context);
+
     return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: ds.bg,
-        border: Border(bottom: BorderSide(color: ds.line)),
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1.0)),
       ),
       child: Row(
         children: [
           Container(
-            width: 22,
-            height: 22,
+            width: 20,
+            height: 20,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: ds.primary,
-              borderRadius: BorderRadius.circular(5),
+              color: SpecTokens.ink,
+              borderRadius: BorderRadius.circular(4),
             ),
-            child: Text(
+            child: const Text(
               'D',
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
                 height: 1,
-                color: ds.onPrimary,
+                color: Colors.white,
                 fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'DaySpark',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.13,
+              color: SpecTokens.ink,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(width: 26),
+          Row(
+            children: [
+              for (final item in items)
+                _DesktopNavButton(
+                  label: item.$1,
+                  selected: current == item.$2,
+                  onTap: () => onSelect(item.$3),
+                ),
+            ],
+          ),
+          const Spacer(),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => context.push('/search'),
+              child: Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 9),
+                decoration: BoxDecoration(
+                  color: SpecTokens.wash,
+                  border: Border.all(color: SpecTokens.hair2, width: 1.0),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.search,
+                      size: 12,
+                      color: SpecTokens.muted,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      l.search,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: SpecTokens.muted,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: SpecTokens.hair2, width: 1.0),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: const Text(
+                        '⌘ K',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: SpecTokens.faint,
+                          fontFamilyFallback: AppTypography.fallback,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onCapture,
+              child: Container(
+                height: 28,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: SpecTokens.ink,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.plus,
+                      size: 12,
+                      color: SpecTokens.paper,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      l.captureQuickAddLabel,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: SpecTokens.paper,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
           const SizedBox(width: 12),
           Text(
-            'DaySpark',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-              color: ds.ink,
+            DateFormatters.formatTime(now),
+            style: const TextStyle(
+              fontSize: 12,
+              color: SpecTokens.faint,
+              fontFeatures: AppTypography.tabular,
               fontFamilyFallback: AppTypography.fallback,
             ),
           ),
           const SizedBox(width: 12),
-          Container(width: 1, height: 20, color: ds.line),
-          const SizedBox(width: 8),
-          if (!isTodayTab)
-            _NavStep(
-              icon: CupertinoIcons.chevron_left,
-              tooltip: monthMode ? l.previousPeriod : l.previousDay,
-              onTap: () => _step(ref, browseDate, monthMode, -1),
-            ),
-          Flexible(
-            child: Text(
-              '${DateFormat.MMMMd(locale).format(shownDate)} · '
-              '${DateFormat.E(locale).format(shownDate)}',
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: ds.ink,
-                fontFeatures: AppTypography.tabular,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-            ),
-          ),
-          if (!isTodayTab)
-            _NavStep(
-              icon: CupertinoIcons.chevron_right,
-              tooltip: monthMode ? l.nextPeriod : l.nextDay,
-              onTap: () => _step(ref, browseDate, monthMode, 1),
-            ),
-          const SizedBox(width: 4),
-          A2Clock(label: DateFormatters.formatTime(now)),
-          const Spacer(),
-          Row(
-            children: [
-              for (final item in items)
-                _DesktopNavItem(
-                  label: item.$1,
-                  icon: item.$2,
-                  iconOnly: iconOnly,
-                  selected: current == item.$3,
-                  onTap: () => onSelect(switch (item.$3) {
-                    AppTab.action => 0,
-                    AppTab.calendar => 1,
-                    AppTab.todos => 2,
-                  }),
+          Tooltip(
+            message: l.settings,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => context.push('/settings'),
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: SpecTokens.hair,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    l.meLabel,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: SpecTokens.ink2,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
                 ),
-            ],
-          ),
-          const SizedBox(width: 8),
-          _QuickCapture(buttonLabel: l.captureQuickAddLabel, onTap: onCapture),
-          const SizedBox(width: 4),
-          SizedBox(
-            width: 36,
-            height: 36,
-            child: IconButton(
-              onPressed: () => context.push('/search'),
-              tooltip: l.search,
-              icon: Icon(CupertinoIcons.search, size: 17, color: ds.ink2),
+              ),
             ),
           ),
         ],
       ),
     );
   }
-
-  /// A day step barely moves the month grid, so on that surface the bar's
-  /// arrows page the month and keep the browsed day (clamped) — the same
-  /// contract the calendar page's own month header uses.
-  void _step(WidgetRef ref, DateTime from, bool monthMode, int direction) {
-    if (!monthMode) {
-      ref.read(viewedDateProvider.notifier).state = from.add(
-        Duration(days: direction),
-      );
-      return;
-    }
-    final first = DateTime(from.year, from.month + direction, 1);
-    final lastDay = DateTime(first.year, first.month + 1, 0).day;
-    ref.read(viewedDateProvider.notifier).state = DateTime(
-      first.year,
-      first.month,
-      from.day.clamp(1, lastDay),
-    );
-  }
 }
 
-class _NavStep extends StatelessWidget {
-  const _NavStep({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: Icon(icon, size: 14, color: ds.ink3),
-        ),
-      ),
-    );
-  }
-}
-
-class _DesktopNavItem extends StatelessWidget {
-  const _DesktopNavItem({
+class _DesktopNavButton extends StatefulWidget {
+  const _DesktopNavButton({
     required this.label,
-    required this.icon,
     required this.selected,
     required this.onTap,
-    this.iconOnly = false,
   });
 
   final String label;
-  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
-  final bool iconOnly;
 
   @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    final color = selected ? ds.primary : ds.ink2;
-    final item = MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: selected ? ds.primarySoft : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: selected ? ds.primary : ds.ink3),
-              if (!iconOnly) ...[
-                const SizedBox(width: 5),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: color,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-    final padded = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: item,
-    );
-    if (!iconOnly) return padded;
-    return Tooltip(message: label, child: padded);
-  }
+  State<_DesktopNavButton> createState() => _DesktopNavButtonState();
 }
 
-class _QuickCapture extends StatelessWidget {
-  const _QuickCapture({required this.buttonLabel, required this.onTap});
-
-  final String buttonLabel;
-  final VoidCallback onTap;
+class _DesktopNavButtonState extends State<_DesktopNavButton> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: ds.surface,
-            border: Border.all(color: ds.line),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            children: [
-              Icon(CupertinoIcons.plus, size: 12, color: ds.primary),
-              const SizedBox(width: 5),
-              Text(
-                buttonLabel,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: ds.ink,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
+    final bg = widget.selected
+        ? SpecTokens.hair
+        : _hovered
+        ? SpecTokens.wash
+        : Colors.transparent;
+    final fg = widget.selected
+        ? SpecTokens.ink
+        : _hovered
+        ? SpecTokens.ink
+        : SpecTokens.muted;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: Container(
+            height: 28,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              widget.label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
+                color: fg,
+                fontFamilyFallback: AppTypography.fallback,
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1388,9 +1367,6 @@ class _QuickCapture extends StatelessWidget {
   }
 }
 
-/// 56-high phone dock: 21px glyph, 11/500 label, primary when selected, no
-/// badge. It is part of the body rather than `bottomNavigationBar` so the
-/// keyboard can replace it instead of stacking above it.
 class _MobileDock extends StatelessWidget {
   const _MobileDock({required this.current, required this.onSelect});
 
@@ -1400,21 +1376,22 @@ class _MobileDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
     final items = [
-      (l.today, CupertinoIcons.house, AppTab.action),
-      (l.calendar, CupertinoIcons.calendar, AppTab.calendar),
-      (l.todos, CupertinoIcons.checkmark_circle, AppTab.todos),
+      (l.today, CupertinoIcons.sun_max, current == AppTab.action, () => onSelect(0)),
+      (l.todos, CupertinoIcons.checkmark_alt, current == AppTab.todos, () => onSelect(2)),
+      (l.calendar, CupertinoIcons.calendar, current == AppTab.calendar, () => onSelect(1)),
+      (l.navMe, CupertinoIcons.person, false, () => context.push('/settings')),
     ];
+
     return Container(
       key: const ValueKey('mobile-tab-bar'),
-      color: ds.navBg,
+      color: const Color(0xFFFBFBF8),
       child: SafeArea(
         top: false,
         child: Container(
           height: 56,
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: ds.line)),
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: SpecTokens.hair, width: 1.0)),
           ),
           child: Row(
             children: [
@@ -1423,12 +1400,8 @@ class _MobileDock extends StatelessWidget {
                   child: _MobileDockSlot(
                     label: item.$1,
                     icon: item.$2,
-                    selected: current == item.$3,
-                    onTap: () => onSelect(switch (item.$3) {
-                      AppTab.action => 0,
-                      AppTab.calendar => 1,
-                      AppTab.todos => 2,
-                    }),
+                    selected: item.$3,
+                    onTap: item.$4,
                   ),
                 ),
             ],
@@ -1454,8 +1427,7 @@ class _MobileDockSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
-    final tint = selected ? ds.primary : ds.ink3;
+    final tint = selected ? SpecTokens.ink : SpecTokens.faint;
     return Semantics(
       button: true,
       selected: selected,
@@ -1469,7 +1441,8 @@ class _MobileDockSlot extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(height: 26, child: Icon(icon, size: 21, color: tint)),
+              SizedBox(height: 22, child: Icon(icon, size: 18, color: tint)),
+              const SizedBox(height: 2),
               Text(
                 label,
                 maxLines: 1,
@@ -1477,9 +1450,9 @@ class _MobileDockSlot extends StatelessWidget {
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 9.5,
                   height: 1.2,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: tint,
                   fontFamilyFallback: AppTypography.fallback,
                 ),

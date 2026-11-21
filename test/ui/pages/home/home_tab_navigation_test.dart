@@ -588,8 +588,8 @@ void main() {
 
     for (final (width, expectBar) in [
       (390.0, false),
-      (759.0, false),
-      (999.0, false),
+      (719.0, false),
+      (720.0, true),
       (1000.0, true),
       (1240.0, true),
       (1440.0, true),

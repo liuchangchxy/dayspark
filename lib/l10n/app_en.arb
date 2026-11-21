@@ -34,7 +34,9 @@
   "categoryCount": "{count} total",
   "@categoryCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "newCalendar": "New Calendar",
@@ -84,18 +86,26 @@
   "plannedShort": "Planned",
   "overdueDays": "{count, plural, =1{1 day late} other{{count} days late}}",
   "@overdueDays": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "dayItemCount": "{count, plural, =1{1 item} other{{count} items}}",
   "@dayItemCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "deadlineLane": "Due (no time block) · {count}",
   "@deadlineLane": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "noPlansDay": "Nothing planned",
@@ -151,23 +161,67 @@
   "completedLabel": "Done",
   "nextOpening": "Next opening",
   "todayStillOpen": "{count} still open today",
-  "@todayStillOpen": {"placeholders": {"count": {"type": "int"}}},
+  "@todayStillOpen": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "durationHours": "{hours} h",
-  "@durationHours": {"placeholders": {"hours": {"type": "int"}}},
+  "@durationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
   "durationMinutes": "{minutes} min",
-  "@durationMinutes": {"placeholders": {"minutes": {"type": "int"}}},
+  "@durationMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "durationHoursMinutes": "{hours} h {minutes} min",
-  "@durationHoursMinutes": {"placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
+  "@durationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "freeFor": "Free {duration}",
-  "@freeFor": {"placeholders": {"duration": {"type": "String"}}},
+  "@freeFor": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
   "timelineTitle": "Today's timeline",
   "scheduledLabel": "Scheduled",
   "freeLabel": "Free",
   "remainingMinutes": "{minutes} min left",
-  "@remainingMinutes": {"placeholders": {"minutes": {"type": "int"}}},
-  "overdue": "Overdue",
+  "@remainingMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "eventsAndFree": "{count} events",
-  "@eventsAndFree": {"placeholders": {"count": {"type": "int"}}},
+  "@eventsAndFree": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "nextUp": "Next",
   "syncedAt": "Synced {time}",
   "meLabel": "Me",
@@ -395,7 +449,9 @@
   "deletedOn": "Deleted on {date}",
   "@deletedOn": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "snoozedFor": "Snoozed for {duration}",
@@ -991,9 +1047,21 @@
   "captureAddedToast": "Added to Unplanned · keep typing",
   "justAddedLabel": "Just added",
   "groupCountItems": "{count} items",
-  "@groupCountItems": {"placeholders": {"count": {"type": "int"}}},
+  "@groupCountItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "expandRemaining": "{count} more · Show all",
-  "@expandRemaining": {"placeholders": {"count": {"type": "int"}}},
+  "@expandRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "collapseLabel": "Show less",
   "sectionNow": "Now",
   "sectionUpcoming": "Upcoming",
@@ -1002,13 +1070,37 @@
   "scheduleAction": "Schedule",
   "noExecutionSlot": "No execution slot",
   "plannedRangeLabel": "Planned {range}",
-  "@plannedRangeLabel": {"placeholders": {"range": {"type": "String"}}},
+  "@plannedRangeLabel": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
   "plannedShortRangeLabel": "Plan {range}",
-  "@plannedShortRangeLabel": {"placeholders": {"range": {"type": "String"}}},
+  "@plannedShortRangeLabel": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
   "dueValueLabel": "Due {value}",
-  "@dueValueLabel": {"placeholders": {"value": {"type": "String"}}},
+  "@dueValueLabel": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "dueTodayTimeLabel": "Due today {time}",
-  "@dueTodayTimeLabel": {"placeholders": {"time": {"type": "String"}}},
+  "@dueTodayTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "allDayLabel": "All day",
   "emptyTodayTitle": "Nothing scheduled today",
   "emptyTodayHint": "Write it down anytime — Enter files it under Unplanned",
@@ -1026,27 +1118,84 @@
   "dateDueSection": "Deadline",
   "dateEventsSection": "Events",
   "todoUnplannedContext": "{count} items · {withDue} with a deadline",
-  "@todoUnplannedContext": {"placeholders": {"count": {"type": "int"}, "withDue": {"type": "int"}}},
+  "@todoUnplannedContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "withDue": {
+        "type": "int"
+      }
+    }
+  },
   "todoAllSummary": "{count} items · {active} active",
-  "@todoAllSummary": {"placeholders": {"count": {"type": "int"}, "active": {"type": "int"}}},
+  "@todoAllSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "active": {
+        "type": "int"
+      }
+    }
+  },
   "byDateTitle": "By date",
   "byDateContext": "Todos · shares its date with Calendar",
   "planThisDay": "Plan this day",
   "planToDate": "Plan to {date}",
-  "@planToDate": {"placeholders": {"date": {"type": "String"}}},
+  "@planToDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "inDaysCount": "In {count} days",
-  "@inDaysCount": {"placeholders": {"count": {"type": "int"}}},
+  "@inDaysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "daysAgo": "{count, plural, =1{1 day ago} other{{count} days ago}}",
-  "@daysAgo": {"placeholders": {"count": {"type": "int"}}},
+  "@daysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "yearMonthTitle": "{year} / {month}",
-  "@yearMonthTitle": {"placeholders": {"year": {"type": "String"}, "month": {"type": "String"}}},
+  "@yearMonthTitle": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
   "yearLabel": "Year",
   "composerPlaceholder": "What needs doing?",
   "saveToUnplanned": "Save to Unplanned",
   "savePlannedTo": "Plan for {date}",
-  "@savePlannedTo": {"placeholders": {"date": {"type": "String"}}},
+  "@savePlannedTo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "saveWithDueDate": "Save (due {date})",
-  "@saveWithDueDate": {"placeholders": {"date": {"type": "String"}}},
+  "@saveWithDueDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "composerHintNoSlot": "Saving without a slot files this under Unplanned.",
   "composerHintAlloc": "This is a planned execution, not a deadline. Set the deadline separately.",
   "composerHintDue": "A deadline is the latest finish; a planned execution is when you chose to do it.",
@@ -1055,7 +1204,13 @@
   "composerCustomSlot": "Custom…",
   "moreActions": "More",
   "weekNumberLabel": "Week {week}",
-  "@weekNumberLabel": {"placeholders": {"week": {"type": "int"}}},
+  "@weekNumberLabel": {
+    "placeholders": {
+      "week": {
+        "type": "int"
+      }
+    }
+  },
   "daySegmentLabel": "Day",
   "captureQuickAddLabel": "Capture",
   "calendarTodayHint": "Go to today",
@@ -1064,16 +1219,152 @@
   "moreItemsHint": "More",
   "startPlanning": "Plan it",
   "eventCountLabel": "{count}",
-  "@eventCountLabel": {"placeholders": {"count": {"type": "int"}}},
+  "@eventCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "composerOptional": "Optional",
   "previousDay": "Previous day",
   "nextDay": "Next day",
   "undoOccurrence": "Undo · {label}",
-  "@undoOccurrence": {"placeholders": {"label": {"type": "String"}}},
+  "@undoOccurrence": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "backToNow": "Back to now",
   "dawnQuiet": "{start}–{end} · quiet hours, nothing scheduled",
-  "@dawnQuiet": {"placeholders": {"start": {"type": "String"}, "end": {"type": "String"}}},
+  "@dawnQuiet": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
   "slotRangeExistingEvent": "Existing event",
   "slotRangeDefaultEditable": "default, editable",
-  "slotEmptyCreateHint": "Nothing to schedule yet — create one and it lands in this slot."
+  "slotEmptyCreateHint": "Nothing to schedule yet — create one and it lands in this slot.",
+  "navMe": "Me",
+  "todayCleanTitle": "Today is clear",
+  "todayCleanSub": "Capture a task below, it will land in Unplanned.",
+  "todayEmptyTime": "No time scheduled today.",
+  "todayEmptyTimeWithHint": "No time scheduled today. You can schedule tasks onto time slots from Calendar.",
+  "captureInputPlaceholder": "Capture a task, press Enter",
+  "captureTypeTodo": "Task",
+  "captureDefaultDate": "No date · Personal",
+  "deleteConfirmTitle": "Delete \"{title}\"?",
+  "@deleteConfirmTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteConfirmBody": "Will be moved to Trash.",
+  "todaySummary": "{overdue} overdue · {due} due today · {unplanned} no date · {done} completed",
+  "@todaySummary": {
+    "placeholders": {
+      "overdue": {
+        "type": "int"
+      },
+      "due": {
+        "type": "int"
+      },
+      "unplanned": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      }
+    }
+  },
+  "todaySummaryEmpty": "No tasks scheduled today",
+  "todayCompletedGroup": "Completed Today",
+  "todayEarlyGroup": "Earlier Today",
+  "todayNowGroup": "Now",
+  "todayUpcomingGroup": "Next Up",
+  "todayOverdueGroup": "Overdue",
+  "todayDueGroup": "Due Today",
+  "todayUnplannedGroup": "No Date",
+  "expandTodayDone": "Completed today {count} · Expand",
+  "@expandTodayDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "expandTodayEarly": "Earlier today {count} · Expand",
+  "@expandTodayEarly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collapseTodayEarly": "Earlier today {count} · Collapse",
+  "@collapseTodayEarly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewAllNItems": "View all {count} items",
+  "@viewAllNItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plannedBitsNote": "{items} more items shown in the time section.",
+  "@plannedBitsNote": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "plannedBitsOverdue": "{count} overdue / missed",
+  "@plannedBitsOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plannedBitsDue": "{count} due today",
+  "@plannedBitsDue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sortDeadline": "Sort by deadline",
+  "nItemsOverdue": "{count} overdue",
+  "@nItemsOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "markedCompleted": "Marked completed · {title}",
+  "@markedCompleted": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  }
 }

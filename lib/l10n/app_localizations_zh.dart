@@ -2186,4 +2186,113 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get slotEmptyCreateHint => '暂无可安排的待办，新建后会直接排到这个时段。';
+
+  @override
+  String get navMe => '我的';
+
+  @override
+  String get todayCleanTitle => '今天清空了';
+
+  @override
+  String get todayCleanSub => '用下面的捕获条记下一件事，它会先进未安排。';
+
+  @override
+  String get todayEmptyTime => '今天没有时间安排。';
+
+  @override
+  String get todayEmptyTimeWithHint => '今天没有时间安排。可以从日历把待办安排到时间上。';
+
+  @override
+  String get captureInputPlaceholder => '记一件事，回车记下';
+
+  @override
+  String get captureTypeTodo => '待办';
+
+  @override
+  String get captureDefaultDate => '无日期 · 个人';
+
+  @override
+  String deleteConfirmTitle(String title) {
+    return '删除「$title」？';
+  }
+
+  @override
+  String get deleteConfirmBody => '删除后将移至回收站。';
+
+  @override
+  String todaySummary(int overdue, int due, int unplanned, int done) {
+    return '$overdue 逾期 · $due 今天截止 · $unplanned 无日期 · $done 已完成';
+  }
+
+  @override
+  String get todaySummaryEmpty => '今天没有安排';
+
+  @override
+  String get todayCompletedGroup => '今日已完成';
+
+  @override
+  String get todayEarlyGroup => '今日早前';
+
+  @override
+  String get todayNowGroup => '现在';
+
+  @override
+  String get todayUpcomingGroup => '接下来';
+
+  @override
+  String get todayOverdueGroup => '已逾期';
+
+  @override
+  String get todayDueGroup => '今天截止';
+
+  @override
+  String get todayUnplannedGroup => '无日期';
+
+  @override
+  String expandTodayDone(int count) {
+    return '今日已完成 $count · 展开';
+  }
+
+  @override
+  String expandTodayEarly(int count) {
+    return '今日早前 $count · 展开';
+  }
+
+  @override
+  String collapseTodayEarly(int count) {
+    return '今日早前 $count · 收起';
+  }
+
+  @override
+  String viewAllNItems(int count) {
+    return '查看全部 $count 项';
+  }
+
+  @override
+  String plannedBitsNote(String items) {
+    return '另有 $items，显示在右侧时间区。';
+  }
+
+  @override
+  String plannedBitsOverdue(int count) {
+    return '$count 项已逾期 / 已遗漏';
+  }
+
+  @override
+  String plannedBitsDue(int count) {
+    return '$count 项今天截止';
+  }
+
+  @override
+  String get sortDeadline => '按截止日排序';
+
+  @override
+  String nItemsOverdue(int count) {
+    return '$count 项已逾期';
+  }
+
+  @override
+  String markedCompleted(String title) {
+    return '已标记完成 · $title';
+  }
 }
