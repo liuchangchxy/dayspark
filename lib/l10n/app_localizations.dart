@@ -5309,6 +5309,12 @@ abstract class AppLocalizations {
   /// **'Suggested Plan'**
   String get captureParsedSuggestTitle;
 
+  /// No description provided for @captureParsedSuggestEventTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Schedule'**
+  String get captureParsedSuggestEventTitle;
+
   /// No description provided for @captureParsedSuggestRemoved.
   ///
   /// In en, this message translates to:
@@ -5320,6 +5326,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Preselected; saved as \"Planned execution\". Can be removed.'**
   String get captureParsedSuggestSub;
+
+  /// No description provided for @captureParsedSuggestEventSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed to Event; saved directly to calendar.'**
+  String get captureParsedSuggestEventSub;
 
   /// No description provided for @captureParsedSuggestSubRemoved.
   ///

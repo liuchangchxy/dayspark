@@ -2868,10 +2868,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get captureParsedSuggestTitle => '建议安排';
 
   @override
+  String get captureParsedSuggestEventTitle => '日程安排';
+
+  @override
   String get captureParsedSuggestRemoved => '时间建议已移除';
 
   @override
   String get captureParsedSuggestSub => '已预选；保存后写为“计划执行”。可以移除。';
+
+  @override
+  String get captureParsedSuggestEventSub => '已改为日程；保存后直接写入日历。';
 
   @override
   String get captureParsedSuggestSubRemoved => '保存后只记标题；无日期、无计划、无截止。';

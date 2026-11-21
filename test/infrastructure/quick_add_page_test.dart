@@ -149,6 +149,13 @@ void main() {
     expect(find.textContaining('10:00–11:00 · Suggested Plan'), findsOneWidget);
     expect(find.textContaining('Preselected; saved as "Planned execution"'), findsOneWidget);
 
+    final removeSize = tester.getSize(find.widgetWithText(TextButton, 'Remove'));
+    expect(removeSize.width, greaterThanOrEqualTo(48));
+    expect(removeSize.height, greaterThanOrEqualTo(48));
+    final changeSize = tester.getSize(find.widgetWithText(TextButton, 'Change to Event'));
+    expect(changeSize.width, greaterThanOrEqualTo(48));
+    expect(changeSize.height, greaterThanOrEqualTo(48));
+
     await tester.tap(find.text('Save'));
     await settle(tester);
 
@@ -167,7 +174,7 @@ void main() {
     await teardownTree(tester);
   });
 
-  testWidgets('removing suggestion does not write plan allocation', (tester) async {
+  testWidgets('removing suggestion does not write plan allocation and clears due date on card and db', (tester) async {
     await seedCalendar();
     AppRouter.router.go('/');
     await tester.pumpWidget(buildApp());
@@ -184,6 +191,13 @@ void main() {
 
     expect(find.text('Time suggestion removed'), findsOneWidget);
     expect(find.text('Saves title only; no date, no plan, no deadline.'), findsOneWidget);
+    // Fidelity requirement: card must NOT show "Due date" when suggestion is removed, and must show "No due date"
+    expect(find.textContaining('Due date:'), findsNothing);
+    expect(find.text('No due date'), findsOneWidget);
+
+    final restoreSize = tester.getSize(find.widgetWithText(TextButton, 'Restore'));
+    expect(restoreSize.width, greaterThanOrEqualTo(48));
+    expect(restoreSize.height, greaterThanOrEqualTo(48));
 
     // Save
     await tester.tap(find.text('Save'));
@@ -258,6 +272,15 @@ void main() {
     // Tap "Change to event"
     await tester.tap(find.text('Change to Event'));
     await settle(tester);
+
+    expect(find.textContaining('16:00–17:00 · Event Schedule'), findsOneWidget);
+    expect(find.text('Changed to Event; saved directly to calendar.'), findsOneWidget);
+    expect(find.text('Change to Task'), findsOneWidget);
+    expect(find.text('Events'), findsOneWidget);
+
+    final toTaskBtn = tester.getSize(find.widgetWithText(TextButton, 'Change to Task'));
+    expect(toTaskBtn.width, greaterThanOrEqualTo(48));
+    expect(toTaskBtn.height, greaterThanOrEqualTo(48));
 
     await tester.tap(find.text('Save'));
     await settle(tester);

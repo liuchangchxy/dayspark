@@ -1160,15 +1160,13 @@ class SpecPlanPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final effectiveCancel = cancelLabel ?? l?.cancel ?? 'Cancel';
+    final l = AppLocalizations.of(context)!;
+    final effectiveCancel = cancelLabel ?? l.cancel;
     final effectiveSubmit = submitLabel ??
-        (isEditing
-            ? (l?.planSaveTimeAction ?? 'Save Time')
-            : (l?.planSubmitAction ?? 'Plan'));
-    final effectiveStart = startTitle ?? l?.planStartTime ?? 'Start';
-    final effectiveEnd = endTitle ?? l?.planEndTime ?? 'End';
-    final effectiveDuration = durationTitle ?? l?.planDuration ?? 'Duration';
+        (isEditing ? l.planSaveTimeAction : l.planSubmitAction);
+    final effectiveStart = startTitle ?? l.planStartTime;
+    final effectiveEnd = endTitle ?? l.planEndTime;
+    final effectiveDuration = durationTitle ?? l.planDuration;
 
     return Container(
       width: 430,
@@ -1256,7 +1254,7 @@ class SpecPlanPicker extends StatelessWidget {
                         child: GestureDetector(
                           onTap: onTapStart,
                           child: _timeBox(
-                            isEditing ? '$effectiveStart · ${l?.edit ?? 'Edit'}' : effectiveStart,
+                            isEditing ? '$effectiveStart · ${l.edit}' : effectiveStart,
                             startLabel,
                             isEditing,
                           ),
@@ -1267,7 +1265,7 @@ class SpecPlanPicker extends StatelessWidget {
                         child: GestureDetector(
                           onTap: onTapEnd,
                           child: _timeBox(
-                            isEditing ? '$effectiveEnd · ${l?.edit ?? 'Edit'}' : effectiveEnd,
+                            isEditing ? '$effectiveEnd · ${l.edit}' : effectiveEnd,
                             endLabel,
                             isEditing,
                           ),
@@ -1467,21 +1465,20 @@ class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
     _end = widget.initialEnd;
   }
 
-  String _durationLabel(AppLocalizations? l, Duration d) {
-    if (l == null) return '${d.inMinutes}m';
+  String _durationLabel(AppLocalizations l, Duration d) {
     if (d.inMinutes == 0) return l.durationMinutes(0);
     if (d.inMinutes % 60 == 0) return l.durationHours(d.inHours);
     return l.durationHoursMinutes(d.inHours, d.inMinutes % 60);
   }
 
   String _dayLabel(BuildContext context, DateTime day) {
-    final l = AppLocalizations.of(context);
+    final l = AppLocalizations.of(context)!;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final target = DateTime(day.year, day.month, day.day);
     final diff = target.difference(today).inDays;
-    if (diff == 0) return '${day.month}/${day.day} · ${l?.today ?? 'Today'}';
-    if (diff == 1) return '${day.month}/${day.day} · ${l?.tomorrow ?? 'Tomorrow'}';
+    if (diff == 0) return '${day.month}/${day.day} · ${l.today}';
+    if (diff == 1) return '${day.month}/${day.day} · ${l.tomorrow}';
     return '${day.month}/${day.day}';
   }
 
@@ -1527,18 +1524,18 @@ class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
+    final l = AppLocalizations.of(context)!;
     final title = widget.title.isNotEmpty
-        ? (l?.planTodoModalTitle(widget.title) ?? 'Schedule "${widget.title}"')
-        : (l?.planSubmitAction ?? 'Schedule');
+        ? l.planTodoModalTitle(widget.title)
+        : l.planSubmitAction;
     return SpecPlanPicker(
       title: title,
       dateLabel: _dayLabel(context, _start),
-      subLabel: l?.planTodoSub ?? 'Sets planned execution only; does not change deadline.',
+      subLabel: l.planTodoSub,
       startLabel: DateFormatters.formatTime(_start),
       endLabel: DateFormatters.formatTime(_end),
       durationLabel: _durationLabel(l, _end.difference(_start)),
-      contextText: widget.contextText ?? l?.planNoConflict,
+      contextText: widget.contextText ?? l.planNoConflict,
       onTapDate: _pickDate,
       onTapStart: _pickStartTime,
       onTapEnd: _pickEndTime,
