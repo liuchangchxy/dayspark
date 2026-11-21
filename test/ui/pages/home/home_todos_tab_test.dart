@@ -170,7 +170,7 @@ void main() {
     await _settle(tester);
     expect(find.text('Done task'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Filter & display'));
+    await tester.tap(find.byTooltip('Filter'));
     await _settle(tester);
     // The display option is now the "show completed" switch.
     await tester.tap(find.byType(Switch));

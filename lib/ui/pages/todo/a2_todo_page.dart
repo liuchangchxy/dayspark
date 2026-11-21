@@ -570,11 +570,19 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     return showDsSheet<void>(
       context: context,
       title: l.filter,
+      actions: [
+        DsButton(
+          label: l.done,
+          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+        ),
+      ],
       body: Consumer(
         builder: (ctx, r, _) {
           final calFilter = r.watch(todoCalendarFilterProvider);
           final tagFilter = r.watch(todoTagFilterProvider);
           final prioFilter = r.watch(todoPriorityFilterProvider);
+          final hideCompleted =
+              r.watch(hideCompletedProvider).valueOrNull ?? false;
           return SingleChildScrollView(
             padding: const EdgeInsets.only(bottom: 8),
             child: Column(
@@ -659,6 +667,47 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                   ],
                 ),
                 const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: SpecTokens.hair, width: 1),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l.hideCompleted,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: SpecTokens.ink,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
+                            ),
+                            Text(
+                              l.hideCompletedDesc,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: SpecTokens.faint,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: hideCompleted,
+                        onChanged: (value) =>
+                            r.read(setHideCompletedProvider)(value),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextButton(
                   onPressed: () {
                     r.read(todoCalendarFilterProvider.notifier).state = null;
@@ -952,14 +1001,24 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   // ------------------------------------------------------------------ footer
 
   Widget _footer(AppLocalizations l, TodosView view, DateTime viewed) {
-    return A2CaptureBar(
-      placeholder: l.capturePlaceholder,
-      hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
-      onSubmit: _capture,
-      onFocusChange: (focused) {
-        if (_captureFocused == focused) return;
-        setState(() => _captureFocused = focused);
-      },
+    // The spec floats one 560x54 capture pill over the page, bottom 18.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: A2CaptureBar(
+            placeholder: l.capturePlaceholder,
+            hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
+            onSubmit: _capture,
+            onFocusChange: (focused) {
+              if (_captureFocused == focused) return;
+              setState(() => _captureFocused = focused);
+            },
+          ),
+        ),
+      ),
     );
   }
 

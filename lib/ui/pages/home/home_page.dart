@@ -10,7 +10,6 @@ import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
@@ -24,16 +23,12 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/record_bus_provider.dart';
-import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
-import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/a2.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
@@ -581,9 +576,6 @@ class _HomePageState extends ConsumerState<HomePage>
       onOpenUnplanned: () {
         ref.read(todosViewProvider.notifier).state = const TodosInboxView();
       },
-      trailingActions: [
-        _filterButton(context),
-      ],
     );
   }
 
@@ -905,189 +897,8 @@ class _HomePageState extends ConsumerState<HomePage>
     context.push('/event/detail', extra: event);
   }
 
-  int get _filterCount {
-    var count = 0;
-    if (ref.watch(todoCalendarFilterProvider) != null) count++;
-    if (ref.watch(todoTagFilterProvider).isNotEmpty) count++;
-    if (ref.watch(todoPriorityFilterProvider) != null) count++;
-    return count;
-  }
 
-  Widget _filterButton(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
-    final count = _filterCount;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        A2IconAction(
-          icon: CupertinoIcons.slider_horizontal_3,
-          tooltip: l.filterAndDisplay,
-          onPressed: () => _showFilterSheet(context),
-        ),
-        if (count > 0)
-          Positioned(
-            right: 10,
-            top: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: ds.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  color: ds.onPrimary,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
 
-  Future<void> _showFilterSheet(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final calendars =
-        ref.read(calendarsProvider).valueOrNull ?? const <Calendar>[];
-    final tags = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
-    return showDsSheet<void>(
-      context: context,
-      title: l.filterAndDisplay,
-      body: Consumer(
-        builder: (ctx, r, _) {
-          final ds = ctx.ds;
-          final calFilter = r.watch(todoCalendarFilterProvider);
-          final tagFilter = r.watch(todoTagFilterProvider);
-          final prioFilter = r.watch(todoPriorityFilterProvider);
-          final hideCompleted =
-              r.watch(hideCompletedProvider).valueOrNull ?? false;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DsGroupLabel(l.calendar),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final calendar in calendars)
-                      DsChip(
-                        label: calendar.name,
-                        selected: calFilter == calendar.id,
-                        leading: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: ColorUtils.parseHex(calendar.color),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        onTap: () =>
-                            r.read(todoCalendarFilterProvider.notifier).state =
-                                calFilter == calendar.id ? null : calendar.id,
-                      ),
-                  ],
-                ),
-                if (tags.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  DsGroupLabel(l.tags),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final tag in tags)
-                        DsChip(
-                          label: tag.name,
-                          selected: tagFilter.contains(tag.id),
-                          leading: Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: ColorUtils.parseHex(tag.color),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          onTap: () {
-                            final next = {...tagFilter};
-                            if (!next.remove(tag.id)) next.add(tag.id);
-                            r.read(todoTagFilterProvider.notifier).state = next;
-                          },
-                        ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 16),
-                DsGroupLabel(l.priority),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    DsChip(
-                      label: l.priorityNone,
-                      selected: prioFilter == null,
-                      onTap: () =>
-                          r.read(todoPriorityFilterProvider.notifier).state =
-                              null,
-                    ),
-                    for (final entry in [
-                      (1, l.priorityHigh),
-                      (5, l.priorityMedium),
-                      (9, l.priorityLow),
-                    ])
-                      DsChip(
-                        label: entry.$2,
-                        selected: prioFilter == entry.$1,
-                        onTap: () =>
-                            r.read(todoPriorityFilterProvider.notifier).state =
-                                prioFilter == entry.$1 ? null : entry.$1,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: ds.lineSoft)),
-                  ),
-                  child: DsSettingRow(
-                    label: hideCompleted ? l.hideCompleted : l.showCompleted,
-                    trailing: Switch.adaptive(
-                      value: !hideCompleted,
-                      activeTrackColor: ds.primary,
-                      onChanged: (show) =>
-                          r.read(setHideCompletedProvider)(!show),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-      actions: [
-        DsButton(
-          label: l.clearFilters,
-          tone: DsButtonTone.ghost,
-          small: true,
-          onPressed: () {
-            ref.read(todoCalendarFilterProvider.notifier).state = null;
-            ref.read(todoTagFilterProvider.notifier).state = const {};
-            ref.read(todoPriorityFilterProvider.notifier).state = null;
-          },
-        ),
-        DsButton(
-          label: l.done,
-          small: true,
-          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-        ),
-      ],
-    );
-  }
 }
 
 class _MobileDock extends StatelessWidget {
