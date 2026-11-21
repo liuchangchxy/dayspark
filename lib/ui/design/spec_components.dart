@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'ds.dart';
 
 /// Frozen spec checkbox: 16x16 circle, 1.4px border.
 /// When checked: SpecTokens.ink fill and white checkmark icon.
@@ -23,44 +24,12 @@ class SpecCheck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onChanged != null;
-    return Semantics(
+    return DsCheck(
       checked: checked,
+      onChanged: onChanged,
       label: label,
-      enabled: enabled,
-      child: MouseRegion(
-        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: enabled ? () => onChanged!(!checked) : null,
-          child: SizedBox(
-            width: touchTargetSize,
-            height: touchTargetSize,
-            child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: checked ? SpecTokens.ink : SpecTokens.paper,
-                  border: Border.all(
-                    color: checked ? SpecTokens.ink : const Color(0xFFCFCFC7),
-                    width: 1.4,
-                  ),
-                ),
-                child: checked
-                    ? const Icon(
-                        CupertinoIcons.checkmark,
-                        size: 9.5,
-                        color: SpecTokens.paper,
-                      )
-                    : null,
-              ),
-            ),
-          ),
-        ),
-      ),
+      size: 16,
+      compact: touchTargetSize < 40,
     );
   }
 }
@@ -80,6 +49,7 @@ class SpecTaskRow extends StatefulWidget {
     this.isOverdue = false,
     this.disabled = false,
     this.selected = false,
+    this.showCheck = true,
   });
 
   final String title;
@@ -92,6 +62,7 @@ class SpecTaskRow extends StatefulWidget {
   final bool isOverdue;
   final bool disabled;
   final bool selected;
+  final bool showCheck;
 
   @override
   State<SpecTaskRow> createState() => _SpecTaskRowState();
@@ -112,6 +83,11 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
 
     return FocusableActionDetector(
       enabled: enabled,
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) => widget.onTap?.call(),
+        ),
+      },
       onShowFocusHighlight: (v) => setState(() => _focused = v),
       onShowHoverHighlight: (v) => setState(() => _hovered = v),
       mouseCursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
@@ -121,7 +97,7 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
         child: Opacity(
           opacity: widget.disabled ? 0.45 : 1.0,
           child: Container(
-            constraints: const BoxConstraints(minHeight: 52),
+            constraints: const BoxConstraints(minHeight: 54),
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
             decoration: BoxDecoration(
               color: bg,
@@ -134,12 +110,15 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
             ),
             child: Row(
               children: [
-                SpecCheck(
-                  checked: widget.checked,
-                  onChanged: enabled ? widget.onToggle : null,
-                  label: widget.title,
-                  touchTargetSize: 32,
-                ),
+                if (widget.showCheck)
+                  SpecCheck(
+                    checked: widget.checked,
+                    onChanged: enabled ? widget.onToggle : null,
+                    label: widget.title,
+                    touchTargetSize: 32,
+                  )
+                else
+                  const SizedBox(width: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -163,9 +142,18 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                       ),
                       if (widget.meta.isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: widget.meta,
+                        SizedBox(
+                          height: 18,
+                          child: ClipRect(
+                            child: OverflowBox(
+                              alignment: Alignment.centerLeft,
+                              maxWidth: double.infinity,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: widget.meta,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ],

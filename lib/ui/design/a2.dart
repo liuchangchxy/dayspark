@@ -868,49 +868,35 @@ class A2Empty extends StatelessWidget {
   Widget build(BuildContext context) {
     final ds = context.ds;
     return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: ds.surface2,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: ds.surface3,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 24, color: ds.ink3),
-                ),
-                const SizedBox(height: 12),
-              ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 76),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon ?? CupertinoIcons.tray,
+              size: 27,
+              color: const Color(0xFFB5B5AB),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: _t(15, FontWeight.w600, ds.ink),
+            ),
+            if (hint != null) ...[
+              const SizedBox(height: 4),
               Text(
-                title,
+                hint!,
                 textAlign: TextAlign.center,
-                style: _t(13, FontWeight.w500, ds.ink2),
+                style: _t(11.5, FontWeight.w400, ds.ink3, height: 1.4),
               ),
-              if (hint != null) ...[
-                const SizedBox(height: 6),
-                Text(
-                  hint!,
-                  textAlign: TextAlign.center,
-                  style: _t(12, FontWeight.w400, ds.ink3, height: 1.5),
-                ),
-              ],
-              if (action != null) ...[
-                const SizedBox(height: 12),
-                action!,
-              ],
             ],
-          ),
+            if (action != null) ...[
+              const SizedBox(height: 13),
+              action!,
+            ],
+          ],
         ),
       ),
     );

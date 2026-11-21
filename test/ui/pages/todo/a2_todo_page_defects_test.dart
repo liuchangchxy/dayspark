@@ -1,6 +1,5 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -439,7 +438,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('the view switch shows a visible chevron that opens the sheet', (
+  testWidgets('the view switch shows mode switch control with three modes', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -457,10 +456,19 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.byIcon(CupertinoIcons.chevron_down), findsOneWidget);
-    await tester.tap(find.byIcon(CupertinoIcons.chevron_down));
+    expect(find.byKey(const ValueKey('todos-mode-switch')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-mode-inbox')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-mode-all')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('todo-mode-date')));
     await _settle(tester);
-    expect(find.text('By date'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2TodoPage)),
+      listen: false,
+    );
+    expect(container.read(todosViewProvider), isA<TodosDayView>());
 
     await _unmount(tester);
   });

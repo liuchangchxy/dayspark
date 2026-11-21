@@ -827,19 +827,49 @@
   "allDayLabel": "全天",
   "emptyTodayTitle": "今天还没有安排",
   "emptyTodayHint": "想好的事随时记下来，回车直接进「未安排」",
-  "emptyUnplannedTitle": "未安排里什么都没有",
-  "emptyUnplannedHint": "捕获一条，回车就进这里",
-  "emptyDateTitle": "这一天还没有安排",
-  "emptyDateHint": "用下面的「安排到这一天」加一条",
+  "emptyUnplannedTitle": "未安排是空的",
+  "emptyUnplannedHint": "从今天或这里捕获的待办会先落到这里。",
+  "emptyDateTitle": "这一天还没有计划",
+  "emptyDateHint": "把待办拖 / 安排到这一天，或先从捕获开始。",
   "allDueTodaySection": "今天截止",
   "allPastDueSection": "已过截止",
   "allLaterSection": "之后",
   "allUnplannedNoDueSection": "无截止",
   "withDueUnplannedSection": "带截止 · 未安排",
   "noDueSection": "无截止",
+  "noDateGroupSection": "无日期",
   "datePlannedSection": "计划执行",
   "dateDueSection": "截止",
-  "dateEventsSection": "事件",
+  "dateEventsSection": "当天日程",
+  "dayEventsBgSub": "{count} 项 · 只做时间背景",
+  "@dayEventsBgSub": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoAllActiveSummary": "{active} 项待办 · {completed} 项已完成",
+  "@todoAllActiveSummary": {
+    "placeholders": {
+      "active": {
+        "type": "int"
+      },
+      "completed": {
+        "type": "int"
+      }
+    }
+  },
+  "viewNoDateCount": "查看无日期 {count} 项",
+  "@viewNoDateCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filter": "筛选",
+  "filterEmptyHint": "清除筛选后显示全部。",
   "todoUnplannedContext": "{count} 项 · 含 {withDue} 项带截止",
   "@todoUnplannedContext": {
     "placeholders": {

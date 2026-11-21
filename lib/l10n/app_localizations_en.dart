@@ -2056,13 +2056,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDueSection => 'No deadline';
 
   @override
+  String get noDateGroupSection => 'No date';
+
+  @override
   String get datePlannedSection => 'Planned';
 
   @override
   String get dateDueSection => 'Deadline';
 
   @override
-  String get dateEventsSection => 'Events';
+  String get dateEventsSection => 'Day schedule';
+
+  @override
+  String dayEventsBgSub(int count) {
+    return '$count items · background timeline only';
+  }
+
+  @override
+  String todoAllActiveSummary(int active, int completed) {
+    return '$active pending · $completed completed';
+  }
+
+  @override
+  String viewNoDateCount(int count) {
+    return 'View $count unplanned';
+  }
+
+  @override
+  String get filter => 'Filter';
+
+  @override
+  String get filterEmptyHint => 'Clear filters to show all.';
 
   @override
   String todoUnplannedContext(int count, int withDue) {
