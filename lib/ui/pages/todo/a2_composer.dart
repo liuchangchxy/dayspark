@@ -12,6 +12,7 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
@@ -20,6 +21,8 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
+import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
@@ -49,7 +52,7 @@ Future<void> showA2Composer(
   if (isWorkspaceLayout(context)) {
     return showDialog<void>(
       context: context,
-      barrierColor: Theme.of(context).extension<DsColors>()?.scrim,
+      barrierColor: const Color.fromRGBO(25, 25, 24, 0.26),
       builder: (_) => composer,
     );
   }
@@ -57,7 +60,7 @@ Future<void> showA2Composer(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: Theme.of(context).extension<DsColors>()?.scrim,
+    barrierColor: const Color.fromRGBO(25, 25, 24, 0.26),
     builder: (_) => composer,
   );
 }
@@ -229,42 +232,26 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   }
 
   Future<void> _pickCustomSlot() async {
-    final l = AppLocalizations.of(context)!;
-    final start = await pickDateTime(
+    final title = _title.text.trim().isNotEmpty
+        ? _title.text.trim()
+        : (_boundTodo?.summary ?? '');
+    final defaultStart = _start ??
+        DateTime(
+          widget.contextDate.year,
+          widget.contextDate.month,
+          widget.contextDate.day,
+          9,
+        );
+    final defaultEnd = _end ?? defaultStart.add(const Duration(hours: 1));
+    final picked = await SpecPlanPickerDialog.show(
       context,
-      initial:
-          _start ??
-          DateTime(
-            widget.contextDate.year,
-            widget.contextDate.month,
-            widget.contextDate.day,
-            9,
-          ),
+      title: title,
+      initialStart: defaultStart,
+      initialEnd: defaultEnd,
     );
-    if (start == null || !mounted) return;
-    final length = await showDsSheet<Duration>(
-      context: context,
-      title: l.executionBlock,
-      body: Column(
-        children: [
-          for (final option in kExecutionLengths)
-            DsSettingRow(
-              label: _durationLabel(option),
-              onTap: () => Navigator.of(context).pop(option),
-            ),
-        ],
-      ),
-    );
-    if (length == null || !mounted) return;
-    _setSlot(start, start.add(length));
+    if (picked == null || !mounted) return;
+    _setSlot(picked.$1, picked.$2);
     setState(() => _planOpen = true);
-  }
-
-  String _durationLabel(Duration d) {
-    final l = AppLocalizations.of(context)!;
-    if (d.inMinutes == 0) return l.durationMinutes(0);
-    if (d.inMinutes % 60 == 0) return l.durationHours(d.inHours);
-    return l.durationHoursMinutes(d.inHours, d.inMinutes % 60);
   }
 
   Future<void> _pickReminder() async {
@@ -483,6 +470,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     }
   }
 
+
   /// A write the user asked for happened on [day]; leaving the calendar on the
   /// day they were looking at made them hunt for the block they just made.
   void _landOn(DateTime day) {
@@ -638,28 +626,51 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     };
 
     if (desktop) {
-      // DsDialog owns the 560px width, the content-height cap and the modal
-      // route's focus scope (Tab cannot reach the page behind it). Keeping the
-      // fields in one Column also fixes the Tab order: title, deadline, plan,
-      // secondary rows, then the actions.
+      final isShifted = ref.watch(workspaceSelectionProvider) != null &&
+          isMasterDetailLayout(context);
+      final panelWidth = _writeFailed ? 520.0 : 620.0;
       return CallbackShortcuts(
         bindings: shortcuts,
         child: Focus(
           autofocus: _scheduling,
           canRequestFocus: _scheduling,
           skipTraversal: !_scheduling,
-          child: DsDialog(
-            title: l.planToDate('$dateText · $weekday'),
-            actions: [
-              _ellipsisButton(ds, l),
-              const Spacer(),
-              if (_writeFailed) ...[
-                Flexible(child: _writeFailureLabel(ds, l)),
-                const SizedBox(width: 8),
-              ],
-              _primaryButton(ds, l),
-            ],
-            child: fields,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            alignment: Alignment.bottomCenter,
+            insetPadding: const EdgeInsets.only(bottom: 82),
+            child: Transform.translate(
+              offset: Offset(isShifted ? -190 : 0, 0),
+              child: Container(
+                width: panelWidth,
+                constraints: const BoxConstraints(maxHeight: 620),
+                decoration: BoxDecoration(
+                  color: SpecTokens.paper,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: SpecTokens.hair2),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x21191918),
+                      blurRadius: 55,
+                      offset: Offset(0, 18),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _header(context, ds, l, dateText, weekday, desktop: true),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(14, 11, 14, 13),
+                        child: fields,
+                      ),
+                    ),
+                    _footer(ds, l, desktop: true),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       );
@@ -674,93 +685,34 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
             bottom: MediaQuery.viewInsetsOf(context).bottom,
           ),
           child: Container(
+            margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.92,
+              maxHeight: MediaQuery.sizeOf(context).height * 0.90,
             ),
             decoration: BoxDecoration(
-              color: ds.surface,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(18),
-              ),
-              border: Border(top: BorderSide(color: ds.line)),
+              color: SpecTokens.paper,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: SpecTokens.hair2),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x2E191918),
+                  blurRadius: 60,
+                  offset: Offset(0, 20),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 8),
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: ds.surface3,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 6, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          l.planToDate('$dateText · $weekday'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            height: 1.4,
-                            color: ds.ink,
-                            fontFamilyFallback: AppTypography.fallback,
-                          ),
-                        ),
-                      ),
-                      _SheetIcon(
-                        icon: CupertinoIcons.xmark,
-                        tooltip: l.cancel,
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ],
-                  ),
-                ),
+                _header(context, ds, l, dateText, weekday, desktop: false),
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(14, 11, 14, 14),
                     child: fields,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: ds.lineSoft)),
-                  ),
-                  child: SafeArea(
-                    top: false,
-                    child: Row(
-                      children: [
-                        _ellipsisButton(ds, l),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              if (_writeFailed) ...[
-                                Flexible(child: _writeFailureLabel(ds, l)),
-                                const SizedBox(width: 8),
-                              ],
-                              // The label names every value it will write, so
-                              // it can outgrow a phone's action row; shrink and
-                              // ellipsize instead of overflowing.
-                              Flexible(child: _primaryButton(ds, l)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _footer(ds, l, desktop: false),
               ],
             ),
           ),
@@ -769,64 +721,250 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     );
   }
 
-  Widget _ellipsisButton(DsColors ds, AppLocalizations l) {
-    return Tooltip(
-      message: _scheduling ? l.scheduleTodoDesc : l.openFullForm,
-      child: SizedBox(
-        height: 44,
-        child: TextButton(
-          onPressed: _scheduling ? null : _openFullForm,
-          style: TextButton.styleFrom(
-            foregroundColor: ds.primary,
-            disabledForegroundColor: ds.faint,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(6),
+  Widget _header(
+    BuildContext context,
+    DsColors ds,
+    AppLocalizations l,
+    String dateText,
+    String weekday, {
+    required bool desktop,
+  }) {
+    final title = _writeFailed
+        ? l.widgetSaveFailed
+        : l.planToDate('$dateText · $weekday');
+    final sub = _writeFailed
+        ? l.captureSaveErrorServer
+        : l.captureHintExpanded;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 11, 10, 8),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: SpecTokens.hair)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: desktop ? 11.5 : 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: SpecTokens.ink,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                Text(
+                  sub,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: SpecTokens.faint,
+                    height: 1.3,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ],
             ),
           ),
-          child: const Icon(CupertinoIcons.ellipsis, size: 17),
+          IconButton(
+            icon: const Icon(CupertinoIcons.xmark, size: 12),
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            splashRadius: 14,
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footer(DsColors ds, AppLocalizations l, {required bool desktop}) {
+    final hint = _writeFailed
+        ? l.captureHintSaveError
+        : l.captureHintExpanded;
+
+    if (desktop) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: SpecTokens.wash,
+          border: Border(top: BorderSide(color: SpecTokens.hair)),
+          borderRadius: const BorderRadius.vertical(
+            bottom: Radius.circular(10),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  hint,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: SpecTokens.faint,
+                    height: 1.35,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ellipsisButton(ds, l, desktop: true),
+              const SizedBox(width: 8),
+              if (_writeFailed) ...[
+                Flexible(child: _writeFailureLabel(ds, l)),
+                const SizedBox(width: 8),
+                if (!_scheduling) ...[
+                  TextButton(
+                    onPressed: _saveToUnplanned,
+                    style: TextButton.styleFrom(
+                      foregroundColor: SpecTokens.ink2,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 29),
+                    ),
+                    child: Text(l.captureActionSaveLater),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+              ],
+              Flexible(child: _primaryButton(ds, l, desktop: true)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: SpecTokens.wash,
+        border: Border(top: BorderSide(color: SpecTokens.hair)),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(14),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            _ellipsisButton(ds, l, desktop: false),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (_writeFailed) ...[
+                    Flexible(child: _writeFailureLabel(ds, l)),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(child: _primaryButton(ds, l, desktop: false)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// A failed write leaves the draft intact, so the button has to say that the
-  /// next tap is a retry of something that did not land. Kept outside the
-  /// button so neither chrome has to give the button unbounded width.
-  Widget _writeFailureLabel(DsColors ds, AppLocalizations l) {
-    return Text(
-      l.widgetSaveFailed,
-      key: const ValueKey('a2-composer-write-failed'),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 12,
-        color: ds.danger,
-        fontFamilyFallback: AppTypography.fallback,
+  Future<void> _saveToUnplanned() async {
+    setState(() {
+      _start = null;
+      _end = null;
+      _due = null;
+      _writeFailed = false;
+    });
+    await _save();
+  }
+
+  Widget _ellipsisButton(
+    DsColors ds,
+    AppLocalizations l, {
+    required bool desktop,
+  }) {
+    return Tooltip(
+      message: _scheduling ? l.scheduleTodoDesc : l.openFullForm,
+      child: SizedBox(
+        height: desktop ? 29 : 44,
+        child: TextButton(
+          onPressed: _scheduling ? null : _openFullForm,
+          style: TextButton.styleFrom(
+            foregroundColor: SpecTokens.ink,
+            disabledForegroundColor: SpecTokens.faint,
+            backgroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(desktop ? 5 : 6),
+              side: BorderSide(color: SpecTokens.hair2),
+            ),
+          ),
+          child: const Icon(CupertinoIcons.ellipsis, size: 16),
+        ),
       ),
     );
   }
 
-  Widget _primaryButton(DsColors ds, AppLocalizations l) {
+  Widget _writeFailureLabel(DsColors ds, AppLocalizations l) {
+    return Container(
+      key: const ValueKey('a2-composer-write-failed'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: SpecTokens.redSoft,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: SpecTokens.red.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        l.widgetSaveFailed,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          color: SpecTokens.red,
+          fontWeight: FontWeight.w500,
+          fontFamilyFallback: AppTypography.fallback,
+        ),
+      ),
+    );
+  }
+
+  Widget _primaryButton(
+    DsColors ds,
+    AppLocalizations l, {
+    required bool desktop,
+  }) {
     return SizedBox(
-      height: 44,
+      height: desktop ? 29 : 44,
       child: FilledButton(
         onPressed: _canSave ? _save : null,
         style: FilledButton.styleFrom(
-          backgroundColor: ds.primary,
-          disabledBackgroundColor: ds.surface3,
-          disabledForegroundColor: ds.faint,
-          foregroundColor: ds.onPrimary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          backgroundColor: SpecTokens.ink,
+          disabledBackgroundColor: SpecTokens.hair2,
+          disabledForegroundColor: SpecTokens.faint,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(desktop ? 5 : 8),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
         child: Text(
           _primaryLabel(l),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          // Values are inline in the label, so they line up like the field
-          // rows above them rather than jittering with proportional digits.
-          style: const TextStyle(fontFeatures: AppTypography.tabular),
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            fontFeatures: AppTypography.tabular,
+          ),
         ),
       ),
     );
@@ -1081,35 +1219,6 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
         hoverColor: ds.surface2,
         focusColor: ds.surface2,
         child: row,
-      ),
-    );
-  }
-}
-
-class _SheetIcon extends StatelessWidget {
-  const _SheetIcon({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, size: 20, color: ds.ink3),
-        ),
       ),
     );
   }

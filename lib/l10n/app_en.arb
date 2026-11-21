@@ -1783,5 +1783,80 @@
   "mobileNotifyDesc": "Permissions & reminders",
   "mobileSyncDesc": "Account, failure, conflict",
   "sync": "Sync",
-  "mobileAboutDesc": "Version & license"
+  "mobileAboutDesc": "Version & license",
+  "captureParsedTypeTodoTitle": "Type remains Task",
+  "captureParsedTypeTodoSub": "Detected time is only a \"Planned execution\" suggestion, not an event or deadline.",
+  "captureParsedSuggestTitle": "Suggested Plan",
+  "captureParsedSuggestEventTitle": "Event Schedule",
+  "captureParsedSuggestRemoved": "Time suggestion removed",
+  "captureParsedSuggestSub": "Preselected; saved as \"Planned execution\". Can be removed.",
+  "captureParsedSuggestEventSub": "Changed to Event; saved directly to calendar.",
+  "captureParsedSuggestSubRemoved": "Saves title only; no date, no plan, no deadline.",
+  "captureActionRemove": "Remove",
+  "captureActionRestore": "Restore",
+  "captureActionChangeToEvent": "Change to Event",
+  "captureActionChangeToTodo": "Change to Task",
+  "captureActionExpandFields": "Expand fields",
+  "captureActionBackToCompact": "Back to compact",
+  "captureActionSaveLater": "Save to Unplanned first",
+  "captureHintParsed": "Default: Task · No date · Personal\nDeadline remains empty",
+  "captureHintExpanded": "All facts visible before saving; untouched fields are not written.",
+  "captureHintEvent": "Only explicit switch to \"Event\" or entering from Calendar slot creates an event.",
+  "captureHintDate": "Writes date only, not time; will not become an event.",
+  "captureHintPlan": "Overlaps allowed; will not modify deadline.",
+  "captureHintCalendar": "Default calendar comes from settings; no \"uncategorized\".",
+  "captureHintReminder": "Reminder is the item's own fact, does not affect deadline.",
+  "captureHintValidation": "Validation error stays on field, no global popup.",
+  "captureHintSaveError": "Failure state does not close Capture or drop input.",
+  "captureHintDiscard": "Dangerous actions require confirmation.",
+  "captureHintKeyboard": "Focus visible; Esc triggers discard confirmation.",
+  "captureValidationEmptyTitle": "Title cannot be empty. Write an action you will understand tomorrow.",
+  "captureValidationAlert": "Fill title before saving; other fields are preserved.",
+  "captureSaveErrorServer": "Could not connect to server.",
+  "captureSaveErrorDraftHint": "\"{title}\" is still in this draft; you can retry or keep it in Unplanned.",
+  "@captureSaveErrorDraftHint": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDiscardTitle": "Discard this input?",
+  "captureDiscardSub": "\"{title}\" has not been saved",
+  "@captureDiscardSub": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDiscardLineTitle": "Draft will be lost on close",
+  "captureDiscardLineSub": "Keep editing will preserve title, date and reminders.",
+  "captureKeyboardTitle": "Keyboard navigation",
+  "captureKeyboardSub": "Desktop: Tab fields · Enter save · Esc discard",
+  "captureKeyboardHelp": "Focus on title; Tab to deadline, plan, reminder.",
+  "captureChoiceTitleDate": "Select Date",
+  "captureChoiceTitlePlan": "Select Planned Execution",
+  "captureChoiceTitleCalendar": "Select Calendar",
+  "captureChoiceTitleReminder": "Reminder",
+  "captureChoiceSubCalendar": "New tasks land here by default",
+  "captureChoiceFooter": "Only modifies this field; other facts remain unchanged.",
+  "captureFieldDateToday": "Today",
+  "captureFieldDateTomorrow": "Tomorrow",
+  "captureFieldDateNextMonday": "Next Monday",
+  "captureFieldDateOther": "Other date",
+  "captureFieldDateOpenCalendar": "Open calendar",
+  "captureSelectedTag": "Selected",
+  "planPickerTitle": "Schedule Task",
+  "planPickerTarget": "Schedule \"{title}\"",
+  "@planPickerTarget": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planPickerEmpty": "No schedulable tasks",
+  "planPickerEmptySub": "Add a task from the capture bar first, then plan its execution.",
+  "planPickerContext": "Existing today"
 }

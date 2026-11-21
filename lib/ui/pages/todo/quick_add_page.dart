@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -16,6 +17,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
@@ -43,6 +45,8 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
   int? _reminderMinutes;
   DateTime? _pickedStart;
   Duration? _pickedDuration;
+  bool _isEvent = false;
+  bool _suggestionRemoved = false;
 
   @override
   void dispose() {
@@ -86,7 +90,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
   Future<void> _save() async {
     final draft = _draft();
     if (_controller.text.trim().isEmpty || _saving) return;
-    if ((_pickedStart ?? draft.start) != null) {
+    if (_isEvent && (_pickedStart ?? draft.start) != null && !_suggestionRemoved) {
       await _saveEvent(draft);
       return;
     }
@@ -113,11 +117,14 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
         return;
       }
       final summary = draft.title.isEmpty ? text : draft.title;
-      // A parsed time describes an Event, not a deadline. Saving the task
-      // alternative must not silently turn that time (or its date) into a due
-      // date; only a date-only capture becomes a deadline.
-      final timed = (_pickedStart ?? draft.start) != null;
-      final dueDate = timed ? null : draft.date;
+      // A parsed time describes an Event, not a deadline. When the suggestion
+      // is accepted, it is written as a planned execution (TaskAllocation)
+      // instead of silently mutating dueDate; only a date-only capture becomes
+      // a deadline. When suggestion is removed, only the title is saved.
+      final timed = (_pickedStart ?? draft.start) != null && !_suggestionRemoved;
+      final start = timed ? (_pickedStart ?? draft.start) : null;
+      final duration = timed ? (_pickedDuration ?? draft.duration) : null;
+      final dueDate = timed ? null : (_suggestionRemoved ? null : draft.date);
       final reminder = _reminderMinutes;
       await RecordScope.run(ref.read(databaseProvider), (tx) async {
         final id = await ref.read(createTodoProvider)(
@@ -127,13 +134,24 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
           status: 'NEEDS-ACTION',
           dueDate: dueDate,
         );
+        if (timed && start != null && duration != null) {
+          final db = ref.read(databaseProvider);
+          await TaskAllocationWriter.create(
+            db,
+            tx,
+            todoId: id,
+            startAt: start,
+            endAt: start.add(duration),
+          );
+        }
         // Reminders are written only when the user asked for one and there is
         // a real anchor to count back from.
-        if (reminder != null && reminder >= 0 && dueDate != null) {
+        final anchor = start ?? dueDate;
+        if (reminder != null && reminder >= 0 && anchor != null) {
           await ref.read(createReminderProvider)(
             parentType: 'todo',
             parentId: id,
-            triggerTime: dueDate.subtract(Duration(minutes: reminder)),
+            triggerTime: anchor.subtract(Duration(minutes: reminder)),
           );
         }
       });
@@ -210,6 +228,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     setState(() {
       _pickedStart = picked;
       _pickedDuration = _pickedDuration ?? draft.duration;
+      _suggestionRemoved = false;
     });
   }
 
@@ -329,14 +348,28 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                         if (hasText)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                            child: _card(
-                              context,
-                              l,
-                              draft,
-                              start,
-                              duration,
-                              calendar,
-                              desktop: true,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (start != null)
+                                  _suggestBlock(
+                                    context,
+                                    l,
+                                    draft,
+                                    start,
+                                    duration,
+                                  ),
+                                _card(
+                                  context,
+                                  l,
+                                  draft,
+                                  start,
+                                  duration,
+                                  calendar,
+                                  desktop: true,
+                                ),
+                              ],
                             ),
                           )
                         else
@@ -421,14 +454,29 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                               if (hasText)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 10),
-                                  child: _card(
-                                    context,
-                                    l,
-                                    draft,
-                                    start,
-                                    duration,
-                                    calendar,
-                                    desktop: false,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (start != null)
+                                        _suggestBlock(
+                                          context,
+                                          l,
+                                          draft,
+                                          start,
+                                          duration,
+                                        ),
+                                      _card(
+                                        context,
+                                        l,
+                                        draft,
+                                        start,
+                                        duration,
+                                        calendar,
+                                        desktop: false,
+                                      ),
+                                    ],
                                   ),
                                 ),
                             ],
@@ -565,6 +613,8 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
       onChanged: (_) => setState(() {
         _pickedStart = null;
         _pickedDuration = null;
+        _isEvent = false;
+        _suggestionRemoved = false;
       }),
       decoration: InputDecoration(
         hintText: l.quickCreateHint,
@@ -604,6 +654,119 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     );
   }
 
+  Widget _suggestBlock(
+    BuildContext context,
+    AppLocalizations l,
+    _QuickAddDraft draft,
+    DateTime start,
+    Duration duration,
+  ) {
+    final timeStr =
+        '${DateFormatters.formatTime(start)}–${DateFormatters.formatTime(start.add(duration))}';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: SpecTokens.wash,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: const Color(0xFFDFE3E5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.clock, size: 13, color: SpecTokens.work),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _suggestionRemoved
+                      ? l.captureParsedSuggestRemoved
+                      : (_isEvent
+                          ? '$timeStr · ${l.captureParsedSuggestEventTitle}'
+                          : '$timeStr · ${l.captureParsedSuggestTitle}'),
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: SpecTokens.ink,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  _suggestionRemoved
+                      ? l.captureParsedSuggestSubRemoved
+                      : (_isEvent
+                          ? l.captureParsedSuggestEventSub
+                          : l.captureParsedSuggestSub),
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    color: SpecTokens.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            key: const ValueKey('quick-add-suggestion-toggle'),
+            onPressed: () {
+              setState(() {
+                _suggestionRemoved = !_suggestionRemoved;
+                if (_suggestionRemoved) {
+                  _isEvent = false;
+                }
+              });
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(48, 48),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              _suggestionRemoved
+                  ? l.captureActionRestore
+                  : l.captureActionRemove,
+              style: const TextStyle(
+                fontSize: 10,
+                color: SpecTokens.work,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          TextButton(
+            key: const ValueKey('quick-add-suggestion-type'),
+            onPressed: () {
+              setState(() {
+                _isEvent = !_isEvent;
+                if (_isEvent) {
+                  _suggestionRemoved = false;
+                }
+              });
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              minimumSize: const Size(48, 48),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              _isEvent
+                  ? l.captureActionChangeToTodo
+                  : l.captureActionChangeToEvent,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: _isEvent ? SpecTokens.ink : SpecTokens.work,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _card(
     BuildContext context,
     AppLocalizations l,
@@ -617,10 +780,14 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     final accent = calendar == null
         ? ds.work
         : ColorUtils.parseHex(calendar.color);
-    final event = start != null;
-    final day = event
-        ? DateTime(start.year, start.month, start.day)
-        : draft.date;
+    final event = _isEvent && !_suggestionRemoved;
+    final day = _suggestionRemoved
+        ? null
+        : (event
+            ? (start != null
+                ? DateTime(start.year, start.month, start.day)
+                : draft.date)
+            : (start != null ? null : draft.date));
     final main = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -634,7 +801,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                 fontSize: 11,
               ),
             ),
-            if (event) ...[
+            if (event && day != null) ...[
               Text(
                 ' · ',
                 style: AppTypography.small.copyWith(
@@ -644,7 +811,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               ),
               Flexible(
                 child: Text(
-                  _dayLabel(context, day!),
+                  _dayLabel(context, day),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.small.copyWith(
@@ -658,7 +825,7 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
           ],
         ),
         const SizedBox(height: 4),
-        if (event)
+        if (event && start != null)
           Text.rich(
             TextSpan(
               children: [
@@ -696,20 +863,6 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
               height: 1.3,
             ),
           ),
-        if (event) ...[
-          const SizedBox(height: 4),
-          // The primary button saves the event; the secondary one saves only
-          // the task, and that task inherits no deadline from the time above.
-          Text(
-            '${l.todos} · ${l.noDueDate}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTypography.small.copyWith(
-              color: ds.ink3,
-              fontSize: 11,
-            ),
-          ),
-        ],
         const SizedBox(height: 8),
         Wrap(
           spacing: 6,
@@ -788,7 +941,9 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                 child: _mobileField(
                   context,
                   l.executionWhen,
-                  event ? DateFormatters.formatTime(start) : l.notSet,
+                  start != null && !_suggestionRemoved
+                      ? DateFormatters.formatTime(start)
+                      : l.notSet,
                   () => _pickTime(draft),
                 ),
               ),
@@ -839,7 +994,9 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
                         _field(
                           context,
                           l.executionWhen,
-                          event ? DateFormatters.formatTime(start) : l.notSet,
+                          start != null && !_suggestionRemoved
+                              ? DateFormatters.formatTime(start)
+                              : l.notSet,
                           () => _pickTime(draft),
                           focused: true,
                         ),

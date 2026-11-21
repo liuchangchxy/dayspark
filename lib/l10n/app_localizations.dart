@@ -5290,6 +5290,330 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Version & license'**
   String get mobileAboutDesc;
+
+  /// No description provided for @captureParsedTypeTodoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Type remains Task'**
+  String get captureParsedTypeTodoTitle;
+
+  /// No description provided for @captureParsedTypeTodoSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected time is only a \"Planned execution\" suggestion, not an event or deadline.'**
+  String get captureParsedTypeTodoSub;
+
+  /// No description provided for @captureParsedSuggestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested Plan'**
+  String get captureParsedSuggestTitle;
+
+  /// No description provided for @captureParsedSuggestEventTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Schedule'**
+  String get captureParsedSuggestEventTitle;
+
+  /// No description provided for @captureParsedSuggestRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Time suggestion removed'**
+  String get captureParsedSuggestRemoved;
+
+  /// No description provided for @captureParsedSuggestSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Preselected; saved as \"Planned execution\". Can be removed.'**
+  String get captureParsedSuggestSub;
+
+  /// No description provided for @captureParsedSuggestEventSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed to Event; saved directly to calendar.'**
+  String get captureParsedSuggestEventSub;
+
+  /// No description provided for @captureParsedSuggestSubRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves title only; no date, no plan, no deadline.'**
+  String get captureParsedSuggestSubRemoved;
+
+  /// No description provided for @captureActionRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get captureActionRemove;
+
+  /// No description provided for @captureActionRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get captureActionRestore;
+
+  /// No description provided for @captureActionChangeToEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Change to Event'**
+  String get captureActionChangeToEvent;
+
+  /// No description provided for @captureActionChangeToTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Change to Task'**
+  String get captureActionChangeToTodo;
+
+  /// No description provided for @captureActionExpandFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand fields'**
+  String get captureActionExpandFields;
+
+  /// No description provided for @captureActionBackToCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to compact'**
+  String get captureActionBackToCompact;
+
+  /// No description provided for @captureActionSaveLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Unplanned first'**
+  String get captureActionSaveLater;
+
+  /// No description provided for @captureHintParsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: Task · No date · Personal\nDeadline remains empty'**
+  String get captureHintParsed;
+
+  /// No description provided for @captureHintExpanded.
+  ///
+  /// In en, this message translates to:
+  /// **'All facts visible before saving; untouched fields are not written.'**
+  String get captureHintExpanded;
+
+  /// No description provided for @captureHintEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Only explicit switch to \"Event\" or entering from Calendar slot creates an event.'**
+  String get captureHintEvent;
+
+  /// No description provided for @captureHintDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Writes date only, not time; will not become an event.'**
+  String get captureHintDate;
+
+  /// No description provided for @captureHintPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlaps allowed; will not modify deadline.'**
+  String get captureHintPlan;
+
+  /// No description provided for @captureHintCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar comes from settings; no \"uncategorized\".'**
+  String get captureHintCalendar;
+
+  /// No description provided for @captureHintReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder is the item\'s own fact, does not affect deadline.'**
+  String get captureHintReminder;
+
+  /// No description provided for @captureHintValidation.
+  ///
+  /// In en, this message translates to:
+  /// **'Validation error stays on field, no global popup.'**
+  String get captureHintValidation;
+
+  /// No description provided for @captureHintSaveError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failure state does not close Capture or drop input.'**
+  String get captureHintSaveError;
+
+  /// No description provided for @captureHintDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Dangerous actions require confirmation.'**
+  String get captureHintDiscard;
+
+  /// No description provided for @captureHintKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus visible; Esc triggers discard confirmation.'**
+  String get captureHintKeyboard;
+
+  /// No description provided for @captureValidationEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title cannot be empty. Write an action you will understand tomorrow.'**
+  String get captureValidationEmptyTitle;
+
+  /// No description provided for @captureValidationAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill title before saving; other fields are preserved.'**
+  String get captureValidationAlert;
+
+  /// No description provided for @captureSaveErrorServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to server.'**
+  String get captureSaveErrorServer;
+
+  /// No description provided for @captureSaveErrorDraftHint.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" is still in this draft; you can retry or keep it in Unplanned.'**
+  String captureSaveErrorDraftHint(String title);
+
+  /// No description provided for @captureDiscardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this input?'**
+  String get captureDiscardTitle;
+
+  /// No description provided for @captureDiscardSub.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" has not been saved'**
+  String captureDiscardSub(String title);
+
+  /// No description provided for @captureDiscardLineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft will be lost on close'**
+  String get captureDiscardLineTitle;
+
+  /// No description provided for @captureDiscardLineSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing will preserve title, date and reminders.'**
+  String get captureDiscardLineSub;
+
+  /// No description provided for @captureKeyboardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard navigation'**
+  String get captureKeyboardTitle;
+
+  /// No description provided for @captureKeyboardSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop: Tab fields · Enter save · Esc discard'**
+  String get captureKeyboardSub;
+
+  /// No description provided for @captureKeyboardHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus on title; Tab to deadline, plan, reminder.'**
+  String get captureKeyboardHelp;
+
+  /// No description provided for @captureChoiceTitleDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Date'**
+  String get captureChoiceTitleDate;
+
+  /// No description provided for @captureChoiceTitlePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Planned Execution'**
+  String get captureChoiceTitlePlan;
+
+  /// No description provided for @captureChoiceTitleCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Calendar'**
+  String get captureChoiceTitleCalendar;
+
+  /// No description provided for @captureChoiceTitleReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder'**
+  String get captureChoiceTitleReminder;
+
+  /// No description provided for @captureChoiceSubCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'New tasks land here by default'**
+  String get captureChoiceSubCalendar;
+
+  /// No description provided for @captureChoiceFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Only modifies this field; other facts remain unchanged.'**
+  String get captureChoiceFooter;
+
+  /// No description provided for @captureFieldDateToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get captureFieldDateToday;
+
+  /// No description provided for @captureFieldDateTomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get captureFieldDateTomorrow;
+
+  /// No description provided for @captureFieldDateNextMonday.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Monday'**
+  String get captureFieldDateNextMonday;
+
+  /// No description provided for @captureFieldDateOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other date'**
+  String get captureFieldDateOther;
+
+  /// No description provided for @captureFieldDateOpenCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Open calendar'**
+  String get captureFieldDateOpenCalendar;
+
+  /// No description provided for @captureSelectedTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get captureSelectedTag;
+
+  /// No description provided for @planPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule Task'**
+  String get planPickerTitle;
+
+  /// No description provided for @planPickerTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule \"{title}\"'**
+  String planPickerTarget(String title);
+
+  /// No description provided for @planPickerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No schedulable tasks'**
+  String get planPickerEmpty;
+
+  /// No description provided for @planPickerEmptySub.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a task from the capture bar first, then plan its execution.'**
+  String get planPickerEmptySub;
+
+  /// No description provided for @planPickerContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing today'**
+  String get planPickerContext;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

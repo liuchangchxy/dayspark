@@ -1,11 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
 /// A″ primitives: the shapes the accepted final design defines once and every
 /// page reuses. Geometry is copied from
@@ -577,6 +579,8 @@ class A2CaptureBar extends StatefulWidget {
     this.fieldKey,
     this.initialDraft,
     this.onDraftChanged,
+    this.isShifted,
+    this.onExpand,
   });
 
   final String placeholder;
@@ -586,6 +590,8 @@ class A2CaptureBar extends StatefulWidget {
   final Key? fieldKey;
   final String? initialDraft;
   final ValueChanged<String>? onDraftChanged;
+  final bool? isShifted;
+  final VoidCallback? onExpand;
 
   @override
   State<A2CaptureBar> createState() => A2CaptureBarState();
@@ -633,7 +639,12 @@ class A2CaptureBarState extends State<A2CaptureBar> {
 
   Future<void> _submit() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      if (widget.onExpand != null) {
+        widget.onExpand!();
+      }
+      return;
+    }
     _controller.clear();
     widget.onDraftChanged?.call('');
     await widget.onSubmit(text);
@@ -651,124 +662,207 @@ class A2CaptureBarState extends State<A2CaptureBar> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 500;
-        return Container(
-          height: kA2CaptureHeight,
-          margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-          padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
-          decoration: BoxDecoration(
-            color: SpecTokens.paper,
-            border: Border.all(color: SpecTokens.hair2),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1A191918),
-                blurRadius: 26,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: SpecTokens.wash,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      CupertinoIcons.checkmark,
-                      size: 9.5,
-                      color: SpecTokens.ink,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      typeText,
-                      style: const TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
-                        color: SpecTokens.ink,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!isNarrow) ...[
-                const SizedBox(width: 6),
-                Text(
-                  subText,
-                  style: const TextStyle(
-                    fontSize: 9.5,
-                    color: SpecTokens.faint,
-                  ),
-                ),
-              ],
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  key: widget.fieldKey,
-                  controller: _controller,
-                  focusNode: _focus,
-                  maxLines: 1,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _submit(),
-                  cursorColor: SpecTokens.ink,
-                  style: _t(
-                    13,
-                    FontWeight.w400,
-                    active ? SpecTokens.ink : SpecTokens.muted,
-                    height: 1.45,
-                  ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    hintText: widget.placeholder,
-                    hintStyle: _t(
-                      13,
-                      FontWeight.w400,
-                      SpecTokens.faint,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-              ),
-              if (widget.hint.isNotEmpty) ...[
-                const SizedBox(width: 6),
-                Text(
-                  widget.hint,
-                  style: _t(11, FontWeight.w400, SpecTokens.faint).copyWith(
-                    fontFeatures: AppTypography.tabular,
-                  ),
-                ),
-              ],
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: _submit,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: SpecTokens.wash,
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.plus,
-                    size: 14,
-                    color: SpecTokens.ink,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
+        final hasScope = context.getElementForInheritedWidgetOfExactType<UncontrolledProviderScope>() != null;
+        if (hasScope && widget.isShifted == null) {
+          return Consumer(
+            builder: (context, ref, _) {
+              final sel = ref.watch(workspaceSelectionProvider);
+              final shifted = sel != null && isMasterDetailLayout(context);
+              return _buildBar(context, active, isNarrow, shifted, typeText, subText);
+            },
+          );
+        }
+        return _buildBar(context, active, isNarrow, widget.isShifted ?? false, typeText, subText);
       },
     );
+  }
+
+  Widget _buildBar(
+    BuildContext context,
+    bool active,
+    bool isNarrow,
+    bool shifted,
+    String typeText,
+    String subText,
+  ) {
+    final barHeight = isNarrow ? 48.0 : 54.0;
+    final barRadius = isNarrow ? 24.0 : 27.0;
+    final sendSize = isNarrow ? 32.0 : 34.0;
+    final sendIconSize = isNarrow ? 14.0 : 15.0;
+
+    Widget bar = Container(
+      height: barHeight,
+      margin: isNarrow
+          ? const EdgeInsets.fromLTRB(12, 4, 12, 8)
+          : const EdgeInsets.fromLTRB(12, 0, 12, 18),
+      padding: isNarrow
+          ? const EdgeInsets.fromLTRB(12, 0, 7, 0)
+          : const EdgeInsets.fromLTRB(14, 0, 8, 0),
+      decoration: BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border.all(
+          color: active ? const Color(0xFFBDBDB5) : const Color(0xFFE1E1D9),
+        ),
+        borderRadius: BorderRadius.circular(barRadius),
+        boxShadow: active
+            ? const [
+                BoxShadow(
+                  color: Color(0x0A191918),
+                  blurRadius: 3,
+                  spreadRadius: 3,
+                ),
+                BoxShadow(
+                  color: Color(0x14191918),
+                  blurRadius: 28,
+                  offset: Offset(0, 8),
+                ),
+              ]
+            : const [
+                BoxShadow(
+                  color: Color(0x14191918),
+                  blurRadius: 28,
+                  offset: Offset(0, 8),
+                ),
+              ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: isNarrow ? 23 : 25,
+            padding: EdgeInsets.symmetric(horizontal: isNarrow ? 7 : 8),
+            decoration: BoxDecoration(
+              color: SpecTokens.wash,
+              borderRadius: BorderRadius.circular(isNarrow ? 4 : 5),
+              border: Border.all(color: Colors.transparent),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.checkmark,
+                  size: isNarrow ? 9 : 10,
+                  color: SpecTokens.muted,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  typeText,
+                  style: TextStyle(
+                    fontSize: isNarrow ? 9 : 10,
+                    fontWeight: FontWeight.w500,
+                    color: SpecTokens.ink2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!isNarrow) ...[
+            const SizedBox(width: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Text(
+                subText,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: SpecTokens.faint,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              key: widget.fieldKey,
+              controller: _controller,
+              focusNode: _focus,
+              maxLines: 1,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              cursorColor: SpecTokens.ink,
+              style: _t(
+                isNarrow ? 12.5 : 13.5,
+                FontWeight.w400,
+                active ? SpecTokens.ink : SpecTokens.muted,
+                height: 1.4,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                hintText: widget.placeholder,
+                hintStyle: _t(
+                  isNarrow ? 12.5 : 13.5,
+                  FontWeight.w400,
+                  const Color(0xFF8E8E84),
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+          if (widget.hint.isNotEmpty) ...[
+            const SizedBox(width: 6),
+            Text(
+              widget.hint,
+              style: _t(11, FontWeight.w400, SpecTokens.faint).copyWith(
+                fontFeatures: AppTypography.tabular,
+              ),
+            ),
+          ] else if (!isNarrow) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFAFAF7),
+                border: Border.all(color: SpecTokens.hair2),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: const Text(
+                '↵',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: SpecTokens.faint,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: _submit,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: sendSize,
+              height: sendSize,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: SpecTokens.ink,
+              ),
+              child: Icon(
+                CupertinoIcons.plus,
+                size: sendIconSize,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final desktopBar = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: bar,
+      ),
+    );
+
+    if (shifted && !isNarrow) {
+      return Transform.translate(
+        offset: const Offset(-190, 0),
+        child: desktopBar,
+      );
+    }
+    return isNarrow ? bar : desktopBar;
   }
 }
 
