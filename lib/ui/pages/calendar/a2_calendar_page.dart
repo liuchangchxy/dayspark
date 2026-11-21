@@ -18,6 +18,7 @@ import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_views.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_filter_sheet.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
@@ -127,15 +128,19 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     _setMode(picked);
   }
 
-  bool _dayHasEntries(DateTime day) {
-    if (calAllDayEvents(day: day, events: widget.events).isNotEmpty) {
+  bool _dayHasEntries(
+    DateTime day,
+    List<CalendaEventAdapter> events,
+    List<TaskAllocationCalendarItem> allocations,
+  ) {
+    if (calAllDayEvents(day: day, events: events).isNotEmpty) {
       return true;
     }
     final blocks = calDayBlocks(
       day: day,
-      events: widget.events,
+      events: events,
       allocations: [
-        for (final item in widget.allocations)
+        for (final item in allocations)
           TaskAllocationCalendarAdapter.fromItem(item),
       ],
     );
@@ -146,9 +151,15 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
   /// A month cell only says "something happens here". Selecting a day with
   /// content therefore opens it, so the entry can actually be read; an empty
   /// day keeps the plain browse-date behaviour.
-  void _selectDay(DateTime day) {
+  void _selectDay(
+    DateTime day,
+    List<CalendaEventAdapter> events,
+    List<TaskAllocationCalendarItem> allocations,
+  ) {
     _setBrowse(day);
-    if (_dayHasEntries(day)) _setMode(CalendarViewMode.day);
+    if (_dayHasEntries(day, events, allocations)) {
+      _setMode(CalendarViewMode.day);
+    }
   }
 
   void _createAt(DateTime day) {
@@ -264,10 +275,44 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       for (var index = 0; index < 7; index++)
         weekStart.add(Duration(days: index)),
     ];
+    final hidden = ref.watch(calendarHiddenFilterProvider);
+    final visibleEvents = hidden.isEmpty
+        ? widget.events
+        : widget.events.where((e) => !hidden.contains(e.calendarId)).toList();
+    final visibleAllocations = hidden.isEmpty
+        ? widget.allocations
+        : widget.allocations
+            .where((a) => !hidden.contains(a.todo.calendarId))
+            .toList();
+
     if (isWorkspaceLayout(context)) {
-      return _desktop(l, locale, mode, browse, now, names, weekStart, days);
+      return _desktop(
+        l,
+        locale,
+        mode,
+        browse,
+        now,
+        names,
+        weekStart,
+        days,
+        hidden,
+        visibleEvents,
+        visibleAllocations,
+      );
     }
-    return _phone(l, locale, mode, browse, now, names, weekStart, days);
+    return _phone(
+      l,
+      locale,
+      mode,
+      browse,
+      now,
+      names,
+      weekStart,
+      days,
+      hidden,
+      visibleEvents,
+      visibleAllocations,
+    );
   }
 
   Widget _phone(
@@ -279,13 +324,18 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     Map<int, String> names,
     DateTime weekStart,
     List<DateTime> days,
+    Set<int> hidden,
+    List<CalendaEventAdapter> visibleEvents,
+    List<TaskAllocationCalendarItem> visibleAllocations,
   ) {
     final (title, subtitle) = _header(l, locale, mode, browse, now, weekStart);
-    // Two actions, not five. Five icon buttons plus the clock left the title
-    // about 100px on a 360dp phone and it ellipsised to "11月9日 …"; the mode
-    // trio also had to be re-learned per view. One view menu names all three
-    // modes in words, and create stays as its own button.
     final actions = <Widget>[
+      A2IconAction(
+        key: const ValueKey('calendar-filter-button'),
+        icon: CupertinoIcons.line_horizontal_3_decrease,
+        tooltip: l.showCalendars,
+        onPressed: () => CalendarFilterSheet.show(context),
+      ),
       A2IconAction(
         key: const ValueKey('calendar-view-menu'),
         icon: switch (mode) {
@@ -296,8 +346,6 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         tooltip: l.calendar,
         onPressed: _openViewMenu,
       ),
-      // Month already has the FAB as its one create entry; adding a second
-      // "+" here would put two identical buttons on one screen.
       if (mode != CalendarViewMode.month)
         A2IconAction(
           icon: CupertinoIcons.add,
@@ -319,10 +367,10 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               anchor: browse,
               selected: browse,
               today: calDayOf(now),
-              events: widget.events,
-              allocations: widget.allocations,
+              events: visibleEvents,
+              allocations: visibleAllocations,
               deadlines: widget.deadlines,
-              onSelectDay: _selectDay,
+              onSelectDay: (day) => _selectDay(day, visibleEvents, visibleAllocations),
             ),
           ),
         ],
@@ -341,6 +389,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               selected: browse,
               now: now,
               names: names,
+              events: visibleEvents,
+              allocations: visibleAllocations,
               dayMode: false,
             ),
           ),
@@ -360,6 +410,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               selected: browse,
               now: now,
               names: names,
+              events: visibleEvents,
+              allocations: visibleAllocations,
               dayMode: true,
             ),
           ),
@@ -375,6 +427,13 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           clock: DateFormatters.formatTime(now),
           actions: actions,
         ),
+        if (hidden.isNotEmpty)
+          _CalHiddenBanner(
+            hiddenCount: hidden.length,
+            onRestore: () =>
+                ref.read(calendarHiddenFilterProvider.notifier).state = const {},
+            onShowCalendars: () => CalendarFilterSheet.show(context),
+          ),
         Expanded(
           child: Stack(
             children: [
@@ -400,6 +459,9 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     Map<int, String> names,
     DateTime weekStart,
     List<DateTime> days,
+    Set<int> hidden,
+    List<CalendaEventAdapter> visibleEvents,
+    List<TaskAllocationCalendarItem> visibleAllocations,
   ) {
     final ds = context.ds;
     final body = switch (mode) {
@@ -408,8 +470,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         selected: browse,
         today: calDayOf(now),
         now: now,
-        events: widget.events,
-        allocations: widget.allocations,
+        events: visibleEvents,
+        allocations: visibleAllocations,
         deadlines: widget.deadlines,
         calendarNames: names,
         onSelectDay: _setBrowse,
@@ -423,6 +485,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         selected: browse,
         now: now,
         names: names,
+        events: visibleEvents,
+        allocations: visibleAllocations,
         dayMode: false,
       ),
       CalendarViewMode.day => _timeGrid(
@@ -430,6 +494,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         selected: browse,
         now: now,
         names: names,
+        events: visibleEvents,
+        allocations: visibleAllocations,
         dayMode: true,
       ),
     };
@@ -449,7 +515,14 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _desktopHead(l, locale, mode, browse, weekStart),
+                  _desktopHead(l, locale, mode, browse, weekStart, hidden),
+                  if (hidden.isNotEmpty)
+                    _CalHiddenBanner(
+                      hiddenCount: hidden.length,
+                      onRestore: () =>
+                          ref.read(calendarHiddenFilterProvider.notifier).state = const {},
+                      onShowCalendars: () => CalendarFilterSheet.show(context),
+                    ),
                   Expanded(child: body),
                 ],
               ),
@@ -466,6 +539,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     CalendarViewMode mode,
     DateTime browse,
     DateTime weekStart,
+    Set<int> hidden,
   ) {
     final ds = context.ds;
     final title = switch (mode) {
@@ -504,6 +578,12 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
             onPressed: () => _shift(1),
           ),
           const Spacer(),
+          _A2FilterButton(
+            label: l.showCalendars,
+            active: hidden.isNotEmpty,
+            onPressed: () => CalendarFilterSheet.show(context),
+          ),
+          const SizedBox(width: 8),
           _A2CreateButton(
             label: l.newEventAction,
             onPressed: () => _createAt(browse),
@@ -520,14 +600,16 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     required DateTime selected,
     required DateTime now,
     required Map<int, String> names,
+    required List<CalendaEventAdapter> events,
+    required List<TaskAllocationCalendarItem> allocations,
     required bool dayMode,
   }) {
     return A2TimeGridView(
       days: days,
       selected: selected,
       now: now,
-      events: widget.events,
-      allocations: widget.allocations,
+      events: events,
+      allocations: allocations,
       deadlines: widget.deadlines,
       calendarNames: names,
       dayMode: dayMode,
@@ -723,6 +805,133 @@ class _A2ModeSegmented extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _A2FilterButton extends StatelessWidget {
+  const _A2FilterButton({
+    required this.label,
+    required this.active,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        button: true,
+        label: label,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onPressed,
+            child: Container(
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: active ? ds.surface2 : ds.surface,
+                border: Border.all(color: active ? ds.primary : ds.line),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    CupertinoIcons.line_horizontal_3_decrease,
+                    size: 13,
+                    color: active ? ds.primary : ds.ink2,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    style: _pageText(
+                      12,
+                      active ? FontWeight.w600 : FontWeight.w500,
+                      active ? ds.primary : ds.ink2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CalHiddenBanner extends StatelessWidget {
+  const _CalHiddenBanner({
+    required this.hiddenCount,
+    required this.onRestore,
+    required this.onShowCalendars,
+  });
+
+  final int hiddenCount;
+  final VoidCallback onRestore;
+  final VoidCallback onShowCalendars;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final l = AppLocalizations.of(context)!;
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: ds.surface2,
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      ),
+      child: Row(
+        children: [
+          Icon(CupertinoIcons.eye_slash, size: 14, color: ds.ink3),
+          const SizedBox(width: 8),
+          Text(
+            l.hiddenCalendarsSummary(hiddenCount),
+            style: _pageText(12, FontWeight.w500, ds.ink2),
+          ),
+          const Spacer(),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onRestore,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Text(
+                  l.restoreAllCalendars,
+                  style: _pageText(12, FontWeight.w500, ds.primary),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onShowCalendars,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Text(
+                  l.showCalendars,
+                  style: _pageText(12, FontWeight.w500, ds.ink2),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

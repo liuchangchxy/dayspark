@@ -2336,4 +2336,141 @@ class AppLocalizationsEn extends AppLocalizations {
   String todayDateSubtitle(String date, String weekday) {
     return '$date · $weekday';
   }
+
+  @override
+  String get showCalendars => 'Display Calendars';
+
+  @override
+  String get restoreAllCalendars => 'Restore All';
+
+  @override
+  String hiddenCalendarsSummary(int count) {
+    return 'Hidden $count calendars';
+  }
+
+  @override
+  String get selectAll => 'Select All';
+
+  @override
+  String get hiddenBadge => 'Hidden';
+
+  @override
+  String get repeatEndLabel => 'Ends';
+
+  @override
+  String get repeatNeverEnd => 'Never';
+
+  @override
+  String get repeatOnDate => 'On date';
+
+  @override
+  String get repeatAfterCount => 'After count';
+
+  @override
+  String get repeatEndDate => 'End date';
+
+  @override
+  String get repeatCount => 'Occurrences';
+
+  @override
+  String get repeatSeriesNotice => 'Updating frequency or end applies to the entire series.';
+
+  @override
+  String planTodoModalTitle(String title) {
+    return 'Schedule \"$title\"';
+  }
+
+  @override
+  String get planTodoSub => 'Sets planned execution only; does not change deadline.';
+
+  @override
+  String get planEditSub => 'Editing time; sets planned execution only.';
+
+  @override
+  String get planDate => 'Plan Date';
+
+  @override
+  String get planStartTime => 'Start';
+
+  @override
+  String get planEndTime => 'End';
+
+  @override
+  String get planDuration => 'Duration';
+
+  @override
+  String get planSubmitAction => 'Schedule';
+
+  @override
+  String get planSaveTimeAction => 'Save Time';
+
+  @override
+  String get planNoConflict => 'No time conflict';
+
+  @override
+  String planConflictWith(String title) {
+    return 'Overlaps with $title';
+  }
+
+  @override
+  String planDurationMinutes(int count) {
+    return '$count min';
+  }
+
+  @override
+  String planDurationHours(int hours) {
+    return '$hours hr';
+  }
+
+  @override
+  String planDurationHoursMinutes(int hours, int minutes) {
+    return '$hours hr $minutes min';
+  }
+
+  @override
+  String get detailEmptyTitle => 'No Task Selected';
+
+  @override
+  String get detailEmptyHint => 'Select a task from the list to view its details.';
+
+  @override
+  String get completeThisOccurrence => 'Complete This Occurrence';
+
+  @override
+  String get completedThisOccurrence => 'This Occurrence Completed';
+
+  @override
+  String missedOccurrencesNote(String date, int count) {
+    return 'Current instance $date · Missed $count times';
+  }
+
+  @override
+  String get deleteToTrashAction => 'Move to Trash';
+
+  @override
+  String get cancelAction => 'Cancel';
+
+  @override
+  String get saveAction => 'Save';
+
+  @override
+  String get titleRequired => 'Title cannot be empty.';
+
+  @override
+  String get endTimeAfterStartTime => 'End time must be after start time.';
+
+  @override
+  String timeArrangementsCount(int count) {
+    return '$count scheduled items';
+  }
+
+  @override
+  String dayAgendaContextNotice(int count) {
+    return 'Day\'s events $count items · Time context only';
+  }
+
+  @override
+  String moreUnplannedItems(int count) {
+    return 'View $count undated items';
+  }
 }

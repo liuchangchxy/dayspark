@@ -4324,6 +4324,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{date} · {weekday}'**
   String todayDateSubtitle(String date, String weekday);
+
+  /// No description provided for @showCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'Display Calendars'**
+  String get showCalendars;
+
+  /// No description provided for @restoreAllCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore All'**
+  String get restoreAllCalendars;
+
+  /// No description provided for @hiddenCalendarsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden {count} calendars'**
+  String hiddenCalendarsSummary(int count);
+
+  /// No description provided for @selectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All'**
+  String get selectAll;
+
+  /// No description provided for @hiddenBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden'**
+  String get hiddenBadge;
+
+  /// No description provided for @repeatEndLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get repeatEndLabel;
+
+  /// No description provided for @repeatNeverEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get repeatNeverEnd;
+
+  /// No description provided for @repeatOnDate.
+  ///
+  /// In en, this message translates to:
+  /// **'On date'**
+  String get repeatOnDate;
+
+  /// No description provided for @repeatAfterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'After count'**
+  String get repeatAfterCount;
+
+  /// No description provided for @repeatEndDate.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get repeatEndDate;
+
+  /// No description provided for @repeatCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Occurrences'**
+  String get repeatCount;
+
+  /// No description provided for @repeatSeriesNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating frequency or end applies to the entire series.'**
+  String get repeatSeriesNotice;
+
+  /// No description provided for @planTodoModalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule \"{title}\"'**
+  String planTodoModalTitle(String title);
+
+  /// No description provided for @planTodoSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets planned execution only; does not change deadline.'**
+  String get planTodoSub;
+
+  /// No description provided for @planEditSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing time; sets planned execution only.'**
+  String get planEditSub;
+
+  /// No description provided for @planDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan Date'**
+  String get planDate;
+
+  /// No description provided for @planStartTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get planStartTime;
+
+  /// No description provided for @planEndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get planEndTime;
+
+  /// No description provided for @planDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get planDuration;
+
+  /// No description provided for @planSubmitAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get planSubmitAction;
+
+  /// No description provided for @planSaveTimeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Time'**
+  String get planSaveTimeAction;
+
+  /// No description provided for @planNoConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'No time conflict'**
+  String get planNoConflict;
+
+  /// No description provided for @planConflictWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlaps with {title}'**
+  String planConflictWith(String title);
+
+  /// No description provided for @planDurationMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min'**
+  String planDurationMinutes(int count);
+
+  /// No description provided for @planDurationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hr'**
+  String planDurationHours(int hours);
+
+  /// No description provided for @planDurationHoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hr {minutes} min'**
+  String planDurationHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @detailEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Task Selected'**
+  String get detailEmptyTitle;
+
+  /// No description provided for @detailEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a task from the list to view its details.'**
+  String get detailEmptyHint;
+
+  /// No description provided for @completeThisOccurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete This Occurrence'**
+  String get completeThisOccurrence;
+
+  /// No description provided for @completedThisOccurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'This Occurrence Completed'**
+  String get completedThisOccurrence;
+
+  /// No description provided for @missedOccurrencesNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Current instance {date} · Missed {count} times'**
+  String missedOccurrencesNote(String date, int count);
+
+  /// No description provided for @deleteToTrashAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Trash'**
+  String get deleteToTrashAction;
+
+  /// No description provided for @cancelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelAction;
+
+  /// No description provided for @saveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get saveAction;
+
+  /// No description provided for @titleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Title cannot be empty.'**
+  String get titleRequired;
+
+  /// No description provided for @endTimeAfterStartTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End time must be after start time.'**
+  String get endTimeAfterStartTime;
+
+  /// No description provided for @timeArrangementsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} scheduled items'**
+  String timeArrangementsCount(int count);
+
+  /// No description provided for @dayAgendaContextNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Day\'s events {count} items · Time context only'**
+  String dayAgendaContextNotice(int count);
+
+  /// No description provided for @moreUnplannedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'View {count} undated items'**
+  String moreUnplannedItems(int count);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

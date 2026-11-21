@@ -1381,5 +1381,120 @@
         "type": "String"
       }
     }
+  },
+  "showCalendars": "Display Calendars",
+  "restoreAllCalendars": "Restore All",
+  "hiddenCalendarsSummary": "Hidden {count} calendars",
+  "@hiddenCalendarsSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectAll": "Select All",
+  "hiddenBadge": "Hidden",
+  "repeatEndLabel": "Ends",
+  "repeatNeverEnd": "Never",
+  "repeatOnDate": "On date",
+  "repeatAfterCount": "After count",
+  "repeatEndDate": "End date",
+  "repeatCount": "Occurrences",
+  "repeatSeriesNotice": "Updating frequency or end applies to the entire series.",
+  "planTodoModalTitle": "Schedule \"{title}\"",
+  "@planTodoModalTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planTodoSub": "Sets planned execution only; does not change deadline.",
+  "planEditSub": "Editing time; sets planned execution only.",
+  "planDate": "Plan Date",
+  "planStartTime": "Start",
+  "planEndTime": "End",
+  "planDuration": "Duration",
+  "planSubmitAction": "Schedule",
+  "planSaveTimeAction": "Save Time",
+  "planNoConflict": "No time conflict",
+  "planConflictWith": "Overlaps with {title}",
+  "@planConflictWith": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planDurationMinutes": "{count} min",
+  "@planDurationMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planDurationHours": "{hours} hr",
+  "@planDurationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "planDurationHoursMinutes": "{hours} hr {minutes} min",
+  "@planDurationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "detailEmptyTitle": "No Task Selected",
+  "detailEmptyHint": "Select a task from the list to view its details.",
+  "completeThisOccurrence": "Complete This Occurrence",
+  "completedThisOccurrence": "This Occurrence Completed",
+  "missedOccurrencesNote": "Current instance {date} · Missed {count} times",
+  "@missedOccurrencesNote": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteToTrashAction": "Move to Trash",
+  "cancelAction": "Cancel",
+  "saveAction": "Save",
+  "titleRequired": "Title cannot be empty.",
+  "endTimeAfterStartTime": "End time must be after start time.",
+  "timeArrangementsCount": "{count} scheduled items",
+  "@timeArrangementsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dayAgendaContextNotice": "Day's events {count} items · Time context only",
+  "@dayAgendaContextNotice": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "moreUnplannedItems": "View {count} undated items",
+  "@moreUnplannedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

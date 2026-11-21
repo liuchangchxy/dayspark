@@ -2312,4 +2312,141 @@ class AppLocalizationsZh extends AppLocalizations {
   String todayDateSubtitle(String date, String weekday) {
     return '$date · $weekday';
   }
+
+  @override
+  String get showCalendars => '显示日历';
+
+  @override
+  String get restoreAllCalendars => '全部恢复';
+
+  @override
+  String hiddenCalendarsSummary(int count) {
+    return '已隐藏 $count 个日历';
+  }
+
+  @override
+  String get selectAll => '全选';
+
+  @override
+  String get hiddenBadge => '已隐藏';
+
+  @override
+  String get repeatEndLabel => '结束';
+
+  @override
+  String get repeatNeverEnd => '永不结束';
+
+  @override
+  String get repeatOnDate => '在日期';
+
+  @override
+  String get repeatAfterCount => '在次数';
+
+  @override
+  String get repeatEndDate => '结束日期';
+
+  @override
+  String get repeatCount => '次数';
+
+  @override
+  String get repeatSeriesNotice => '修改频率或结束会应用到整个系列。';
+
+  @override
+  String planTodoModalTitle(String title) {
+    return '安排「$title」';
+  }
+
+  @override
+  String get planTodoSub => '只写计划执行，不改截止。';
+
+  @override
+  String get planEditSub => '正在编辑时间；只改计划执行。';
+
+  @override
+  String get planDate => '计划日期';
+
+  @override
+  String get planStartTime => '开始';
+
+  @override
+  String get planEndTime => '结束';
+
+  @override
+  String get planDuration => '时长';
+
+  @override
+  String get planSubmitAction => '安排';
+
+  @override
+  String get planSaveTimeAction => '保存时间';
+
+  @override
+  String get planNoConflict => '没有时间冲突';
+
+  @override
+  String planConflictWith(String title) {
+    return '与 $title 重叠';
+  }
+
+  @override
+  String planDurationMinutes(int count) {
+    return '$count 分钟';
+  }
+
+  @override
+  String planDurationHours(int hours) {
+    return '$hours 小时';
+  }
+
+  @override
+  String planDurationHoursMinutes(int hours, int minutes) {
+    return '$hours 小时 $minutes 分钟';
+  }
+
+  @override
+  String get detailEmptyTitle => '未选择待办';
+
+  @override
+  String get detailEmptyHint => '从左侧列表选择待办查看详情。';
+
+  @override
+  String get completeThisOccurrence => '完成这一次';
+
+  @override
+  String get completedThisOccurrence => '本次已完成';
+
+  @override
+  String missedOccurrencesNote(String date, int count) {
+    return '当前实例 $date · 已遗漏 $count 次';
+  }
+
+  @override
+  String get deleteToTrashAction => '删除到回收站';
+
+  @override
+  String get cancelAction => '取消';
+
+  @override
+  String get saveAction => '保存';
+
+  @override
+  String get titleRequired => '标题不能为空。';
+
+  @override
+  String get endTimeAfterStartTime => '结束时间必须晚于开始时间。';
+
+  @override
+  String timeArrangementsCount(int count) {
+    return '$count 项时间安排';
+  }
+
+  @override
+  String dayAgendaContextNotice(int count) {
+    return '当天日程 $count 项 · 只做时间背景';
+  }
+
+  @override
+  String moreUnplannedItems(int count) {
+    return '查看无日期 $count 项';
+  }
 }

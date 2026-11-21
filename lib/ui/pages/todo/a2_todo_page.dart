@@ -100,6 +100,15 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     a.day,
   ).difference(DateTime.utc(b.year, b.month, b.day)).inDays;
 
+  bool _isOverdue(DateTime due) {
+    final hasTime = due.hour != 0 || due.minute != 0;
+    if (hasTime) {
+      return due.isBefore(widget.now);
+    }
+    final today = _dayOf(widget.now);
+    return _dayOf(due).isBefore(today);
+  }
+
   TextStyle _type(
     double size,
     FontWeight weight,
@@ -375,36 +384,41 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1240),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: ds.surface,
-                        border: Border.all(color: ds.line),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          head,
-                          if (strip != null) strip,
-                          Expanded(child: body),
-                          footer,
-                        ],
+            child: Builder(
+              builder: (context) {
+                final isMasterDetail = isMasterDetailLayout(context);
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: ds.surface,
+                          border: Border.all(color: ds.line),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            head,
+                            if (strip != null) strip,
+                            Expanded(child: body),
+                            footer,
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  if (widget.detail != null) ...[
-                    const SizedBox(width: 20),
-                    SizedBox(width: 320, child: widget.detail!),
+                    if (widget.detail != null) ...[
+                      const SizedBox(width: 20),
+                      SizedBox(width: 380, child: widget.detail!),
+                    ] else if (isMasterDetail) ...[
+                      const SizedBox(width: 20),
+                      const SizedBox(width: 380, child: _EmptyDetailColumn()),
+                    ],
                   ],
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -1027,12 +1041,20 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       padding: EdgeInsets.zero,
       children: [
         if (dueToday.isNotEmpty) ...[
-          A2GroupHead(label: l.allDueTodaySection, count: dueToday.length),
+          A2GroupHead(
+            label: l.allDueTodaySection,
+            count: dueToday.length,
+            tone: context.ds.warn,
+          ),
           for (var index = 0; index < dueToday.length; index++)
             row(dueToday[index], _UndoSlot(_UndoGroup.allDueToday, index)),
         ],
         if (pastDue.isNotEmpty) ...[
-          A2GroupHead(label: l.allPastDueSection, count: pastDue.length),
+          A2GroupHead(
+            label: l.allPastDueSection,
+            count: pastDue.length,
+            danger: true,
+          ),
           for (var index = 0; index < pastDue.length; index++)
             row(pastDue[index], _UndoSlot(_UndoGroup.allPastDue, index)),
         ],
@@ -1179,6 +1201,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     return _maybeHover(
       desktop: desktop,
       selected: selected,
+      onSelect: onTap,
       builder: (background) => A2Row(
         title: todo.summary,
         checked: checked || inWindow,
@@ -1227,6 +1250,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     return _maybeHover(
       desktop: desktop,
       selected: selected,
+      onSelect: event == null || open == null ? null : () => open(event),
       builder: (background) => A2Row(
         title: item.title,
         showCheck: false,
@@ -1242,11 +1266,19 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     required bool desktop,
     required bool selected,
     required Widget Function(Color? background) builder,
+    VoidCallback? onSelect,
   }) {
     if (!desktop) return builder(null);
-    return _HoverWrap(
-      builder: (hovered) =>
-          builder(hovered && !selected ? context.ds.surface2 : null),
+    return FocusableActionDetector(
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) => onSelect?.call(),
+        ),
+      },
+      child: _HoverWrap(
+        builder: (hovered) =>
+            builder(hovered && !selected ? context.ds.surface2 : null),
+      ),
     );
   }
 
@@ -1274,6 +1306,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       parts.add(
         A2DueCapsule(
           label: l.dueValueLabel(_dueValue(l, due, includeToday: true)),
+          overdue: _isOverdue(due),
         ),
       );
     } else {
@@ -1309,12 +1342,22 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       );
       if (due != null) {
         parts.add(const A2Sep());
-        parts.add(A2DueCapsule(label: l.dueValueLabel(_dueValue(l, due))));
+        parts.add(
+          A2DueCapsule(
+            label: l.dueValueLabel(_dueValue(l, due)),
+            overdue: _isOverdue(due),
+          ),
+        );
       }
       return parts;
     }
     if (due != null) {
-      parts.add(A2DueCapsule(label: l.dueValueLabel(_dueValue(l, due))));
+      parts.add(
+        A2DueCapsule(
+          label: l.dueValueLabel(_dueValue(l, due)),
+          overdue: _isOverdue(due),
+        ),
+      );
       return parts;
     }
     parts.add(A2MetaText(l.inbox));
@@ -1341,7 +1384,12 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final due = item.todo?.dueDate?.toLocal();
     if (due != null) {
       if (parts.isNotEmpty) parts.add(const A2Sep());
-      parts.add(A2DueCapsule(label: l.dueValueLabel(_dueValue(l, due))));
+      parts.add(
+        A2DueCapsule(
+          label: l.dueValueLabel(_dueValue(l, due)),
+          overdue: _isOverdue(due),
+        ),
+      );
     }
     return parts;
   }
@@ -1350,7 +1398,10 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final due = item.todo?.dueDate?.toLocal();
     if (due == null) return const [];
     return [
-      A2DueCapsule(label: l.dueValueLabel(_dueValue(l, due))),
+      A2DueCapsule(
+        label: l.dueValueLabel(_dueValue(l, due)),
+        overdue: _isOverdue(due),
+      ),
       if (item.completed) ...[const A2Sep(), A2MetaText(l.completed)],
     ];
   }
@@ -1552,6 +1603,71 @@ class _A2RowAction extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyDetailColumn extends StatelessWidget {
+  const _EmptyDetailColumn();
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final l = AppLocalizations.of(context)!;
+    return Container(
+      decoration: BoxDecoration(
+        color: ds.surface,
+        border: Border.all(color: ds.line),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: ds.surface2,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(
+                    CupertinoIcons.square_list,
+                    size: 22,
+                    color: ds.ink3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                l.detailEmptyTitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: ds.ink2,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l.detailEmptyHint,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: ds.ink3,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+            ],
           ),
         ),
       ),
