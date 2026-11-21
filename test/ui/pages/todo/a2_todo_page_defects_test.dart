@@ -28,6 +28,7 @@ Widget _app({
   Future<bool> Function(Todo todo, String? occurrenceId, bool completed)?
   onToggleTodo,
   ValueChanged<Todo>? onScheduleTodo,
+  Future<void> Function(String text)? onCapture,
   DayAgenda? dayAgenda,
   Widget Function(Widget page)? wrapPage,
 }) {
@@ -46,6 +47,7 @@ Widget _app({
     onOpenTodo: onOpenTodo,
     onToggleTodo: onToggleTodo,
     onScheduleTodo: onScheduleTodo,
+    onCapture: onCapture,
   );
   return ProviderScope(
     overrides: overrides,
@@ -1110,6 +1112,106 @@ void main() {
       final desktopList = tester.widget<ListView>(find.byType(ListView).first);
       final desktopPadding = desktopList.padding as EdgeInsets;
       expect(desktopPadding.top, 8.0);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'mobile capture bar send button: visual 32x32, hit target >= 48dp, tapping 8px outside visual submits; desktop visual 34x34',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final captured = <String>[];
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            todosViewProvider.overrideWith((ref) => const TodosAllView()),
+          ],
+          now: now,
+          onCapture: (text) async {
+            captured.add(text);
+            await db.into(db.todos).insert(
+              TodosCompanion.insert(
+                calendarId: calendarId,
+                summary: text,
+              ),
+            );
+          },
+        ),
+      );
+      await _settle(tester);
+
+      // Mobile: visual is 32x32
+      final visualSend = find.byKey(const ValueKey('capture-send-visual'));
+      expect(visualSend, findsOneWidget);
+      final visualSize = tester.getSize(visualSend);
+      expect(visualSize.width, 32.0);
+      expect(visualSize.height, 32.0);
+
+      // Mobile: hit target is >= 48dp
+      final hitTarget = find.byKey(const ValueKey('capture-send-target'));
+      expect(hitTarget, findsOneWidget);
+      final hitSize = tester.getSize(hitTarget);
+      expect(hitSize.width, greaterThanOrEqualTo(48.0));
+      expect(hitSize.height, greaterThanOrEqualTo(48.0));
+
+      // Tapping 8px outside the visual circle (left edge - 8px) submits
+      final visualCenter = tester.getCenter(visualSend);
+      final captureField = find.descendant(
+        of: find.byType(A2CaptureBar),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(captureField, 'Tap outside 8px item');
+      await tester.pump();
+
+      // 8px outside visual circle to the left: center.dx - 16 - 8 = center.dx - 24
+      await tester.tapAt(Offset(visualCenter.dx - 24, visualCenter.dy));
+      await _settle(tester);
+
+      final todosAfterOutsideTap = await db.select(db.todos).get();
+      expect(
+        todosAfterOutsideTap.any((t) => t.summary == 'Tap outside 8px item'),
+        isTrue,
+        reason: 'Tapping 8px outside send button visual edge must submit',
+      );
+
+      // Tapping visual center also submits
+      await tester.enterText(captureField, 'Tap center item');
+      await tester.pump();
+      await tester.tapAt(visualCenter);
+      await _settle(tester);
+
+      final todosAfterCenterTap = await db.select(db.todos).get();
+      expect(
+        todosAfterCenterTap.any((t) => t.summary == 'Tap center item'),
+        isTrue,
+        reason: 'Tapping center of send button must submit',
+      );
+
+      await _unmount(tester);
+
+      // Switch to desktop 1440x900
+      tester.view.physicalSize = const Size(1440, 900);
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            todosViewProvider.overrideWith((ref) => const TodosAllView()),
+          ],
+          now: now,
+        ),
+      );
+      await _settle(tester);
+
+      final desktopVisualSend = find.byKey(const ValueKey('capture-send-visual'));
+      expect(desktopVisualSend, findsOneWidget);
+      final desktopVisualSize = tester.getSize(desktopVisualSend);
+      expect(desktopVisualSize.width, 34.0);
+      expect(desktopVisualSize.height, 34.0);
 
       await _unmount(tester);
     },
