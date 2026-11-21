@@ -352,7 +352,7 @@ void main() {
         .insert(CalendarsCompanion.insert(name: 'Personal'));
     final now = DateTime.now();
     final due = DateTime(now.year, now.month, now.day, 18);
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < 5; i++) {
       await db
           .into(db.todos)
           .insert(
@@ -362,8 +362,8 @@ void main() {
             ),
           );
     }
-    // Two more sit in the bucket but never in the shelf: they carry a
-    // deadline and already appear under Due today.
+    // Two more sit in the bucket with a deadline and appear under Due today,
+    // but must never pollute the undated section.
     for (var i = 0; i < 2; i++) {
       await db
           .into(db.todos)
@@ -381,7 +381,7 @@ void main() {
 
     // The frozen spec puts the more-row arrow on the row titles' column.
     final titleLeft = tester.getTopLeft(find.text('Free item 0')).dx;
-    final more = find.text('View 2 undated');
+    final more = find.textContaining('more · Show all');
     expect(more, findsOneWidget);
     final moreLeft = tester.getTopLeft(more).dx;
     expect((titleLeft - moreLeft).abs(), lessThanOrEqualTo(1));
