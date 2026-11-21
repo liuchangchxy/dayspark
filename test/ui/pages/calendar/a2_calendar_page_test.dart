@@ -1134,6 +1134,12 @@ void main() {
     expect(titleFinder, findsOneWidget);
     final titleWidget = tester.widget<Text>(titleFinder);
     expect(titleWidget.style?.fontSize, 15);
+    expect(
+      titleWidget.style?.fontVariations?.any(
+        (v) => v.axis == 'wght' && v.value == 650,
+      ),
+      isTrue,
+    );
 
     expect(find.byKey(const ValueKey('cal-prev')), findsOneWidget);
     expect(find.byKey(const ValueKey('cal-next')), findsOneWidget);
@@ -1217,6 +1223,40 @@ void main() {
     final top20 = tester.getTopLeft(find.text('20:00')).dy;
     expect(top20, greaterThanOrEqualTo(0));
     expect(top20, lessThanOrEqualTo(844));
+
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('mobile 365 width has no horizontal overflow on top bar and view switcher', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(365, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final topBar = find.byKey(const ValueKey('m-top'));
+    expect(topBar, findsOneWidget);
+    expect(tester.getSize(topBar).width, lessThanOrEqualTo(365.0));
+    expect(tester.getSize(topBar).height, 50.0);
+
+    final viewSwitch = find.byKey(const ValueKey('cal-view-switch'));
+    expect(viewSwitch, findsOneWidget);
+    expect(tester.getSize(viewSwitch).width, lessThan(365.0));
+
+    expect(find.text('Month'), findsOneWidget);
+    expect(find.text('Week'), findsOneWidget);
+    expect(find.text('Day'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
 

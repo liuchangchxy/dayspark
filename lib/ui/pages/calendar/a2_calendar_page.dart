@@ -14,7 +14,6 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
-import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_views.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
@@ -393,6 +392,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           child: Align(
             alignment: Alignment.centerLeft,
             child: _SpecViewSwitch(
+              key: const ValueKey('cal-view-switch'),
               mode: mode,
               onSelected: _setMode,
             ),
@@ -439,49 +439,60 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
   }
 
   Widget _mobileTopBar(BuildContext context, AppLocalizations l) {
-    return Stack(
-      children: [
-        SpecMobileTopBar(
-          key: const ValueKey('m-top'),
-          title: l.calendar,
-          searchTooltip: '',
-          onSearch: () {},
-        ),
-        Positioned(
-          right: 14,
-          top: 0,
-          bottom: 0,
-          child: Container(
-            color: SpecTokens.paper,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _mIcon(
-                  key: const ValueKey('cal-prev'),
-                  icon: CupertinoIcons.chevron_left,
-                  tooltip: l.previousPeriod,
-                  onTap: () => _shift(-1),
-                ),
-                const SizedBox(width: 5),
-                _mIcon(
-                  key: const ValueKey('cal-next'),
-                  icon: CupertinoIcons.chevron_right,
-                  tooltip: l.nextPeriod,
-                  onTap: () => _shift(1),
-                ),
-                const SizedBox(width: 5),
-                _mIcon(
-                  key: const ValueKey('calendar-filter-button'),
-                  icon: Icons.filter_alt_outlined,
-                  size: 14,
-                  tooltip: l.showCalendars,
-                  onTap: () => CalendarFilterSheet.show(context),
-                ),
-              ],
+    return Container(
+      key: const ValueKey('m-top'),
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l.calendar,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                fontVariations: [FontVariation('wght', 650)],
+                letterSpacing: 0.15,
+                color: SpecTokens.ink,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 9),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _mIcon(
+                key: const ValueKey('cal-prev'),
+                icon: CupertinoIcons.chevron_left,
+                tooltip: l.previousPeriod,
+                onTap: () => _shift(-1),
+              ),
+              const SizedBox(width: 5),
+              _mIcon(
+                key: const ValueKey('cal-next'),
+                icon: CupertinoIcons.chevron_right,
+                tooltip: l.nextPeriod,
+                onTap: () => _shift(1),
+              ),
+              const SizedBox(width: 5),
+              _mIcon(
+                key: const ValueKey('calendar-filter-button'),
+                icon: Icons.filter_alt_outlined,
+                size: 14,
+                tooltip: l.showCalendars,
+                onTap: () => CalendarFilterSheet.show(context),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -854,6 +865,7 @@ class _SpecToolButtonState extends State<_SpecToolButton> {
 
 class _SpecViewSwitch extends StatelessWidget {
   const _SpecViewSwitch({
+    super.key,
     required this.mode,
     required this.onSelected,
   });
