@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull, Column;
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/pages/todo/a2_todo_page.dart';
@@ -896,6 +898,222 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets(
+    'P1: mobile task row geometry (title x~45, check left x~19.5, height ~50) and 48dp hit targets on 390 screen',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final id = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Spec task row check',
+            ),
+          );
+
+      var toggleCount = 0;
+      var detailCount = 0;
+      var scheduleCount = 0;
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            todosViewProvider.overrideWith((ref) => const TodosAllView()),
+          ],
+          now: now,
+          onOpenTodo: (_) => detailCount++,
+          onScheduleTodo: (_) => scheduleCount++,
+          onToggleTodo: (_, __, ___) async {
+            toggleCount++;
+            return true;
+          },
+        ),
+      );
+      await _settle(tester);
+
+      // 1. Title start x ≈ 45 ± 1
+      final title = find.text('Spec task row check');
+      final titleLeft = tester.getTopLeft(title).dx;
+      expect(titleLeft, closeTo(45.0, 1.0));
+
+      // 2. Checkbox visual left edge ≈ 19.5 ± 1
+      final check = find.byType(DsCheck).first;
+      final checkCenter = tester.getCenter(check);
+      expect(checkCenter.dx, closeTo(27.0, 1.0));
+      // Visual circle r = 7.5 (size 15), visual left edge is checkCenter.dx - 7.5
+      final visualLeft = checkCenter.dx - 7.5;
+      expect(visualLeft, closeTo(19.5, 1.0));
+
+      // 3. Row height ≈ 50 ± 1
+      final row = find.ancestor(
+        of: title,
+        matching: find.byType(GestureDetector),
+      ).first;
+      final rowSize = tester.getSize(row);
+      expect(rowSize.height, closeTo(50.0, 1.0));
+
+      // 4. Checkbox center - 18px (dx = 9) tap toggles, does not open detail
+      await tester.tapAt(Offset(checkCenter.dx - 18, checkCenter.dy));
+      await _settle(tester);
+      expect(toggleCount, 1);
+      expect(detailCount, 0);
+      expect(scheduleCount, 0);
+
+      // 5. Checkbox center + 18px (dx = 45) tap toggles, does not open detail
+      await tester.tapAt(Offset(checkCenter.dx + 18, checkCenter.dy));
+      await _settle(tester);
+      expect(toggleCount, 2);
+      expect(detailCount, 0);
+      expect(scheduleCount, 0);
+
+      // 6. Trailing calendar action hit target size >= 48
+      final scheduleFinder = find.byKey(ValueKey('todo-schedule-$id-series'));
+      expect(scheduleFinder, findsOneWidget);
+      final scheduleSize = tester.getSize(scheduleFinder);
+      expect(scheduleSize.width, greaterThanOrEqualTo(48.0));
+      expect(scheduleSize.height, greaterThanOrEqualTo(48.0));
+
+      // 7. Trailing calendar center ± 18px tap schedules
+      final calendarIcon = find.byIcon(CupertinoIcons.calendar);
+      final scheduleVisualCenter = tester.getCenter(calendarIcon);
+      expect(scheduleVisualCenter.dx, closeTo(358.0, 1.0));
+
+      await tester.tapAt(Offset(scheduleVisualCenter.dx - 18, scheduleVisualCenter.dy));
+      await _settle(tester);
+      expect(scheduleCount, 1);
+      expect(toggleCount, 2);
+      expect(detailCount, 0);
+
+      await tester.tapAt(Offset(scheduleVisualCenter.dx + 18, scheduleVisualCenter.dy));
+      await _settle(tester);
+      expect(scheduleCount, 2);
+      expect(toggleCount, 2);
+      expect(detailCount, 0);
+
+      // 8. Tapping row body (title) opens detail
+      await tester.tap(title);
+      await _settle(tester);
+      expect(detailCount, 1);
+      expect(toggleCount, 2);
+      expect(scheduleCount, 2);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'desktop geometry preserves row height ~58 and title start x ~63 without regression',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Desktop geometry task',
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            todosViewProvider.overrideWith((ref) => const TodosAllView()),
+          ],
+          now: now,
+        ),
+      );
+      await _settle(tester);
+
+      final title = find.text('Desktop geometry task');
+      final titleLeft = tester.getTopLeft(title).dx;
+      // Desktop: list left 28 + task row padding 3 + check col 24 + gap 8 = 63.0
+      expect(titleLeft, closeTo(63.0, 1.0));
+
+      final specTaskRow = find.byType(SpecTaskRow);
+      expect(specTaskRow, findsOneWidget);
+      final rowSize = tester.getSize(specTaskRow);
+      // Desktop: row height minHeight 55 + padding 7*2 ~ 58
+      expect(rowSize.height, closeTo(58.0, 3.0));
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P2: mobile capture bar visible size 366x48 and left 12, list top padding 14 (8 on desktop)',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Capture and padding test task',
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            todosViewProvider.overrideWith((ref) => const TodosAllView()),
+          ],
+          now: now,
+        ),
+      );
+      await _settle(tester);
+
+      // Mobile capture bar visible pill (margin: 12, height: 48)
+      final visibleCapture = find
+          .descendant(
+            of: find.byType(A2CaptureBar),
+            matching: find.byType(DecoratedBox),
+          )
+          .first;
+      final captureRect = tester.getRect(visibleCapture);
+      expect(captureRect.left, 12.0);
+      expect(captureRect.width, 366.0);
+      expect(captureRect.height, 48.0);
+
+      // Mobile list top padding 14
+      final list = tester.widget<ListView>(find.byType(ListView).first);
+      final padding = list.padding as EdgeInsets;
+      expect(padding.top, 14.0);
+
+      await _unmount(tester);
+
+      // Switch to desktop 1440x900
+      tester.view.physicalSize = const Size(1440, 900);
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            todosViewProvider.overrideWith((ref) => const TodosAllView()),
+          ],
+          now: now,
+        ),
+      );
+      await _settle(tester);
+
+      final desktopList = tester.widget<ListView>(find.byType(ListView).first);
+      final desktopPadding = desktopList.padding as EdgeInsets;
+      expect(desktopPadding.top, 8.0);
+
+      await _unmount(tester);
+    },
+  );
 }
 
 String _dateKey(DateTime d) =>

@@ -1157,8 +1157,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
 
   Widget _footer(AppLocalizations l, TodosView view, DateTime viewed) {
     // The spec floats one 560x54 capture pill over the page, bottom 18.
+    final desktop = isWorkspaceLayout(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(horizontal: desktop ? 16 : 0),
       child: Align(
         alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
@@ -1202,6 +1203,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     VoidCallback? onTap,
     bool topBorder = true,
   }) {
+    final desktop = isWorkspaceLayout(context);
     return A2GroupHead(
       label: label,
       count: count,
@@ -1210,7 +1212,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       tone: tone,
       trailing: trailing,
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: EdgeInsets.symmetric(horizontal: desktop ? 4 : 20),
       topBorder: topBorder,
     );
   }
@@ -1239,7 +1241,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final open = widget.onOpenTodo;
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(desktop ? 28 : 16, 8, desktop ? 28 : 16, 118),
+      padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
       children: [
         if (withDue.isNotEmpty) ...[
           _groupHead(label: l.withDueUnplannedSection, count: withDue.length),
@@ -1358,7 +1360,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(desktop ? 28 : 16, 8, desktop ? 28 : 16, 118),
+      padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
       children: [
         if (dueToday.isNotEmpty) ...[
           _groupHead(
@@ -1470,7 +1472,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         allocations.isEmpty && due.isEmpty && noDateTodos.isEmpty;
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(desktop ? 28 : 16, 8, desktop ? 28 : 16, 118),
+      padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
       children: [
         _bgBand(l, events, desktop),
         if (hasNoContent)
@@ -1712,6 +1714,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       meta: meta,
       dueLabel: dueLabel,
       isOverdue: overdue,
+      mobileFidelity: !desktop,
       trailing: inWindow
           ? _A2RowAction(
               actionKey: ValueKey(
