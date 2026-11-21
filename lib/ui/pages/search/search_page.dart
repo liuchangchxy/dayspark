@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -192,23 +193,30 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       return Stack(
         fit: StackFit.expand,
         children: [
-          ColoredBox(color: context.ds.bg),
-          Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: 620,
-                maxHeight: MediaQuery.sizeOf(context).height - 64,
-              ),
-              child: Container(
-                width: 620,
-                decoration: BoxDecoration(
-                  color: context.ds.surface,
-                  borderRadius: BorderRadius.circular(AppRadii.xl),
-                  border: Border.all(color: context.ds.line),
-                  boxShadow: AppShadows.two(
-                    Theme.of(context).brightness,
-                  ),
+          const ColoredBox(color: SpecTokens.paper),
+          const ColoredBox(color: Color(0x3D191918)),
+          Padding(
+            padding: const EdgeInsets.only(top: 94),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 620,
+                  maxHeight: MediaQuery.sizeOf(context).height - 118,
                 ),
+                child: Container(
+                  width: 620,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x47141412),
+                        blurRadius: 90,
+                        offset: Offset(0, 30),
+                      ),
+                    ],
+                  ),
                 clipBehavior: Clip.antiAlias,
                 child: Material(
                   color: Colors.transparent,
@@ -232,6 +240,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         ],
                       ),
                     ),
+                  ),
                   ),
                 ),
               ),
