@@ -11,11 +11,11 @@ const Duration kUndoBarDuration = Duration(seconds: 5);
 const ValueKey<String> kUndoBarKey = ValueKey('undo-bar');
 
 /// Frozen spec geometry: desktop `.undo-bar` is a centered compact pill 84px
-/// above the bottom edge; mobile `.m-undo` is inset 12px and sits above the
-/// 56px tab bar.
+/// above the bottom edge; mobile `.m-undo` sits 118px above it, clearing both
+/// the 56px tab bar and the 48px capture bar stacked above it.
 const double _desktopBottom = 84;
 const double _desktopWidth = 360;
-const double _mobileBottom = 68;
+const double _mobileBottom = 118;
 const double _mobileEdge = 12;
 
 /// Shows the one-line undo bar for the current message.
@@ -56,6 +56,9 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoBar(
       dismissDirection: DismissDirection.down,
       behavior: SnackBarBehavior.floating,
       padding: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(7)),
+      ),
       margin: EdgeInsets.fromLTRB(
         side,
         0,

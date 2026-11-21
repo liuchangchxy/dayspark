@@ -83,6 +83,66 @@ void main() {
     expect(find.text('Deleted'), findsNothing);
   });
 
+  testWidgets('undo bar clears a 56px dock and a 48px capture bar', (
+    tester,
+  ) async {
+    _usePhone(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Stack(
+            children: [
+              Center(
+                child: Builder(
+                  builder: (context) => TextButton(
+                    key: _triggerKey,
+                    onPressed: () => showUndoBar(
+                      context,
+                      message: 'Deleted',
+                      undoLabel: 'Undo',
+                      onUndo: () {},
+                    ),
+                    child: const Text('delete'),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 56,
+                height: 48,
+                child: Container(
+                  key: const ValueKey('undo-bar-test-capture'),
+                  color: Colors.white,
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 56,
+                child: Container(
+                  key: const ValueKey('undo-bar-test-dock'),
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await _showBar(tester);
+
+    final undoRect = tester.getRect(find.byKey(_contentKey));
+    final captureRect = tester.getRect(
+      find.byKey(const ValueKey('undo-bar-test-capture')),
+    );
+    expect(undoRect.overlaps(captureRect), isFalse);
+    expect(undoRect.bottom, lessThanOrEqualTo(captureRect.top));
+  });
+
   testWidgets('visible undo bar does not intercept the tab bar', (
     tester,
   ) async {
