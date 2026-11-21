@@ -1368,5 +1368,25 @@
   "currentDefaultPrefix": "当前默认：",
   "goToSettings": "去设置",
   "orAlternative": "或者",
-  "calendarColorLabel": "颜色"
+  "calendarColorLabel": "颜色",
+  "noSchedule": "无安排",
+  "deadlineMarkerLabel": "{time} 截止 · {title}",
+  "@deadlineMarkerLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarTimeRowPlanned": "{timeRange} · 计划执行",
+  "@calendarTimeRowPlanned": {
+    "placeholders": {
+      "timeRange": {
+        "type": "String"
+      }
+    }
+  }
 }

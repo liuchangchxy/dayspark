@@ -12,6 +12,7 @@ import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -285,6 +286,39 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
             .where((a) => !hidden.contains(a.todo.calendarId))
             .toList();
 
+    final todoCalendarMap = <int, int>{};
+    for (final a in widget.allocations) {
+      todoCalendarMap[a.todo.id] = a.todo.calendarId;
+    }
+    final allTodos = ref.watch(allTodosProvider).valueOrNull;
+    if (allTodos != null) {
+      for (final t in allTodos) {
+        todoCalendarMap[t.id] = t.calendarId;
+      }
+    }
+    final visibleDeadlines = hidden.isEmpty
+        ? widget.deadlines
+        : widget.deadlines.where((d) {
+            final calId = d.calendarId ?? todoCalendarMap[d.todoId];
+            return calId == null || !hidden.contains(calId);
+          }).toList();
+
+    final hiddenEventsCount =
+        widget.events.where((e) => hidden.contains(e.calendarId)).length;
+    final hiddenAllocCount = widget.allocations
+        .where((a) => hidden.contains(a.todo.calendarId))
+        .length;
+    final hiddenDlCount = widget.deadlines.where((d) {
+      final calId = d.calendarId ?? todoCalendarMap[d.todoId];
+      return calId != null && hidden.contains(calId);
+    }).length;
+    final hiddenTotalItems =
+        hiddenEventsCount + hiddenAllocCount + hiddenDlCount;
+    final hiddenNames = [
+      for (final id in hidden)
+        if (names.containsKey(id)) names[id]!,
+    ];
+
     if (isWorkspaceLayout(context)) {
       return _desktop(
         l,
@@ -296,8 +330,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         weekStart,
         days,
         hidden,
+        hiddenTotalItems,
+        hiddenNames,
         visibleEvents,
         visibleAllocations,
+        visibleDeadlines,
       );
     }
     return _phone(
@@ -310,8 +347,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       weekStart,
       days,
       hidden,
+      hiddenTotalItems,
+      hiddenNames,
       visibleEvents,
       visibleAllocations,
+      visibleDeadlines,
     );
   }
 
@@ -325,8 +365,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     DateTime weekStart,
     List<DateTime> days,
     Set<int> hidden,
+    int hiddenItemsCount,
+    List<String> hiddenNames,
     List<CalendaEventAdapter> visibleEvents,
     List<TaskAllocationCalendarItem> visibleAllocations,
+    List<CalendarDeadline> visibleDeadlines,
   ) {
     final (title, subtitle) = _header(l, locale, mode, browse, now, weekStart);
     final actions = <Widget>[
@@ -369,8 +412,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               today: calDayOf(now),
               events: visibleEvents,
               allocations: visibleAllocations,
-              deadlines: widget.deadlines,
+              deadlines: visibleDeadlines,
               onSelectDay: (day) => _selectDay(day, visibleEvents, visibleAllocations),
+              onEvent: widget.onEventTapped,
+              onAllocation: widget.onAllocationTapped,
+              onDeadline: widget.onDeadlineTapped,
             ),
           ),
         ],
@@ -391,6 +437,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               names: names,
               events: visibleEvents,
               allocations: visibleAllocations,
+              deadlines: visibleDeadlines,
               dayMode: false,
             ),
           ),
@@ -412,6 +459,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               names: names,
               events: visibleEvents,
               allocations: visibleAllocations,
+              deadlines: visibleDeadlines,
               dayMode: true,
             ),
           ),
@@ -430,6 +478,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         if (hidden.isNotEmpty)
           _CalHiddenBanner(
             hiddenCount: hidden.length,
+            hiddenItemsCount: hiddenItemsCount,
+            hiddenNames: hiddenNames,
             onRestore: () =>
                 ref.read(calendarHiddenFilterProvider.notifier).state = const {},
             onShowCalendars: () => CalendarFilterSheet.show(context),
@@ -460,8 +510,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     DateTime weekStart,
     List<DateTime> days,
     Set<int> hidden,
+    int hiddenItemsCount,
+    List<String> hiddenNames,
     List<CalendaEventAdapter> visibleEvents,
     List<TaskAllocationCalendarItem> visibleAllocations,
+    List<CalendarDeadline> visibleDeadlines,
   ) {
     final ds = context.ds;
     final body = switch (mode) {
@@ -472,7 +525,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         now: now,
         events: visibleEvents,
         allocations: visibleAllocations,
-        deadlines: widget.deadlines,
+        deadlines: visibleDeadlines,
         calendarNames: names,
         onSelectDay: _setBrowse,
         onSlot: widget.onTimeSlotTapped,
@@ -487,6 +540,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         names: names,
         events: visibleEvents,
         allocations: visibleAllocations,
+        deadlines: visibleDeadlines,
         dayMode: false,
       ),
       CalendarViewMode.day => _timeGrid(
@@ -496,6 +550,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         names: names,
         events: visibleEvents,
         allocations: visibleAllocations,
+        deadlines: visibleDeadlines,
         dayMode: true,
       ),
     };
@@ -519,6 +574,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
                   if (hidden.isNotEmpty)
                     _CalHiddenBanner(
                       hiddenCount: hidden.length,
+                      hiddenItemsCount: hiddenItemsCount,
+                      hiddenNames: hiddenNames,
                       onRestore: () =>
                           ref.read(calendarHiddenFilterProvider.notifier).state = const {},
                       onShowCalendars: () => CalendarFilterSheet.show(context),
@@ -620,6 +677,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     required Map<int, String> names,
     required List<CalendaEventAdapter> events,
     required List<TaskAllocationCalendarItem> allocations,
+    required List<CalendarDeadline> deadlines,
     required bool dayMode,
   }) {
     return A2TimeGridView(
@@ -628,7 +686,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       now: now,
       events: events,
       allocations: allocations,
-      deadlines: widget.deadlines,
+      deadlines: deadlines,
       calendarNames: names,
       dayMode: dayMode,
       onSelectDay: _setBrowse,
@@ -893,11 +951,15 @@ class _A2FilterButton extends StatelessWidget {
 class _CalHiddenBanner extends StatelessWidget {
   const _CalHiddenBanner({
     required this.hiddenCount,
+    required this.hiddenItemsCount,
+    required this.hiddenNames,
     required this.onRestore,
     required this.onShowCalendars,
   });
 
   final int hiddenCount;
+  final int hiddenItemsCount;
+  final List<String> hiddenNames;
   final VoidCallback onRestore;
   final VoidCallback onShowCalendars;
 

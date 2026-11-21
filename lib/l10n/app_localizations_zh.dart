@@ -2707,4 +2707,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get calendarColorLabel => '颜色';
+
+  @override
+  String get noSchedule => '无安排';
+
+  @override
+  String deadlineMarkerLabel(String time, String title) {
+    return '$time 截止 · $title';
+  }
+
+  @override
+  String calendarTimeRowPlanned(String timeRange) {
+    return '$timeRange · 计划执行';
+  }
 }

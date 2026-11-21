@@ -1645,5 +1645,25 @@
   "currentDefaultPrefix": "Current default: ",
   "goToSettings": "Configure",
   "orAlternative": "Or",
-  "calendarColorLabel": "Color"
+  "calendarColorLabel": "Color",
+  "noSchedule": "No schedule",
+  "deadlineMarkerLabel": "Due {time} · {title}",
+  "@deadlineMarkerLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarTimeRowPlanned": "{timeRange} · Planned",
+  "@calendarTimeRowPlanned": {
+    "placeholders": {
+      "timeRange": {
+        "type": "String"
+      }
+    }
+  }
 }

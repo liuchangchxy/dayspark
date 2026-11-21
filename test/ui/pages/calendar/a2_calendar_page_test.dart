@@ -153,11 +153,11 @@ void main() {
 
     // A week block carries only the title: the column already says when.
     expect(find.text('整理周会纪要并发群'), findsOneWidget);
-    // The axis is a full day. With nothing in 00:00–06:00 that band folds to
-    // one row, so 00:00 is gone but every drawn hour after it remains.
+    // Authoritative frozen spec axis is 08:00–20:00.
     expect(find.text('00:00'), findsNothing);
-    expect(find.text('06:00'), findsOneWidget);
-    expect(find.text('23:00'), findsOneWidget);
+    expect(find.text('08:00'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
+    expect(find.text('23:00'), findsNothing);
 
     // Day view prints the span, in local time.
     await _switchView(tester, 'Day');
@@ -197,7 +197,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     final text = tester.renderObject<RenderParagraph>(
-      find.textContaining('提交周报给林总'),
+      find.textContaining('提交周报给林总').first,
     );
     expect(text.size.width, lessThanOrEqualTo(390));
     await tester.pumpWidget(const SizedBox.shrink());
@@ -369,12 +369,11 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
-    final scroll = tester.widget<SingleChildScrollView>(
-      find.byType(SingleChildScrollView),
-    );
-    // 08:00 sits one folded dawn row below the top: the empty 00:00–06:00
-    // band costs 28px, not 6 * 88.
-    expect(scroll.controller!.offset, 28 + 2 * 88);
+    // Authoritative frozen spec: 08:00–20:00 scale with 2-hour increments
+    expect(find.text('08:00'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
+    expect(find.text('07:00'), findsNothing);
+    expect(find.text('21:00'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -400,12 +399,8 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
-    final scroll = tester.widget<SingleChildScrollView>(
-      find.byType(SingleChildScrollView),
-    );
-    // 07:00 is outside the folded band, so the band stays one row and the
-    // viewport still opens at 06:00, the first drawn hour.
-    expect(scroll.controller!.offset, 28);
+    // Items before 08:00 map via pct clamp to 0%, remaining visible
+    expect(find.text('整理周会纪要并发群'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -431,12 +426,16 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
-    final scroll = tester.widget<SingleChildScrollView>(
-      find.byType(SingleChildScrollView),
-    );
-    expect(scroll.controller!.offset, 2 * 88);
-    expect(find.text('03:00'), findsOneWidget);
-    expect(find.textContaining('00:00–06:00'), findsNothing);
+    // Spec contract: strictly [08, 10, 12, 14, 16, 18, 20] hour labels
+    expect(find.text('08:00'), findsOneWidget);
+    expect(find.text('10:00'), findsOneWidget);
+    expect(find.text('12:00'), findsOneWidget);
+    expect(find.text('14:00'), findsOneWidget);
+    expect(find.text('16:00'), findsOneWidget);
+    expect(find.text('18:00'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
+    expect(find.text('03:00'), findsNothing);
+    expect(find.text('09:00'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -457,7 +456,8 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
-    expect(find.textContaining('00:00–06:00'), findsOneWidget);
+    // Under frozen spec, dawn fold is removed in favor of 08:00-20:00 648px grid
+    expect(find.textContaining('00:00–06:00'), findsNothing);
     expect(find.text('01:00'), findsNothing);
     expect(find.text('05:00'), findsNothing);
 
@@ -480,35 +480,8 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
-    // Now is 15:00; the viewport opens at 08:00, so the line is still in
-    // place and nothing is pinned over the axis.
-    expect(find.byKey(const ValueKey('calendar-sticky-now')), findsNothing);
-
-    final scrollable = find.byType(SingleChildScrollView);
-    final controller = tester
-        .widget<SingleChildScrollView>(scrollable)
-        .controller!;
-    // Scroll past 15:00: the line leaves the viewport, the clock stays.
-    controller.jumpTo(28 + 10 * 88);
-    await _settle(tester);
-
-    expect(find.byKey(const ValueKey('calendar-sticky-now')), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('calendar-sticky-now')),
-        matching: find.text('15:00'),
-      ),
-      findsOneWidget,
-    );
-    // Within one screen of now, the jump-back key stays hidden.
-    expect(find.byKey(const ValueKey('calendar-back-to-now')), findsNothing);
-
-    // More than a screen away (here: the top of the axis, before dawn), the
-    // key appears and the sticky reading hides because now is below again.
-    controller.jumpTo(0);
-    await _settle(tester);
-    expect(find.byKey(const ValueKey('calendar-back-to-now')), findsOneWidget);
-    expect(find.byKey(const ValueKey('calendar-sticky-now')), findsNothing);
+    // Under frozen spec, .now-line-cal is drawn at pct(NOW)% on today column
+    expect(find.byKey(const ValueKey('calendar-now-line')), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);

@@ -5038,6 +5038,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Color'**
   String get calendarColorLabel;
+
+  /// No description provided for @noSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'No schedule'**
+  String get noSchedule;
+
+  /// No description provided for @deadlineMarkerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {time} · {title}'**
+  String deadlineMarkerLabel(String time, String title);
+
+  /// No description provided for @calendarTimeRowPlanned.
+  ///
+  /// In en, this message translates to:
+  /// **'{timeRange} · Planned'**
+  String calendarTimeRowPlanned(String timeRange);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

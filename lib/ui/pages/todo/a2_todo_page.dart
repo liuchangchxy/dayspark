@@ -386,7 +386,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             constraints: const BoxConstraints(maxWidth: 1240),
             child: Builder(
               builder: (context) {
-                final isMasterDetail = isMasterDetailLayout(context);
+                final isMasterDetail = MediaQuery.sizeOf(context).width >= 1180;
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -409,12 +409,14 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                         ),
                       ),
                     ),
-                    if (widget.detail != null) ...[
+                    if (isMasterDetail) ...[
                       const SizedBox(width: 20),
-                      SizedBox(width: 380, child: widget.detail!),
-                    ] else if (isMasterDetail) ...[
-                      const SizedBox(width: 20),
-                      const SizedBox(width: 380, child: _EmptyDetailColumn()),
+                      SizedBox(
+                        width: 380,
+                        child: ClipRect(
+                          child: widget.detail ?? const _EmptyDetailColumn(),
+                        ),
+                      ),
                     ],
                   ],
                 );

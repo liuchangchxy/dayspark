@@ -2731,4 +2731,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calendarColorLabel => 'Color';
+
+  @override
+  String get noSchedule => 'No schedule';
+
+  @override
+  String deadlineMarkerLabel(String time, String title) {
+    return 'Due $time · $title';
+  }
+
+  @override
+  String calendarTimeRowPlanned(String timeRange) {
+    return '$timeRange · Planned';
+  }
 }
