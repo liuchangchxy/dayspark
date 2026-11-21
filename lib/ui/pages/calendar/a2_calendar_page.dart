@@ -556,41 +556,59 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: ds.lineSoft)),
       ),
-      child: Row(
-        children: [
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: _pageText(17, FontWeight.w600, ds.ink, tabular: true),
-          ),
-          const SizedBox(width: 12),
-          _A2TodayButton(label: l.today, onPressed: _goToToday),
-          const SizedBox(width: 6),
-          _A2HeadIcon(
-            icon: CupertinoIcons.chevron_left,
-            tooltip: l.previousPeriod,
-            onPressed: () => _shift(-1),
-          ),
-          _A2HeadIcon(
-            icon: CupertinoIcons.chevron_right,
-            tooltip: l.nextPeriod,
-            onPressed: () => _shift(1),
-          ),
-          const Spacer(),
-          _A2FilterButton(
-            label: l.showCalendars,
-            active: hidden.isNotEmpty,
-            onPressed: () => CalendarFilterSheet.show(context),
-          ),
-          const SizedBox(width: 8),
-          _A2CreateButton(
-            label: l.newEventAction,
-            onPressed: () => _createAt(browse),
-          ),
-          const SizedBox(width: 8),
-          _A2ModeSegmented(mode: mode, onSelected: _setMode),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final leading = <Widget>[
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _pageText(17, FontWeight.w600, ds.ink, tabular: true),
+              ),
+            ),
+            const SizedBox(width: 12),
+            _A2TodayButton(label: l.today, onPressed: _goToToday),
+            const SizedBox(width: 6),
+            _A2HeadIcon(
+              icon: CupertinoIcons.chevron_left,
+              tooltip: l.previousPeriod,
+              onPressed: () => _shift(-1),
+            ),
+            _A2HeadIcon(
+              icon: CupertinoIcons.chevron_right,
+              tooltip: l.nextPeriod,
+              onPressed: () => _shift(1),
+            ),
+          ];
+          final trailing = <Widget>[
+            _A2FilterButton(
+              label: l.showCalendars,
+              active: hidden.isNotEmpty,
+              onPressed: () => CalendarFilterSheet.show(context),
+            ),
+            const SizedBox(width: 8),
+            _A2CreateButton(
+              label: l.newEventAction,
+              onPressed: () => _createAt(browse),
+            ),
+            const SizedBox(width: 8),
+            _A2ModeSegmented(mode: mode, onSelected: _setMode),
+          ];
+          if (constraints.maxWidth >= 1000) {
+            return Row(
+              children: [...leading, const Spacer(), ...trailing],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(children: leading),
+              const SizedBox(height: 8),
+              Row(children: [...trailing, const Spacer()]),
+            ],
+          );
+        },
       ),
     );
   }
