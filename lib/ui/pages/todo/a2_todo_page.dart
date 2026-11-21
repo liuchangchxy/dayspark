@@ -75,6 +75,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   static const Duration _undoWindow = Duration(seconds: 5);
 
   bool _captureFocused = false;
+  bool _completedOpen = false;
 
   final Map<String, _UndoEntry> _undoEntries = {};
   final Map<String, _UndoSlot> _lastSlots = {};
@@ -373,13 +374,24 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: Stack(
                 children: [
-                  head,
-                  if (strip != null) strip,
-                  Expanded(child: body),
-                  footer,
+                  Positioned.fill(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        head,
+                        if (strip != null) strip,
+                        Expanded(child: body),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 18,
+                    child: footer,
+                  ),
                 ],
               ),
             ),
@@ -1146,7 +1158,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   Widget _footer(AppLocalizations l, TodosView view, DateTime viewed) {
     // The spec floats one 560x54 capture pill over the page, bottom 18.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Align(
         alignment: Alignment.bottomCenter,
         child: ConstrainedBox(
@@ -1180,6 +1192,29 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     ),
   );
 
+  Widget _groupHead({
+    required String label,
+    int? count,
+    String? countLabel,
+    bool danger = false,
+    Color? tone,
+    Widget? trailing,
+    VoidCallback? onTap,
+    bool topBorder = true,
+  }) {
+    return A2GroupHead(
+      label: label,
+      count: count,
+      countLabel: countLabel,
+      danger: danger,
+      tone: tone,
+      trailing: trailing,
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      topBorder: topBorder,
+    );
+  }
+
   Widget _inboxBody(
     AppLocalizations l,
     List<Todo> todos,
@@ -1204,10 +1239,10 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final open = widget.onOpenTodo;
 
     return ListView(
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.fromLTRB(desktop ? 28 : 16, 8, desktop ? 28 : 16, 118),
       children: [
         if (withDue.isNotEmpty) ...[
-          A2GroupHead(label: l.withDueUnplannedSection, count: withDue.length),
+          _groupHead(label: l.withDueUnplannedSection, count: withDue.length),
           for (var index = 0; index < withDue.length; index++)
             _todoRow(
               withDue[index],
@@ -1220,7 +1255,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             ),
         ],
         if (noDue.isNotEmpty) ...[
-          A2GroupHead(label: l.noDueSection, count: noDue.length),
+          _groupHead(label: l.noDueSection, count: noDue.length),
           for (var index = 0; index < noDue.length; index++)
             _todoRow(
               noDue[index],
@@ -1269,7 +1304,12 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final pastDue = <Todo>[];
     final later = <Todo>[];
     final noDue = <Todo>[];
+    final done = <Todo>[];
     for (final todo in todos) {
+      if (todo.status == 'COMPLETED') {
+        done.add(todo);
+        continue;
+      }
       final due = todo.dueDate?.toLocal();
       if (due == null) {
         noDue.add(todo);
@@ -1284,23 +1324,24 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         later.add(todo);
       }
     }
-    // Finished work sinks inside its group, as in the design: the first row a
-    // reader meets should be one they can act on.
-    int byDue(Todo a, Todo b) {
-      final aDone = a.status == 'COMPLETED' ? 1 : 0;
-      final bDone = b.status == 'COMPLETED' ? 1 : 0;
-      if (aDone != bDone) return aDone - bDone;
-      return a.dueDate!.compareTo(b.dueDate!);
-    }
 
-    dueToday.sort(byDue);
-    pastDue.sort(byDue);
-    later.sort(byDue);
+    int byDueDate(Todo a, Todo b) => a.dueDate!.compareTo(b.dueDate!);
+    dueToday.sort(byDueDate);
+    pastDue.sort(byDueDate);
+    later.sort(byDueDate);
+
     _pinAllWindows(dueToday, pastDue, later, noDue);
+    final pinnedIds = {
+      for (final e in _undoEntries.values)
+        if (e.slot?.group.isAllList ?? false) e.todo.id,
+    };
+    done.removeWhere((todo) => pinnedIds.contains(todo.id));
+
     if (dueToday.isEmpty &&
         pastDue.isEmpty &&
         later.isEmpty &&
-        noDue.isEmpty) {
+        noDue.isEmpty &&
+        done.isEmpty) {
       return A2Empty(title: l.allTasks, hint: l.noPendingTodos);
     }
 
@@ -1317,10 +1358,10 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
 
     return ListView(
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.fromLTRB(desktop ? 28 : 16, 8, desktop ? 28 : 16, 118),
       children: [
         if (dueToday.isNotEmpty) ...[
-          A2GroupHead(
+          _groupHead(
             label: l.allDueTodaySection,
             count: dueToday.length,
             tone: context.ds.warn,
@@ -1329,7 +1370,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             row(dueToday[index], _UndoSlot(_UndoGroup.allDueToday, index)),
         ],
         if (pastDue.isNotEmpty) ...[
-          A2GroupHead(
+          _groupHead(
             label: l.allPastDueSection,
             count: pastDue.length,
             danger: true,
@@ -1338,14 +1379,32 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             row(pastDue[index], _UndoSlot(_UndoGroup.allPastDue, index)),
         ],
         if (later.isNotEmpty) ...[
-          A2GroupHead(label: l.allLaterSection, count: later.length),
+          _groupHead(label: l.allLaterSection, count: later.length),
           for (var index = 0; index < later.length; index++)
             row(later[index], _UndoSlot(_UndoGroup.allLater, index)),
         ],
         if (noDue.isNotEmpty) ...[
-          A2GroupHead(label: l.allUnplannedNoDueSection, count: noDue.length),
+          _groupHead(label: l.allUnplannedNoDueSection, count: noDue.length),
           for (var index = 0; index < noDue.length; index++)
             row(noDue[index], _UndoSlot(_UndoGroup.allNoDue, index)),
+        ],
+        if (done.isNotEmpty) ...[
+          _groupHead(
+            label: l.completedTodaySection,
+            count: done.length,
+            countLabel: l.groupCountItems(done.length),
+            trailing: Icon(
+              _completedOpen
+                  ? CupertinoIcons.chevron_down
+                  : CupertinoIcons.chevron_right,
+              size: 11,
+              color: context.ds.faint,
+            ),
+            onTap: () => setState(() => _completedOpen = !_completedOpen),
+          ),
+          if (_completedOpen)
+            for (var index = 0; index < done.length; index++)
+              row(done[index], _UndoSlot(_UndoGroup.allCompleted, index)),
         ],
       ],
     );
@@ -1411,13 +1470,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         allocations.isEmpty && due.isEmpty && noDateTodos.isEmpty;
 
     return ListView(
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.fromLTRB(desktop ? 28 : 16, 8, desktop ? 28 : 16, 118),
       children: [
         _bgBand(l, events, desktop),
         if (hasNoContent)
           A2Empty(title: l.emptyDateTitle, hint: l.emptyDateHint),
         if (allocations.isNotEmpty) ...[
-          A2GroupHead(label: l.datePlannedSection, count: allocations.length),
+          _groupHead(label: l.datePlannedSection, count: allocations.length),
           for (var index = 0; index < allocations.length; index++)
             _todoRow(
               allocations[index].todo!,
@@ -1437,7 +1496,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             ),
         ],
         if (due.isNotEmpty) ...[
-          A2GroupHead(label: l.dateDueSection, count: due.length),
+          _groupHead(label: l.dateDueSection, count: due.length),
           for (var index = 0; index < due.length; index++)
             _todoRow(
               due[index].todo!,
@@ -1452,7 +1511,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             ),
         ],
         if (noDateTodos.isNotEmpty) ...[
-          A2GroupHead(
+          _groupHead(
             label: l.noDateGroupSection,
             count: noDateTodos.length,
           ),
@@ -1639,11 +1698,20 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final l = AppLocalizations.of(context)!;
     final inWindow = _inUndoWindow(todo.id, occurrenceId);
     final onSchedule = widget.onScheduleTodo ?? _schedule;
+    final due = todo.dueDate?.toLocal();
+    final hasDue = due != null;
+    final dueLabel = hasDue
+        ? _dueValue(l, due, includeToday: true)
+        : null;
+    final overdue = hasDue ? _isOverdue(due) : false;
+
     return SpecTaskRow(
       title: todo.summary,
       checked: checked || inWindow,
       selected: selected,
       meta: meta,
+      dueLabel: dueLabel,
+      isOverdue: overdue,
       trailing: inWindow
           ? _A2RowAction(
               actionKey: ValueKey(
@@ -1679,21 +1747,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     Map<int, String> names,
   ) {
     final parts = <Widget>[];
-    final due = todo.dueDate?.toLocal();
-    if (due != null) {
-      parts.add(
-        A2DueCapsule(
-          label: l.dueValueLabel(_dueValue(l, due, includeToday: true)),
-          overdue: _isOverdue(due),
-        ),
-      );
-    } else {
-      parts.add(A2MetaText(l.inbox));
-    }
     final name = names[todo.calendarId];
     if (name != null && name.isNotEmpty) {
-      parts.add(const A2Sep());
       parts.add(A2MetaText(name));
+    } else {
+      parts.add(A2MetaText(l.inbox));
     }
     return parts;
   }
@@ -1705,7 +1763,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     Map<int, String> names,
   ) {
     final parts = <Widget>[];
-    final due = todo.dueDate?.toLocal();
     if (allocation != null) {
       final start = allocation.allocation.startAt.toLocal();
       final end = allocation.allocation.endAt.toLocal();
@@ -1718,31 +1775,18 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           color: context.ds.work,
         ),
       );
-      if (due != null) {
+      final name = names[todo.calendarId];
+      if (name != null && name.isNotEmpty) {
         parts.add(const A2Sep());
-        parts.add(
-          A2DueCapsule(
-            label: l.dueValueLabel(_dueValue(l, due)),
-            overdue: _isOverdue(due),
-          ),
-        );
+        parts.add(A2MetaText(name));
       }
       return parts;
     }
-    if (due != null) {
-      parts.add(
-        A2DueCapsule(
-          label: l.dueValueLabel(_dueValue(l, due)),
-          overdue: _isOverdue(due),
-        ),
-      );
-      return parts;
-    }
-    parts.add(A2MetaText(l.inbox));
     final name = names[todo.calendarId];
     if (name != null && name.isNotEmpty) {
-      parts.add(const A2Sep());
       parts.add(A2MetaText(name));
+    } else {
+      parts.add(A2MetaText(l.inbox));
     }
     return parts;
   }
@@ -1759,29 +1803,14 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         ),
       );
     }
-    final due = item.todo?.dueDate?.toLocal();
-    if (due != null) {
-      if (parts.isNotEmpty) parts.add(const A2Sep());
-      parts.add(
-        A2DueCapsule(
-          label: l.dueValueLabel(_dueValue(l, due)),
-          overdue: _isOverdue(due),
-        ),
-      );
-    }
     return parts;
   }
 
   List<Widget> _deadlineMeta(AppLocalizations l, DayItem item) {
-    final due = item.todo?.dueDate?.toLocal();
-    if (due == null) return const [];
-    return [
-      A2DueCapsule(
-        label: l.dueValueLabel(_dueValue(l, due)),
-        overdue: _isOverdue(due),
-      ),
-      if (item.completed) ...[const A2Sep(), A2MetaText(l.completed)],
-    ];
+    if (item.completed) {
+      return [A2MetaText(l.completed)];
+    }
+    return const [];
   }
 
 
@@ -1837,6 +1866,7 @@ enum _UndoGroup {
   allPastDue,
   allLater,
   allNoDue,
+  allCompleted,
   dayPlanned,
   dayDue;
 
@@ -1844,7 +1874,8 @@ enum _UndoGroup {
       this == allDueToday ||
       this == allPastDue ||
       this == allLater ||
-      this == allNoDue;
+      this == allNoDue ||
+      this == allCompleted;
 }
 
 class _UndoSlot {
