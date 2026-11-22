@@ -826,7 +826,7 @@ void main() {
   );
 
   testWidgets(
-    'P1: Earlier missed entry is visible and clickable when 30-day window has no missed items but has earlier missed series',
+    'P1: Earlier missed series is visible as a card when the 30-day window has no missed items',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -846,6 +846,7 @@ void main() {
         earlierMissedSeries: [earlierTodo],
       );
 
+      Todo? opened;
       await tester.pumpWidget(
         _app(
           overrides: [
@@ -853,26 +854,33 @@ void main() {
             actionDateProvider.overrideWith((ref) => day),
             actionProjectionProvider.overrideWithValue(AsyncValue.data(customProjection)),
           ],
-          onOpenTodo: (_) {},
+          onOpenTodo: (todo) => opened = todo,
           onScheduleTodo: (_) {},
           onToggleTodo: (_, __, ___) async => true,
         ),
       );
       await _settle(tester);
 
-      // Missed group header must appear
-      expect(find.text('Missed'), findsOneWidget);
-      // Earlier missed entry must be visible
-      final earlierMissedFinder = find.text('Earlier missed…');
-      expect(earlierMissedFinder, findsOneWidget);
+      final card = find.byKey(ValueKey('missed-card-${earlierTodo.id}'));
+      expect(card, findsOneWidget);
+      expect(find.text('Missed'), findsNothing);
+      expect(find.text('Earlier missed…'), findsNothing);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text('Complete This Occurrence'),
+        ),
+        findsOneWidget,
+      );
 
-      // Tapping Earlier missed expands the series
-      await tester.tap(earlierMissedFinder);
+      await tester.tap(
+        find.descendant(
+          of: card,
+          matching: find.text('Ancient recurring task'),
+        ),
+      );
       await _settle(tester);
-
-      // Now earlier missed series row appears
-      final ancientRecurringFinder = find.text('Ancient recurring task');
-      expect(ancientRecurringFinder, findsAtLeastNWidgets(1));
+      expect(opened?.id, earlierTodo.id);
 
       await _unmount(tester);
     },

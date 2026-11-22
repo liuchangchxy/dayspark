@@ -4769,6 +4769,18 @@ abstract class AppLocalizations {
   /// **'Current instance {date} · Missed {count} times'**
   String missedOccurrencesNote(String date, int count);
 
+  /// No description provided for @missedCardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{repeat} · Missed {count} times · Completing affects only this one'**
+  String missedCardSubtitle(String repeat, int count);
+
+  /// No description provided for @missedCardRepeatWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {day}'**
+  String missedCardRepeatWeekly(String day);
+
   /// No description provided for @deleteToTrashAction.
   ///
   /// In en, this message translates to:

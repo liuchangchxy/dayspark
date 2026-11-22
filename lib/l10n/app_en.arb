@@ -1653,6 +1653,25 @@
       }
     }
   },
+  "missedCardSubtitle": "{repeat} · Missed {count} times · Completing affects only this one",
+  "@missedCardSubtitle": {
+    "placeholders": {
+      "repeat": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missedCardRepeatWeekly": "Every {day}",
+  "@missedCardRepeatWeekly": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
   "deleteToTrashAction": "Move to Trash",
   "cancelAction": "Cancel",
   "saveAction": "Save",

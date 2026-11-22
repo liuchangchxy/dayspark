@@ -452,7 +452,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('missed instances are bounded to three with a more entry', (
+  testWidgets('a missed series renders one card with its missed count', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -467,7 +467,7 @@ void main() {
       timeZone: 'Asia/Shanghai',
       rrule: 'FREQ=DAILY;COUNT=7',
     );
-    await _createSeries(
+    final seriesId = await _createSeries(
       db,
       calendarId: calendarId,
       summary: 'Daily Plan',
@@ -484,64 +484,163 @@ void main() {
     );
     await _settle(tester);
 
-    // One today block, three of the five missed occurrences (10/1–10/5), and
-    // the series' own row in the unplanned shelf.
-    expect(find.text('Missed'), findsOneWidget);
-    expect(find.text('Daily Plan'), findsNWidgets(5));
-    expect(find.text('2 more · Show all'), findsOneWidget);
-
-    await tester.tap(find.text('2 more · Show all'));
-    await _settle(tester);
-    expect(find.text('Daily Plan'), findsNWidgets(7));
+    final card = find.byKey(ValueKey('missed-card-$seriesId'));
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('Daily Plan')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.text(
+          'Every day · Missed 5 times · Completing affects only this one',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.text('Complete This Occurrence'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Missed'), findsNothing);
+    expect(find.textContaining('Show all'), findsNothing);
 
     await _unmount(tester);
   });
 
-  testWidgets('earlier missed series has an entry after the recent window', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'an earlier missed series renders a card even when the recent window is empty',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-    final spec = RecurrenceSpec.parse(
-      anchor: RecurrenceAnchor(
-        source: RecurrenceAnchorSource.start,
-        value: LocalDate(2026, 8, 1),
-      ),
-      timeZone: 'Asia/Shanghai',
-      rrule: 'FREQ=DAILY;COUNT=100',
-    );
-    await _createSeries(
-      db,
-      calendarId: calendarId,
-      summary: 'Long Streak',
-      spec: spec,
-    );
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDate(2026, 8, 1),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=100',
+      );
+      final seriesId = await _createSeries(
+        db,
+        calendarId: calendarId,
+        summary: 'Long Streak',
+        spec: spec,
+      );
 
-    await tester.pumpWidget(
-      _app(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => day),
-        ],
-      ),
-    );
-    await _settle(tester);
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+        ),
+      );
+      await _settle(tester);
 
-    // 9/6–10/5 is the recent 30-day window (30 instances); everything before
-    // it belongs to the earlier-missed entry, not to the bounded preview.
-    expect(find.text('Missed'), findsOneWidget);
-    expect(find.text('Long Streak'), findsNWidgets(5));
-    expect(find.text('27 more · Show all'), findsOneWidget);
-    expect(find.text('Earlier missed…'), findsOneWidget);
+      // 9/6–10/5 is the recent 30-day window; the card aggregates every
+      // occurrence the projection can still name.
+      final card = find.byKey(ValueKey('missed-card-$seriesId'));
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(of: card, matching: find.text('Long Streak')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text(
+            'Every day · Missed 30 times · Completing affects only this one',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Missed'), findsNothing);
+      expect(find.text('Earlier missed…'), findsNothing);
 
-    await tester.tap(find.text('Earlier missed…'));
-    await _settle(tester);
-    expect(find.text('Long Streak'), findsNWidgets(6));
+      await _unmount(tester);
+    },
+  );
 
-    await _unmount(tester);
-  });
+  testWidgets(
+    'a missed card completes one occurrence, leaves overdue, and disappears',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final overdueId = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Late report',
+              dueDate: Value(day.subtract(const Duration(days: 1))),
+            ),
+          );
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDate(2026, 10, 5),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=1',
+      );
+      final seriesId = await _createSeries(
+        db,
+        calendarId: calendarId,
+        summary: 'Weekly notes',
+        spec: spec,
+      );
+      final calls = <(int, String?, bool)>[];
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onToggleTodo: (todo, occurrenceId, completed) async {
+            calls.add((todo.id, occurrenceId, completed));
+            return _completeInDb(db, todo, occurrenceId, completed);
+          },
+        ),
+      );
+      await _settle(tester);
+
+      final card = find.byKey(ValueKey('missed-card-$seriesId'));
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text(
+            'Every day · Missed 1 times · Completing affects only this one',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(ValueKey('overdue-$seriesId')), findsNothing);
+      expect(find.byKey(ValueKey('overdue-${overdueId.id}')), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(
+          of: card,
+          matching: find.text('Complete This Occurrence'),
+        ),
+      );
+      await _settle(tester);
+
+      expect(calls, [(seriesId, 'v2:DATE:2026-10-05', true)]);
+      expect(find.byKey(ValueKey('missed-card-$seriesId')), findsNothing);
+      expect(find.byKey(ValueKey('overdue-${overdueId.id}')), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
 
   testWidgets('a timed recurring instance shows its clock time, not all day', (
     tester,
