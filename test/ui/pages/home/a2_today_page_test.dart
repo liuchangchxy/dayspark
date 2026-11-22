@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +18,7 @@ import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -1215,18 +1217,32 @@ void main() {
       expect(find.byKey(const ValueKey('desktop-capture-input')), findsOneWidget);
       expect(find.byKey(const ValueKey('desktop-capture-expand-btn')), findsOneWidget);
 
-      // Expand capture bar into panel
+      // Expanding the capture bar is the one unified composer, not a reduced
+      // local panel: every fact the capture can write is reachable there.
       await tester.tap(find.byKey(const ValueKey('desktop-capture-expand-btn')));
       await _settle(tester);
 
-      expect(find.byKey(const ValueKey('desktop-capture-submit-btn')), findsOneWidget);
-      expect(find.byKey(const ValueKey('desktop-capture-collapse-btn')), findsOneWidget);
+      expect(find.byType(A2ComposerSheet), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('a2-composer-due')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('a2-composer-plan')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('a2-composer-reminder')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('a2-composer-calendar')),
+        findsOneWidget,
+      );
 
-      // Collapse capture panel
-      await tester.tap(find.byKey(const ValueKey('desktop-capture-collapse-btn')));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await _settle(tester);
-
-      expect(find.byKey(const ValueKey('desktop-capture-submit-btn')), findsNothing);
+      expect(find.byType(A2ComposerSheet), findsNothing);
 
       await _unmount(tester);
     },

@@ -1700,3 +1700,106 @@ class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
     );
   }
 }
+
+/// The one discard confirmation for a capture draft: a compact panel whose
+/// buttons share the row instead of a desktop dialog's action strip, so it
+/// fits a phone without overflowing.
+Future<bool> confirmCaptureDiscard(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required String keepLabel,
+  required String discardLabel,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(24),
+      child: Container(
+        width: 380,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          color: SpecTokens.paper,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: SpecTokens.hair2),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x21191918),
+              blurRadius: 55,
+              offset: Offset(0, 18),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: SpecTokens.ink,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              body,
+              style: const TextStyle(
+                fontSize: 11,
+                height: 1.5,
+                color: SpecTokens.muted,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    style: TextButton.styleFrom(
+                      foregroundColor: SpecTokens.ink2,
+                      minimumSize: const Size(0, 40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        side: const BorderSide(color: SpecTokens.hair2),
+                      ),
+                    ),
+                    child: Text(
+                      keepLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: SpecTokens.red,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 40),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: Text(
+                      discardLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  return result == true;
+}

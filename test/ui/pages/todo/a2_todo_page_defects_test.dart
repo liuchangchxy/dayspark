@@ -1322,6 +1322,32 @@ void main() {
       await _unmount(tester);
     },
   );
+
+  testWidgets('the Todo capture bar opens the unified composer', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosInboxView()),
+        ],
+        now: now,
+      ),
+    );
+    await _settle(tester);
+
+    final send = find.byKey(const ValueKey('capture-send-target'));
+    expect(send, findsOneWidget);
+    await tester.tap(send);
+    await _settle(tester);
+
+    expect(find.byType(A2ComposerSheet), findsOneWidget);
+
+    await _unmount(tester);
+  });
 }
 
 String _dateKey(DateTime d) =>

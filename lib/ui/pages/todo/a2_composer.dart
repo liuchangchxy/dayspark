@@ -19,6 +19,7 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -34,36 +35,42 @@ import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 /// `dueDate` is only written from the 截止 row, a [TaskAllocation] only from a
 /// chosen slot, and opening the sheet for a browsed day pre-fills neither — the
 /// primary button says what will happen before the user taps it.
-Future<void> showA2Composer(
+Future<bool> showA2Composer(
   BuildContext context, {
   required DateTime contextDate,
   Todo? todo,
   DateTime? initialStart,
   DateTime? initialEnd,
-}) {
+  String? initialTitle,
+  bool startAsEvent = false,
+}) async {
   final composer = A2ComposerSheet(
     contextDate: contextDate,
     todo: todo,
     initialStart: initialStart,
     initialEnd: initialEnd,
+    initialTitle: initialTitle,
+    startAsEvent: startAsEvent,
   );
   // Desktop keeps its own overlay language: a centred dialog, not a phone
   // sheet stretched across the window. The composer chooses its chrome from
   // the same breakpoint, so the two calls cannot disagree.
   if (isWorkspaceLayout(context)) {
-    return showDialog<void>(
+    final saved = await showDialog<bool>(
       context: context,
       barrierColor: const Color.fromRGBO(25, 25, 24, 0.26),
       builder: (_) => composer,
     );
+    return saved ?? false;
   }
-  return showModalBottomSheet<void>(
+  final saved = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: const Color.fromRGBO(25, 25, 24, 0.26),
     builder: (_) => composer,
   );
+  return saved ?? false;
 }
 
 /// Everything the quick sheet has already taken from the user travels with it
@@ -95,12 +102,16 @@ class A2ComposerSheet extends ConsumerStatefulWidget {
     this.todo,
     this.initialStart,
     this.initialEnd,
+    this.initialTitle,
+    this.startAsEvent = false,
   });
 
   final DateTime contextDate;
   final Todo? todo;
   final DateTime? initialStart;
   final DateTime? initialEnd;
+  final String? initialTitle;
+  final bool startAsEvent;
 
   @override
   ConsumerState<A2ComposerSheet> createState() => _A2ComposerSheetState();
@@ -117,6 +128,11 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   bool _planOpen = false;
   bool _saving = false;
   bool _writeFailed = false;
+  bool _event = false;
+  bool _parsedHasSuggestion = false;
+  bool _suggestionApplied = false;
+  bool _suggestionRemoved = false;
+  bool _discardOpen = false;
   String? _occurrenceId;
   Todo? _boundTodo;
 
@@ -132,7 +148,9 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   @override
   void initState() {
     super.initState();
-    _title = TextEditingController(text: widget.todo?.summary ?? '');
+    _title = TextEditingController(
+      text: widget.initialTitle ?? widget.todo?.summary ?? '',
+    );
     _boundTodo = widget.todo;
     _due = widget.todo?.dueDate;
     _start = widget.initialStart;
@@ -140,6 +158,117 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     _priority = widget.todo?.priority ?? 0;
     _calendarId = widget.todo?.calendarId;
     _planOpen = false;
+    _event = widget.startAsEvent && widget.todo == null;
+    final parsed = parseCapture(_title.text, DateTime.now());
+    _parsedHasSuggestion = widget.todo == null && parsed.start != null;
+    if (!_scheduling && parsed.start != null) {
+      if (_start == null) {
+        _start = parsed.start;
+        _end = parsed.end;
+      }
+      _suggestionApplied = _start == parsed.start;
+    }
+  }
+
+  CaptureDraft get _parsed => parseCapture(_title.text, DateTime.now());
+
+  bool get _showSuggestionPanel =>
+      !_scheduling &&
+      !_event &&
+      _parsedHasSuggestion &&
+      (_suggestionRemoved || _suggestionApplied || _start == null);
+
+  void _onTitleChanged(String value) {
+    final parsed = parseCapture(value, DateTime.now());
+    setState(() {
+      _parsedHasSuggestion = parsed.start != null;
+      _suggestionRemoved = false;
+      if (parsed.start != null && (_start == null || _suggestionApplied)) {
+        _start = parsed.start;
+        _end = parsed.end;
+        _suggestionApplied = true;
+      } else if (parsed.start == null && _suggestionApplied) {
+        _start = null;
+        _end = null;
+        _suggestionApplied = false;
+      }
+    });
+  }
+
+  void _setEvent(bool event) {
+    final parsed = _parsed;
+    setState(() {
+      _event = event;
+      if (event && _start == null && parsed.start != null) {
+        _start = parsed.start;
+        _end = parsed.end;
+        _suggestionApplied = true;
+        _suggestionRemoved = false;
+      }
+      if (!event) _suggestionRemoved = false;
+    });
+  }
+
+  void _removeSuggestion() {
+    setState(() {
+      _suggestionRemoved = true;
+      if (_suggestionApplied) {
+        _start = null;
+        _end = null;
+        _suggestionApplied = false;
+      }
+    });
+  }
+
+  void _restoreSuggestion() {
+    final parsed = _parsed;
+    setState(() {
+      _suggestionRemoved = false;
+      if (parsed.start != null) {
+        _start = parsed.start;
+        _end = parsed.end;
+        _suggestionApplied = true;
+      }
+    });
+  }
+
+  bool get _hasDraft {
+    if (_scheduling) {
+      return _start != widget.initialStart ||
+          _end != widget.initialEnd ||
+          _dueChanged ||
+          _reminderOffset != null ||
+          _priority != (widget.todo?.priority ?? 0);
+    }
+    return _title.text.trim().isNotEmpty ||
+        _due != null ||
+        _start != null ||
+        _end != null ||
+        _reminderOffset != null ||
+        _priority != 0 ||
+        _calendarId != null;
+  }
+
+  Future<void> _confirmDiscard() async {
+    if (_discardOpen) return;
+    _discardOpen = true;
+    final l = AppLocalizations.of(context)!;
+    final draftTitle = _scheduling
+        ? (_boundTodo?.summary ?? '')
+        : _title.text.trim();
+    final discard = await confirmCaptureDiscard(
+      context,
+      title: l.captureDiscardTitle,
+      body: _scheduling
+          ? l.captureDiscardLineTitle
+          : draftTitle.isEmpty
+          ? l.captureDiscardLineTitle
+          : '${l.captureDiscardSub(draftTitle)}\n${l.captureDiscardLineSub}',
+      keepLabel: l.keepEditing,
+      discardLabel: l.discard,
+    );
+    _discardOpen = false;
+    if (discard && mounted) Navigator.of(context).pop();
   }
 
   void _setMode(bool scheduling) {
@@ -155,6 +284,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     setState(() {
       _start = start;
       _end = end;
+      _suggestionApplied = false;
       // The chosen occurrence belongs to the previous slot's day.
       _occurrenceId = null;
     });
@@ -244,15 +374,60 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
           9,
         );
     final defaultEnd = _end ?? defaultStart.add(const Duration(hours: 1));
+    final contextText = await _dayScheduleContext(defaultStart);
+    if (!mounted) return;
     final picked = await SpecPlanPickerDialog.show(
       context,
       title: title,
       initialStart: defaultStart,
       initialEnd: defaultEnd,
+      contextText: contextText,
     );
     if (picked == null || !mounted) return;
     _setSlot(picked.$1, picked.$2);
     setState(() => _planOpen = true);
+  }
+
+  /// The picker's footer used to promise "no time conflict" unconditionally.
+  /// It now names what the chosen day already holds, or stays quiet when the
+  /// day is empty so the picker keeps its own default.
+  Future<String?> _dayScheduleContext(DateTime day) async {
+    final l = AppLocalizations.of(context)!;
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+    final entries = <(DateTime, String)>[];
+    try {
+      final allocations = await ref.read(
+        allActiveTaskAllocationsProvider.future,
+      );
+      for (final item in allocations) {
+        final allocationStart = item.allocation.startAt.toLocal();
+        final allocationEnd = item.allocation.endAt.toLocal();
+        if (allocationStart.isBefore(end) && allocationEnd.isAfter(start)) {
+          entries.add((allocationStart, item.todo.summary));
+        }
+      }
+      final key =
+          '${start.millisecondsSinceEpoch}-${end.millisecondsSinceEpoch}';
+      final events = await ref.read(eventsInDateRangeProvider(key).future);
+      for (final event in events) {
+        final eventStart = event.startDt.toLocal();
+        final eventEnd = event.endDt.toLocal();
+        if (eventStart.isBefore(end) && eventEnd.isAfter(start)) {
+          entries.add((eventStart, event.summary));
+        }
+      }
+    } on Object catch (error) {
+      debugPrint('composer: day context failed: $error');
+      return null;
+    }
+    if (entries.isEmpty) return null;
+    entries.sort((a, b) => a.$1.compareTo(b.$1));
+    final text = entries
+        .map((entry) =>
+            '${DateFormatters.formatTime(entry.$1)} ${entry.$2}')
+        .join(' · ');
+    return '${l.planPickerContext} $text';
   }
 
   Future<void> _pickReminder() async {
@@ -357,8 +532,11 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   Future<void> _save() async {
     final l = AppLocalizations.of(context)!;
     final title = _title.text.trim();
+    final parsed = _parsed;
+    final summary = parsed.start != null ? parsed.title : title;
     if (_saving) return;
     if (!_scheduling && title.isEmpty) return;
+    if (_event && (_start == null || _end == null)) return;
     if (_scheduling && (_start == null || _end == null)) return;
     setState(() {
       _saving = true;
@@ -409,7 +587,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
         });
         if (!mounted) return;
         _landOn(start);
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
         _toast(l.planToDate(_md(start)));
         return;
       }
@@ -426,15 +604,42 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
             preferredId: ref.read(defaultCalendarIdProvider),
           ) ??
           calendars.first.id;
-      final due = _due;
       final start = _start;
       final end = _end;
       final reminderOffset = _reminderOffset;
+      if (_event) {
+        if (start == null || end == null) {
+          setState(() => _saving = false);
+          return;
+        }
+        await RecordScope.run(ref.read(databaseProvider), (tx) async {
+          final eventId = await ref.read(createEventProvider)(
+            calendarId: calendarId,
+            summary: summary,
+            startDt: start,
+            endDt: end,
+            isAllDay: false,
+          );
+          if (reminderOffset != null) {
+            await ref.read(createReminderProvider)(
+              parentType: 'event',
+              parentId: eventId,
+              triggerTime: start.subtract(reminderOffset),
+            );
+          }
+        });
+        if (!mounted) return;
+        _landOn(start);
+        Navigator.of(context).pop(true);
+        _toast(l.eventCreated);
+        return;
+      }
+      final due = _due;
       final priority = _priority;
       await RecordScope.run(ref.read(databaseProvider), (tx) async {
         final todoId = await ref.read(createTodoProvider)(
           calendarId: calendarId,
-          summary: title,
+          summary: summary,
           priority: priority,
           status: 'NEEDS-ACTION',
           dueDate: due,
@@ -458,11 +663,11 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
       if (!mounted) return;
       if (start != null) {
         _landOn(start);
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(true);
         _toast(l.planToDate(_md(start)));
         return;
       }
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
       _toast(l.todoCreated);
     } catch (error) {
       debugPrint('composer: save failed: $error');
@@ -505,6 +710,10 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   /// named, and the order is fixed — plan before deadline.
   String _primaryLabel(AppLocalizations l) {
     final hasSlot = _start != null && _end != null;
+    if (_event) {
+      if (!hasSlot) return l.composerNoSlot;
+      return '${l.newEvent} (${_range(_start!, _end!, includeDate: true)})';
+    }
     final ready = _scheduling ? hasSlot : _title.text.trim().isNotEmpty;
     // A disabled button must not promise a result it cannot produce: it asks
     // for the missing input instead. Reuses the field's own prompt.
@@ -540,9 +749,14 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
 
   bool get _canSave =>
       !_saving &&
-      (_scheduling
+      (_scheduling || _event
           ? _start != null && _end != null
-          : _title.text.trim().isNotEmpty);
+          : _title.text.trim().isNotEmpty) &&
+      (_scheduling
+          ? true
+          : _event
+          ? _title.text.trim().isNotEmpty
+          : true);
 
   @override
   Widget build(BuildContext context) {
@@ -579,8 +793,12 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
         ],
         _titleField(ds, l),
         if (_scheduling) ...[const SizedBox(height: 6), _boundNote(ds, l)],
+        if (_showSuggestionPanel) ...[
+          const SizedBox(height: 8),
+          _suggestionPanel(ds, l),
+        ],
         const SizedBox(height: 10),
-        _fieldPair(ds, l),
+        if (_event) _eventWhenRow(ds, l) else _fieldPair(ds, l),
         if (_planOpen) ...[const SizedBox(height: 8), _slotChips(ds, l)],
         const SizedBox(height: 6),
         _hintLine(ds, l),
@@ -605,28 +823,38 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
             strong: calendarName != null,
             onTap: _pickCalendar,
           ),
-          _subRow(
-            ds,
-            l.priority,
-            switch (_priority) {
-              1 => l.priorityHigh,
-              5 => l.priorityMedium,
-              9 => l.priorityLow,
-              _ => l.priorityNone,
-            },
-            key: const ValueKey('a2-composer-priority'),
-            onTap: _pickPriority,
-          ),
-          // Notes live in the full form only; this row is the way there, and
-          // it carries the title so the trip does not lose what was typed.
-          _subRow(
-            ds,
-            l.notes,
-            l.composerOptional,
-            key: const ValueKey('a2-composer-notes'),
-            last: true,
-            onTap: _openFullForm,
-          ),
+          if (_event)
+            _subRow(
+              ds,
+              l.recurrenceRule,
+              l.repeatNever,
+              key: const ValueKey('a2-composer-repeat'),
+              last: true,
+            )
+          else ...[
+            _subRow(
+              ds,
+              l.priority,
+              switch (_priority) {
+                1 => l.priorityHigh,
+                5 => l.priorityMedium,
+                9 => l.priorityLow,
+                _ => l.priorityNone,
+              },
+              key: const ValueKey('a2-composer-priority'),
+              onTap: _pickPriority,
+            ),
+            // Notes live in the full form only; this row is the way there, and
+            // it carries the title so the trip does not lose what was typed.
+            _subRow(
+              ds,
+              l.notes,
+              l.composerOptional,
+              key: const ValueKey('a2-composer-notes'),
+              last: true,
+              onTap: _openFullForm,
+            ),
+          ],
         ],
         const SizedBox(height: 12),
       ],
@@ -642,19 +870,24 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
       final isShifted = ref.watch(workspaceSelectionProvider) != null &&
           isMasterDetailLayout(context);
       final panelWidth = _writeFailed ? 520.0 : 620.0;
-      return CallbackShortcuts(
-        bindings: shortcuts,
-        child: Focus(
-          autofocus: _scheduling,
-          canRequestFocus: _scheduling,
-          skipTraversal: !_scheduling,
-          child: Dialog(
-            backgroundColor: Colors.transparent,
-            alignment: Alignment.bottomCenter,
-            insetPadding: const EdgeInsets.only(bottom: 82),
-            child: Transform.translate(
-              offset: Offset(isShifted ? -190 : 0, 0),
-              child: Container(
+      return PopScope(
+        canPop: !_hasDraft,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _confirmDiscard();
+        },
+        child: CallbackShortcuts(
+          bindings: shortcuts,
+          child: Focus(
+            autofocus: _scheduling,
+            canRequestFocus: _scheduling,
+            skipTraversal: !_scheduling,
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              alignment: Alignment.bottomCenter,
+              insetPadding: const EdgeInsets.only(bottom: 82),
+              child: Transform.translate(
+                offset: Offset(isShifted ? -190 : 0, 0),
+                child: Container(
                 width: panelWidth,
                 constraints: const BoxConstraints(maxHeight: 620),
                 decoration: BoxDecoration(
@@ -686,10 +919,16 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
             ),
           ),
         ),
+      ),
       );
     }
 
-    return CallbackShortcuts(
+    return PopScope(
+      canPop: !_hasDraft,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmDiscard();
+      },
+      child: CallbackShortcuts(
       bindings: shortcuts,
       child: Focus(
         autofocus: _scheduling,
@@ -731,6 +970,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -742,11 +982,20 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     String weekday, {
     required bool desktop,
   }) {
+    final hasSlot = _start != null && _end != null;
     final title = _writeFailed
         ? l.widgetSaveFailed
+        : _event
+        ? l.newEvent
         : l.planToDate('$dateText · $weekday');
     final sub = _writeFailed
         ? l.captureSaveErrorServer
+        : _event
+        ? (hasSlot
+              ? '${l.eventLabel} · ${_range(_start!, _end!, includeDate: true)}'
+              : l.captureHintEvent)
+        : _showSuggestionPanel && !_suggestionRemoved
+        ? l.captureHintParsed
         : l.captureHintExpanded;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 11, 10, 8),
@@ -802,6 +1051,10 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   Widget _footer(DsColors ds, AppLocalizations l, {required bool desktop}) {
     final hint = _writeFailed
         ? l.captureHintSaveError
+        : _event
+        ? l.captureHintEvent
+        : _showSuggestionPanel && !_suggestionRemoved
+        ? l.captureHintParsed
         : l.captureHintExpanded;
 
     if (desktop) {
@@ -832,12 +1085,25 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
                 ),
               ),
               const SizedBox(width: 8),
+              if (_event) ...[
+                TextButton(
+                  key: const ValueKey('a2-composer-change-to-todo'),
+                  onPressed: () => _setEvent(false),
+                  style: TextButton.styleFrom(
+                    foregroundColor: SpecTokens.ink2,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: const Size(0, 29),
+                  ),
+                  child: Text(l.captureActionChangeToTodo),
+                ),
+                const SizedBox(width: 6),
+              ],
               _ellipsisButton(ds, l, desktop: true),
               const SizedBox(width: 8),
               if (_writeFailed) ...[
                 Flexible(child: _writeFailureLabel(ds, l)),
                 const SizedBox(width: 8),
-                if (!_scheduling) ...[
+                if (!_scheduling && !_event) ...[
                   TextButton(
                     onPressed: _saveToUnplanned,
                     style: TextButton.styleFrom(
@@ -876,6 +1142,25 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (_event) ...[
+                    Flexible(
+                      child: TextButton(
+                        key: const ValueKey('a2-composer-change-to-todo'),
+                        onPressed: () => _setEvent(false),
+                        style: TextButton.styleFrom(
+                          foregroundColor: SpecTokens.ink2,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          minimumSize: const Size(0, 44),
+                        ),
+                        child: Text(
+                          l.captureActionChangeToTodo,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   if (_writeFailed) ...[
                     Flexible(child: _writeFailureLabel(ds, l)),
                     const SizedBox(width: 8),
@@ -906,11 +1191,11 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     required bool desktop,
   }) {
     return Tooltip(
-      message: _scheduling ? l.scheduleTodoDesc : l.openFullForm,
+      message: _scheduling || _event ? l.scheduleTodoDesc : l.openFullForm,
       child: SizedBox(
         height: desktop ? 29 : 44,
         child: TextButton(
-          onPressed: _scheduling ? null : _openFullForm,
+          onPressed: _scheduling || _event ? null : _openFullForm,
           style: TextButton.styleFrom(
             foregroundColor: SpecTokens.ink,
             disabledForegroundColor: SpecTokens.faint,
@@ -1048,7 +1333,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
                 color: ds.ink,
                 fontFamilyFallback: AppTypography.fallback,
               ),
-              onChanged: (_) => setState(() {}),
+              onChanged: _onTitleChanged,
               decoration: InputDecoration(
                 isDense: true,
                 border: InputBorder.none,
@@ -1064,6 +1349,162 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _suggestionPanel(DsColors ds, AppLocalizations l) {
+    final parsed = _parsed;
+    final removed = _suggestionRemoved;
+    final range = parsed.start != null && parsed.end != null
+        ? '${_md(parsed.start!)} ${_range(parsed.start!, parsed.end!)}'
+        : '';
+    return Column(
+      key: const ValueKey('a2-composer-suggestion'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          key: const ValueKey('a2-composer-parsed-type'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 1),
+              child: Icon(
+                CupertinoIcons.calendar,
+                size: 13,
+                color: SpecTokens.muted,
+              ),
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l.captureParsedTypeTodoTitle,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: ds.ink2,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l.captureParsedTypeTodoSub,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      height: 1.45,
+                      color: SpecTokens.faint,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: SpecTokens.workSoft,
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: const Color(0xFFDFE3E5)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                CupertinoIcons.clock,
+                size: 13,
+                color: SpecTokens.work,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      removed
+                          ? l.captureParsedSuggestRemoved
+                          : range.isEmpty
+                          ? l.captureParsedSuggestTitle
+                          : '$range · ${l.captureParsedSuggestTitle}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: SpecTokens.ink,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      removed
+                          ? l.captureParsedSuggestSubRemoved
+                          : l.captureParsedSuggestSub,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        height: 1.4,
+                        color: SpecTokens.muted,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('a2-composer-suggestion-toggle'),
+                onPressed: removed ? _restoreSuggestion : _removeSuggestion,
+                style: TextButton.styleFrom(
+                  foregroundColor: SpecTokens.work,
+                  minimumSize: const Size(48, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  removed ? l.captureActionRestore : l.captureActionRemove,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('a2-composer-suggestion-type'),
+                onPressed: () => _setEvent(true),
+                style: TextButton.styleFrom(
+                  foregroundColor: SpecTokens.work,
+                  minimumSize: const Size(48, 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  l.captureActionChangeToEvent,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _eventWhenRow(DsColors ds, AppLocalizations l) {
+    final hasSlot = _start != null && _end != null;
+    return _FieldRow(
+      key: const ValueKey('a2-composer-event-time'),
+      icon: CupertinoIcons.clock,
+      label: l.executionWhen,
+      value: hasSlot
+          ? _range(_start!, _end!, includeDate: true)
+          : l.composerNoSlot,
+      tone: hasSlot ? ds.primary : null,
+      filled: hasSlot,
+      fillColor: ds.primarySoft,
+      onTap: () => setState(() => _planOpen = !_planOpen),
     );
   }
 
@@ -1150,6 +1591,29 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   }
 
   Widget _hintLine(DsColors ds, AppLocalizations l) {
+    if (_event) {
+      final (text, color) = _start != null
+          ? (l.captureHintEvent, ds.primary)
+          : (l.composerHintNoSlot, ds.ink3);
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(CupertinoIcons.info_circle, size: 12, color: color),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.5,
+                color: color,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     final (text, color) = _start != null
         ? (l.composerHintAlloc, ds.primary)
         : _due != null
