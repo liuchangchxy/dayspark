@@ -14,6 +14,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
@@ -163,7 +164,12 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         return;
       }
       final id = await ref.read(createTodoProvider)(
-        calendarId: calendars.first.id,
+        calendarId:
+            resolveNewEntryCalendarId(
+              calendars: calendars,
+              preferredId: ref.read(defaultCalendarIdProvider),
+            ) ??
+            calendars.first.id,
         summary: text,
         priority: 0,
         status: 'NEEDS-ACTION',

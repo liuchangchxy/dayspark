@@ -9,6 +9,7 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/attachments_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
@@ -261,7 +262,13 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
         ).showSnackBar(SnackBar(content: Text(l.calendarUnavailable)));
         return;
       }
-      final calendarId = chosen ?? calendars.first.id;
+      final calendarId =
+          chosen ??
+          resolveNewEntryCalendarId(
+            calendars: calendars,
+            preferredId: ref.read(defaultCalendarIdProvider),
+          ) ??
+          calendars.first.id;
 
       // Bytes first, and outside the transaction: a source file that has gone
       // missing has to fail the save before anything is written, not halfway
@@ -600,7 +607,13 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
             ),
           );
         }
-        final selected = _calendarId ?? calendars.first.id;
+        final selected =
+            _calendarId ??
+            resolveNewEntryCalendarId(
+              calendars: calendars,
+              preferredId: ref.watch(defaultCalendarIdProvider),
+            ) ??
+            calendars.first.id;
         final current = calendars.where((c) => c.id == selected).firstOrNull;
         // A dangling calendar (deleted on another device) must be resolved by
         // the user. Falling back to `calendars.first` would silently move the

@@ -9,6 +9,7 @@ import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
@@ -308,7 +309,10 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       if (!mounted) return;
       setState(() {
         if (calendars.isNotEmpty && _calendarId == null) {
-          _calendarId = calendars.first.id;
+          _calendarId = resolveNewEntryCalendarId(
+            calendars: calendars,
+            preferredId: ref.read(defaultCalendarIdProvider),
+          );
         }
         _initial = _snapshot();
         _loadingAssociations = false;
@@ -471,7 +475,13 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         setState(() => _saving = false);
         return;
       }
-      final calendarId = _calendarId ?? calendars.first.id;
+      final calendarId =
+          _calendarId ??
+          resolveNewEntryCalendarId(
+            calendars: calendars,
+            preferredId: ref.read(defaultCalendarIdProvider),
+          ) ??
+          calendars.first.id;
       final description = _descriptionController.text.trim();
 
       // Bytes first, and outside the transaction: a source file that has gone
@@ -1230,7 +1240,13 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       error: (_, __) => const SizedBox.shrink(),
       data: (calendars) {
         if (calendars.isEmpty) return const SizedBox.shrink();
-        final selected = _calendarId ?? calendars.first.id;
+        final selected =
+            _calendarId ??
+            resolveNewEntryCalendarId(
+              calendars: calendars,
+              preferredId: ref.watch(defaultCalendarIdProvider),
+            ) ??
+            calendars.first.id;
         final current =
             calendars.where((c) => c.id == selected).firstOrNull ??
             calendars.first;

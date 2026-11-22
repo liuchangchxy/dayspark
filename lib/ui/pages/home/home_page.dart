@@ -18,6 +18,7 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
@@ -836,7 +837,12 @@ class _HomePageState extends ConsumerState<HomePage>
     }
     try {
       await ref.read(createTodoProvider)(
-        calendarId: calendars.first.id,
+        calendarId:
+            resolveNewEntryCalendarId(
+              calendars: calendars,
+              preferredId: ref.read(defaultCalendarIdProvider),
+            ) ??
+            calendars.first.id,
         summary: text,
         priority: 0,
         status: 'NEEDS-ACTION',
