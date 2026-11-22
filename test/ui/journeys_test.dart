@@ -116,7 +116,7 @@ void main() {
     expect(title, findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Edit'), findsNothing);
     await tester.enterText(title, 'Book the flights now');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
     await _settle(tester);
 
     final rows = await db.select(db.todos).get();
@@ -225,7 +225,7 @@ void main() {
     final title = find.byKey(const ValueKey('event-detail-title'));
     expect(title, findsOneWidget);
     await tester.enterText(title, 'Design review 2');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.tap(find.byKey(const ValueKey('event-detail-save')));
     await _settle(tester);
 
     final edited = (await db.select(db.events).get()).single;
