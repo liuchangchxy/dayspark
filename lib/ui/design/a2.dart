@@ -645,12 +645,22 @@ class A2CaptureBarState extends State<A2CaptureBar> {
       }
       return;
     }
-    _controller.clear();
-    widget.onDraftChanged?.call('');
-    await widget.onSubmit(text);
-    if (!mounted) return;
-    _focus.requestFocus();
-    setState(() {});
+    try {
+      await widget.onSubmit(text);
+      if (!mounted) return;
+      _controller.clear();
+      widget.onDraftChanged?.call('');
+      _focus.requestFocus();
+      setState(() {});
+    } catch (_) {
+      if (!mounted) return;
+      if (_controller.text != text) {
+        _controller.text = text;
+        _controller.selection = TextSelection.collapsed(offset: text.length);
+      }
+      _focus.requestFocus();
+      setState(() {});
+    }
   }
 
   @override

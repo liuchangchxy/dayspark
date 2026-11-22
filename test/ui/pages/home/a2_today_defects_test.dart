@@ -17,6 +17,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
 
@@ -1209,6 +1210,49 @@ void main() {
 
       // P1-5: A2ComposerSheet opens!
       expect(find.byType(A2ComposerSheet), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: A2CaptureBar onSubmit error preserves input text and keeps focus',
+    (tester) async {
+      const originalText = 'Important task that failed to save';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: A2CaptureBar(
+              fieldKey: const ValueKey('test-capture-field'),
+              placeholder: 'Add task',
+              hint: 'Enter',
+              onSubmit: (text) async {
+                throw Exception('Database write failed');
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final textFieldFinder = find.byKey(const ValueKey('test-capture-field'));
+      await tester.enterText(textFieldFinder, originalText);
+      await tester.pump();
+
+      expect(tester.widget<TextField>(textFieldFinder).controller!.text, originalText);
+
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(tester.widget<TextField>(textFieldFinder).controller!.text, equals(originalText));
+      expect(tester.widget<TextField>(textFieldFinder).focusNode!.hasFocus, isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('capture-send-target')));
+      await tester.pump();
+
+      expect(tester.widget<TextField>(textFieldFinder).controller!.text, equals(originalText));
+      expect(tester.widget<TextField>(textFieldFinder).focusNode!.hasFocus, isTrue);
 
       await _unmount(tester);
     },
