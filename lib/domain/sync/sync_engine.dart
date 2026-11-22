@@ -16,21 +16,68 @@ import 'sync_payload.dart';
 
 enum SyncPhase { idle, pushing, pulling, error }
 
+/// One record the server refused because this device's base revision was
+/// stale. The pending outbox op is kept (not overwritten by the server
+/// copy) so a local edit can still be reconciled; banner/settings read
+/// this list instead of the conflict disappearing into a server-wins
+/// overwrite.
+class SyncConflict {
+  const SyncConflict({
+    required this.recordId,
+    required this.type,
+    required this.code,
+    required this.at,
+  });
+
+  final String recordId;
+  final RecordType? type;
+  final String? code;
+  final DateTime at;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncConflict &&
+          other.recordId == recordId &&
+          other.type == type &&
+          other.code == code &&
+          other.at == at);
+
+  @override
+  int get hashCode => Object.hash(recordId, type, code, at);
+}
+
 class SyncStatus {
   const SyncStatus({
     this.phase = SyncPhase.idle,
     this.lastError,
+    this.lastErrorAt,
     this.lastSyncAt,
     this.lastRejected = const [],
+    this.rejectedCount = 0,
+    this.rejectedCodes = const [],
+    this.conflicts = const [],
   });
 
   final SyncPhase phase;
   final String? lastError;
+  final DateTime? lastErrorAt;
   final DateTime? lastSyncAt;
 
   /// Op verdict codes from the most recent push — `rejected` ops are
   /// dropped (and surfaced here) instead of failing the round.
   final List<String> lastRejected;
+
+  /// Rejected ops never disappear silently: the total is accumulated for
+  /// the engine lifetime and [rejectedCodes] keeps the distinct reasons.
+  final int rejectedCount;
+  final List<String> rejectedCodes;
+
+  /// Conflicts newest-first, one entry per record id.
+  final List<SyncConflict> conflicts;
+
+  SyncConflict? get latestConflict =>
+      conflicts.isEmpty ? null : conflicts.first;
 
   @override
   bool operator ==(Object other) =>
@@ -38,14 +85,26 @@ class SyncStatus {
       (other is SyncStatus &&
           other.phase == phase &&
           other.lastError == lastError &&
+          other.lastErrorAt == lastErrorAt &&
           other.lastSyncAt == lastSyncAt &&
-          _listEq(other.lastRejected, lastRejected));
+          other.rejectedCount == rejectedCount &&
+          _listEq(other.lastRejected, lastRejected) &&
+          _listEq(other.rejectedCodes, rejectedCodes) &&
+          _listEq(other.conflicts, conflicts));
 
   @override
-  int get hashCode =>
-      Object.hash(phase, lastError, lastSyncAt, Object.hashAll(lastRejected));
+  int get hashCode => Object.hash(
+    phase,
+    lastError,
+    lastErrorAt,
+    lastSyncAt,
+    rejectedCount,
+    Object.hashAll(lastRejected),
+    Object.hashAll(rejectedCodes),
+    Object.hashAll(conflicts),
+  );
 
-  static bool _listEq(List<String> a, List<String> b) {
+  static bool _listEq<T>(List<T> a, List<T> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
@@ -102,6 +161,11 @@ class SyncEngine {
   bool _roundQueued = false;
   int _backoffSeconds = 1;
 
+  final List<SyncConflict> _conflicts = [];
+  final Set<String> _conflictedOpIds = {};
+  final Set<String> _rejectedCodes = <String>{};
+  int _rejectedCount = 0;
+
   SyncStatus get status => _status;
 
   Stream<SyncStatus> get statusStream => _statusController.stream;
@@ -109,6 +173,18 @@ class SyncEngine {
   /// True between a successful start() and stop() — the foreground
   /// poller gates on this so a logged-out provider build never arms it.
   bool get isRunning => _started && !_stopped;
+
+  /// Surfaces a failure outside a round (engine/SSE startup) on the same
+  /// status stream the UI reads, instead of leaving it in a debug log.
+  void reportStartupError(Object error) {
+    _emitStatus(
+      phase: SyncPhase.error,
+      lastError: '$error',
+      lastErrorAt: DateTime.now(),
+      lastSyncAt: _status.lastSyncAt,
+      lastRejected: _status.lastRejected,
+    );
+  }
 
   /// Wires the outbox trigger and runs the first round. No-ops until
   /// tokens exist ("engine runs only when configured"): T6 login writes
@@ -197,12 +273,10 @@ class SyncEngine {
         }
       }
 
-      _emit(
-        SyncStatus(
-          phase: SyncPhase.pushing,
-          lastSyncAt: _status.lastSyncAt,
-          lastRejected: _status.lastRejected,
-        ),
+      _emitStatus(
+        phase: SyncPhase.pushing,
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: _status.lastRejected,
       );
 
       final storedCursor = await cursorStore.read();
@@ -291,26 +365,45 @@ class SyncEngine {
                 await _applyRemote(result.serverRecord!, tx);
               }
               await _dropOps([result.opId]);
-            case OpStatus.conflict:
-              // Server wins: overwrite local with serverRecord and drop
-              // this record's pending ops from the push snapshot. Ops
-              // enqueued after the snapshot (in-flight race) survive and
-              // push their newer payload next round.
-              if (result.serverRecord != null) {
-                await _applyRemote(result.serverRecord!, tx);
+              final resolvedId = recordIdByOp[result.opId];
+              if (resolvedId != null) {
+                _conflicts.removeWhere((c) => c.recordId == resolvedId);
               }
+            case OpStatus.conflict:
+              // Do not overwrite the local row: the pending op is the only
+              // copy of this device's newer intent. Keep both the row and
+              // its op, stop re-pushing that op until a fresh edit mints a
+              // new op id, and surface the conflict to the UI.
               final recordId =
-                  recordIdByOp[result.opId] ?? result.serverRecord?.id;
-              final snapshotIds = [
-                if (recordId != null)
-                  for (final e in entries)
-                    if (e.recordId == recordId) e.opId,
-              ];
-              await _dropOps(
-                snapshotIds.isNotEmpty ? snapshotIds : [result.opId],
+                  recordIdByOp[result.opId] ??
+                  result.serverRecord?.id ??
+                  result.opId;
+              RecordType? conflictType;
+              for (final e in entries) {
+                if (e.opId == result.opId) {
+                  conflictType = recordTypeFromJson(e.type, 'outbox type');
+                  break;
+                }
+              }
+              conflictType ??= result.serverRecord?.type;
+              _conflicts.removeWhere((c) => c.recordId == recordId);
+              _conflicts.insert(
+                0,
+                SyncConflict(
+                  recordId: recordId,
+                  type: conflictType,
+                  code: result.code,
+                  at: DateTime.now(),
+                ),
               );
+              _conflictedOpIds.add(result.opId);
+              for (final e in entries) {
+                if (e.recordId == recordId) _conflictedOpIds.add(e.opId);
+              }
             case OpStatus.rejected:
               await _dropOps([result.opId]);
+              _rejectedCount++;
+              if (result.code != null) _rejectedCodes.add(result.code!);
               rejected.add(result.code ?? 'rejected');
           }
         }
@@ -323,12 +416,10 @@ class SyncEngine {
       });
 
       // --- pull ---
-      _emit(
-        SyncStatus(
-          phase: SyncPhase.pulling,
-          lastSyncAt: _status.lastSyncAt,
-          lastRejected: rejected,
-        ),
+      _emitStatus(
+        phase: SyncPhase.pulling,
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: rejected,
       );
       while (true) {
         final before = await cursorStore.read() ?? 0;
@@ -363,22 +454,19 @@ class SyncEngine {
       );
 
       _backoffSeconds = 1;
-      _emit(
-        SyncStatus(
-          phase: SyncPhase.idle,
-          lastSyncAt: DateTime.now(),
-          lastRejected: rejected,
-        ),
+      _emitStatus(
+        phase: SyncPhase.idle,
+        lastSyncAt: DateTime.now(),
+        lastRejected: rejected,
       );
       return true;
     } catch (e) {
-      _emit(
-        SyncStatus(
-          phase: SyncPhase.error,
-          lastError: '$e',
-          lastSyncAt: _status.lastSyncAt,
-          lastRejected: _status.lastRejected,
-        ),
+      _emitStatus(
+        phase: SyncPhase.error,
+        lastError: '$e',
+        lastErrorAt: DateTime.now(),
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: _status.lastRejected,
       );
       _scheduleRetry();
       return false;
@@ -391,7 +479,11 @@ class SyncEngine {
   }) async {
     final ops = <PushOp>[];
     final converged = <String>[];
+    _conflictedOpIds.removeWhere(
+      (id) => !entries.any((entry) => entry.opId == id),
+    );
     for (final entry in entries) {
+      if (_conflictedOpIds.contains(entry.opId)) continue;
       final type = recordTypeFromJson(entry.type, 'outbox type');
       if (type == RecordType.taskAllocation &&
           !serverCapabilities.contains(SyncCapability.taskAllocationV1)) {
@@ -534,6 +626,27 @@ class SyncEngine {
     _retryTimer = Timer(Duration(seconds: delay), () {
       if (!_stopped) unawaited(requestRound());
     });
+  }
+
+  void _emitStatus({
+    required SyncPhase phase,
+    String? lastError,
+    DateTime? lastErrorAt,
+    DateTime? lastSyncAt,
+    List<String> lastRejected = const [],
+  }) {
+    _emit(
+      SyncStatus(
+        phase: phase,
+        lastError: lastError,
+        lastErrorAt: lastErrorAt,
+        lastSyncAt: lastSyncAt,
+        lastRejected: lastRejected,
+        rejectedCount: _rejectedCount,
+        rejectedCodes: List.unmodifiable(_rejectedCodes),
+        conflicts: List.unmodifiable(_conflicts),
+      ),
+    );
   }
 
   void _emit(SyncStatus next) {

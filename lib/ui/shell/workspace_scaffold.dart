@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/ui/shell/spark_top_bar.dart';
+import 'package:dayspark/ui/shell/sync_status_banner.dart';
 
 const double kWorkspaceBreakpoint = 720;
 
@@ -40,6 +41,7 @@ class WorkspaceScaffold extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SparkTopBar(clock: clock),
+              const SyncStatusBanner(),
               Expanded(
                 child: MediaQuery.removePadding(
                   context: context,

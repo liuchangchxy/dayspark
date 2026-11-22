@@ -5117,6 +5117,60 @@ abstract class AppLocalizations {
   /// **'Sync failed. Server timed out; local changes pending retry.'**
   String get syncFailedBanner;
 
+  /// No description provided for @syncOfflineBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline. Local changes are saved; sync retries when you are back online.'**
+  String get syncOfflineBanner;
+
+  /// No description provided for @syncOfflinePending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Offline · 1 local change waiting to upload.} other{Offline · {count} local changes waiting to upload.}}'**
+  String syncOfflinePending(int count);
+
+  /// No description provided for @syncPendingUploads.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 pending upload} other{{count} pending uploads}}'**
+  String syncPendingUploads(int count);
+
+  /// No description provided for @syncFailedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} · {reason}'**
+  String syncFailedAt(String time, String reason);
+
+  /// No description provided for @syncConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts'**
+  String get syncConflicts;
+
+  /// No description provided for @syncConflictCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 needs review} other{{count} need review}}'**
+  String syncConflictCount(int count);
+
+  /// No description provided for @syncConflictLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest: {id}'**
+  String syncConflictLast(String id);
+
+  /// No description provided for @syncServerRejections.
+  ///
+  /// In en, this message translates to:
+  /// **'Server rejections'**
+  String get syncServerRejections;
+
+  /// No description provided for @syncRejectedTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 rejected} other{{count} rejected}}'**
+  String syncRejectedTotal(int count);
+
   /// No description provided for @retryNow.
   ///
   /// In en, this message translates to:

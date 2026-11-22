@@ -399,6 +399,7 @@ void main() {
             MemoryTokenStore(access: 'a', refresh: 'r'),
           ),
           syncEngineProvider.overrideWith((ref) => null),
+          pendingSyncOpsProvider.overrideWith((ref) => Stream.value(0)),
           syncStatusProvider.overrideWith(
             () => _FixedStatusNotifier(
               const SyncStatus(lastRejected: ['validation', 'conflict']),

@@ -436,7 +436,7 @@ void main() {
   });
 
   test(
-    'conflict: serverRecord overwrites local row and drops pending op',
+    'conflict: local row and pending op are kept and the conflict is surfaced',
     () async {
       cursors.value = 0;
       final id = await db
@@ -497,15 +497,30 @@ void main() {
       final after = await (db.select(
         db.events,
       )..where((t) => t.id.equals(id))).getSingle();
-      expect(after.summary, 'server wins');
-      expect(after.serverRev, 9);
+      expect(after.summary, 'local newer edit');
+      expect(after.serverRev, 3);
       expect(after.syncId, recordId);
       expect(
         await (db.select(db.syncOutbox)).get(),
-        isEmpty,
-        reason: 'conflicting pending op dropped',
+        hasLength(1),
+        reason: 'conflicting pending op kept for local review',
       );
       expect(engine.status.phase, SyncPhase.idle);
+      expect(engine.status.conflicts, hasLength(1));
+      expect(engine.status.conflicts.single.recordId, recordId);
+      expect(engine.status.conflicts.single.type, RecordType.event);
+      expect(engine.status.conflicts.single.code, 'conflict');
+      expect(engine.status.latestConflict, engine.status.conflicts.single);
+
+      final pushes = api.pushCalls.length;
+      await engine.requestRound();
+      expect(api.pushCalls, hasLength(pushes + 1));
+      expect(
+        api.pushCalls.last.ops,
+        isEmpty,
+        reason: 'conflicted op must not be re-pushed until a new edit',
+      );
+      expect(await (db.select(db.syncOutbox)).get(), hasLength(1));
     },
   );
 
@@ -531,6 +546,16 @@ void main() {
     expect(await (db.select(db.syncOutbox)).get(), isEmpty);
     expect(engine.status.phase, SyncPhase.idle);
     expect(engine.status.lastRejected, ['validation']);
+    expect(engine.status.rejectedCount, 1);
+    expect(engine.status.rejectedCodes, ['validation']);
+  });
+
+  test('startup errors are surfaced on the status stream', () {
+    buildEngine().reportStartupError(StateError('sse refused'));
+
+    expect(engine.status.phase, SyncPhase.error);
+    expect(engine.status.lastError, contains('sse refused'));
+    expect(engine.status.lastErrorAt, isNotNull);
   });
 
   test('remote cursor above stored watermark triggers a pull round', () async {
@@ -1082,7 +1107,7 @@ void main() {
       expect(seam.schedules, isEmpty, reason: 'tombstone 不得顺手再排一条');
     });
 
-    test('push conflict 走 serverRecord 落地 → 同样重排', () async {
+    test('push conflict 不覆盖本地，也不重排提醒（冲突待处理）', () async {
       final seam = attachReconciler();
       final id = await insertEventWithReminder(
         startDt: DateTime(2026, 6, 10, 9),
@@ -1112,12 +1137,13 @@ void main() {
 
       await buildEngine().start();
 
-      await waitUntil(
-        () => seam.schedules.length == 1,
-        reason: 'conflict 分支的 serverRecord 也走 applier，必须一样重排',
-      );
-      expect(seam.schedules.single.triggerTime, DateTime(2026, 6, 10, 10));
+      expect(seam.schedules, isEmpty, reason: 'serverRecord 不得覆盖本地');
       expect(seam.cancels, isEmpty);
+      final after = await (db.select(
+        db.events,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(after.startDt, DateTime(2026, 6, 10, 9));
+      expect(engine.status.conflicts.single.recordId, row.syncId);
     });
 
     test('push piggyback 应用 → 同样重排', () async {

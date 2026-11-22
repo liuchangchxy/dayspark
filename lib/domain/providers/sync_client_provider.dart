@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -109,6 +110,7 @@ final syncEngineProvider = Provider<SyncEngine?>((ref) {
       }
     } catch (e) {
       debugPrint('sync: engine startup error: $e');
+      engine.reportStartupError(e);
     }
   }());
 
@@ -155,6 +157,45 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
 
 final syncStatusProvider = NotifierProvider<SyncStatusNotifier, SyncStatus>(
   SyncStatusNotifier.new,
+);
+
+/// Whether sync banners should speak about upload state. A server URL alone
+/// is not enough: without a login the engine never starts, so "offline /
+/// pending" copy would be misleading.
+final syncActiveProvider = Provider<bool>((ref) {
+  final server = ref.watch(syncSettingsProvider).valueOrNull?.baseUrl;
+  if (server == null) return false;
+  return ref.watch(accountAuthProvider).valueOrNull?.email != null;
+});
+
+/// Live connectivity, starting with the current state so the first frame is
+/// not blank. Errors (plugin missing on a test host) stay AsyncError and the
+/// UI simply withholds the offline banner.
+final syncOnlineProvider = StreamProvider<bool>((ref) async* {
+  final connectivity = Connectivity();
+  final initial = await connectivity.checkConnectivity();
+  yield initial.any((result) => result != ConnectivityResult.none);
+  yield* connectivity.onConnectivityChanged.map(
+    (results) => results.any((result) => result != ConnectivityResult.none),
+  );
+});
+
+/// Outbox depth: every row is a local mutation the server has not
+/// acknowledged yet, including conflicts held back for review.
+final pendingSyncOpsProvider = StreamProvider<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  final count = db.syncOutbox.opId.count();
+  return (db.selectOnly(db.syncOutbox)..addColumns([count]))
+      .watchSingle()
+      .map((row) => row.read(count) ?? 0);
+});
+
+final syncConflictCountProvider = Provider<int>(
+  (ref) => ref.watch(syncStatusProvider).conflicts.length,
+);
+
+final syncRejectedCountProvider = Provider<int>(
+  (ref) => ref.watch(syncStatusProvider).rejectedCount,
 );
 
 /// 设备注册：登录后与每次冷启动各上报一次（服务端幂等，重复上报不建第二行）。

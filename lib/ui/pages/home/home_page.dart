@@ -39,6 +39,7 @@ import 'package:dayspark/ui/pages/todo/a2_todo_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/shell/spark_top_bar.dart';
+import 'package:dayspark/ui/shell/sync_status_banner.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
@@ -515,6 +516,7 @@ class _HomePageState extends ConsumerState<HomePage>
             clock: widget.clock,
             onSelect: (index) => _setTab(index),
           ),
+          const SyncStatusBanner(),
           Expanded(
             child: inlineDetail
                 ? Row(
@@ -572,7 +574,18 @@ class _HomePageState extends ConsumerState<HomePage>
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: SafeArea(bottom: false, child: page)),
+            Expanded(
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SyncStatusBanner(),
+                    Expanded(child: page),
+                  ],
+                ),
+              ),
+            ),
             if (!keyboardOpen)
               _MobileDock(
                 current: tab,

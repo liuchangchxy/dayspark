@@ -2808,6 +2808,69 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncFailedBanner => 'Sync failed. Server timed out; local changes pending retry.';
 
   @override
+  String get syncOfflineBanner => 'Offline. Local changes are saved; sync retries when you are back online.';
+
+  @override
+  String syncOfflinePending(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Offline · $count local changes waiting to upload.',
+      one: 'Offline · 1 local change waiting to upload.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncPendingUploads(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pending uploads',
+      one: '1 pending upload',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncFailedAt(String time, String reason) {
+    return '$time · $reason';
+  }
+
+  @override
+  String get syncConflicts => 'Conflicts';
+
+  @override
+  String syncConflictCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count need review',
+      one: '1 needs review',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncConflictLast(String id) {
+    return 'Latest: $id';
+  }
+
+  @override
+  String get syncServerRejections => 'Server rejections';
+
+  @override
+  String syncRejectedTotal(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rejected',
+      one: '1 rejected',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get retryNow => 'Retry Now';
 
   @override

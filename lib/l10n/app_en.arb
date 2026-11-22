@@ -1794,6 +1794,60 @@
   "syncSectionDesc": "DaySpark self-hosted multi-device sync.",
   "syncLoggedOutBanner": "Not logged in yet. Local still works; login for multi-device sync.",
   "syncFailedBanner": "Sync failed. Server timed out; local changes pending retry.",
+  "syncOfflineBanner": "Offline. Local changes are saved; sync retries when you are back online.",
+  "syncOfflinePending": "{count, plural, =1{Offline · 1 local change waiting to upload.} other{Offline · {count} local changes waiting to upload.}}",
+  "@syncOfflinePending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncPendingUploads": "{count, plural, =1{1 pending upload} other{{count} pending uploads}}",
+  "@syncPendingUploads": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncFailedAt": "{time} · {reason}",
+  "@syncFailedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "syncConflicts": "Conflicts",
+  "syncConflictCount": "{count, plural, =1{1 needs review} other{{count} need review}}",
+  "@syncConflictCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncConflictLast": "Latest: {id}",
+  "@syncConflictLast": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "syncServerRejections": "Server rejections",
+  "syncRejectedTotal": "{count, plural, =1{1 rejected} other{{count} rejected}}",
+  "@syncRejectedTotal": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "retryNow": "Retry Now",
   "localStatus": "Local Status",
   "localPriority": "Local Priority",
