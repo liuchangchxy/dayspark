@@ -103,7 +103,7 @@ void main() {
     await db.close();
   });
 
-  testWidgets('below the master-detail width a todo tap navigates', (
+  testWidgets('on narrow desktop (1000-1179) a todo tap opens 360 overlay drawer, below 1000 it navigates', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1100, 900);
@@ -119,13 +119,26 @@ void main() {
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
 
+    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+    expect(find.byKey(const ValueKey('stub-todo-detail')), findsNothing);
+    expect(container.read(workspaceSelectionProvider), isA<TodoSelection>());
+    expect(tester.getSize(find.byKey(const ValueKey('spec-drawer-overlay'))).width, equals(360.0));
+
+    // Below 1000, it navigates
+    container.read(workspaceSelectionProvider.notifier).state = null;
+    tester.view.physicalSize = const Size(880, 900);
+    await tester.pump();
+    await _settle(tester);
+
+    await tester.tap(find.text('Task 0'));
+    await _settle(tester);
+
     expect(find.byKey(const ValueKey('stub-todo-detail')), findsOneWidget);
-    expect(container.read(workspaceSelectionProvider), isNull);
 
     await _unmount(tester);
   });
 
-  testWidgets('on Today a todo tap navigates instead of writing a selection', (
+  testWidgets('on Today a todo tap opens overlay drawer on desktop and navigates on mobile', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -139,11 +152,38 @@ void main() {
       tester.element(find.byType(HomePage)),
     );
 
+    // Initial content width before drawer opens
+    final initialContentWidth = tester.getSize(_content(0)).width;
+    expect(initialContentWidth, equals(1440.0));
+
+    await tester.tap(find.text('Task 0'));
+    await _settle(tester);
+
+    // Desktop Today: opens 380 overlay drawer without squeezing content
+    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+    expect(find.byKey(const ValueKey('stub-todo-detail')), findsNothing);
+    expect(container.read(workspaceSelectionProvider), isA<TodoSelection>());
+    final drawerRect = tester.getRect(find.byKey(const ValueKey('spec-drawer-overlay')));
+    expect(drawerRect.width, equals(380.0));
+    expect(drawerRect.right, equals(1440.0));
+    expect(tester.getSize(_content(0)).width, equals(1440.0)); // List width unchanged!
+
+    // Tap blank space closes drawer
+    await tester.tapAt(const Offset(200, 300));
+    await tester.pump();
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+    expect(container.read(workspaceSelectionProvider), isNull);
+
+    // Mobile: navigates
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pump();
+    await _settle(tester);
+
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
 
     expect(find.byKey(const ValueKey('stub-todo-detail')), findsOneWidget);
-    expect(container.read(workspaceSelectionProvider), isNull);
 
     await _unmount(tester);
   });
@@ -178,6 +218,52 @@ void main() {
       tester.element(find.byType(HomePage)),
     );
     expect(container.read(workspaceSelectionProvider), isA<EventSelection>());
+
+    await _unmount(tester);
+  });
+
+  testWidgets('on Calendar an event tap opens 380 overlay drawer without squeezing', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    await db.into(db.events).insert(
+      EventsCompanion.insert(
+        calendarId: calId,
+        summary: 'Team Sync',
+        startDt: DateTime(now.year, now.month, now.day, 14),
+        endDt: DateTime(now.year, now.month, now.day, 15),
+      ),
+    );
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, _router(1)));
+    await _settle(tester);
+    expect(_content(1), findsOneWidget);
+
+    final initialCalendarWidth = tester.getSize(_content(1)).width;
+    expect(initialCalendarWidth, equals(1440.0));
+
+    await tester.tap(find.text('Team Sync'));
+    await _settle(tester);
+
+    expect(find.byType(EventDetailPane), findsOneWidget);
+    expect(find.byKey(const ValueKey('stub-event-detail')), findsNothing);
+    final drawerRect = tester.getRect(find.byKey(const ValueKey('spec-drawer-overlay')));
+    expect(drawerRect.width, equals(380.0));
+    expect(tester.getSize(_content(1)).width, equals(1440.0));
+
+    // Close button X closes drawer
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pump();
+    await _settle(tester);
+
+    expect(find.byType(EventDetailPane), findsNothing);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(HomePage)),
+    );
+    expect(container.read(workspaceSelectionProvider), isNull);
 
     await _unmount(tester);
   });

@@ -29,6 +29,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
@@ -464,6 +465,10 @@ class _HomePageState extends ConsumerState<HomePage>
       },
     );
 
+    final selection = ref.watch(workspaceSelectionProvider);
+    final isDrawerOpen =
+        desktop && canShowDesktopDrawer(context) && selection != null;
+
     if (desktop) {
       final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -472,7 +477,24 @@ class _HomePageState extends ConsumerState<HomePage>
             clock: widget.clock,
             onSelect: (index) => _setTab(index),
           ),
-          Expanded(child: page),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: isDrawerOpen ? _clearSelection : null,
+                    child: page,
+                  ),
+                ),
+                if (isDrawerOpen)
+                  SpecDrawerOverlay(
+                    width: specDrawerWidth(context),
+                    child: _buildDetailPane(selection),
+                  ),
+              ],
+            ),
+          ),
         ],
       );
       // Ctrl K is the habit the old rail taught and the bar keeps a search
@@ -560,13 +582,9 @@ class _HomePageState extends ConsumerState<HomePage>
 
   Widget _todoPage(bool desktop) {
     final browseDate = ref.watch(viewedDateProvider);
-    final selection = ref.watch(workspaceSelectionProvider);
     return A2TodoPage(
       now: _now(),
       dayAgenda: _dayAgenda(browseDate),
-      detail: desktop && isMasterDetailLayout(context) && selection != null
-          ? _buildDetailPane(selection)
-          : null,
       onOpenTodo: _openTodo,
       onToggleTodo: _toggleTodo,
       onCapture: (text) => _captureOnTodoPage(text),
@@ -873,11 +891,14 @@ class _HomePageState extends ConsumerState<HomePage>
     router.push('/search');
   }
 
-  /// Whether a tap can be answered in place. The pane only exists on the Todo
-  /// destination at the master-detail width; every other destination has to
-  /// navigate, or the tap is silently lost.
+  /// Whether a tap can be answered in place via the desktop drawer overlay.
+  /// On wide layouts (>= 1000) Today, Calendar, and Todos destinations show
+  /// the overlay drawer; on narrow layouts (< 1000) and mobile (< 720) it navigates.
   bool _rendersSelectionHere(AppTab tab) =>
-      tab == AppTab.todos && isMasterDetailLayout(context);
+      (tab == AppTab.action ||
+          tab == AppTab.calendar ||
+          tab == AppTab.todos) &&
+      canShowDesktopDrawer(context);
 
   void _openTodo(Todo todo) {
     if (_rendersSelectionHere(ref.read(workspaceTabProvider))) {
