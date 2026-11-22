@@ -2460,8 +2460,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           final full = DateFormat.EEEE(
             _locale,
           ).format(DateTime(2024, 1, weekday));
-          final day = _locale.startsWith('zh')
-              ? full.replaceFirst(RegExp('^(星期|周)'), '')
+          final day = _locale.startsWith('zh') && full.characters.length > 2
+              ? full.characters.last.toString()
               : full;
           if (day.isNotEmpty) return l.missedCardRepeatWeekly(day);
         }
