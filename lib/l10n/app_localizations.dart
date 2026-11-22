@@ -2927,6 +2927,12 @@ abstract class AppLocalizations {
   /// **'Repeat options'**
   String get repeatAdvanced;
 
+  /// No description provided for @repeatField.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get repeatField;
+
   /// No description provided for @seriesTimeZoneShort.
   ///
   /// In en, this message translates to:

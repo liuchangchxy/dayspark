@@ -905,6 +905,7 @@
   "notScheduled": "Not scheduled",
   "execution": "Execution",
   "repeatAdvanced": "Repeat options",
+  "repeatField": "Repeat",
   "seriesTimeZoneShort": "Time zone for all repeats",
   "startsAtHint": "Earliest day this can be done",
   "noDeadline": "No deadline",

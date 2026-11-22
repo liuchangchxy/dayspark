@@ -18,8 +18,9 @@ GoRouter _router() => GoRouter(
     GoRoute(path: '/', builder: (_, __) => const HomePage(initialTab: 2)),
     GoRoute(
       path: '/todo/detail',
-      builder: (_, __) =>
-          const Scaffold(body: Text('stub-detail', key: ValueKey('stub-detail'))),
+      builder: (_, __) => const Scaffold(
+        body: Text('stub-detail', key: ValueKey('stub-detail')),
+      ),
     ),
     GoRoute(
       path: '/tags',
@@ -96,38 +97,60 @@ void main() {
       .controller!
       .text;
 
-  testWidgets('a wide window shows details beside the list and swaps in place', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1440, 1000);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  String summaryTitle(WidgetTester tester) => tester
+      .widget<Text>(find.byKey(const ValueKey('todo-detail-summary-title')))
+      .data!;
 
-    await tester.pumpWidget(_app(db, router));
-    await _settle(tester);
+  const edit = ValueKey('todo-detail-edit');
+  const summary = ValueKey('todo-detail-summary-title');
 
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+  testWidgets(
+    'a wide window shows a read-only summary beside the list and swaps in place',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 1000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    await tester.tap(find.text('Task 0'));
-    await _settle(tester);
+      await tester.pumpWidget(_app(db, router));
+      await _settle(tester);
 
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
-    expect(paneTitle(tester), 'Task 0');
-    expect(
-      find.byKey(const ValueKey('stub-detail')),
-      findsNothing,
-      reason: 'a wide window selects instead of navigating away',
-    );
-    // The list is still next to the detail.
-    expect(find.text('Task 1'), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
 
-    await tester.tap(find.text('Task 1'));
-    await _settle(tester);
-    expect(paneTitle(tester), 'Task 1');
-    expect(find.byKey(const ValueKey('stub-detail')), findsNothing);
+      await tester.tap(find.text('Task 0'));
+      await _settle(tester);
 
-    await _unmount(tester);
-  });
+      expect(find.byKey(summary), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('todo-detail-title')),
+        findsNothing,
+        reason: 'the inline column opens on a read-only summary',
+      );
+      expect(summaryTitle(tester), 'Task 0');
+      expect(
+        find.byKey(const ValueKey('stub-detail')),
+        findsNothing,
+        reason: 'a wide window selects instead of navigating away',
+      );
+      // The list is still next to the detail.
+      expect(find.text('Task 1'), findsOneWidget);
+
+      await tester.tap(find.byKey(edit));
+      await _settle(tester);
+      expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+      expect(paneTitle(tester), 'Task 0');
+
+      await tester.tap(find.byKey(const ValueKey('todo-detail-cancel')));
+      await _settle(tester);
+
+      await tester.tap(find.text('Task 1'));
+      await _settle(tester);
+      expect(summaryTitle(tester), 'Task 1');
+      expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+      expect(find.byKey(const ValueKey('stub-detail')), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
 
   testWidgets('a narrow window falls back to single-column navigation', (
     tester,
@@ -140,7 +163,10 @@ void main() {
     await _settle(tester);
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('todo-detail-summary-title')),
+      findsOneWidget,
+    );
 
     tester.view.physicalSize = const Size(880, 1000);
     await tester.pump();
@@ -152,9 +178,10 @@ void main() {
       reason: 'the split pane has no room anymore',
     );
     expect(
-      MediaQuery.sizeOf(tester.element(find.text('Task 0'))).width,
-      880,
+      find.byKey(const ValueKey('todo-detail-summary-title')),
+      findsNothing,
     );
+    expect(MediaQuery.sizeOf(tester.element(find.text('Task 0'))).width, 880);
 
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
@@ -163,6 +190,76 @@ void main() {
       findsOneWidget,
       reason: 'narrow windows keep the existing route-based detail',
     );
+
+    await _unmount(tester);
+  });
+
+  testWidgets('inline detail writes only after edit then save', (tester) async {
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, router));
+    await _settle(tester);
+
+    await tester.tap(find.text('Task 0'));
+    await _settle(tester);
+
+    expect(find.byKey(summary), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+    expect(find.byKey(const ValueKey('todo-detail-save')), findsNothing);
+    expect(find.byKey(const ValueKey('todo-detail-cancel')), findsNothing);
+    expect(find.byKey(const ValueKey('todo-detail-delete')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('todo-priority-row')),
+      findsNothing,
+      reason: 'no field editors are reachable before edit',
+    );
+    expect(find.byKey(edit), findsOneWidget);
+
+    await tester.tap(find.byKey(edit));
+    await _settle(tester);
+
+    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-save')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-cancel')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-delete')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('todo-detail-title')),
+      'Cancelled Title',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('todo-detail-cancel')));
+    await _settle(tester);
+
+    expect(find.byKey(summary), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+    expect(summaryTitle(tester), 'Task 0');
+    var rows = await db.select(db.todos).get();
+    expect(
+      rows.where((row) => row.summary == 'Cancelled Title'),
+      isEmpty,
+      reason: 'cancel must not write',
+    );
+    expect(rows.where((row) => row.summary == 'Task 0'), hasLength(1));
+
+    await tester.tap(find.byKey(edit));
+    await _settle(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('todo-detail-title')),
+      'Saved Title',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
+
+    expect(find.byKey(summary), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+    expect(summaryTitle(tester), 'Saved Title');
+    rows = await db.select(db.todos).get();
+    expect(rows.where((row) => row.summary == 'Saved Title'), hasLength(1));
+    expect(rows.where((row) => row.summary == 'Task 0'), isEmpty);
 
     await _unmount(tester);
   });

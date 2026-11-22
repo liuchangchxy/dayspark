@@ -711,6 +711,7 @@
   "notScheduled": "未安排",
   "execution": "执行",
   "repeatAdvanced": "重复选项",
+  "repeatField": "重复",
   "seriesTimeZoneShort": "全部重复使用的时区",
   "startsAtHint": "最早可以开始做的日子",
   "noDeadline": "无截止",
