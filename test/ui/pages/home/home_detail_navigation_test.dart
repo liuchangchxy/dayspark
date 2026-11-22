@@ -172,6 +172,7 @@ void main() {
     final drawerRect = tester.getRect(find.byKey(const ValueKey('spec-drawer-overlay')));
     expect(drawerRect.width, equals(380.0));
     expect(drawerRect.right, equals(1440.0));
+    expect(find.byKey(const ValueKey('spec-drawer-inline')), findsNothing);
     expect(tester.getSize(_content(0)).width, equals(1440.0)); // List width unchanged!
 
     // Tap blank space closes drawer
@@ -230,7 +231,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('on Calendar an event tap opens 380 overlay drawer without squeezing', (
+  testWidgets('on wide Calendar an event tap opens a 380 inline column without overflow', (
     tester,
   ) async {
     final now = DateTime.now();
@@ -249,20 +250,19 @@ void main() {
     await tester.pumpWidget(_app(db, _router(1)));
     await _settle(tester);
     expect(_content(1), findsOneWidget);
-
-    final initialCalendarWidth = tester.getSize(_content(1)).width;
-    expect(initialCalendarWidth, equals(1440.0));
+    expect(tester.getSize(_content(1)).width, equals(1440.0));
 
     await tester.tap(find.text('Team Sync'));
     await _settle(tester);
 
     expect(find.byType(EventDetailPane), findsOneWidget);
     expect(find.byKey(const ValueKey('stub-event-detail')), findsNothing);
-    final drawerRect = tester.getRect(find.byKey(const ValueKey('spec-drawer-overlay')));
-    expect(drawerRect.width, equals(380.0));
-    expect(tester.getSize(_content(1)).width, equals(1440.0));
+    expect(find.byKey(const ValueKey('spec-drawer-inline')), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-drawer-overlay')), findsNothing);
+    expect(tester.getSize(_content(1)).width, equals(1060.0));
+    expect(tester.takeException(), isNull);
 
-    // Close button X closes drawer
+    // Close button X closes the inline column.
     await tester.tap(find.byTooltip('Close'));
     await tester.pump();
     await _settle(tester);
@@ -272,6 +272,22 @@ void main() {
       tester.element(find.byType(HomePage)),
     );
     expect(container.read(workspaceSelectionProvider), isNull);
+
+    // Narrow desktop keeps the 360 overlay and does not squeeze the grid.
+    tester.view.physicalSize = const Size(1100, 900);
+    await tester.pump();
+    await _settle(tester);
+    await tester.tap(find.text('Team Sync'));
+    await _settle(tester);
+
+    expect(find.byType(EventDetailPane), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-drawer-inline')), findsNothing);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('spec-drawer-overlay'))).width,
+      equals(360.0),
+    );
+    expect(tester.getSize(_content(1)).width, equals(1100.0));
+    expect(tester.takeException(), isNull);
 
     await _unmount(tester);
   });
