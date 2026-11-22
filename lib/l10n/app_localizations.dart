@@ -1595,6 +1595,18 @@ abstract class AppLocalizations {
   /// **'This week · 7 days'**
   String get calendarWeekSummary;
 
+  /// No description provided for @calendarWeekEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing this week.'**
+  String get calendarWeekEmpty;
+
+  /// No description provided for @calendarWeekEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from capture or a calendar time slot.'**
+  String get calendarWeekEmptyHint;
+
   /// No description provided for @openUpdatePage.
   ///
   /// In en, this message translates to:

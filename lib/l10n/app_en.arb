@@ -527,6 +527,8 @@
     }
   },
   "calendarWeekSummary": "This week · 7 days",
+  "calendarWeekEmpty": "Nothing this week.",
+  "calendarWeekEmptyHint": "Start from capture or a calendar time slot.",
   "openUpdatePage": "View release",
   "checkUpdate": "Check for Updates",
   "upToDate": "Already up to date",

@@ -21,12 +21,18 @@ import 'package:dayspark/ui/widgets/calendar/calendar_filter_sheet.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
+bool _initialLoading(AsyncValue<Object?>? state) =>
+    state != null && state.isLoading && !state.hasValue;
+
 class A2CalendarPage extends ConsumerStatefulWidget {
   const A2CalendarPage({
     super.key,
     required this.events,
     required this.allocations,
     required this.deadlines,
+    this.eventsAsync,
+    this.allocationsAsync,
+    this.onRetry,
     this.onEventTapped,
     this.onAllocationTapped,
     this.onDeadlineTapped,
@@ -39,6 +45,13 @@ class A2CalendarPage extends ConsumerStatefulWidget {
   final List<CalendaEventAdapter> events;
   final List<TaskAllocationCalendarItem> allocations;
   final List<CalendarDeadline> deadlines;
+
+  /// The queries behind [events] and [allocations]. When supplied, the page
+  /// keeps a loading frame and an error frame instead of drawing the empty
+  /// grid that a value-less read would produce.
+  final AsyncValue<List<CalendaEventAdapter>>? eventsAsync;
+  final AsyncValue<List<TaskAllocationCalendarItem>>? allocationsAsync;
+  final VoidCallback? onRetry;
   final void Function(CalendaEventAdapter event)? onEventTapped;
   final void Function(TaskAllocationCalendarItem item)? onAllocationTapped;
   final void Function(CalendarDeadline deadline)? onDeadlineTapped;
@@ -135,8 +148,9 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
   bool _dayHasEntries(
     DateTime day,
     List<CalendaEventAdapter> events,
-    List<TaskAllocationCalendarItem> allocations,
-  ) {
+    List<TaskAllocationCalendarItem> allocations, {
+    List<CalendarDeadline>? deadlines,
+  }) {
     if (calAllDayEvents(day: day, events: events).isNotEmpty) {
       return true;
     }
@@ -149,7 +163,9 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       ],
     );
     if (blocks.isNotEmpty) return true;
-    return widget.deadlines.any((deadline) => calSameDay(deadline.due, day));
+    return (deadlines ?? widget.deadlines).any(
+      (deadline) => calSameDay(deadline.due, day),
+    );
   }
 
   /// A month cell only says "something happens here". Selecting a day with
@@ -281,6 +297,33 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         if (names.containsKey(id)) names[id]!,
     ];
 
+    final failed =
+        (widget.eventsAsync?.hasError ?? false) ||
+        (widget.allocationsAsync?.hasError ?? false);
+    final loading =
+        !failed &&
+        (_initialLoading(widget.eventsAsync) ||
+            _initialLoading(widget.allocationsAsync));
+    final status = failed
+        ? _CalendarLoadError(onRetry: widget.onRetry)
+        : loading
+        ? const _CalendarLoading()
+        : null;
+    final weekEmpty = days.every(
+      (day) => !_dayHasEntries(
+        day,
+        visibleEvents,
+        visibleAllocations,
+        deadlines: visibleDeadlines,
+      ),
+    );
+    final dayEmpty = !_dayHasEntries(
+      calDayOf(browse),
+      visibleEvents,
+      visibleAllocations,
+      deadlines: visibleDeadlines,
+    );
+
     if (isWorkspaceLayout(context)) {
       return _desktop(
         l,
@@ -297,6 +340,9 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         visibleEvents,
         visibleAllocations,
         visibleDeadlines,
+        status,
+        weekEmpty,
+        dayEmpty,
       );
     }
     return _phone(
@@ -312,6 +358,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       visibleEvents,
       visibleAllocations,
       visibleDeadlines,
+      status,
+      weekEmpty,
     );
   }
 
@@ -328,6 +376,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     List<CalendaEventAdapter> visibleEvents,
     List<TaskAllocationCalendarItem> visibleAllocations,
     List<CalendarDeadline> visibleDeadlines,
+    Widget? status,
+    bool weekEmpty,
   ) {
     final content = switch (mode) {
       CalendarViewMode.month => Column(
@@ -359,6 +409,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         events: visibleEvents,
         allocations: visibleAllocations,
         deadlines: visibleDeadlines,
+        isEmpty: weekEmpty,
         onEvent: widget.onEventTapped,
         onAllocation: widget.onAllocationTapped,
         onDeadline: widget.onDeadlineTapped,
@@ -408,8 +459,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         Expanded(
           child: Stack(
             children: [
-              Positioned.fill(child: content),
-              if (mode == CalendarViewMode.month)
+              Positioned.fill(child: status ?? content),
+              if (status == null && mode == CalendarViewMode.month)
                 A2Fab(
                   tooltip: l.newEvent,
                   onPressed: () => _createAt(browse),
@@ -540,6 +591,9 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     List<CalendaEventAdapter> visibleEvents,
     List<TaskAllocationCalendarItem> visibleAllocations,
     List<CalendarDeadline> visibleDeadlines,
+    Widget? status,
+    bool weekEmpty,
+    bool dayEmpty,
   ) {
     final body = switch (mode) {
       CalendarViewMode.month => A2DesktopMonthGrid(
@@ -565,6 +619,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         deadlines: visibleDeadlines,
         dayMode: false,
         isDesktop: true,
+        emptyTitle: weekEmpty ? l.calendarWeekEmpty : null,
+        emptyHint: weekEmpty ? l.calendarWeekEmptyHint : null,
       ),
       CalendarViewMode.day => _timeGrid(
         days: [calDayOf(browse)],
@@ -576,6 +632,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         deadlines: visibleDeadlines,
         dayMode: true,
         isDesktop: true,
+        emptyTitle: dayEmpty ? l.planDayEmpty : null,
       ),
     };
     return Container(
@@ -594,28 +651,30 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               onShowCalendars: () => CalendarFilterSheet.show(context),
             ),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final minWidth = switch (mode) {
-                    CalendarViewMode.week => 820.0,
-                    CalendarViewMode.month => 760.0,
-                    CalendarViewMode.day => 580.0,
-                  };
-                  if (constraints.maxWidth < minWidth) {
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: minWidth,
-                        child: body,
-                      ),
-                    );
-                  }
-                  return body;
-                },
-              ),
-            ),
+            child:
+                status ??
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final minWidth = switch (mode) {
+                        CalendarViewMode.week => 820.0,
+                        CalendarViewMode.month => 760.0,
+                        CalendarViewMode.day => 580.0,
+                      };
+                      if (constraints.maxWidth < minWidth) {
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SizedBox(
+                            width: minWidth,
+                            child: body,
+                          ),
+                        );
+                      }
+                      return body;
+                    },
+                  ),
+                ),
           ),
         ],
       ),
@@ -756,6 +815,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     required List<CalendarDeadline> deadlines,
     required bool dayMode,
     bool isDesktop = true,
+    String? emptyTitle,
+    String? emptyHint,
   }) {
     return A2TimeGridView(
       days: days,
@@ -767,12 +828,66 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       calendarNames: names,
       dayMode: dayMode,
       isDesktop: isDesktop,
+      emptyTitle: emptyTitle,
+      emptyHint: emptyHint,
       onSelectDay: _openDay,
       onEvent: widget.onEventTapped,
       onAllocation: widget.onAllocationTapped,
       onDeadline: widget.onDeadlineTapped,
       onSlot: widget.onTimeSlotTapped,
       onReschedule: _reschedule,
+    );
+  }
+}
+
+class _CalendarLoading extends StatelessWidget {
+  const _CalendarLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('calendar-loading'),
+      color: SpecTokens.paper,
+      padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final width in const [0.62, 0.48, 0.7, 0.55, 0.66, 0.42])
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: width,
+              child: Container(
+                height: 18,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: SpecTokens.wash,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarLoadError extends StatelessWidget {
+  const _CalendarLoadError({this.onRetry});
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Center(
+      key: const ValueKey('calendar-load-error'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(l.error),
+          TextButton(onPressed: onRetry, child: Text(l.retry)),
+        ],
+      ),
     );
   }
 }

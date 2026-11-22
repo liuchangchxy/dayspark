@@ -827,6 +827,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get calendarWeekSummary => '本周 · 7 天';
 
   @override
+  String get calendarWeekEmpty => '这一周没有安排。';
+
+  @override
+  String get calendarWeekEmptyHint => '从捕获或日历时间槽开始。';
+
+  @override
   String get openUpdatePage => '查看更新';
 
   @override

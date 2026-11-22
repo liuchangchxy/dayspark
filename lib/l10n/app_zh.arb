@@ -389,6 +389,8 @@
     }
   },
   "calendarWeekSummary": "本周 · 7 天",
+  "calendarWeekEmpty": "这一周没有安排。",
+  "calendarWeekEmptyHint": "从捕获或日历时间槽开始。",
   "openUpdatePage": "查看更新",
   "checkUpdate": "检查更新",
   "upToDate": "已是最新版本",

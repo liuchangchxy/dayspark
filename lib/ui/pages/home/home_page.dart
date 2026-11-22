@@ -58,6 +58,9 @@ bool isCalendarDeadlineCandidate(Todo todo) =>
     todo.status != 'COMPLETED' &&
     todo.status != 'CANCELLED';
 
+bool _initialLoading(AsyncValue<Object?> value) =>
+    value.isLoading && !value.hasValue;
+
 /// The three primary destinations and the chrome they share.
 ///
 /// Today is the clock's day and nothing else; the Todo dated view and the
@@ -632,9 +635,38 @@ class _HomePageState extends ConsumerState<HomePage>
   Widget _todoPage(bool desktop) {
     final browseDate = ref.watch(viewedDateProvider);
     final dayView = ref.watch(todosViewProvider) is TodosDayView;
+    final key = _rangeKey(_calendarRange());
+    final eventsAsync = ref.watch(eventsInDateRangeProvider(key));
+    final allocationsAsync = ref.watch(
+      taskAllocationsInDateRangeProvider(key),
+    );
+    final todosAsync = ref.watch(allTodosProvider);
+    final unplannedAsync = ref.watch(unplannedTodosProvider);
+    final dayAgendaLoading = [
+      eventsAsync,
+      allocationsAsync,
+      todosAsync,
+      unplannedAsync,
+    ].any(_initialLoading);
+    final dayAgendaFailed = [
+      eventsAsync,
+      allocationsAsync,
+      todosAsync,
+      unplannedAsync,
+    ].any((value) => value.hasError);
     return A2TodoPage(
       now: _now(),
       dayAgenda: _dayAgenda(browseDate),
+      dayAgendaLoading: dayAgendaLoading,
+      dayAgendaFailed: dayAgendaFailed,
+      onRetryDayAgenda: () {
+        ref.invalidate(eventsInDateRangeProvider(key));
+        ref.invalidate(taskAllocationsInDateRangeProvider(key));
+        ref.invalidate(allTodosProvider);
+        ref.invalidate(unplannedTodosProvider);
+        ref.invalidate(pendingTodosProvider);
+        ref.invalidate(allActiveTaskAllocationsProvider);
+      },
       onOpenTodo: _openTodo,
       onToggleTodo: _toggleTodo,
       onCapture: (text) => _captureOnTodoPage(text),
@@ -666,26 +698,25 @@ class _HomePageState extends ConsumerState<HomePage>
     final deadlineTodos = (ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
         .where(isCalendarDeadlineCandidate)
         .toList();
-
-    // The grid draws what it has; a day with nothing to show is still a day,
-    // and the toolbar must never wait on a query to appear.
-    if (eventsAsync.hasError) {
-      debugPrint('calendar: events error: ${eventsAsync.error}');
-    }
-    if (allocationsAsync.hasError) {
-      debugPrint('calendar: allocations error: ${allocationsAsync.error}');
-    }
-    final adapters = expandRecurringEvents(
-      eventsAsync.valueOrNull ?? const <Event>[],
-      before: browseDate.subtract(const Duration(days: 60)),
-      after: browseDate.add(const Duration(days: 60)),
-      colorForCalendar: (id) => calendarColors[id],
+    final adaptedEvents = eventsAsync.whenData(
+      (events) => expandRecurringEvents(
+        events,
+        before: browseDate.subtract(const Duration(days: 60)),
+        after: browseDate.add(const Duration(days: 60)),
+        colorForCalendar: (id) => calendarColors[id],
+      ),
     );
     return A2CalendarPage(
-      events: adapters,
+      events: adaptedEvents.valueOrNull ?? const <CalendaEventAdapter>[],
       allocations:
           allocationsAsync.valueOrNull ??
           const <TaskAllocationCalendarItem>[],
+      eventsAsync: adaptedEvents,
+      allocationsAsync: allocationsAsync,
+      onRetry: () {
+        ref.invalidate(eventsInDateRangeProvider(key));
+        ref.invalidate(taskAllocationsInDateRangeProvider(key));
+      },
       deadlines: [
         for (final todo in deadlineTodos)
           CalendarDeadline(
