@@ -698,7 +698,7 @@ void main() {
 
       final titleFinder = find.descendant(
         of: topBarFinder,
-        matching: find.text('All Tasks'),
+        matching: find.textContaining('Nov 10'),
       );
       expect(titleFinder, findsOneWidget);
       final titleWidget = tester.widget<Text>(titleFinder);
@@ -728,6 +728,22 @@ void main() {
 
       expect(find.byKey(const ValueKey('todos-mode-switch')), findsOneWidget);
       expect(find.byKey(const ValueKey('todo-mode-inbox')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-mode-all')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('todo-mode-all')));
+      await _settle(tester);
+      expect(
+        find.descendant(of: topBarFinder, matching: find.text('All Tasks')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('todo-mode-inbox')));
+      await _settle(tester);
+      expect(
+        find.descendant(of: topBarFinder, matching: find.text('Unplanned')),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('todo-mode-all')), findsOneWidget);
       expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
 
