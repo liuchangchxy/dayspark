@@ -1529,6 +1529,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get repeatAdvanced => '重复选项';
 
   @override
+  String get repeatField => '重复';
+
+  @override
   String get seriesTimeZoneShort => '全部重复使用的时区';
 
   @override

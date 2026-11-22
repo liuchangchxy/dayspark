@@ -302,12 +302,18 @@ void main() {
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
 
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('todo-detail-summary-title')),
+      findsOneWidget,
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('todo-detail-summary-title')),
+      findsNothing,
+    );
     final container = ProviderScope.containerOf(
       tester.element(find.byType(HomePage)),
     );

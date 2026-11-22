@@ -526,7 +526,9 @@ class _HomePageState extends ConsumerState<HomePage>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(child: page),
-                      _InlineDetailPane(child: _buildDetailPane(selection)),
+                      _InlineDetailPane(
+                        child: _buildDetailPane(selection, inline: true),
+                      ),
                     ],
                   )
                 : Stack(
@@ -965,12 +967,13 @@ class _HomePageState extends ConsumerState<HomePage>
     return true;
   }
 
-  Widget _buildDetailPane(WorkspaceSelection selection) {
+  Widget _buildDetailPane(WorkspaceSelection selection, {bool inline = false}) {
     return switch (selection) {
       TodoSelection(:final todo) => TodoDetailPane(
         key: ValueKey('pane-todo-${todo.id}'),
         todo: todo,
         embedded: true,
+        inlineSummary: inline,
         onClose: _clearSelection,
         onDeleted: _clearSelection,
       ),

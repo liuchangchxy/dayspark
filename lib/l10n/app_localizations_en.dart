@@ -1547,6 +1547,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repeatAdvanced => 'Repeat options';
 
   @override
+  String get repeatField => 'Repeat';
+
+  @override
   String get seriesTimeZoneShort => 'Time zone for all repeats';
 
   @override
