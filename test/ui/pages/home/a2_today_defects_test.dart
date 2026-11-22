@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
@@ -914,6 +915,54 @@ void main() {
       );
       // Group head title text starts at x = 16 + 3 = 19
       expect(groupHeadRect.left, 19.0);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: A2CaptureBar onSubmit error preserves input text and keeps focus',
+    (tester) async {
+      const originalText = 'Important task that failed to save';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: A2CaptureBar(
+              fieldKey: const ValueKey('test-capture-field'),
+              placeholder: 'Add task',
+              hint: 'Enter',
+              onSubmit: (text) async {
+                throw Exception('Database write failed');
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Enter text into the field
+      final textFieldFinder = find.byKey(const ValueKey('test-capture-field'));
+      await tester.enterText(textFieldFinder, originalText);
+      await tester.pump();
+
+      // Ensure field has text before submit
+      expect(tester.widget<TextField>(textFieldFinder).controller!.text, originalText);
+
+      // Submit via done action / enter
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      // After onSubmit throws error, input text must still equal originalText and field retains focus
+      expect(tester.widget<TextField>(textFieldFinder).controller!.text, equals(originalText));
+      expect(tester.widget<TextField>(textFieldFinder).focusNode!.hasFocus, isTrue);
+
+      // Also submit via send button tap
+      await tester.tap(find.byKey(const ValueKey('capture-send-target')));
+      await tester.pump();
+
+      expect(tester.widget<TextField>(textFieldFinder).controller!.text, equals(originalText));
+      expect(tester.widget<TextField>(textFieldFinder).focusNode!.hasFocus, isTrue);
 
       await _unmount(tester);
     },
