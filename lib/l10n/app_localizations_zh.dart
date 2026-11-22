@@ -2582,6 +2582,16 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String missedCardSubtitle(String repeat, int count) {
+    return '$repeat · 已遗漏 $count 次 · 完成只影响这一次';
+  }
+
+  @override
+  String missedCardRepeatWeekly(String day) {
+    return '每周$day';
+  }
+
+  @override
   String get deleteToTrashAction => '删除到回收站';
 
   @override

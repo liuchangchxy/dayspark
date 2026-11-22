@@ -2612,6 +2612,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String missedCardSubtitle(String repeat, int count) {
+    return '$repeat · Missed $count times · Completing affects only this one';
+  }
+
+  @override
+  String missedCardRepeatWeekly(String day) {
+    return 'Every $day';
+  }
+
+  @override
   String get deleteToTrashAction => 'Move to Trash';
 
   @override

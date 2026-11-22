@@ -1376,6 +1376,25 @@
       }
     }
   },
+  "missedCardSubtitle": "{repeat} · 已遗漏 {count} 次 · 完成只影响这一次",
+  "@missedCardSubtitle": {
+    "placeholders": {
+      "repeat": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missedCardRepeatWeekly": "每周{day}",
+  "@missedCardRepeatWeekly": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
   "deleteToTrashAction": "删除到回收站",
   "cancelAction": "取消",
   "saveAction": "保存",

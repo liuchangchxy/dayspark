@@ -26,7 +26,9 @@ import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/ui/widgets/undo_bar.dart';
 
 /// 今天: the real today, drawn as four time sections and an unplanned shelf.
@@ -68,8 +70,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   bool _upcomingExpanded = false;
   bool _overdueExpanded = false;
   bool _completedExpanded = false;
-  bool _missedExpanded = false;
-  bool _earlierMissedExpanded = false;
   bool _endedExpanded = true;
   bool _desktopEndedExpanded = false;
   bool _toastVisible = false;
@@ -244,13 +244,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     return value.replaceFirst('T', '  ');
   }
 
-  String _undoLabel(
-    AppLocalizations l,
-    String? occurrenceId, {
-    String? displayLabel,
-  }) {
+  String _undoLabel(AppLocalizations l, String? occurrenceId) {
     if (occurrenceId == null) return l.undo;
-    final label = displayLabel ?? _occurrenceLabel(occurrenceId);
+    final label = _occurrenceLabel(occurrenceId);
     if (label == null || label.isEmpty) return l.undo;
     return l.undoOccurrence(label);
   }
@@ -283,18 +279,19 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     );
   }
 
-  Future<void> _toggleMissed(ProjectedTaskInstance instance, int index) {
-    if (_recentMatches(instance.todo.id, instance.occurrenceId)) {
-      return _setCompleted(instance.todo, instance.occurrenceId, false);
+  Future<void> _completeMissed(_MissedCardData card) async {
+    _clearUndo();
+    var occurrenceId = card.latest?.occurrenceId;
+    if (occurrenceId == null) {
+      final selected = await TodoOccurrencePickerSheet.show(
+        context,
+        ref: ref,
+        todo: card.todo,
+      );
+      if (selected == null || !mounted) return;
+      occurrenceId = selected.occurrenceId;
     }
-    return _setCompleted(
-      instance.todo,
-      instance.occurrenceId,
-      true,
-      instance: instance,
-      section: _RecentSection.missed,
-      index: index,
-    );
+    await _setCompleted(card.todo, occurrenceId, true);
   }
 
   /// Every completion goes through the one callback the page was handed, so
@@ -304,7 +301,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     String? occurrenceId,
     bool completed, {
     DayItem? item,
-    ProjectedTaskInstance? instance,
     _RecentSection? section,
     int index = 0,
   }) async {
@@ -327,7 +323,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         todo,
         occurrenceId,
         item: item,
-        instance: instance,
         section: section ?? _RecentSection.unplanned,
         index: index,
       );
@@ -352,7 +347,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     Todo todo,
     String? occurrenceId, {
     DayItem? item,
-    ProjectedTaskInstance? instance,
     required _RecentSection section,
     required int index,
   }) {
@@ -361,16 +355,11 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       _recent = _RecentCompletion(
         todo: todo,
         occurrenceId: occurrenceId,
-        label: _undoLabel(
-          l,
-          occurrenceId,
-          displayLabel: instance?.occurrence.displayLabel,
-        ),
+        label: _undoLabel(l, occurrenceId),
         section: section,
         index: index,
         completedAt: DateTime.now(),
         item: item,
-        instance: instance,
       );
     });
     _undoTimer = Timer(const Duration(seconds: 5), () {
@@ -742,19 +731,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         if (item.todo != null && !plannedTodoIds.contains(item.todo!.id)) item,
     ];
 
-    final missed =
-        projection?.missedTaskInstances ?? const <ProjectedTaskInstance>[];
-    final earlierMissed = projection?.earlierMissedSeries ?? const <Todo>[];
-    final hasEarlierMissed = projection?.hasEarlierMissed ?? false;
-    final missedItems = _injectRecentInstances(missed, _RecentSection.missed);
-    final visibleMissed = [
-      for (final item in missedItems)
-        if (!plannedTodoIds.contains(item.todo.id)) item,
-    ];
-    final shownMissed = _missedExpanded
-        ? visibleMissed
-        : visibleMissed.take(3).toList();
-    final moreMissed = visibleMissed.length - shownMissed.length;
+    final missedCards = _missedCards(projection, plannedTodoIds);
 
     final timed = agenda.timed;
     bool isRunning(DayItem item) {
@@ -858,6 +835,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             ),
           ),
         ),
+      for (final card in missedCards) _missedCard(l, card),
       if (visibleOverdue.isNotEmpty) ...[
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -942,74 +920,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             onTap: () => _openTodo(visibleDue[i].todo!),
             onSchedule: () => _scheduleTodo(visibleDue[i].todo!),
           ),
-      ],
-      if (visibleMissed.isNotEmpty || hasEarlierMissed) ...[
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _groupHead(
-            label: l.missed,
-            count: visibleMissed.isEmpty ? null : visibleMissed.length,
-            danger: true,
-            expanded: _missedExpanded,
-            onToggle: visibleMissed.length > 3
-                ? () => setState(() => _missedExpanded = !_missedExpanded)
-                : null,
-          ),
-        ),
-        for (var i = 0; i < shownMissed.length; i++)
-          _taskRow(
-            key: ValueKey('missed-${shownMissed[i].occurrenceId}'),
-            title: shownMissed[i].todo.summary,
-            checked: false,
-            isOverdue: true,
-            dueLabel: shownMissed[i].occurrence.displayLabel,
-            calendarName: _calendarName(shownMissed[i].todo),
-            calendarColor: _calendarColor(shownMissed[i].todo),
-            rrule: shownMissed[i].todo.rrule,
-            missedCount: 1,
-            highlighted: shownMissed[i].todo.id == _recentId,
-            trailing: _undoFor(shownMissed[i].todo.id, shownMissed[i].occurrenceId, _RecentSection.missed),
-            onToggle: (_) => _toggleMissed(shownMissed[i], i),
-            onTap: () => _openTodo(shownMissed[i].todo),
-            onSchedule: () => _scheduleTodo(shownMissed[i].todo),
-          ),
-        if (moreMissed > 0)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _moreRow(
-              l,
-              moreMissed,
-              paddingLeft: 33,
-              expanded: _missedExpanded,
-              onTap: () => setState(() => _missedExpanded = !_missedExpanded),
-            ),
-          )
-        else if (_missedExpanded && visibleMissed.length > 3)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _moreRow(
-              l,
-              0,
-              paddingLeft: 33,
-              expanded: true,
-              onTap: () => setState(() => _missedExpanded = false),
-            ),
-          ),
-        if (hasEarlierMissed) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _moreRow(
-              l,
-              0,
-              paddingLeft: 33,
-              label: _earlierMissedExpanded ? l.collapseLabel : l.earlierMissed,
-              onTap: () => setState(() => _earlierMissedExpanded = !_earlierMissedExpanded),
-            ),
-          ),
-          if (_earlierMissedExpanded)
-            for (final todo in earlierMissed)
-              _seriesRow(todo),
-        ],
       ],
       if (shelfSource.isNotEmpty) ...[
         Padding(
@@ -2046,13 +1956,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         if (item.todo != null && !plannedTodoIds.contains(item.todo!.id)) item,
     ];
 
-    final missed =
-        projection?.missedTaskInstances ?? const <ProjectedTaskInstance>[];
-    final missedItems = _injectRecentInstances(missed, _RecentSection.missed);
-    final visibleMissed = [
-      for (final item in missedItems)
-        if (!plannedTodoIds.contains(item.todo.id)) item,
-    ];
+    final missedCards = _missedCards(projection, plannedTodoIds);
 
     final timed = agenda.timed;
     bool isRunning(DayItem item) {
@@ -2093,6 +1997,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             ),
           ),
         ),
+      for (final card in missedCards) _missedCard(l, card),
       if (visibleOverdue.isNotEmpty) ...[
         _groupHead(
           label: l.sectionOverdueLabel,
@@ -2136,26 +2041,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                 _toggleItem(visibleDue[i], _RecentSection.dueToday, i),
             onTap: () => _openTodo(visibleDue[i].todo!),
             onSchedule: () => _scheduleTodo(visibleDue[i].todo!),
-          ),
-      ],
-      if (visibleMissed.isNotEmpty) ...[
-        _groupHead(
-          label: l.missed,
-          count: visibleMissed.length,
-          danger: true,
-        ),
-        for (var i = 0; i < visibleMissed.length; i++)
-          _taskRow(
-            key: ValueKey('missed-${visibleMissed[i].occurrenceId}'),
-            title: visibleMissed[i].todo.summary,
-            checked: false,
-            isOverdue: true,
-            dueLabel: visibleMissed[i].occurrence.displayLabel,
-            rrule: visibleMissed[i].todo.rrule,
-            missedCount: 1,
-            onToggle: (_) => _toggleMissed(visibleMissed[i], i),
-            onTap: () => _openTodo(visibleMissed[i].todo),
-            onSchedule: () => _scheduleTodo(visibleMissed[i].todo),
           ),
       ],
       if (shelfSource.isNotEmpty) ...[
@@ -2218,7 +2103,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       ],
       if (visibleOverdue.isEmpty &&
           visibleDue.isEmpty &&
-          visibleMissed.isEmpty &&
+          missedCards.isEmpty &&
           shelfSource.isEmpty &&
           completedCount == 0)
         Padding(
@@ -2411,21 +2296,197 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     ];
   }
 
-  List<ProjectedTaskInstance> _injectRecentInstances(
-    List<ProjectedTaskInstance> items,
-    _RecentSection section,
+  List<_MissedCardData> _missedCards(
+    ActionProjectionData? projection,
+    Set<int> plannedTodoIds,
   ) {
-    final recent = _recent;
-    final snapshot = recent?.instance;
-    if (recent == null || snapshot == null || recent.section != section) {
-      return items;
+    final cards = <int, _MissedCardData>{};
+    for (final instance
+        in projection?.missedTaskInstances ?? const <ProjectedTaskInstance>[]) {
+      if (plannedTodoIds.contains(instance.todo.id)) continue;
+      final existing = cards[instance.todo.id];
+      if (existing == null) {
+        cards[instance.todo.id] = _MissedCardData(
+          todo: instance.todo,
+          latest: instance,
+        );
+        continue;
+      }
+      existing.count += 1;
+      final latest = existing.latest;
+      if (latest == null ||
+          instance.occurrence.nominalAnchor.canonical.compareTo(
+                latest.occurrence.nominalAnchor.canonical,
+              ) >
+              0) {
+        existing.latest = instance;
+      }
     }
-    final key = _keyOf(recent.todo.id, recent.occurrenceId);
-    if (items.any((item) => _keyOf(item.todo.id, item.occurrenceId) == key)) {
-      return items;
+    for (final todo in projection?.earlierMissedSeries ?? const <Todo>[]) {
+      if (plannedTodoIds.contains(todo.id)) continue;
+      cards.putIfAbsent(todo.id, () => _MissedCardData(todo: todo));
     }
-    final index = recent.index.clamp(0, items.length);
-    return [...items.take(index), snapshot, ...items.skip(index)];
+    return cards.values.toList();
+  }
+
+  Widget _missedCard(AppLocalizations l, _MissedCardData card) {
+    final repeat = _missedRepeatLabel(card.todo, l);
+    final subtitle = l.missedCardSubtitle(
+      repeat.isEmpty ? l.repeatCustom : repeat,
+      card.count,
+    );
+    return Container(
+      key: ValueKey('missed-card-${card.todo.id}'),
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ClipRRect(
+        borderRadius: SpecTokens.borderRadius6,
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: SpecTokens.paper,
+                borderRadius: SpecTokens.borderRadius6,
+                border: Border.all(color: const Color(0xFFE3C8C2)),
+              ),
+              padding: const EdgeInsets.fromLTRB(11, 8, 8, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => _openTodo(card.todo),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              card.todo.summary,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                height: 1.4,
+                                color: SpecTokens.ink,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              subtitle,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: SpecTokens.red,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _completeMissed(card),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: SpecTokens.paper,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: const Color(0xFFE3C8C2),
+                          ),
+                        ),
+                        child: Text(
+                          l.completeThisOccurrence,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: SpecTokens.red,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: SizedBox(
+                width: 3,
+                child: ColoredBox(color: SpecTokens.red),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _missedRepeatLabel(Todo todo, AppLocalizations l) {
+    final raw = todo.rrule ?? todo.recurrenceRule;
+    if (raw == null || raw.isEmpty) return '';
+    final rule = raw.startsWith('RRULE:') ? raw.substring(6) : raw;
+    final parts = <String, String>{};
+    for (final part in rule.split(';')) {
+      final split = part.indexOf('=');
+      if (split <= 0) continue;
+      parts[part.substring(0, split).toUpperCase()] = part.substring(split + 1);
+    }
+    if (parts['FREQ']?.toUpperCase() == 'WEEKLY') {
+      final byDay = parts['BYDAY'];
+      final codes = byDay == null || byDay.isEmpty
+          ? const <String>[]
+          : [
+              for (final code in byDay.split(','))
+                if (code.trim().isNotEmpty) code.trim().toUpperCase(),
+            ];
+      if (codes.length <= 1) {
+        final weekday = codes.isEmpty
+            ? _recurrenceAnchor(todo)?.weekday
+            : _weekdayIndex(codes.first);
+        if (weekday != null) {
+          final full = DateFormat.EEEE(
+            _locale,
+          ).format(DateTime(2024, 1, weekday));
+          final day = _locale.startsWith('zh')
+              ? full.replaceFirst(RegExp('^(星期|周)'), '')
+              : full;
+          if (day.isNotEmpty) return l.missedCardRepeatWeekly(day);
+        }
+      }
+    }
+    final description = describeRepeat(context, rule);
+    final split = description.indexOf(' · ');
+    return split < 0 ? description : description.substring(0, split);
+  }
+
+  DateTime? _recurrenceAnchor(Todo todo) {
+    final value = todo.recurrenceAnchorValue;
+    if (value != null) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) return parsed;
+    }
+    return todo.startDate ?? todo.dueDate;
+  }
+
+  int? _weekdayIndex(String code) {
+    const codes = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+    for (var i = 0; i < codes.length; i++) {
+      if (code.endsWith(codes[i])) return i + 1;
+    }
+    return null;
   }
 
   List<Todo> _injectRecentTodos(List<Todo> items, _RecentSection section) {
@@ -2522,16 +2583,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     return null;
   }
 
-  Widget _seriesRow(Todo todo) {
-    return _taskRow(
-      title: todo.summary,
-      showCheck: false,
-      calendarName: _calendarName(todo),
-      calendarColor: _calendarColor(todo),
-      onTap: () => _openTodo(todo),
-    );
-  }
-
   /// The bucket holds items the shelf never previews (they have a deadline);
   /// this row is the only honest way to say so and to reach them.
   Widget _showAllRow(
@@ -2622,8 +2673,15 @@ enum _RecentSection {
   ended,
   dueToday,
   overdue,
-  missed,
   unplanned,
+}
+
+class _MissedCardData {
+  _MissedCardData({required this.todo, this.latest});
+
+  final Todo todo;
+  ProjectedTaskInstance? latest;
+  int count = 1;
 }
 
 class _RecentCompletion {
@@ -2635,7 +2693,6 @@ class _RecentCompletion {
     required this.index,
     required this.completedAt,
     this.item,
-    this.instance,
   });
 
   final Todo todo;
@@ -2645,7 +2702,6 @@ class _RecentCompletion {
   final int index;
   final DateTime completedAt;
   final DayItem? item;
-  final ProjectedTaskInstance? instance;
 }
 
 
