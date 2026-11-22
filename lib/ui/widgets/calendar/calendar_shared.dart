@@ -14,6 +14,17 @@ DateTime calDayOf(DateTime value) =>
 bool calSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
+bool calEventIsRecurring(CalendaEventAdapter event) =>
+    event.rrule != null || event.isRecurringOccurrence;
+
+TextSpan calRepeatBadgeSpan(BuildContext context) {
+  final l = AppLocalizations.of(context)!;
+  return TextSpan(
+    text: ' ${l.calendarRepeatBadge}',
+    semanticsLabel: l.calendarRepeatBadgeSemantics,
+  );
+}
+
 DateTime calWeekStart(DateTime value) {
   final day = calDayOf(value);
   return day.subtract(Duration(days: day.weekday - 1));

@@ -3020,6 +3020,20 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get calendarRepeatBadge => '↻';
+
+  @override
+  String get calendarRepeatBadgeSemantics => 'Repeats';
+
+  @override
+  String calendarSeriesCurrentInstance(String timeRange) {
+    return 'Current instance $timeRange';
+  }
+
+  @override
+  String get calendarSeriesHint => 'Repeating event · open an item for details';
+
+  @override
   String get todaySummaryOverdue => 'Overdue';
 
   @override
