@@ -10,6 +10,8 @@ import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
@@ -25,6 +27,7 @@ import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
@@ -248,10 +251,35 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
       title: title,
       initialStart: defaultStart,
       initialEnd: defaultEnd,
+      existingBlocks: _blocksForDay,
+      isEditing: _scheduling && _start != null,
     );
     if (picked == null || !mounted) return;
     _setSlot(picked.$1, picked.$2);
     setState(() => _planOpen = true);
+  }
+
+  Future<List<SpecPlanBlock>> _blocksForDay(DateTime day) async {
+    final db = ref.read(databaseProvider);
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+    final events = await db.eventsDao.getEventCandidates(start, end);
+    final allocations = await fetchTaskAllocationsInDateRange(db, start, end);
+    final blocks = calDayBlocks(
+      day: start,
+      events: [
+        for (final event in events) CalendaEventAdapter.fromDrift(event),
+      ],
+      allocations: [
+        for (final item in allocations)
+          if (item.todo.id != _boundTodo?.id)
+            TaskAllocationCalendarAdapter.fromItem(item),
+      ],
+    );
+    return [
+      for (final block in blocks)
+        SpecPlanBlock(start: block.start, end: block.end, title: block.title),
+    ];
   }
 
   Future<void> _pickReminder() async {

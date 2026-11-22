@@ -1212,6 +1212,20 @@
       }
     }
   },
+  "planDayEmpty": "当天还没有安排",
+  "planDayExisting": "当天已有",
+  "planOverlapBlocks": "{range} 有 {count} 项重叠",
+  "@planOverlapBlocks": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planOverlapNote": "允许重叠；不会把截止当成占用。",
   "planDurationMinutes": "{count} 分钟",
   "@planDurationMinutes": {
     "placeholders": {

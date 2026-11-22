@@ -1489,6 +1489,20 @@
       }
     }
   },
+  "planDayEmpty": "Nothing scheduled that day",
+  "planDayExisting": "Already on that day",
+  "planOverlapBlocks": "{range} · {count, plural, =1{1 item overlaps} other{{count} items overlap}}",
+  "@planOverlapBlocks": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planOverlapNote": "Overlap is allowed; a deadline is not a time block.",
   "planDurationMinutes": "{count} min",
   "@planDurationMinutes": {
     "placeholders": {

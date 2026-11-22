@@ -2437,6 +2437,20 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get planDayEmpty => '当天还没有安排';
+
+  @override
+  String get planDayExisting => '当天已有';
+
+  @override
+  String planOverlapBlocks(String range, int count) {
+    return '$range 有 $count 项重叠';
+  }
+
+  @override
+  String get planOverlapNote => '允许重叠；不会把截止当成占用。';
+
+  @override
   String planDurationMinutes(int count) {
     return '$count 分钟';
   }
