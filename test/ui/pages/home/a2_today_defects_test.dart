@@ -1,3 +1,8 @@
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/providers/task_allocations_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/records/writers/todo_writer.dart';
+import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
@@ -914,6 +919,296 @@ void main() {
       );
       // Group head title text starts at x = 16 + 3 = 19
       expect(groupHeadRect.left, 19.0);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-1: desktop unplanned group is not rendered when unplanned has 0 items',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // Only an overdue todo, NO unplanned todos
+      await db.into(db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Overdue task',
+          dueDate: Value(DateTime(2026, 10, 5, 12)),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Overdue group is visible
+      expect(find.text('Overdue'), findsOneWidget);
+      // P1-1: Unplanned group head 'No date' must NOT be rendered when unplanned is empty
+      expect(find.text('No date'), findsNothing);
+      expect(find.text('No unscheduled tasks'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-2: desktop completing a todo shows floating undo bar with task name and undo, clears on tap',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db.into(db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Desktop Task To Complete',
+          dueDate: Value(DateTime(2026, 10, 6, 17)),
+        ),
+      );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (todo, occurrenceId, completed) async {
+            await RecordScope.run(
+              db,
+              (tx) => TodoWriter.setCompletion(
+                db,
+                tx,
+                todo.id,
+                isCompleted: completed,
+                occurrenceId: occurrenceId,
+              ),
+            );
+            return true;
+          },
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('Desktop Task To Complete'), findsOneWidget);
+      expect(find.byKey(const ValueKey('undo-bar')), findsNothing);
+
+      // Tap check on Desktop Task
+      final checkFinder = find.byWidgetPredicate(
+        (w) => w is DsCheck && w.label == 'Desktop Task To Complete',
+      );
+      expect(checkFinder, findsOneWidget);
+      await tester.tap(checkFinder);
+      await _settle(tester);
+
+      // P1-2: Floating undo bar appears with task summary and Undo
+      final undoBarFinder = find.byKey(const ValueKey('undo-bar'));
+      expect(undoBarFinder, findsOneWidget);
+      expect(
+        find.descendant(
+          of: undoBarFinder,
+          matching: find.text('Desktop Task To Complete'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: undoBarFinder,
+          matching: find.text('Undo'),
+        ),
+        findsOneWidget,
+      );
+
+      // Spec geometry: bottom 84
+      final undoRect = tester.getRect(undoBarFinder);
+      expect(undoRect.bottom, 900 - 84);
+
+      // Tap Undo in undo bar
+      await tester.tap(find.descendant(
+        of: undoBarFinder,
+        matching: find.text('Undo'),
+      ));
+      await _settle(tester);
+
+      // Undo bar dismissed
+      expect(find.byKey(const ValueKey('undo-bar')), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-3: desktop Earlier today is collapsed by default and toggles on click',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final todoId = await db.into(db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Early Morning Review',
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      // Ended allocation: 10:00 to 11:00 (now is 15:00)
+      await container.read(createTaskAllocationProvider)(
+        todoId: todoId,
+        startAt: DateTime(2026, 10, 6, 10),
+        endAt: DateTime(2026, 10, 6, 11),
+      );
+      container.dispose();
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // P1-3: Earlier today group head is rendered
+      final headFinder = find.text('Earlier today');
+      expect(headFinder, findsOneWidget);
+
+      // Default earlyOpen: false -> items inside are NOT rendered
+      expect(find.text('Early Morning Review'), findsNothing);
+
+      // Tap group head to expand
+      await tester.tap(headFinder);
+      await _settle(tester);
+
+      // Expanded: items inside are rendered
+      expect(find.text('Early Morning Review'), findsOneWidget);
+
+      // Tap group head again to collapse
+      await tester.tap(headFinder);
+      await _settle(tester);
+
+      // Collapsed again
+      expect(find.text('Early Morning Review'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-4: all-day events are excluded from upcoming timeline and do not show at 00:00',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final allDayEvent = CalendaEventAdapter(
+        drifId: 1,
+        calendarId: calendarId,
+        title: 'Full Day Festival',
+        start: DateTime(2026, 10, 6, 0, 0),
+        end: DateTime(2026, 10, 7, 0, 0),
+        isAllDay: true,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            actionProjectionProvider.overrideWith(
+              (ref) => AsyncValue.data(
+                ActionProjectionData(
+                  events: [allDayEvent],
+                ),
+              ),
+            ),
+            unplannedTodosProvider.overrideWith(
+              (ref) => const AsyncValue.data(<Todo>[]),
+            ),
+          ],
+          child: MaterialApp(
+            localizationsDelegates: const [
+              ...AppLocalizations.localizationsDelegates,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('en'),
+            home: Scaffold(
+              body: A2TodayPage(
+                now: DateTime(2026, 10, 6, 15),
+                onOpenTodo: (_) {},
+                onOpenEvent: (_) {},
+                onToggleTodo: (_, __, ___) async => true,
+                onOpenUnplanned: () {},
+                onScheduleTodo: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+
+      // All day event shows in all-day strip
+      expect(find.text('Full Day Festival'), findsOneWidget);
+      expect(find.byType(SpecAlldayStrip), findsOneWidget);
+
+      // P1-4: Must NOT show in upcoming / timeline at 00:00
+      expect(find.text('00:00'), findsNothing);
+      expect(find.text('Upcoming'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-5: mobile capture bar onExpand opens composer sheet',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.byType(A2ComposerSheet), findsNothing);
+
+      // Tap send button on empty capture bar (triggers onExpand)
+      final sendTarget = find.byKey(const ValueKey('capture-send-target'));
+      expect(sendTarget, findsOneWidget);
+      await tester.tap(sendTarget);
+      await _settle(tester);
+
+      // P1-5: A2ComposerSheet opens!
+      expect(find.byType(A2ComposerSheet), findsOneWidget);
 
       await _unmount(tester);
     },
