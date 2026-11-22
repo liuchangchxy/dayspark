@@ -262,6 +262,11 @@ abstract final class AppRouter {
           );
         },
       ),
+      GoRoute(
+        path: '/search',
+        name: 'search',
+        pageBuilder: (context, state) => _overlayPage(const SearchPage()),
+      ),
       ShellRoute(
         builder: (context, state, child) => WorkspaceScaffold(child: child),
         routes: [
@@ -297,6 +302,7 @@ abstract final class AppRouter {
                     );
               return _pageTransition(
                 EventFormPage(
+                  initialSummary: state.uri.queryParameters['summary'],
                   initialStart: start != null
                       ? DateTime.fromMillisecondsSinceEpoch(
                           int.tryParse(start) ??
@@ -422,12 +428,6 @@ abstract final class AppRouter {
               }
               return _pageTransition(TodoFormPage(todo: todo));
             },
-          ),
-          GoRoute(
-            path: '/search',
-            name: 'search',
-            pageBuilder: (context, state) =>
-                _pageTransition(const SearchPage()),
           ),
           GoRoute(
             path: '/tags',
