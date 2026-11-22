@@ -1946,7 +1946,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get other => '其他';
 
   @override
-  String get capturePlaceholder => '记一笔 · 回车直接进「未安排」';
+  String get capturePlaceholder => '记一件事，回车记下';
 
   @override
   String get captureHintEnter => '⏎ 进未安排';

@@ -661,12 +661,12 @@ void main() {
     );
     await _settle(tester);
 
-    // T1: the empty box is the whole page only. Overdue stands on its own.
+    // Spec: the empty 70px placeholder is gone; mobileTimeSections always keeps Now + now-line + Upcoming 0.
     expect(find.text('Nothing scheduled today'), findsNothing);
     expect(find.text('Overdue'), findsOneWidget);
     expect(find.text('Old rent'), findsOneWidget);
-    expect(find.text('Now'), findsNothing);
-    expect(find.text('Upcoming'), findsNothing);
+    expect(find.text('Now'), findsOneWidget);
+    expect(find.text('Upcoming'), findsOneWidget);
     expect(find.text('Due today'), findsNothing);
 
     await _unmount(tester);
@@ -1100,7 +1100,7 @@ void main() {
     // instead of cloning it into Upcoming (which would also reuse the undo
     // key twice and throw in debug builds).
     expect(find.text('Morning review'), findsOneWidget);
-    expect(find.text('Upcoming'), findsNothing);
+    expect(find.text('Upcoming'), findsOneWidget);
     expect(find.text('Undo'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 5));

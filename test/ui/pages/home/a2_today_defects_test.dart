@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
 
 Widget _app({
@@ -109,11 +111,10 @@ void main() {
     );
     await _settle(tester);
 
-    // The preview only carries no-due rows, so the deadline-bearing item must
-    // still keep the shelf and its count alive.
-    expect(find.text('Nothing scheduled today'), findsNothing);
-    expect(find.text('No date'), findsOneWidget);
-    expect(find.text('View 1 undated'), findsOneWidget);
+    // A deadline-bearing item has a due date, so it must not pollute
+    // the undated section, group head, or "View N undated".
+    expect(find.text('No date'), findsNothing);
+    expect(find.textContaining('undated'), findsNothing);
 
     await _unmount(tester);
   });
@@ -299,4 +300,622 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets(
+    'P1: mobile section order is tasks (overdue -> due -> undated) -> completed -> timeline',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // Overdue
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Overdue item',
+              dueDate: Value(DateTime(2026, 10, 1)),
+            ),
+          );
+      // Due today
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Due item',
+              dueDate: Value(DateTime(2026, 10, 6, 18)),
+            ),
+          );
+      // Undated
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Undated item',
+            ),
+          );
+      // Completed today
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Completed item',
+              status: const Value('COMPLETED'),
+              completedAt: Value(DateTime(2026, 10, 6, 10)),
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      final overdueY = tester.getTopLeft(find.text('Overdue item')).dy;
+      final dueY = tester.getTopLeft(find.text('Due item')).dy;
+      final undatedY = tester.getTopLeft(find.text('Undated item')).dy;
+      final completedHeadY = tester.getTopLeft(find.text('Completed Today')).dy;
+      final nowY = tester.getTopLeft(find.text('Now')).dy;
+      final upcomingY = tester.getTopLeft(find.text('Upcoming')).dy;
+
+      // Spec mobileTaskSections: Tasks -> Completed -> Timeline
+      expect(overdueY, lessThan(dueY));
+      expect(dueY, lessThan(undatedY));
+      expect(undatedY, lessThan(completedHeadY));
+      expect(completedHeadY, lessThan(nowY));
+      expect(nowY, lessThan(upcomingY));
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: timeline empty state never renders 70px blank and always keeps Now + Upcoming 0',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // Only one overdue item, no timeline allocations or events
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Past debt',
+              dueDate: Value(DateTime(2026, 9, 30)),
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // 70px empty text placeholder is gone
+      expect(find.text('Nothing scheduled today'), findsNothing);
+      expect(find.text('今天没有时间安排。'), findsNothing);
+
+      // Timeline has Now and Upcoming 0
+      expect(find.text('Now'), findsOneWidget);
+      expect(find.text('Upcoming'), findsOneWidget);
+      expect(find.text('0'), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P2: capture placeholder is spec copy and fits 366 width without shortcut hint',
+    (tester) async {
+      tester.view.physicalSize = const Size(366, 667);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      final textField = tester.widget<TextField>(
+        find.byKey(const ValueKey('today-capture-field')),
+      );
+      expect(textField.decoration?.hintText, 'Capture a task, press Enter');
+      // Unfocused on mobile: no shortcut hint that causes truncation
+      expect(find.text('Enter'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P2: page title has fontVariations with wght 650 matching spec .ph-title',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      final titleWidget = tester.widget<Text>(find.text('Oct 6'));
+      expect(titleWidget.style?.fontSize, 26.0);
+      final has650 = titleWidget.style?.fontVariations?.any(
+            (v) => v.axis == 'wght' && v.value == 650.0,
+          ) ??
+          false;
+      expect(has650, isTrue);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P2: mobile task row visual height is ~50, check left is ~19, title start is ~45',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Check geometric layout',
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      final title = find.text('Check geometric layout');
+      final titleLeft = tester.getTopLeft(title).dx;
+      // List padding (16) + check container (22) + gap (7) = 45.0
+      expect(titleLeft, closeTo(45.0, 1.0));
+
+      final check = find.byType(SpecCheck);
+      final checkCenter = tester.getCenter(check).dx;
+      // List padding (16) + check container center (11) = 27.0
+      expect(checkCenter, closeTo(27.0, 1.0));
+      // Visual circle r=8, so visual left edge is 27.0 - 8 = 19.0 (spec: ~19.5)
+      final visualLeft = checkCenter - 8.0;
+      expect(visualLeft, closeTo(19.0, 1.0));
+
+      final row = find.ancestor(
+        of: title,
+        matching: find.byType(GestureDetector),
+      ).first;
+      final rowSize = tester.getSize(row);
+      // Spec minHeight: 50.0
+      expect(rowSize.height, closeTo(50.0, 3.0));
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P2: undated collection count is unified across summary, group head, and hidden count',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // Insert 5 undated items
+      for (var i = 0; i < 5; i++) {
+        await db.into(db.todos).insert(
+              TodosCompanion.insert(
+                calendarId: calendarId,
+                summary: 'Undated task $i',
+              ),
+            );
+      }
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Summary says "5 No date"
+      expect(find.textContaining('· 5 No date ·'), findsOneWidget);
+      // Group head says "5"
+      expect(find.text('5'), findsWidgets);
+      // 5 total - 3 preview = 2 hidden
+      expect(find.text('2 more · Show all'), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-A: 48dp hit targets: check center +/- 18px toggles, schedule center +/- 18px schedules, title tap opens details',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Hit target test task',
+            ),
+          );
+
+      var toggleCount = 0;
+      var detailCount = 0;
+      var scheduleCount = 0;
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (t) => detailCount++,
+          onScheduleTodo: (t) => scheduleCount++,
+          onToggleTodo: (_, __, ___) async {
+            toggleCount++;
+            return true;
+          },
+        ),
+      );
+      await _settle(tester);
+
+      // Verify row visual layout: height ~ 50, check visual left ~ 19, title left ~ 45
+      final title = find.text('Hit target test task');
+      final titleLeft = tester.getTopLeft(title).dx;
+      expect(titleLeft, closeTo(45.0, 1.0));
+
+      final check = find.byType(SpecCheck);
+      final checkCenter = tester.getCenter(check);
+      expect(checkCenter.dx, closeTo(27.0, 1.0));
+      final visualLeft = checkCenter.dx - 8.0;
+      expect(visualLeft, closeTo(19.0, 1.0));
+
+      // 1. Tapping check center - 18px (dx = 9) toggles, does not open detail
+      await tester.tapAt(Offset(checkCenter.dx - 18, checkCenter.dy));
+      await _settle(tester);
+      expect(toggleCount, 1);
+      expect(detailCount, 0);
+      expect(scheduleCount, 0);
+
+      // 2. Tapping check center + 18px (dx = 45) toggles, does not open detail
+      await tester.tapAt(Offset(checkCenter.dx + 18, checkCenter.dy));
+      await _settle(tester);
+      expect(toggleCount, 2);
+      expect(detailCount, 0);
+      expect(scheduleCount, 0);
+
+      // 3. Find Schedule action (CupertinoIcons.calendar)
+      final calendarIcon = find.byIcon(CupertinoIcons.calendar);
+      final scheduleCenter = tester.getCenter(calendarIcon);
+      expect(scheduleCenter.dx, closeTo(358.0, 1.0));
+
+      // 4. Tapping schedule center - 18px (dx = 340) schedules, does not open detail
+      await tester.tapAt(Offset(scheduleCenter.dx - 18, scheduleCenter.dy));
+      await _settle(tester);
+      expect(scheduleCount, 1);
+      expect(toggleCount, 2);
+      expect(detailCount, 0);
+
+      // 5. Tapping schedule center + 18px (dx = 376) schedules, does not open detail
+      await tester.tapAt(Offset(scheduleCenter.dx + 18, scheduleCenter.dy));
+      await _settle(tester);
+      expect(scheduleCount, 2);
+      expect(toggleCount, 2);
+      expect(detailCount, 0);
+
+      // 6. Tapping between check hit box and schedule hit box (e.g. dx = 100) opens detail
+      await tester.tapAt(Offset(100, checkCenter.dy));
+      await _settle(tester);
+      expect(detailCount, 1);
+      expect(toggleCount, 2);
+      expect(scheduleCount, 2);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-B: overdue single item has 0 undated, group head not shown, View N undated not shown',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // 1 overdue item (yesterday)
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Overdue task',
+              dueDate: Value(day.subtract(const Duration(days: 1))),
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Summary shows "0 No date"
+      expect(find.textContaining('· 0 No date ·'), findsOneWidget);
+      // Group head for No date must NOT appear
+      expect(find.text('No date'), findsNothing);
+      // View N undated must NOT appear
+      expect(find.textContaining('undated'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-B: three items (overdue, due today, undated) has exactly 1 undated, N = 1 - 1 = 0',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // 1 overdue item
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Overdue task',
+              dueDate: Value(day.subtract(const Duration(days: 1))),
+            ),
+          );
+      // 1 due today item
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Due today task',
+              dueDate: Value(day),
+            ),
+          );
+      // 1 undated item
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Undated task',
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Summary shows "1 No date"
+      expect(find.textContaining('· 1 No date ·'), findsOneWidget);
+      // Group head shows 1
+      expect(find.text('1'), findsWidgets);
+      // View N undated must NOT appear since N = 1 - 1 = 0
+      expect(find.textContaining('undated'), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1-B desktop: multi undated items has N = total undated - shown preview',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // 1 overdue item
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Overdue task',
+              dueDate: Value(day.subtract(const Duration(days: 1))),
+            ),
+          );
+      // 1 due today item
+      await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Due today task',
+              dueDate: Value(day),
+            ),
+          );
+      // 5 undated items
+      for (var i = 0; i < 5; i++) {
+        await db.into(db.todos).insert(
+              TodosCompanion.insert(
+                calendarId: calendarId,
+                summary: 'Undated task $i',
+              ),
+            );
+      }
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Summary says "5 No date"
+      expect(find.textContaining('· 5 No date ·'), findsOneWidget);
+      // Group head says "5"
+      expect(find.text('5'), findsWidgets);
+      // N = 5 - 3 = 2 -> View 2 undated
+      expect(find.text('View 2 undated'), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: Earlier missed entry is visible and clickable when 30-day window has no missed items but has earlier missed series',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final earlierTodo = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Ancient recurring task',
+              rrule: const Value('FREQ=DAILY;COUNT=10'),
+            ),
+          );
+
+      final customProjection = ActionProjectionData(
+        missedTaskInstances: const [],
+        hasEarlierMissed: true,
+        earlierMissedSeries: [earlierTodo],
+      );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+            actionProjectionProvider.overrideWithValue(AsyncValue.data(customProjection)),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Missed group header must appear
+      expect(find.text('Missed'), findsOneWidget);
+      // Earlier missed entry must be visible
+      final earlierMissedFinder = find.text('Earlier missed…');
+      expect(earlierMissedFinder, findsOneWidget);
+
+      // Tapping Earlier missed expands the series
+      await tester.tap(earlierMissedFinder);
+      await _settle(tester);
+
+      // Now earlier missed series row appears
+      final ancientRecurringFinder = find.text('Ancient recurring task');
+      expect(ancientRecurringFinder, findsAtLeastNWidgets(1));
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: mobile time row time label left edge aligns with group head (same x = 16 or 19)',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db.into(db.events).insertReturning(
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Morning Standup',
+              startDt: DateTime(2026, 10, 6, 9),
+              endDt: DateTime(2026, 10, 6, 9, 30),
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => DateTime(2026, 10, 6)),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      // Group head has horizontal padding 16 inside ListView, content has padding horizontal 3 -> x = 19
+      final groupHeadTextFinder = find.text('Earlier today');
+      expect(groupHeadTextFinder, findsOneWidget);
+      final groupHeadRect = tester.getRect(groupHeadTextFinder);
+
+      // Mobile time row has horizontal padding 16 inside ListView -> row starts at x = 16
+      final timeLabelFinder = find.text('09:00');
+      expect(timeLabelFinder, findsOneWidget);
+      final timeLabelParentRowFinder = find.ancestor(
+        of: timeLabelFinder,
+        matching: find.byType(Row),
+      ).first;
+      final timeRowRect = tester.getRect(timeLabelParentRowFinder);
+
+      expect(
+        timeRowRect.left,
+        16.0,
+        reason: '_mobileTimeRow must have horizontal padding 16 so time label column starts at x = 16',
+      );
+      // Group head title text starts at x = 16 + 3 = 19
+      expect(groupHeadRect.left, 19.0);
+
+      await _unmount(tester);
+    },
+  );
 }

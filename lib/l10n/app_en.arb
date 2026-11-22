@@ -1064,7 +1064,7 @@
   },
   "calendarTags": "Calendar & tags",
   "other": "Other",
-  "capturePlaceholder": "Capture · Enter files it unplanned",
+  "capturePlaceholder": "Capture a task, press Enter",
   "captureHintEnter": "⏎ Unplanned",
   "captureHintSubmit": "Add",
   "captureAddedToast": "Added to Unplanned · keep typing",
