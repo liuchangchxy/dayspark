@@ -997,16 +997,16 @@ class _HomePageState extends ConsumerState<HomePage>
     router.push('/search');
   }
 
-  /// Todos reads detail as a column beside the list once the window is wide
-  /// enough; Today stays an overlay, and a narrow desktop keeps the 360
-  /// overlay rather than squeezing the list.
+  /// Todos and Calendar read detail as a column beside the content once the
+  /// window is wide enough; Today stays an overlay, and a narrow desktop keeps
+  /// the 360 overlay rather than squeezing the content.
   bool _usesInlineDetail(AppTab tab) =>
-      tab == AppTab.todos &&
+      (tab == AppTab.todos || tab == AppTab.calendar) &&
       MediaQuery.sizeOf(context).width >= kWideDesktopBreakpoint;
 
-  /// Whether a tap can be answered in place via the desktop drawer overlay.
-  /// On wide layouts (>= 1000) Today, Calendar, and Todos destinations show
-  /// the overlay drawer; on narrow layouts (< 1000) and mobile (< 720) it navigates.
+  /// Whether a tap can be answered in place on this destination. Wide desktop
+  /// (>= 1000) shows the detail in place; narrow desktop (< 1000) and mobile
+  /// (< 720) navigate instead.
   bool _rendersSelectionHere(AppTab tab) =>
       (tab == AppTab.action ||
           tab == AppTab.calendar ||

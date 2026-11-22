@@ -716,12 +716,15 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           ),
         ),
         const SizedBox(width: 10),
-        Text(
-          sub,
-          style: const TextStyle(
-            fontSize: 11.5,
-            color: SpecTokens.muted,
-            fontFamilyFallback: AppTypography.fallback,
+        Flexible(
+          child: Text(
+            sub,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11.5,
+              color: SpecTokens.muted,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
           ),
         ),
       ],
@@ -767,8 +770,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                left,
-                const Spacer(),
+                Expanded(child: left),
+                const SizedBox(width: 12),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
