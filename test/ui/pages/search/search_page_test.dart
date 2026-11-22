@@ -9,6 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/native.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/search_provider.dart';
@@ -16,6 +18,7 @@ import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 
 void main() {
@@ -51,7 +54,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          inboxTodosProvider.overrideWith((ref) => Stream.value([todo])),
+          recentCommandTodosProvider.overrideWith((ref) => Stream.value([todo])),
+          recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
           todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
           toggleTodoProvider.overrideWith(
             (ref) =>
@@ -200,7 +204,8 @@ void main() {
       ProviderScope(
         overrides: [
           todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
-          inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+          recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+          recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
           searchResultsProvider(
             'plan',
           ).overrideWith((ref) async => SearchResults([], [todo])),
@@ -282,7 +287,8 @@ void main() {
       ProviderScope(
         overrides: [
           todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
-          inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+          recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+          recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
           searchResultsProvider(
             'plan',
           ).overrideWith((ref) async => SearchResults([], [todo])),
@@ -347,7 +353,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+          recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+          recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
         ],
         child: MaterialApp.router(
           routerConfig: router,
@@ -464,7 +471,8 @@ void main() {
             taskAllocationsForTodoProvider(
               todo.id,
             ).overrideWith((ref) => Stream.value([])),
-            inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
             searchResultsProvider(
               'Weekly',
             ).overrideWith((ref) async => SearchResults([event], [todo])),
@@ -534,7 +542,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
           ],
           child: MaterialApp.router(
             routerConfig: router,
@@ -554,7 +563,18 @@ void main() {
       // Initial state has 3 action items (New Task, New Event, Configure)
       expect(find.byType(CmdRow), findsNWidgets(3));
 
-      // Initial footer shows Item 1 selected
+      // No row is selected until the keyboard asks for one.
+      expect(find.text('Content first, actions after'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<CmdRow>(find.byType(CmdRow))
+            .where((row) => row.selected),
+        isEmpty,
+      );
+
+      // Down arrow selects the first item
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
       expect(find.text('Item 1 selected'), findsOneWidget);
 
       // Down arrow moves selection to item 2
@@ -589,7 +609,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
             searchResultsProvider(
               'nonexistent',
             ).overrideWith((ref) async => SearchResults([], [])),
@@ -639,7 +660,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
           ],
           child: MaterialApp.router(
             routerConfig: router,
@@ -709,7 +731,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
             searchResultsProvider(
               'budget',
             ).overrideWith((ref) async => SearchResults([event], [todo])),
@@ -819,7 +842,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            inboxTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+            recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
             searchResultsProvider(
               'Bulk',
             ).overrideWith((ref) async => SearchResults([], todos)),
@@ -857,4 +881,438 @@ void main() {
       router.dispose();
     },
   );
+
+  testWidgets('empty state merges recent todos and events by recency', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final olderTodo = Todo(
+      id: 1,
+      calendarId: 1,
+      summary: 'Older task',
+      priority: 5,
+      status: 'NEEDS-ACTION',
+      recurrenceRevision: 0,
+      percentComplete: 0,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026, 1, 1),
+      sortOrder: 0,
+      serverRev: 0,
+    );
+    final newerEvent = Event(
+      id: 2,
+      calendarId: 1,
+      summary: 'Newer event',
+      startDt: DateTime(2026, 11, 22, 10),
+      endDt: DateTime(2026, 11, 22, 11),
+      isAllDay: false,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026, 11, 22),
+      serverRev: 0,
+    );
+
+    final router = GoRouter(
+      initialLocation: '/search',
+      routes: [
+        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          recentCommandTodosProvider.overrideWith(
+            (ref) => Stream.value([olderTodo]),
+          ),
+          recentCommandEventsProvider.overrideWith(
+            (ref) => Stream.value([newerEvent]),
+          ),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recent'), findsOneWidget);
+    expect(find.text(olderTodo.summary), findsOneWidget);
+    expect(find.text(newerEvent.summary), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text(newerEvent.summary)).dy,
+      lessThan(tester.getTopLeft(find.text(olderTodo.summary)).dy),
+      reason: 'the most recently updated item comes first',
+    );
+    expect(find.text('New Task'), findsOneWidget);
+
+    router.dispose();
+  });
+
+  testWidgets('desktop command palette paints a scrim instead of paper', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final router = GoRouter(
+      initialLocation: '/search',
+      routes: [
+        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          recentCommandTodosProvider.overrideWith(
+            (ref) => Stream.value([]),
+          ),
+          recentCommandEventsProvider.overrideWith(
+            (ref) => Stream.value([]),
+          ),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is ColoredBox && widget.color == SpecTokens.paper,
+      ),
+      findsNothing,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is ColoredBox &&
+            widget.color == const Color(0x3D191918),
+      ),
+      findsOneWidget,
+    );
+
+    router.dispose();
+  });
+
+  testWidgets('opening a result closes the palette before pushing the detail', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final todo = Todo(
+      id: 1,
+      calendarId: 1,
+      summary: 'Recent task to open',
+      priority: 5,
+      status: 'NEEDS-ACTION',
+      recurrenceRevision: 0,
+      percentComplete: 0,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026, 11, 22),
+      sortOrder: 0,
+      serverRev: 0,
+    );
+
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, __) => const Scaffold(body: Text('Home route')),
+        ),
+        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+        GoRoute(
+          path: '/todo/detail',
+          builder: (_, __) =>
+              const Scaffold(body: Text('Todo detail route')),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          recentCommandTodosProvider.overrideWith(
+            (ref) => Stream.value([todo]),
+          ),
+          recentCommandEventsProvider.overrideWith(
+            (ref) => Stream.value([]),
+          ),
+          todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    router.push('/search');
+    await tester.pumpAndSettle();
+    expect(find.byType(SearchPage), findsOneWidget);
+
+    await tester.tap(find.text(todo.summary));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Todo detail route'), findsOneWidget);
+    expect(
+      find.byType(SearchPage),
+      findsNothing,
+      reason: 'the command palette must not stay underneath the detail',
+    );
+
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('Home route'), findsOneWidget);
+
+    router.dispose();
+  });
+
+  testWidgets('opening a result from a shell page keeps one shell navigator', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final todo = Todo(
+      id: 1,
+      calendarId: 1,
+      summary: 'Task from a shell page',
+      priority: 5,
+      status: 'NEEDS-ACTION',
+      recurrenceRevision: 0,
+      percentComplete: 0,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026, 11, 22),
+      sortOrder: 0,
+      serverRev: 0,
+    );
+
+    final router = GoRouter(
+      initialLocation: '/',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, __) => const Scaffold(body: Text('Home route')),
+        ),
+        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+        ShellRoute(
+          builder: (context, state, child) => Scaffold(body: child),
+          routes: [
+            GoRoute(
+              path: '/settings',
+              builder: (_, __) =>
+                  const Scaffold(body: Text('Settings page')),
+            ),
+            GoRoute(
+              path: '/todo/detail',
+              builder: (_, __) =>
+                  const Scaffold(body: Text('Todo detail route')),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          recentCommandTodosProvider.overrideWith(
+            (ref) => Stream.value([todo]),
+          ),
+          recentCommandEventsProvider.overrideWith(
+            (ref) => Stream.value([]),
+          ),
+          todoTagsProvider(todo.id).overrideWith((ref) => Stream.value([])),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    router.push('/settings');
+    await tester.pumpAndSettle();
+    router.push('/search');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(todo.summary));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Todo detail route'), findsOneWidget);
+    expect(find.byType(SearchPage), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    router.dispose();
+  });
+
+  testWidgets('a Chinese action prefix exposes actions with the remainder', (    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final router = GoRouter(
+      initialLocation: '/search',
+      routes: [
+        GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
+        GoRoute(
+          path: '/event/new',
+          builder: (_, state) => Scaffold(
+            body: Text('event ${state.uri.queryParameters['summary']}'),
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          recentCommandTodosProvider.overrideWith(
+            (ref) => Stream.value([]),
+          ),
+          recentCommandEventsProvider.overrideWith(
+            (ref) => Stream.value([]),
+          ),
+          searchResultsProvider(
+            '新建 周报',
+          ).overrideWith((ref) async => SearchResults([], [])),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField), '新建 周报');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.text('Actions'), findsOneWidget);
+    expect(find.text('New Task'), findsOneWidget);
+    expect(find.text('New Event'), findsOneWidget);
+    expect(find.text('Title "周报"'), findsNWidgets(2));
+
+    await tester.tap(find.text('New Event'));
+    await tester.pumpAndSettle();
+    expect(find.text('event 周报'), findsOneWidget);
+
+    router.dispose();
+  });
+
+  testWidgets('eventCreate form seeds its title from initialSummary', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+    tester.view.physicalSize = const Size(1000, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final router = GoRouter(
+      initialLocation: '/new',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (_, __) => const Scaffold(body: Text('home')),
+          routes: [
+            GoRoute(
+              path: 'new',
+              builder: (_, __) => EventFormPage(
+                initialStart: DateTime(2026, 11, 22, 10),
+                initialEnd: DateTime(2026, 11, 22, 11),
+                initialSummary: '周报整理',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(db)],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.controller?.text == '周报整理',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 20));
+    router.dispose();
+  });
 }

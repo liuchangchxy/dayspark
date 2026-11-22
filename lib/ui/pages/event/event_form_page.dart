@@ -42,6 +42,7 @@ class EventFormPage extends ConsumerStatefulWidget {
     this.event,
     this.initialStart,
     this.initialEnd,
+    this.initialSummary,
   }) : assert(
          event != null || (initialStart != null && initialEnd != null),
          'either an event to edit or an initial range is required',
@@ -50,6 +51,7 @@ class EventFormPage extends ConsumerStatefulWidget {
   final CalendaEventAdapter? event;
   final DateTime? initialStart;
   final DateTime? initialEnd;
+  final String? initialSummary;
 
   @override
   ConsumerState<EventFormPage> createState() => _EventFormPageState();
@@ -105,6 +107,10 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
       _start = widget.initialStart!;
       _end = widget.initialEnd!;
       _openedAsAllDay = false;
+      final summary = widget.initialSummary?.trim();
+      if (summary != null && summary.isNotEmpty) {
+        _titleController.text = summary;
+      }
       _initial = _snapshot();
     }
   }

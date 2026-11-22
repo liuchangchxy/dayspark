@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -13,10 +14,44 @@ import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/search_provider.dart';
-import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+
+const List<String> _chineseActionPrefixes = [
+  '打开设置',
+  '去设置',
+  '记一条',
+  '记一笔',
+  '新建',
+  '创建',
+  '添加',
+  '安排',
+  '设置',
+];
+
+final recentCommandTodosProvider = StreamProvider.autoDispose<List<Todo>>((
+  ref,
+) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.todos)
+        ..where((t) => t.deletedAt.isNull() & t.parentId.isNull())
+        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+        ..limit(5))
+      .watch();
+});
+
+final recentCommandEventsProvider = StreamProvider.autoDispose<List<Event>>((
+  ref,
+) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.events)
+        ..where((t) => t.deletedAt.isNull())
+        ..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])
+        ..limit(5))
+      .watch();
+});
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -31,7 +66,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   String _query = '';
   int _eventPage = 1;
   int _todoPage = 1;
-  int _selected = 0;
+  int _selected = -1;
   Timer? _debounceTimer;
 
   SearchResults? _shown;
@@ -44,19 +79,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.dispose();
   }
 
-  Future<void> _openDetail(String path, Object? extra) async {
-    await context.push(path, extra: extra);
-    if (!mounted || _query.isEmpty) return;
-    ref.invalidate(searchResultsProvider(_query));
-    ref.invalidate(
-      pagedSearchResultsProvider(
-        SearchQueryState(
-          query: _query,
-          eventPage: _eventPage,
-          todoPage: _todoPage,
-        ),
-      ),
-    );
+  Future<void> _openTarget(String path, Object? extra) async {
+    final router = GoRouter.maybeOf(context);
+    if (router == null) return;
+    if (router.canPop()) {
+      router.pop();
+    }
+    await router.push(path, extra: extra);
   }
 
   void _submitSearch(String query) {
@@ -70,7 +99,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _query = trimmed;
       _eventPage = 1;
       _todoPage = 1;
-      _selected = 0;
+      _selected = -1;
     });
   }
 
@@ -94,7 +123,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _query = '';
       _eventPage = 1;
       _todoPage = 1;
-      _selected = 0;
+      _selected = -1;
       _shown = null;
     });
     _searchFocus.requestFocus();
@@ -103,6 +132,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void _moveSelection(int delta, int length) {
     if (length == 0) return;
     setState(() {
+      if (_selected < 0) {
+        _selected = delta > 0 ? 0 : length - 1;
+        return;
+      }
       _selected = (_selected + delta).clamp(0, length - 1);
     });
   }
@@ -110,32 +143,33 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void _openHit(_CmdHit hit) {
     switch (hit.kind) {
       case _CmdHitKind.todo:
-        _openDetail('/todo/detail', hit.todo!);
+        _openTarget('/todo/detail', hit.todo!);
       case _CmdHitKind.event:
-        _openDetail(
+        _openTarget(
           '/event/detail',
           CalendaEventAdapter.fromDrift(hit.event!),
         );
       case _CmdHitKind.action:
+        final summary = _titleFromQuery(_query);
         switch (hit.action!) {
           case _CmdActionKind.captureTodo:
-            final path = _query.isNotEmpty
-                ? '/todo/new?summary=${Uri.encodeComponent(_query)}'
+            final path = summary.isNotEmpty
+                ? '/todo/new?summary=${Uri.encodeComponent(summary)}'
                 : '/todo/new';
-            _openDetail(path, null);
+            _openTarget(path, null);
           case _CmdActionKind.captureEvent:
-            final path = _query.isNotEmpty
-                ? '/event/new?summary=${Uri.encodeComponent(_query)}'
+            final path = summary.isNotEmpty
+                ? '/event/new?summary=${Uri.encodeComponent(summary)}'
                 : '/event/new';
-            _openDetail(path, null);
+            _openTarget(path, null);
           case _CmdActionKind.goSettings:
-            _openDetail('/settings', null);
+            _openTarget('/settings', null);
         }
     }
   }
 
   void _openSelected(List<_CmdHit> hits) {
-    if (hits.isEmpty) return;
+    if (hits.isEmpty || _selected < 0) return;
     final index = _selected.clamp(0, hits.length - 1);
     _openHit(hits[index]);
   }
@@ -150,7 +184,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   bool _isActionQuery(String q, AppLocalizations l) {
-    final lower = q.trim().toLowerCase();
+    final trimmed = q.trim();
+    final lower = trimmed.toLowerCase();
     final actionWord = l.commandSideAction.toLowerCase();
     final todoWord = l.commandCreateTodo.toLowerCase();
     final eventWord = l.commandCreateEvent.toLowerCase();
@@ -164,27 +199,68 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         lower.startsWith(todoWord) ||
         lower.startsWith(eventWord) ||
         lower.contains(settingsWord) ||
-        lower.contains(actionWord);
+        lower.contains(actionWord) ||
+        _chineseActionPrefixes.any(trimmed.startsWith);
   }
+
+  String _actionRemainder(String q) {
+    var text = q.trim();
+    if (text.startsWith('>')) {
+      text = text.substring(1).trim();
+    }
+    for (final prefix in _chineseActionPrefixes) {
+      if (!text.startsWith(prefix)) continue;
+      return text
+          .substring(prefix.length)
+          .replaceFirst(RegExp(r'^[\s:：,，、]+'), '')
+          .trim();
+    }
+    return '';
+  }
+
+  String _titleFromQuery(String q) {
+    final remaining = _actionRemainder(q);
+    return remaining.isEmpty ? q.trim() : remaining;
+  }
+
+  String _actionMetaTitle(AppLocalizations l, String q) =>
+      l.commandActionTitleQuery(_titleFromQuery(q));
 
   List<_CmdHit> _buildHits({
     required BuildContext context,
     required AppLocalizations l,
     required SearchResults? results,
-    required List<Todo> inbox,
+    required List<Todo> recentTodos,
+    required List<Event> recentEvents,
   }) {
     final list = <_CmdHit>[];
     if (_query.isEmpty) {
-      // Recent group
-      for (final todo in inbox.take(5)) {
-        list.add(
-          _CmdHit.todo(
+      final recents = <({DateTime updatedAt, _CmdHit hit})>[];
+      for (final todo in recentTodos) {
+        recents.add((
+          updatedAt: todo.updatedAt,
+          hit: _CmdHit.todo(
             todo,
             title: todo.summary,
             meta: _todoMeta(context, l, todo),
             side: l.commandSideTodo,
           ),
-        );
+        ));
+      }
+      for (final event in recentEvents) {
+        recents.add((
+          updatedAt: event.updatedAt,
+          hit: _CmdHit.event(
+            event,
+            title: event.summary,
+            meta: _eventMeta(context, l, event),
+            side: l.commandSideEvent,
+          ),
+        ));
+      }
+      recents.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      for (final recent in recents.take(5)) {
+        list.add(recent.hit);
       }
       // Actions group
       list.add(
@@ -242,7 +318,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           _CmdHit.action(
             _CmdActionKind.captureTodo,
             title: l.commandCreateTodo,
-            meta: l.commandActionTitleQuery(_query),
+            meta: _actionMetaTitle(l, _query),
             side: l.commandSideAction,
             icon: CupertinoIcons.plus,
           ),
@@ -251,7 +327,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           _CmdHit.action(
             _CmdActionKind.captureEvent,
             title: l.commandCreateEvent,
-            meta: l.commandActionTitleQuery(_query),
+            meta: _actionMetaTitle(l, _query),
             side: l.commandSideAction,
             icon: CupertinoIcons.calendar,
           ),
@@ -261,7 +337,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           _CmdHit.action(
             _CmdActionKind.captureTodo,
             title: l.commandCreateTodo,
-            meta: l.commandActionTitleQuery(_query),
+            meta: _actionMetaTitle(l, _query),
             side: l.commandSideAction,
             icon: CupertinoIcons.plus,
           ),
@@ -270,7 +346,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           _CmdHit.action(
             _CmdActionKind.captureEvent,
             title: l.commandCreateEvent,
-            meta: l.commandActionTitleQuery(_query),
+            meta: _actionMetaTitle(l, _query),
             side: l.commandSideAction,
             icon: CupertinoIcons.calendar,
           ),
@@ -308,15 +384,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       });
     }
 
-    final inbox = ref.watch(inboxTodosProvider).valueOrNull ?? const <Todo>[];
+    final recentTodos =
+        ref.watch(recentCommandTodosProvider).valueOrNull ?? const <Todo>[];
+    final recentEvents =
+        ref.watch(recentCommandEventsProvider).valueOrNull ?? const <Event>[];
     final hits = _buildHits(
       context: context,
       l: l,
       results: results,
-      inbox: inbox,
+      recentTodos: recentTodos,
+      recentEvents: recentEvents,
     );
 
-    final selected = hits.isEmpty
+    final selected = hits.isEmpty || _selected < 0
         ? -1
         : _selected.clamp(0, hits.length - 1);
 
@@ -357,7 +437,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         desktop: desktop,
         selected: selected,
         hits: hits,
-        inbox: inbox,
         results: results,
         shrinkWrap: shrinkWrap,
         loading: loading,
@@ -368,7 +447,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       return Stack(
         fit: StackFit.expand,
         children: [
-          const ColoredBox(color: SpecTokens.paper),
           const ColoredBox(color: Color(0x3D191918)),
           Padding(
             padding: const EdgeInsets.only(top: 94),
@@ -617,7 +695,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               _query = text;
               _eventPage = 1;
               _todoPage = 1;
-              _selected = 0;
+              _selected = -1;
             });
           }
         });
@@ -755,13 +833,15 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     required bool desktop,
     required int selected,
     required List<_CmdHit> hits,
-    required List<Todo> inbox,
     required SearchResults? results,
     required bool shrinkWrap,
     required bool loading,
   }) {
     if (_query.isEmpty) {
       var itemIndex = 0;
+      final recentCount = hits
+          .where((hit) => hit.kind != _CmdHitKind.action)
+          .length;
       return SingleChildScrollView(
         key: const PageStorageKey('search-results-empty'),
         padding: const EdgeInsets.symmetric(vertical: 5),
@@ -769,9 +849,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (inbox.isNotEmpty) ...[
+            if (recentCount > 0) ...[
               _cmdGroupHeader(l.commandHintRecent, mobile: !desktop),
-              for (var i = 0; i < inbox.take(5).length; i++)
+              for (var i = 0; i < recentCount; i++)
                 _buildRow(
                   hit: hits[itemIndex],
                   index: itemIndex++,
@@ -822,7 +902,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               _loadMore(l, () {
                 setState(() {
                   _todoPage++;
-                  _selected = 0;
+                  _selected = -1;
                 });
               }, desktop, loading),
           ],
@@ -839,7 +919,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               _loadMore(l, () {
                 setState(() {
                   _eventPage++;
-                  _selected = 0;
+                  _selected = -1;
                 });
               }, desktop, loading),
           ],
@@ -873,11 +953,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       selected: selected == index,
       mobile: !desktop,
       onTap: () => _openHit(hit),
-      onHover: () {
-        if (_selected != index) {
-          setState(() => _selected = index);
-        }
-      },
+      onHover: () {},
     );
   }
 
