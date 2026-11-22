@@ -51,6 +51,9 @@ class A2TodoPage extends ConsumerStatefulWidget {
     this.onScheduleTodo,
     this.onOpenEvent,
     this.onOpenUnplanned,
+    this.dayAgendaLoading = false,
+    this.dayAgendaFailed = false,
+    this.onRetryDayAgenda,
     this.trailingActions = const <Widget>[],
     this.detail,
   });
@@ -67,6 +70,9 @@ class A2TodoPage extends ConsumerStatefulWidget {
   final ValueChanged<Todo>? onScheduleTodo;
   final ValueChanged<CalendaEventAdapter>? onOpenEvent;
   final VoidCallback? onOpenUnplanned;
+  final bool dayAgendaLoading;
+  final bool dayAgendaFailed;
+  final VoidCallback? onRetryDayAgenda;
   final List<Widget> trailingActions;
   final Widget? detail;
 
@@ -401,15 +407,25 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         for (final todo in unplanned)
           if (todo.dueDate == null) todo,
       ];
-      body = _dayBody(
-        l,
-        names,
-        selection,
-        desktop,
-        visible,
-        noDateTodos,
-        filtered,
-      );
+      final dayFailed = widget.dayAgendaFailed || unplannedAsync.hasError;
+      body = dayFailed
+          ? _loadError(l, () {
+              widget.onRetryDayAgenda?.call();
+              ref.invalidate(unplannedTodosProvider);
+              ref.invalidate(allTodosProvider);
+              ref.invalidate(allActiveTaskAllocationsProvider);
+            })
+          : _dayBody(
+              l,
+              names,
+              selection,
+              desktop,
+              visible,
+              noDateTodos,
+              filtered,
+              widget.dayAgendaLoading ||
+                  (unplannedAsync.isLoading && !unplannedAsync.hasValue),
+            );
     }
 
     if (desktop) {
@@ -1751,7 +1767,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     bool Function(Todo) visible,
     List<Todo> noDateTodos,
     bool filtered,
+    bool isLoading,
   ) {
+    if (isLoading) return _loading();
     final agenda = widget.dayAgenda;
     final allocations = <DayItem>[
       for (final item in agenda.allocations)

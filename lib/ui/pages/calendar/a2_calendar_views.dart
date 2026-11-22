@@ -1059,6 +1059,8 @@ class A2TimeGridView extends StatelessWidget {
     required this.calendarNames,
     required this.dayMode,
     this.isDesktop = true,
+    this.emptyTitle,
+    this.emptyHint,
     this.onSelectDay,
     this.onEvent,
     this.onAllocation,
@@ -1076,6 +1078,8 @@ class A2TimeGridView extends StatelessWidget {
   final Map<int, String> calendarNames;
   final bool dayMode;
   final bool isDesktop;
+  final String? emptyTitle;
+  final String? emptyHint;
   final ValueChanged<DateTime>? onSelectDay;
   final ValueChanged<CalendaEventAdapter>? onEvent;
   final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
@@ -1123,6 +1127,36 @@ class A2TimeGridView extends StatelessWidget {
         dayMode ? _dayHeadbar(context, days.first) : _weekHead(context),
         _allDayLane(context, allDayByDay, allDayEvents),
         _deadlineLane(context, l),
+        if (emptyTitle != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+            child: Column(
+              children: [
+                Text(
+                  emptyTitle!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: SpecTokens.ink2,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                if (emptyHint != null) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    emptyHint!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: SpecTokens.faint,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         Expanded(
           child: SingleChildScrollView(
             child: Padding(
@@ -2221,6 +2255,7 @@ class A2PhoneWeekList extends StatelessWidget {
     required this.events,
     required this.allocations,
     required this.deadlines,
+    this.isEmpty = false,
     this.onEvent,
     this.onAllocation,
     this.onDeadline,
@@ -2234,6 +2269,7 @@ class A2PhoneWeekList extends StatelessWidget {
   final List<CalendaEventAdapter> events;
   final List<TaskAllocationCalendarItem> allocations;
   final List<CalendarDeadline> deadlines;
+  final bool isEmpty;
   final ValueChanged<CalendaEventAdapter>? onEvent;
   final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
   final ValueChanged<CalendarDeadline>? onDeadline;
@@ -2270,6 +2306,34 @@ class A2PhoneWeekList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
+        if (isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.calendarWeekEmpty,
+                  key: const ValueKey('phone-week-empty'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: SpecTokens.ink2,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  l.calendarWeekEmptyHint,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    color: SpecTokens.faint,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ],
+            ),
+          ),
         for (final day in days)
           _A2PhoneWeekDay(
             day: day,

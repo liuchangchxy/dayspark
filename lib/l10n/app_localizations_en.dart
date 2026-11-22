@@ -839,6 +839,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get calendarWeekSummary => 'This week · 7 days';
 
   @override
+  String get calendarWeekEmpty => 'Nothing this week.';
+
+  @override
+  String get calendarWeekEmptyHint => 'Start from capture or a calendar time slot.';
+
+  @override
   String get openUpdatePage => 'View release';
 
   @override
