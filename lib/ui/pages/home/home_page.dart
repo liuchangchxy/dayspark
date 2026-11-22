@@ -85,6 +85,7 @@ class _HomePageState extends ConsumerState<HomePage>
   bool _calendarTabWasActive = false;
   bool _urlSyncScheduled = false;
   Timer? _dayCheckTimer;
+  Timer? _todayTicker;
   DateTime? _lastCheckedDay;
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
@@ -117,6 +118,7 @@ class _HomePageState extends ConsumerState<HomePage>
       });
     }
     WidgetsBinding.instance.addObserver(this);
+    _startTodayTicker();
     _listenForDefaultTabChanges();
     _listenForWidgetRefreshTriggers();
     _listenForUrlStateChanges();
@@ -268,6 +270,38 @@ class _HomePageState extends ConsumerState<HomePage>
     _scheduleNextMidnightCheck();
   }
 
+  /// The Today page paints "now" from the clock at build time, and group
+  /// membership is derived from it. A minute that elapses while the page sits
+  /// open must move both, so tick on the minute boundary instead of leaving
+  /// the page frozen on the moment it was built.
+  void _startTodayTicker() {
+    _todayTicker?.cancel();
+    final now = _now();
+    final nextMinute = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute + 1,
+    );
+    _todayTicker = Timer(nextMinute.difference(now), () {
+      _refreshTodayClock();
+      if (!mounted) return;
+      _todayTicker = Timer.periodic(
+        const Duration(minutes: 1),
+        (_) => _refreshTodayClock(),
+      );
+    });
+  }
+
+  /// A tick is only worth a rebuild when Today is the visible destination;
+  /// the other tabs read their own clocks when they are built.
+  void _refreshTodayClock() {
+    if (!mounted) return;
+    if (ref.read(workspaceTabProvider) != AppTab.action) return;
+    setState(() {});
+  }
+
   void _scheduleNextMidnightCheck() {
     final now = _now();
     final midnight = DateTime(now.year, now.month, now.day + 1);
@@ -296,6 +330,7 @@ class _HomePageState extends ConsumerState<HomePage>
     if (mounted) setState(() {});
     _dayCheckTimer?.cancel();
     _scheduleNextMidnightCheck();
+    _startTodayTicker();
   }
 
   void _refreshHomeWidget() {
@@ -434,6 +469,7 @@ class _HomePageState extends ConsumerState<HomePage>
   @override
   void dispose() {
     _dayCheckTimer?.cancel();
+    _todayTicker?.cancel();
     NotificationService().onNotificationAction = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
