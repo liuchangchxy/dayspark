@@ -23,6 +23,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
+import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
@@ -366,14 +367,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     }
 
     if (desktop) {
-      final isMasterDetail = MediaQuery.sizeOf(context).width >= 1180;
       final detail = widget.detail;
+      final showDrawer = canShowDesktopDrawer(context) && detail != null;
       return Material(
         color: SpecTokens.paper,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Stack(
           children: [
-            Expanded(
+            Positioned.fill(
               child: Stack(
                 children: [
                   Positioned.fill(
@@ -395,11 +395,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                 ],
               ),
             ),
-            // The frozen spec only widens the page for a drawer that is open.
-            if (isMasterDetail && detail != null)
-              SizedBox(
-                width: 380,
-                child: ClipRect(child: detail),
+            if (showDrawer)
+              SpecDrawerOverlay(
+                child: detail,
               ),
           ],
         ),

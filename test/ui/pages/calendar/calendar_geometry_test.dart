@@ -157,7 +157,7 @@ void main() {
     );
 
     testWidgets(
-      'narrow width (800-1179) has no inline 380px detail column, wide (>=1180) has 380px column',
+      'width <1000 has no drawer, narrow (1000-1179) has 360px drawer, wide (>=1180) has 380px drawer',
       (tester) async {
         final dummyDetail = Container(
           key: const ValueKey('dummy-detail-pane'),
@@ -165,11 +165,37 @@ void main() {
           color: Colors.white,
         );
 
-        // 1. Narrow width 1000px: no 380px detail column
-        tester.view.physicalSize = const Size(1000, 800);
+        // 1. Below 1000px: no desktop drawer
+        tester.view.physicalSize = const Size(800, 800);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
 
+        await tester.pumpWidget(
+          _testApp(
+            A2TodoPage(
+              now: DateTime(2026, 11, 21, 12),
+              dayAgenda: DayAgenda(
+                day: _testDay,
+                events: const [],
+                allocations: const [],
+                dueTodos: const [],
+                overdueTodos: const [],
+                instances: const [],
+              ),
+              detail: dummyDetail,
+            ),
+            db: db,
+            width: 800,
+            height: 800,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // On 800px (< 1000), detail must NOT be rendered
+        expect(find.byKey(const ValueKey('dummy-detail-pane')), findsNothing);
+
+        // 2. Narrow width 1000px (1000-1179): 360px overlay drawer is rendered
+        tester.view.physicalSize = const Size(1000, 800);
         await tester.pumpWidget(
           _testApp(
             A2TodoPage(
@@ -191,10 +217,10 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // On 1000px (< 1180), detail must NOT be rendered inline
-        expect(find.byKey(const ValueKey('dummy-detail-pane')), findsNothing);
+        expect(find.byKey(const ValueKey('dummy-detail-pane')), findsOneWidget);
+        expect(tester.getSize(find.byKey(const ValueKey('spec-drawer-overlay'))).width, equals(360.0));
 
-        // 2. Wide width 1440px (>= 1180): 380px inline detail is rendered
+        // 3. Wide width 1440px (>= 1180): 380px overlay drawer is rendered
         tester.view.physicalSize = const Size(1440, 900);
         await tester.pumpWidget(
           _testApp(
@@ -218,7 +244,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byKey(const ValueKey('dummy-detail-pane')), findsOneWidget);
-        expect(tester.getSize(find.byKey(const ValueKey('dummy-detail-pane'))).width, equals(380.0));
+        expect(tester.getSize(find.byKey(const ValueKey('spec-drawer-overlay'))).width, equals(380.0));
 
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(Duration.zero);
