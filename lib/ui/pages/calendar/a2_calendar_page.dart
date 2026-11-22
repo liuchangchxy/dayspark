@@ -460,7 +460,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           child: Stack(
             children: [
               Positioned.fill(child: status ?? content),
-              if (status == null && mode == CalendarViewMode.month)
+              if (mode == CalendarViewMode.month)
                 A2Fab(
                   tooltip: l.newEvent,
                   onPressed: () => _createAt(browse),
