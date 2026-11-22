@@ -50,7 +50,8 @@ class _SettingsRowState extends State<SettingsRow> {
     };
 
     final desktop = isWorkspaceLayout(context);
-    final effectivePadding = widget.padding ??
+    final effectivePadding =
+        widget.padding ??
         (desktop
             ? const EdgeInsets.symmetric(vertical: 8)
             : const EdgeInsets.symmetric(horizontal: 16, vertical: 8));
@@ -153,11 +154,7 @@ class SettingsRows extends StatelessWidget {
     for (var i = 0; i < children.length; i++) {
       if (i > 0) {
         rows.add(
-          const Divider(
-            height: 1,
-            thickness: 1,
-            color: SpecTokens.hair,
-          ),
+          const Divider(height: 1, thickness: 1, color: SpecTokens.hair),
         );
       }
       rows.add(children[i]);
@@ -178,55 +175,59 @@ class SettingsGroupBlock extends StatelessWidget {
     this.subtitle,
     required this.child,
     this.mobile = false,
+    this.showHeader = true,
   });
 
   final String title;
   final String? subtitle;
   final Widget child;
   final bool mobile;
+  final bool showHeader;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            mobile ? 16 : 0,
-            mobile ? 16 : 2,
-            mobile ? 16 : 0,
-            subtitle == null ? 8 : 4,
-          ),
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: SpecTokens.ink,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
-          ),
-        ),
-        if (subtitle != null)
+        if (showHeader) ...[
           Padding(
             padding: EdgeInsets.fromLTRB(
               mobile ? 16 : 0,
-              0,
+              mobile ? 16 : 2,
               mobile ? 16 : 0,
-              12,
+              subtitle == null ? 8 : 4,
             ),
             child: Text(
-              subtitle!,
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 11,
-                height: 1.55,
-                color: SpecTokens.faint,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: SpecTokens.ink,
                 fontFamilyFallback: AppTypography.fallback,
               ),
             ),
           ),
+          if (subtitle != null)
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                mobile ? 16 : 0,
+                0,
+                mobile ? 16 : 0,
+                12,
+              ),
+              child: Text(
+                subtitle!,
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.55,
+                  color: SpecTokens.faint,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+            ),
+        ],
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: const BoxDecoration(
@@ -272,10 +273,7 @@ class InlineAlert extends StatelessWidget {
         color: bgColor,
         borderRadius: isRed ? BorderRadius.circular(4) : null,
         border: Border(
-          left: BorderSide(
-            color: borderColor,
-            width: isRed ? 3.0 : 2.0,
-          ),
+          left: BorderSide(color: borderColor, width: isRed ? 3.0 : 2.0),
         ),
       ),
       child: Column(
@@ -303,10 +301,7 @@ class InlineAlert extends StatelessWidget {
               fontFamilyFallback: AppTypography.fallback,
             ),
           ),
-          if (action != null) ...[
-            const SizedBox(height: 8),
-            action!,
-          ],
+          if (action != null) ...[const SizedBox(height: 8), action!],
         ],
       ),
     );
@@ -322,7 +317,8 @@ class BadgeDefault extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = label ?? AppLocalizations.of(context)?.badgeDefault ?? 'Default';
+    final text =
+        label ?? AppLocalizations.of(context)?.badgeDefault ?? 'Default';
     return Container(
       height: 18,
       padding: const EdgeInsets.symmetric(horizontal: 5),
@@ -396,10 +392,7 @@ class IoCard extends StatelessWidget {
               ),
             ),
           ],
-          if (child != null) ...[
-            const SizedBox(height: 10),
-            child!,
-          ],
+          if (child != null) ...[const SizedBox(height: 10), child!],
           if (actions.isNotEmpty) ...[
             const SizedBox(height: 10),
             Row(

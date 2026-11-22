@@ -590,6 +590,68 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get importPreviewTitle => '导入预览';
+
+  @override
+  String importPreviewSummary(int events, int todos, String fileName) {
+    return '从 $fileName 读到 $events 个事件、$todos 个待办。';
+  }
+
+  @override
+  String importPreviewCounts(int create, int duplicate, int skipped) {
+    return '新增 $create 项 · 重复 $duplicate 项 · 跳过 $skipped 项';
+  }
+
+  @override
+  String get importPreviewNew => '新增';
+
+  @override
+  String get importPreviewDuplicate => '重复';
+
+  @override
+  String get importPreviewSkipped => '跳过';
+
+  @override
+  String importPreviewMore(int count) {
+    return '另有 $count 项';
+  }
+
+  @override
+  String importFailedRows(int count) {
+    return '导入时另有 $count 项失败';
+  }
+
+  @override
+  String importFailureDetail(String fileName) {
+    return '没有写入任何内容。文件：$fileName';
+  }
+
+  @override
+  String get startImport => '开始导入';
+
+  @override
+  String get importInProgress => '正在读取并导入…';
+
+  @override
+  String get importResultTitle => '导入结果';
+
+  @override
+  String importResultSummary(int created, int updated, int skipped) {
+    return '新建 $created 项 · 更新 $updated 项 · 跳过 $skipped 项';
+  }
+
+  @override
+  String get importNothing => '这个文件里没有事件或待办。';
+
+  @override
+  String get backupInProgress => '正在备份…';
+
+  @override
+  String backupComplete(String filename) {
+    return '备份完成：$filename';
+  }
+
+  @override
   String get importExportDesc => '将日程和待办导出为 .ics 文件，或从 .ics 文件导入。';
 
   @override
@@ -2673,6 +2735,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get openSystemSettings => '打开系统设置';
+
+  @override
+  String get notificationAllowed => '已允许';
+
+  @override
+  String get notificationOff => '已关闭';
+
+  @override
+  String get notificationUnknown => '未知';
 
   @override
   String get inAppReminders => '应用内提醒';

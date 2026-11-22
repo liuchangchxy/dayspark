@@ -7,6 +7,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/pages/settings/settings_ui.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
@@ -16,13 +17,29 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
-class TrashPage extends ConsumerWidget {
+class TrashPage extends ConsumerStatefulWidget {
   const TrashPage({super.key, this.embedded = false});
 
   final bool embedded;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TrashPage> createState() => _TrashPageState();
+}
+
+class _TrashPageState extends ConsumerState<TrashPage> {
+  ({String message, bool isRed})? _feedback;
+
+  void _showFeedback(String message, {bool isRed = false}) {
+    setState(() => _feedback = (message: message, isRed: isRed));
+  }
+
+  Widget _feedbackBanner() {
+    final feedback = _feedback!;
+    return InlineAlert(message: feedback.message, isRed: feedback.isRed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final deletedAsync = ref.watch(deletedTodosProvider);
     final deletedEventsAsync = ref.watch(deletedEventsProvider);
@@ -38,7 +55,7 @@ class TrashPage extends ConsumerWidget {
         error: (e, _) => _loadFailure(context, ref, l),
         data: (eventRows) {
           if (todoRows.isEmpty && eventRows.isEmpty) {
-            return EmptyState(
+            final empty = EmptyState(
               icon: CupertinoIcons.trash,
               title: l.trashEmpty,
               hint: l.trashEmptyHint,
@@ -47,19 +64,56 @@ class TrashPage extends ConsumerWidget {
                 // defaults to whichever tab was last open.
                 label: l.trashEmptyAction,
                 onPressed: () {
-                  ref
-                      .read(workspaceTabProvider.notifier)
-                      .setTab(AppTab.todos);
+                  ref.read(workspaceTabProvider.notifier).setTab(AppTab.todos);
                   context.go('/?tab=2');
                 },
               ),
             );
+            if (widget.embedded) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_feedback != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.s4,
+                      ),
+                      child: _feedbackBanner(),
+                    ),
+                  empty,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_feedback != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s4,
+                    ),
+                    child: _feedbackBanner(),
+                  ),
+                Expanded(child: empty),
+              ],
+            );
           }
-          if (embedded) {
+          if (widget.embedded) {
             return Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_feedback != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s4,
+                      0,
+                      AppSpacing.s4,
+                      0,
+                    ),
+                    child: _feedbackBanner(),
+                  ),
                 if (todoRows.isNotEmpty) ...[
                   _sectionHeader(l.todos, todoRows.length),
                   for (final todo in todoRows)
@@ -96,6 +150,15 @@ class TrashPage extends ConsumerWidget {
           }
           return CustomScrollView(
             slivers: [
+              if (_feedback != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s4,
+                    ),
+                    child: _feedbackBanner(),
+                  ),
+                ),
               if (todoRows.isNotEmpty) ...[
                 SliverToBoxAdapter(
                   child: _sectionHeader(l.todos, todoRows.length),
@@ -126,7 +189,7 @@ class TrashPage extends ConsumerWidget {
       ),
     );
 
-    if (embedded) {
+    if (widget.embedded) {
       return content;
     }
 
@@ -139,8 +202,12 @@ class TrashPage extends ConsumerWidget {
             label: l.emptyTrash,
             tone: DsButtonTone.danger,
             small: true,
-            onPressed: () =>
-                _confirmEmptyTrash(context, ref, l, todos.length + events.length),
+            onPressed: () => _confirmEmptyTrash(
+              context,
+              ref,
+              l,
+              todos.length + events.length,
+            ),
           ),
       ],
       child: content,
@@ -166,8 +233,14 @@ class TrashPage extends ConsumerWidget {
       ),
       trailing: _restoreDeleteActions(
         l,
-        onRestore: () => ref.read(restoreTodoProvider)(todo.id),
-        onDelete: () => ref.read(permanentDeleteTodoProvider)(todo.id),
+        onRestore: () async {
+          await ref.read(restoreTodoProvider)(todo.id);
+          if (mounted) _showFeedback(l.trashRestoredBanner(todo.summary));
+        },
+        onDelete: () async {
+          await ref.read(permanentDeleteTodoProvider)(todo.id);
+          if (mounted) _showFeedback(l.trashDeletedBanner(todo.summary));
+        },
         confirmDelete: () => _confirmPermanentDelete(context, l),
       ),
     );
@@ -186,13 +259,21 @@ class TrashPage extends ConsumerWidget {
         parts: [
           DsMetaPart(DateFormatters.formatDateTime(event.startDt)),
           if (event.deletedAt != null)
-            DsMetaPart(l.deletedOn(DateFormatters.formatDate(event.deletedAt!))),
+            DsMetaPart(
+              l.deletedOn(DateFormatters.formatDate(event.deletedAt!)),
+            ),
         ],
       ),
       trailing: _restoreDeleteActions(
         l,
-        onRestore: () => ref.read(restoreEventProvider)(event.id),
-        onDelete: () => ref.read(hardDeleteEventWithChildrenProvider)(event.id),
+        onRestore: () async {
+          await ref.read(restoreEventProvider)(event.id);
+          if (mounted) _showFeedback(l.trashRestoredBanner(event.summary));
+        },
+        onDelete: () async {
+          await ref.read(hardDeleteEventWithChildrenProvider)(event.id);
+          if (mounted) _showFeedback(l.trashDeletedBanner(event.summary));
+        },
         confirmDelete: () => _confirmPermanentDelete(context, l),
       ),
     );
@@ -299,6 +380,7 @@ class TrashPage extends ConsumerWidget {
               try {
                 await ref.read(emptyTrashProvider)();
                 await ref.read(emptyEventTrashProvider)();
+                if (mounted) _showFeedback(l.trashClearedBanner);
               } catch (error) {
                 debugPrint('trash: empty error: $error');
                 if (context.mounted) {
@@ -345,11 +427,6 @@ class _TrashActionsState extends State<_TrashActions> {
     setState(() => _busy = true);
     try {
       await widget.onRestore();
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(widget.l.restoreTodo)));
-      }
     } catch (error) {
       debugPrint('trash: restore error: $error');
       if (mounted) {

@@ -1181,6 +1181,102 @@ abstract class AppLocalizations {
   /// **'Imported {events} event(s) and {todos} task(s) ({failed} failed)'**
   String importedResultWithFailed(int events, int todos, int failed);
 
+  /// No description provided for @importPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import preview'**
+  String get importPreviewTitle;
+
+  /// No description provided for @importPreviewSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Read {events} event(s) and {todos} task(s) from {fileName}.'**
+  String importPreviewSummary(int events, int todos, String fileName);
+
+  /// No description provided for @importPreviewCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{create} new · {duplicate} duplicate · {skipped} skipped'**
+  String importPreviewCounts(int create, int duplicate, int skipped);
+
+  /// No description provided for @importPreviewNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get importPreviewNew;
+
+  /// No description provided for @importPreviewDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get importPreviewDuplicate;
+
+  /// No description provided for @importPreviewSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get importPreviewSkipped;
+
+  /// No description provided for @importPreviewMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String importPreviewMore(int count);
+
+  /// No description provided for @importFailedRows.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} row(s) failed during import'**
+  String importFailedRows(int count);
+
+  /// No description provided for @importFailureDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was written. File: {fileName}'**
+  String importFailureDetail(String fileName);
+
+  /// No description provided for @startImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Start import'**
+  String get startImport;
+
+  /// No description provided for @importInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading and importing…'**
+  String get importInProgress;
+
+  /// No description provided for @importResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import result'**
+  String get importResultTitle;
+
+  /// No description provided for @importResultSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Created {created} · updated {updated} · skipped {skipped}'**
+  String importResultSummary(int created, int updated, int skipped);
+
+  /// No description provided for @importNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No events or tasks found in this file.'**
+  String get importNothing;
+
+  /// No description provided for @backupInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Backing up…'**
+  String get backupInProgress;
+
+  /// No description provided for @backupComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup complete: {filename}'**
+  String backupComplete(String filename);
+
   /// No description provided for @importExportDesc.
   ///
   /// In en, this message translates to:
@@ -4942,6 +5038,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open System Settings'**
   String get openSystemSettings;
+
+  /// No description provided for @notificationAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed'**
+  String get notificationAllowed;
+
+  /// No description provided for @notificationOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get notificationOff;
+
+  /// No description provided for @notificationUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get notificationUnknown;
 
   /// No description provided for @inAppReminders.
   ///

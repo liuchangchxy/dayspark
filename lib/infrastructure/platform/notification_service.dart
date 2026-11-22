@@ -3,10 +3,14 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/utils/platform_target.dart';
 import '../../data/local/database/app_database.dart';
 import 'alarm_service.dart';
+
+/// Runtime state of the system notification permission.
+enum NotificationPermissionStatus { granted, denied, unknown }
 
 /// Action IDs for notification action buttons.
 class NotificationActions {
@@ -177,11 +181,62 @@ class NotificationService {
     return await android?.canScheduleExactNotifications() ?? false;
   }
 
+  /// Reads the current system permission without prompting. Desktop platforms
+  /// that post notifications without a runtime grant report [granted].
+  Future<NotificationPermissionStatus> permissionStatus() async {
+    if (kIsWeb) return NotificationPermissionStatus.unknown;
+    try {
+      if (isAndroid) {
+        final android = _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        final enabled = await android?.areNotificationsEnabled();
+        if (enabled == null) return NotificationPermissionStatus.unknown;
+        return enabled
+            ? NotificationPermissionStatus.granted
+            : NotificationPermissionStatus.denied;
+      }
+      if (isIOS) {
+        final ios = _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
+        final options = await ios?.checkPermissions();
+        if (options == null) return NotificationPermissionStatus.unknown;
+        return options.isEnabled
+            ? NotificationPermissionStatus.granted
+            : NotificationPermissionStatus.denied;
+      }
+      if (isMacOS) {
+        final macos = _plugin
+            .resolvePlatformSpecificImplementation<
+              MacOSFlutterLocalNotificationsPlugin
+            >();
+        final options = await macos?.checkPermissions();
+        if (options == null) return NotificationPermissionStatus.unknown;
+        return options.isEnabled
+            ? NotificationPermissionStatus.granted
+            : NotificationPermissionStatus.denied;
+      }
+      return NotificationPermissionStatus.granted;
+    } catch (error) {
+      debugPrint('notification: permission status unavailable: $error');
+      return NotificationPermissionStatus.unknown;
+    }
+  }
+
   /// Asks for notification permission. On macOS and iOS the ask is a single
   /// system prompt, and a user who dismissed it needs a way back to it.
   Future<void> requestPermission() async {
     if (!_initialized) await init();
-    if (isIOS) {
+    if (isAndroid) {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      await android?.requestNotificationsPermission();
+    } else if (isIOS) {
       await _plugin
           .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin
@@ -193,6 +248,26 @@ class NotificationService {
             MacOSFlutterLocalNotificationsPlugin
           >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
+    }
+  }
+
+  /// Opens the system notification settings for this app. A denied permission
+  /// cannot be re-prompted, so this is the only recovery path.
+  Future<void> openSystemSettings() async {
+    if (kIsWeb) return;
+    final uri = switch (defaultTargetPlatform) {
+      TargetPlatform.android => Uri.parse('package:com.dayspark.app'),
+      TargetPlatform.iOS => Uri.parse('app-settings:'),
+      TargetPlatform.macOS => Uri.parse(
+        'x-apple.systempreferences:com.apple.preference.notifications',
+      ),
+      _ => null,
+    };
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (error) {
+      debugPrint('notification: open settings failed: $error');
     }
   }
 

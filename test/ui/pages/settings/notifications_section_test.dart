@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/domain/providers/alarm_provider.dart';
+import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/notifications_section.dart';
 
@@ -25,6 +26,7 @@ Future<void> _pumpNotificationsSection(
   bool? exactAlarmsAllowed,
   bool? initialAlarm,
   AlarmToggle? alarmToggle,
+  NotificationPermissionStatus? permissionStatus,
 }) async {
   // binding 在测试体结束时就校验 debug 变量已复位（早于 tearDown），所以调用方
   // 必须在断言之后、测试体之内把它置回 null；这里的 addTearDown 只是断言失败时的兜底。
@@ -48,6 +50,10 @@ Future<void> _pumpNotificationsSection(
           ),
         if (alarmToggle != null)
           alarmToggleProvider.overrideWithValue(alarmToggle),
+        if (permissionStatus != null)
+          NotificationsSection.permissionStatusProvider.overrideWith(
+            (ref) async => permissionStatus,
+          ),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -108,10 +114,7 @@ void main() {
         return gate.future;
       },
     );
-    expect(
-      tester.widget<Switch>(find.byType(Switch)).value,
-      isTrue,
-    );
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
 
     await tester.tap(find.byType(Switch));
     await tester.pump();
@@ -164,6 +167,43 @@ void main() {
     );
     await tester.pump();
     expect(find.text('Exact alarm permission'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  for (final platform in <TargetPlatform>[
+    TargetPlatform.windows,
+    TargetPlatform.linux,
+  ]) {
+    testWidgets('$platform：通知分区有权限状态行，不再是空列表', (tester) async {
+      await _pumpNotificationsSection(
+        tester,
+        platform,
+        permissionStatus: NotificationPermissionStatus.granted,
+      );
+      expect(find.text('Notification permission'), findsOneWidget);
+      expect(find.text('Allowed'), findsOneWidget);
+      expect(find.byType(Switch), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+  }
+
+  testWidgets('权限被拒：显示解释横幅、状态行和系统设置入口', (tester) async {
+    await _pumpNotificationsSection(
+      tester,
+      TargetPlatform.macOS,
+      permissionStatus: NotificationPermissionStatus.denied,
+    );
+    expect(
+      find.text(
+        'System notification permission is off. '
+        'Reminders are saved, but will not alert when due.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Notification permission'), findsOneWidget);
+    expect(find.text('Off'), findsOneWidget);
+    expect(find.text('In-app Reminders'), findsOneWidget);
+    expect(find.text('Open System Settings'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
   });
 }
