@@ -168,14 +168,19 @@ void main() {
 
     await tester.pumpWidget(_app(db));
     await _settle(tester);
+    // Inbox never carries completed rows; By date is the list that shows them
+    // until the display switch hides them.
+    await tester.tap(find.byKey(const ValueKey('todo-mode-date')));
+    await _settle(tester);
     expect(find.text('Done task'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Filter'));
     await _settle(tester);
-    // The display option is now the "show completed" switch.
+    // The display option is now the "show completed" switch. Apply closes
+    // the sheet; the switch itself persists as before.
     await tester.tap(find.byType(Switch));
     await _settle(tester);
-    await tester.tap(find.text('Done'));
+    await tester.tap(find.text('Apply'));
     await _settle(tester);
 
     expect(find.text('Done task'), findsNothing);

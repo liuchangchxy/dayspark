@@ -308,10 +308,13 @@ void main() {
     await _settle(tester);
     expect(container.read(viewedDateProvider).day, target.day);
 
-    // The date the calendar picked is the date Todo · By date opens on.
+    // Tasks opens on Inbox; switching to By date must land on the date the
+    // calendar picked.
     await tester.tap(find.text('Tasks').last);
     await _settle(tester);
     expect(container.read(viewedDateProvider).day, target.day);
+    await tester.tap(find.byKey(const ValueKey('todo-mode-date')));
+    await _settle(tester);
     // The phone's frozen-spec Tasks header prints the date as the strip's
     // month label plus the selected day's number, not as one MMMd string.
     expect(find.text('${target.day}'), findsWidgets);
@@ -529,6 +532,9 @@ void main() {
     await _settle(tester);
 
     expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
+    // The day strip belongs to By date, so open that mode first.
+    await tester.tap(find.byKey(const ValueKey('todo-mode-date')));
+    await _settle(tester);
     // Browsing today: tap the date strip button to open the picker.
     await tester.tap(find.byKey(const ValueKey('todos-date-strip')));
     await _settle(tester, 10);
