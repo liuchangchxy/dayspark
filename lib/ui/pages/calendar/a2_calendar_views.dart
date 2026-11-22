@@ -15,6 +15,7 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
+import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 
 const double _a2Gutter = 56.0;
 const double _a2HourHeight = 54.0;
@@ -96,6 +97,14 @@ TaskAllocationCalendarItem? _findAllocation(
 ) {
   for (final item in allocations) {
     if (item.allocation.id == id) return item;
+  }
+  return null;
+}
+
+CalendaEventAdapter? _firstRecurringEvent(List<CalBlockItem> items) {
+  for (final item in items) {
+    final event = item.event;
+    if (event != null && calEventIsRecurring(event)) return event;
   }
   return null;
 }
@@ -942,8 +951,14 @@ class _A2MonthChip extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               Expanded(
-                child: Text(
-                  entry.title,
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: entry.title),
+                      if (event != null && calEventIsRecurring(event))
+                        calRepeatBadgeSpan(context),
+                    ],
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1045,6 +1060,142 @@ List<_A2MonthEntry> _entriesFor(
   return entries;
 }
 
+Widget _a2SeriesBadge(BuildContext context, String repeat) {
+  final l = AppLocalizations.of(context)!;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+    decoration: BoxDecoration(
+      color: SpecTokens.workSoft,
+      borderRadius: BorderRadius.circular(2),
+    ),
+    child: Text(
+      '${l.calendarRepeatBadge} $repeat',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: _a2Text(9, FontWeight.w600, SpecTokens.work),
+    ),
+  );
+}
+
+class _A2SeriesStrip extends StatelessWidget {
+  const _A2SeriesStrip({required this.event});
+
+  final CalendaEventAdapter event;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final span = calTimeRange(event.start, event.end);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(
+          left: BorderSide(color: SpecTokens.work, width: 3),
+          top: BorderSide(color: SpecTokens.hair, width: 1),
+          right: BorderSide(color: SpecTokens.hair, width: 1),
+          bottom: BorderSide(color: SpecTokens.hair, width: 1),
+        ),
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _a2SeriesBadge(context, describeRepeat(context, event.rrule)),
+          Text(
+            event.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _a2Text(10.5, FontWeight.w600, SpecTokens.ink),
+          ),
+          Text(
+            l.calendarSeriesCurrentInstance(span),
+            style: _a2Text(10, FontWeight.w400, SpecTokens.muted),
+          ),
+          Text(
+            l.calendarSeriesHint,
+            style: _a2Text(9, FontWeight.w400, SpecTokens.faint),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _A2MobileSeriesCard extends StatelessWidget {
+  const _A2MobileSeriesCard({required this.event});
+
+  final CalendaEventAdapter event;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final span = calTimeRange(event.start, event.end);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border.all(color: const Color(0xFFDEDED6)),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(
+              width: 3,
+              child: ColoredBox(color: SpecTokens.work),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: _a2SeriesBadge(
+                            context,
+                            describeRepeat(context, event.rrule),
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            event.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: _a2Text(
+                              9.5,
+                              FontWeight.w600,
+                              SpecTokens.ink,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      l.calendarSeriesCurrentInstance(span),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _a2Text(8.5, FontWeight.w400, SpecTokens.muted),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// The authoritative Week / Day Time Grid View.
 /// 08:00–20:00, 648px height, 54px/hour.
 class A2TimeGridView extends StatelessWidget {
@@ -1120,11 +1271,19 @@ class A2TimeGridView extends StatelessWidget {
         if (!allDayEvents.contains(event)) allDayEvents.add(event);
       }
     }
+    final seriesDay = dayMode ? days.first : selected;
+    final seriesEvent = _firstRecurringEvent(
+      blocks[calDayOf(seriesDay)] ?? const [],
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (!dayMode && seriesEvent != null)
+          _A2SeriesStrip(event: seriesEvent),
         dayMode ? _dayHeadbar(context, days.first) : _weekHead(context),
+        if (dayMode && seriesEvent != null)
+          _A2SeriesStrip(event: seriesEvent),
         _allDayLane(context, allDayByDay, allDayEvents),
         _deadlineLane(context, l),
         if (emptyTitle != null)
@@ -1767,6 +1926,8 @@ class A2TimeGridView extends StatelessWidget {
                 isPlan: isPlan,
                 isShort: isShort,
                 hasOverdueDot: hasOverdueDot,
+                isRecurring:
+                    item.event != null && calEventIsRecurring(item.event!),
                 compact: laneWidth < 50,
                 onTap: () => _openBlock(item, allocationItems),
                 onReschedule: item.canDrag &&
@@ -2006,6 +2167,7 @@ class _A2TimeBlock extends StatefulWidget {
     required this.isPlan,
     required this.isShort,
     required this.hasOverdueDot,
+    required this.isRecurring,
     required this.onTap,
     this.onReschedule,
     this.compact = false,
@@ -2018,6 +2180,7 @@ class _A2TimeBlock extends StatefulWidget {
   final bool isPlan;
   final bool isShort;
   final bool hasOverdueDot;
+  final bool isRecurring;
   final bool compact;
   final VoidCallback onTap;
   final ValueChanged<int>? onReschedule;
@@ -2061,8 +2224,13 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
                   ? MainAxisAlignment.center
                   : MainAxisAlignment.start,
               children: [
-                Text(
-                  widget.title,
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(text: widget.title),
+                      if (widget.isRecurring) calRepeatBadgeSpan(context),
+                    ],
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: _a2Text(
@@ -2281,6 +2449,13 @@ class A2PhoneWeekList extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).toString();
+    final seriesEvent = _firstRecurringEvent(
+      calDayBlocks(
+        day: calDayOf(today),
+        events: events,
+        allocations: _adapt(allocations),
+      ),
+    );
     return ListView(
       key: const ValueKey('phone-week-list-view'),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
@@ -2306,6 +2481,7 @@ class A2PhoneWeekList extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
+        if (seriesEvent != null) _A2MobileSeriesCard(event: seriesEvent),
         if (isEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -2503,8 +2679,7 @@ class _A2PhoneWeekDay extends StatelessWidget {
                     style: const TextStyle(color: SpecTokens.muted),
                   ),
                   TextSpan(text: event.title),
-                  if (event.rrule != null || event.isRecurringOccurrence)
-                    const TextSpan(text: ' ↻'),
+                  if (calEventIsRecurring(event)) calRepeatBadgeSpan(context),
                 ],
               ),
               onTap: onEvent == null ? null : () => onEvent!(event),
@@ -2708,6 +2883,7 @@ class A2PhoneDayList extends StatelessWidget {
       events: events,
       allocations: _adapt(allocations),
     );
+    final seriesEvent = _firstRecurringEvent(items);
     final allocationItems = {
       for (final a in allocations) a.allocation.id: a,
     };
@@ -2791,6 +2967,11 @@ class A2PhoneDayList extends StatelessWidget {
             ),
           ),
         // Time head
+        if (seriesEvent != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: _A2MobileSeriesCard(event: seriesEvent),
+          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: Row(
@@ -3044,8 +3225,15 @@ class A2PhoneDayList extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.title,
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: item.title),
+                        if (item.event != null &&
+                            calEventIsRecurring(item.event!))
+                          calRepeatBadgeSpan(context),
+                      ],
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: _a2Text(

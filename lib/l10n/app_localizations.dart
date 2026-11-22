@@ -5441,6 +5441,30 @@ abstract class AppLocalizations {
   /// **'{timeRange} · Planned'**
   String calendarTimeRowPlanned(String timeRange);
 
+  /// No description provided for @calendarRepeatBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'↻'**
+  String get calendarRepeatBadge;
+
+  /// No description provided for @calendarRepeatBadgeSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeats'**
+  String get calendarRepeatBadgeSemantics;
+
+  /// No description provided for @calendarSeriesCurrentInstance.
+  ///
+  /// In en, this message translates to:
+  /// **'Current instance {timeRange}'**
+  String calendarSeriesCurrentInstance(String timeRange);
+
+  /// No description provided for @calendarSeriesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeating event · open an item for details'**
+  String get calendarSeriesHint;
+
   /// No description provided for @todaySummaryOverdue.
   ///
   /// In en, this message translates to:

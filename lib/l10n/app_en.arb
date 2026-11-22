@@ -1948,6 +1948,17 @@
       }
     }
   },
+  "calendarRepeatBadge": "↻",
+  "calendarRepeatBadgeSemantics": "Repeats",
+  "calendarSeriesCurrentInstance": "Current instance {timeRange}",
+  "@calendarSeriesCurrentInstance": {
+    "placeholders": {
+      "timeRange": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarSeriesHint": "Repeating event · open an item for details",
   "todaySummaryOverdue": "Overdue",
   "todayNoDateGroup": "No date",
   "todayViewNoDate": "View {count} undated",

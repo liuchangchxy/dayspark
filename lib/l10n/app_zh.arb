@@ -1626,6 +1626,17 @@
       }
     }
   },
+  "calendarRepeatBadge": "↻",
+  "calendarRepeatBadgeSemantics": "重复",
+  "calendarSeriesCurrentInstance": "当前实例 {timeRange}",
+  "@calendarSeriesCurrentInstance": {
+    "placeholders": {
+      "timeRange": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarSeriesHint": "重复日程 · 点条目打开详情",
   "todaySummaryOverdue": "逾期",
   "todayNoDateGroup": "无日期",
   "todayViewNoDate": "查看无日期 {count} 项",

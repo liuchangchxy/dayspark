@@ -2966,6 +2966,20 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get calendarRepeatBadge => '↻';
+
+  @override
+  String get calendarRepeatBadgeSemantics => '重复';
+
+  @override
+  String calendarSeriesCurrentInstance(String timeRange) {
+    return '当前实例 $timeRange';
+  }
+
+  @override
+  String get calendarSeriesHint => '重复日程 · 点条目打开详情';
+
+  @override
   String get todaySummaryOverdue => '逾期';
 
   @override

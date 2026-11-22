@@ -92,6 +92,12 @@ Future<void> _switchView(WidgetTester tester, String label) async {
   await _settle(tester);
 }
 
+Finder _glyphText(String text) => find.byWidgetPredicate(
+  (widget) =>
+      widget is Text &&
+      widget.textSpan?.toPlainText(includeSemanticsLabels: false) == text,
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -1439,6 +1445,130 @@ void main() {
 
     // A month cell has no time axis: a double tap must not save a made-up span.
     expect(ranges, isEmpty);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets(
+    'the desktop week marks a repeating block and shows its series strip',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final page = A2CalendarPage(
+        events: [
+          CalendaEventAdapter(
+            drifId: 1,
+            calendarId: 1,
+            title: 'Standup',
+            start: DateTime(2026, 11, 15, 10),
+            end: DateTime(2026, 11, 15, 11),
+            rrule: 'FREQ=WEEKLY',
+          ),
+          CalendaEventAdapter(
+            drifId: 2,
+            calendarId: 1,
+            title: 'One-off',
+            start: DateTime(2026, 11, 15, 13),
+            end: DateTime(2026, 11, 15, 14),
+          ),
+        ],
+        allocations: const [],
+        deadlines: const [],
+      );
+      await tester.pumpWidget(_app(page, db: db));
+      await _settle(tester);
+
+      expect(_glyphText('Standup ↻'), findsOneWidget);
+      expect(_glyphText('One-off ↻'), findsNothing);
+      expect(find.text('↻ Every week'), findsOneWidget);
+      expect(
+        find.text('Repeating event · open an item for details'),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(Duration.zero);
+    },
+  );
+
+  testWidgets(
+    'the desktop day marks a repeating block and shows its series strip',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final page = A2CalendarPage(
+        events: [
+          CalendaEventAdapter(
+            drifId: 1,
+            calendarId: 1,
+            title: 'Standup',
+            start: DateTime(2026, 11, 15, 10),
+            end: DateTime(2026, 11, 15, 11),
+            rrule: 'FREQ=WEEKLY',
+          ),
+          CalendaEventAdapter(
+            drifId: 2,
+            calendarId: 1,
+            title: 'One-off',
+            start: DateTime(2026, 11, 15, 13),
+            end: DateTime(2026, 11, 15, 14),
+          ),
+        ],
+        allocations: const [],
+        deadlines: const [],
+      );
+      await tester.pumpWidget(_app(page, db: db));
+      await _settle(tester);
+      await tester.tap(find.text('Day').last);
+      await _settle(tester);
+
+      expect(_glyphText('Standup ↻'), findsOneWidget);
+      expect(_glyphText('One-off ↻'), findsNothing);
+      expect(find.text('↻ Every week'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(Duration.zero);
+    },
+  );
+
+  testWidgets('the desktop month marks a repeating chip', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Standup',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+          rrule: 'FREQ=WEEKLY',
+        ),
+        CalendaEventAdapter(
+          drifId: 2,
+          calendarId: 1,
+          title: 'One-off',
+          start: DateTime(2026, 11, 15, 13),
+          end: DateTime(2026, 11, 15, 14),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Month').last);
+    await _settle(tester);
+
+    expect(_glyphText('Standup ↻'), findsOneWidget);
+    expect(_glyphText('One-off ↻'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
