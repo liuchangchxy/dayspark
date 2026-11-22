@@ -1340,6 +1340,202 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets('a time phrase is a visible suggestion, never a silent type change', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, A2ComposerSheet(contextDate: day)));
+    await _settle(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('a2-composer-title')),
+      '明天下午三点交报告',
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('a2-composer-suggestion')),
+      findsOneWidget,
+    );
+    expect(find.text('Type remains Task'), findsOneWidget);
+    expect(find.textContaining('Suggested Plan'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('a2-composer-suggestion-type')),
+      findsOneWidget,
+    );
+    // The fact sheet is still a Todo: due and priority remain reachable.
+    expect(find.byKey(const ValueKey('a2-composer-due')), findsOneWidget);
+    expect(find.byKey(const ValueKey('a2-composer-priority')), findsOneWidget);
+
+    // "Done" on the title does not write the raw sentence on the spot.
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await _settle(tester);
+    expect(await db.select(db.todos).get(), isEmpty);
+
+    await tester.tap(find.byType(FilledButton));
+    await _settle(tester);
+
+    final todo = (await db.select(db.todos).get()).single;
+    expect(todo.summary, '交报告');
+    expect(todo.dueDate, isNull);
+    final allocation = (await db.select(db.taskAllocations).get()).single;
+    expect(allocation.startAt.toLocal().hour, 15);
+    expect(allocation.endAt.toLocal().hour, 16);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('removing the suggestion writes only a clean title', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, A2ComposerSheet(contextDate: day)));
+    await _settle(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('a2-composer-title')),
+      '明天下午三点交报告',
+    );
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey('a2-composer-suggestion-toggle')),
+    );
+    await tester.pump();
+    expect(find.text('Time suggestion removed'), findsOneWidget);
+    expect(find.text('No slot chosen'), findsOneWidget);
+
+    await tester.tap(find.byType(FilledButton));
+    await _settle(tester);
+
+    final todo = (await db.select(db.todos).get()).single;
+    expect(todo.summary, '交报告');
+    expect(todo.dueDate, isNull);
+    expect(await db.select(db.taskAllocations).get(), isEmpty);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('changing to an event writes event fields, not a todo', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, A2ComposerSheet(contextDate: day)));
+    await _settle(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('a2-composer-title')),
+      '明天下午三点交报告',
+    );
+    await tester.pump();
+
+    await tester.tap(
+      find.byKey(const ValueKey('a2-composer-suggestion-type')),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('a2-composer-event-time')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('a2-composer-change-to-todo')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('a2-composer-due')), findsNothing);
+    expect(find.byKey(const ValueKey('a2-composer-priority')), findsNothing);
+
+    await tester.tap(find.byType(FilledButton));
+    await _settle(tester);
+
+    final event = (await db.select(db.events).get()).single;
+    expect(event.summary, '交报告');
+    expect(event.startDt.toLocal().hour, 15);
+    expect(event.endDt.toLocal().hour, 16);
+    expect(event.isAllDay, isFalse);
+    expect(await db.select(db.todos).get(), isEmpty);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('closing a dirty capture asks before throwing the draft away', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, A2ComposerSheet(contextDate: day)));
+    await _settle(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('a2-composer-title')),
+      'Half-written thought',
+    );
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _settle(tester);
+    expect(find.text('Discard this input?'), findsOneWidget);
+
+    await tester.tap(find.text('Keep editing'));
+    await _settle(tester);
+    expect(find.byType(A2ComposerSheet), findsOneWidget);
+    expect(find.text('Half-written thought'), findsOneWidget);
+
+    await tester.tap(find.byIcon(CupertinoIcons.xmark).last);
+    await _settle(tester);
+    expect(find.text('Discard this input?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Discard'));
+    await tester.pumpAndSettle();
+    expect(find.byType(A2ComposerSheet), findsNothing);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('the custom slot picker names the day\'s existing schedule', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await db
+        .into(db.events)
+        .insert(
+          EventsCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Dentist',
+            startDt: DateTime(2026, 10, 17, 14),
+            endDt: DateTime(2026, 10, 17, 15),
+            isAllDay: const Value(false),
+          ),
+        );
+
+    await tester.pumpWidget(_app(db, A2ComposerSheet(contextDate: day)));
+    await _settle(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('a2-composer-title')),
+      'Deep work',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('a2-composer-plan')));
+    await tester.pump();
+    await tester.tap(find.text('Custom…'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SpecPlanPicker), findsOneWidget);
+    expect(find.textContaining('Existing today'), findsOneWidget);
+    expect(find.textContaining('Dentist'), findsOneWidget);
+
+    await _unmount(tester);
+  });
 }
 
 GoRoute _openComposerRoute() => GoRoute(

@@ -94,6 +94,37 @@ void main() {
     await teardownTree(tester);
   });
 
+  testWidgets('closing a dirty quick add asks before discarding', (
+    tester,
+  ) async {
+    await seedCalendar();
+    AppRouter.router.go('/');
+    await tester.pumpWidget(buildApp());
+    await settle(tester);
+
+    AppRouter.router.go('/quick-add?date=2026-11-07');
+    await settle(tester);
+    await tester.enterText(find.byType(TextField), 'Half-written thought');
+    await tester.tap(find.text('Cancel'));
+    await settle(tester);
+
+    expect(find.text('Discard this input?'), findsOneWidget);
+    await tester.tap(find.text('Keep editing'));
+    await settle(tester);
+    expect(find.byType(QuickAddPage), findsOneWidget);
+    expect(find.text('Half-written thought'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await settle(tester);
+    await tester.tap(find.text('Discard'));
+    await settle(tester);
+
+    expect(find.byType(QuickAddPage), findsNothing);
+    expect(await testDb.select(testDb.todos).get(), isEmpty);
+
+    await teardownTree(tester);
+  });
+
   testWidgets('inbox source leaves the task undated', (tester) async {
     await seedCalendar();
     AppRouter.router.go('/');

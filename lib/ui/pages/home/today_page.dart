@@ -19,6 +19,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
+import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
@@ -41,7 +42,6 @@ class A2TodayPage extends ConsumerStatefulWidget {
     required this.onToggleTodo,
     required this.onOpenUnplanned,
     required this.onScheduleTodo,
-    this.initialCaptureExpanded = false,
     this.initialDraft = '',
   });
 
@@ -54,7 +54,6 @@ class A2TodayPage extends ConsumerStatefulWidget {
   onToggleTodo;
   final VoidCallback onOpenUnplanned;
   final ValueChanged<Todo> onScheduleTodo;
-  final bool initialCaptureExpanded;
   final String initialDraft;
 
   @override
@@ -79,7 +78,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   bool _captureFocused = false;
   late String _captureDraft = widget.initialDraft;
   double? _lastViewport;
-  late bool _captureExpanded = widget.initialCaptureExpanded;
   late final TextEditingController _desktopCaptureController =
       TextEditingController(text: widget.initialDraft);
   final FocusNode _desktopCaptureFocusNode = FocusNode();
@@ -153,15 +151,15 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     super.dispose();
   }
 
-  Future<void> _capture(String text) async {
-    if (_capturing) return;
+  Future<bool> _capture(String text) async {
+    if (_capturing) return false;
     final l = AppLocalizations.of(context)!;
     _capturing = true;
     try {
       final calendars = await ref.read(calendarsProvider.future);
       if (calendars.isEmpty) {
         _showToast(l.noCalendar);
-        return;
+        return false;
       }
       final id = await ref.read(createTodoProvider)(
         calendarId:
@@ -174,7 +172,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         priority: 0,
         status: 'NEEDS-ACTION',
       );
-      if (!mounted) return;
+      if (!mounted) return true;
       setState(() {
         _recentId = id;
         _unplannedExpanded = false;
@@ -201,9 +199,11 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           );
         }
       }
+      return true;
     } catch (error) {
       debugPrint('today: capture failed: $error');
       if (mounted) _showToast(l.actionFailedRetry);
+      return false;
     } finally {
       _capturing = false;
     }
@@ -462,13 +462,23 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     widget.onScheduleTodo(todo);
   }
 
-  void _openComposer({Todo? todo}) {
+  Future<bool> _openCaptureComposer(String? title) async {
     _clearUndo();
-    showA2Composer(
+    final text = title?.trim() ?? '';
+    final parsed = text.isEmpty
+        ? emptyCaptureDraft
+        : parseCapture(text, DateTime.now());
+    final saved = await showA2Composer(
       context,
       contextDate: widget.now,
-      todo: todo,
+      initialTitle: text.isEmpty ? null : text,
+      initialStart: parsed.start,
+      initialEnd: parsed.end,
     );
+    if (!saved || !mounted) return false;
+    _desktopCaptureController.clear();
+    setState(() => _captureDraft = '');
+    return true;
   }
 
   /// Any press outside the undo key closes the window: the key is a one-shot
@@ -1262,7 +1272,10 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             initialDraft: _captureDraft,
             onDraftChanged: (draft) => _captureDraft = draft,
             onSubmit: _capture,
-            onExpand: _openComposer,
+            onExpand: () {
+              _openCaptureComposer(_captureDraft);
+            },
+            onParsedSubmit: _openCaptureComposer,
             onFocusChange: (focused) {
               if (_captureFocused != focused) {
                 setState(() => _captureFocused = focused);
@@ -1449,15 +1462,20 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     );
   }
 
-  void _submitDesktopCapture() {
+  Future<void> _submitDesktopCapture() async {
     final text = _desktopCaptureController.text.trim();
     if (text.isEmpty) return;
+    final parsed = parseCapture(text, DateTime.now());
+    if (parsed.start != null) {
+      await _openCaptureComposer(text);
+      return;
+    }
+    final saved = await _capture(text);
+    if (!mounted || !saved) return;
+    // A failed write keeps the sentence exactly where the user typed it.
+    if (_desktopCaptureController.text.trim() != text) return;
     _desktopCaptureController.clear();
-    setState(() {
-      _captureDraft = '';
-      _captureExpanded = false;
-    });
-    _capture(text);
+    setState(() => _captureDraft = '');
   }
 
   Widget _desktopCaptureBar(AppLocalizations l) {
@@ -1554,7 +1572,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               InkWell(
                 key: const ValueKey('desktop-capture-expand-btn'),
                 onTap: () {
-                  setState(() => _captureExpanded = !_captureExpanded);
+                  _openCaptureComposer(_desktopCaptureController.text);
                 },
                 borderRadius: BorderRadius.circular(17),
                 child: Container(
@@ -1571,126 +1589,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                       color: Colors.white,
                     ),
                   ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _desktopCaptureExpandedPanel(AppLocalizations l) {
-    if (!_captureExpanded) return const SizedBox.shrink();
-    return Positioned(
-      bottom: 82,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: Container(
-          width: 620,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE1E1D9), width: 1),
-            boxShadow: const [
-              BoxShadow(
-                color: Color.fromRGBO(25, 25, 24, 0.13),
-                blurRadius: 55,
-                offset: Offset(0, 18),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l.captureTitle,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: SpecTokens.ink,
-                              fontFamilyFallback: AppTypography.fallback,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            l.captureDefaultDate,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: SpecTokens.muted,
-                              fontFamilyFallback: AppTypography.fallback,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    InkWell(
-                      key: const ValueKey('desktop-capture-collapse-btn'),
-                      onTap: () => setState(() => _captureExpanded = false),
-                      borderRadius: BorderRadius.circular(4),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(CupertinoIcons.xmark, size: 12, color: SpecTokens.muted),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      controller: _desktopCaptureController,
-                      decoration: InputDecoration(
-                        hintText: l.captureInputPlaceholder,
-                        hintStyle: const TextStyle(fontSize: 13, color: SpecTokens.faint),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
-                          borderSide: const BorderSide(color: SpecTokens.hair),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      ),
-                      style: const TextStyle(fontSize: 13, color: SpecTokens.ink),
-                      onChanged: (val) => _captureDraft = val,
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => setState(() => _captureExpanded = false),
-                          child: Text(l.cancel, style: const TextStyle(fontSize: 12, color: SpecTokens.muted)),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          key: const ValueKey('desktop-capture-submit-btn'),
-                          onPressed: _submitDesktopCapture,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: SpecTokens.ink,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                          ),
-                          child: Text(l.captureSaveTodo, style: const TextStyle(fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -2449,7 +2347,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             ),
           ],
         ),
-        _desktopCaptureExpandedPanel(l),
         _desktopCaptureBar(l),
       ],
     );

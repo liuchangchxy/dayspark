@@ -20,6 +20,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
+import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -265,6 +266,20 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       debugPrint('todo: capture failed: $error');
       if (mounted) showCompletionError(context, error);
     }
+  }
+
+  Future<bool> _openCaptureComposer(String? draft) async {
+    final text = draft?.trim() ?? '';
+    final parsed = text.isEmpty
+        ? emptyCaptureDraft
+        : parseCapture(text, DateTime.now());
+    return showA2Composer(
+      context,
+      contextDate: _scheduleContextDate(),
+      initialTitle: text.isEmpty ? null : text,
+      initialStart: parsed.start,
+      initialEnd: parsed.end,
+    );
   }
 
   void _selectMode(TodosView view) {
@@ -1337,6 +1352,10 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             placeholder: l.capturePlaceholder,
             hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
             onSubmit: _capture,
+            onExpand: () {
+              _openCaptureComposer('');
+            },
+            onParsedSubmit: _openCaptureComposer,
             onFocusChange: (focused) {
               if (_captureFocused == focused) return;
               setState(() => _captureFocused = focused);

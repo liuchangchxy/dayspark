@@ -1488,4 +1488,62 @@ void main() {
       await _unmount(tester);
     },
   );
+
+  testWidgets(
+    'desktop capture keeps the sentence when the write fails and clears on retry',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      var fail = true;
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+            createTodoProvider.overrideWith((ref) {
+              return ({
+                required int calendarId,
+                required String summary,
+                required int priority,
+                required String status,
+                DateTime? dueDate,
+                DateTime? startDate,
+                String? description,
+                String? rrule,
+                RecurrenceSpec? recurrenceSpec,
+                int? parentId,
+              }) async {
+                if (fail) throw StateError('offline');
+                return 1;
+              };
+            }),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      final field = find.byKey(const ValueKey('desktop-capture-input'));
+      expect(field, findsOneWidget);
+      await tester.enterText(field, 'Keep this sentence');
+      tester.widget<TextField>(field).onSubmitted!('Keep this sentence');
+      await _settle(tester);
+
+      expect(
+        tester.widget<TextField>(field).controller!.text,
+        'Keep this sentence',
+      );
+
+      fail = false;
+      tester.widget<TextField>(field).onSubmitted!('Keep this sentence');
+      await _settle(tester);
+      expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+
+      await _unmount(tester);
+    },
+  );
 }

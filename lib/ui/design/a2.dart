@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
+import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
@@ -581,6 +582,7 @@ class A2CaptureBar extends StatefulWidget {
     this.onDraftChanged,
     this.isShifted,
     this.onExpand,
+    this.onParsedSubmit,
   });
 
   final String placeholder;
@@ -592,6 +594,11 @@ class A2CaptureBar extends StatefulWidget {
   final ValueChanged<String>? onDraftChanged;
   final bool? isShifted;
   final VoidCallback? onExpand;
+
+  /// A typed capture that already contains a time is only a suggestion: the
+  /// bar must not write the raw sentence before the user has seen it. Returning
+  /// true means the suggestion was saved, so the bar clears itself.
+  final Future<bool> Function(String draft)? onParsedSubmit;
 
   @override
   State<A2CaptureBar> createState() => A2CaptureBarState();
@@ -645,22 +652,57 @@ class A2CaptureBarState extends State<A2CaptureBar> {
       }
       return;
     }
+    final parsed = parseCapture(text, DateTime.now());
+    if (parsed.start != null) {
+      final handler = widget.onParsedSubmit;
+      if (handler != null) {
+        try {
+          final saved = await handler(text);
+          if (!mounted) return;
+          if (saved) {
+            _clearDraft();
+          } else {
+            _focus.requestFocus();
+            setState(() {});
+          }
+        } catch (_) {
+          if (!mounted) return;
+          _restoreDraft(text);
+        }
+        return;
+      }
+      // No surface to review the suggestion yet: reveal one instead of
+      // writing the sentence as a bare title with the time still inside it.
+      if (widget.onExpand != null) {
+        widget.onExpand!();
+        _focus.requestFocus();
+        return;
+      }
+    }
     try {
-      await widget.onSubmit(text);
+      await widget.onSubmit(parsed.start != null ? parsed.title : text);
       if (!mounted) return;
-      _controller.clear();
-      widget.onDraftChanged?.call('');
+      _clearDraft();
       _focus.requestFocus();
       setState(() {});
     } catch (_) {
       if (!mounted) return;
-      if (_controller.text != text) {
-        _controller.text = text;
-        _controller.selection = TextSelection.collapsed(offset: text.length);
-      }
-      _focus.requestFocus();
-      setState(() {});
+      _restoreDraft(text);
     }
+  }
+
+  void _clearDraft() {
+    _controller.clear();
+    widget.onDraftChanged?.call('');
+  }
+
+  void _restoreDraft(String text) {
+    if (_controller.text != text) {
+      _controller.text = text;
+      _controller.selection = TextSelection.collapsed(offset: text.length);
+    }
+    _focus.requestFocus();
+    setState(() {});
   }
 
   @override
