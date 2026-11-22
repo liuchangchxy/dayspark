@@ -40,7 +40,13 @@ class WorkspaceScaffold extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SparkTopBar(clock: clock),
-              Expanded(child: child),
+              Expanded(
+                child: MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true,
+                  child: child,
+                ),
+              ),
             ],
           ),
         ),

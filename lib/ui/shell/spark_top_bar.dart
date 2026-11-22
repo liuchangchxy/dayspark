@@ -54,12 +54,14 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
     final isMac = defaultTargetPlatform == TargetPlatform.macOS;
     final shortcutText = isMac ? '\u2318 K' : 'Ctrl K';
 
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 900;
         return Container(
-          height: SparkTopBar.height,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          height: SparkTopBar.height + topPadding,
+          padding: EdgeInsets.fromLTRB(24, topPadding, 24, 0),
           decoration: const BoxDecoration(
             color: SpecTokens.paper,
             border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1.0)),
