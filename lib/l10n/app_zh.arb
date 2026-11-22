@@ -1690,5 +1690,17 @@
   },
   "planPickerEmpty": "没有可安排的待办",
   "planPickerEmptySub": "从捕获条添加待办后，再安排计划执行。",
-  "planPickerContext": "当天已有"
+  "planPickerContext": "当天已有",
+  "saveFailedNotWritten": "保存失败 · 未写入",
+  "retrySave": "重试保存",
+  "deleteTodoConfirm": "删除「{title}」？",
+  "@deleteTodoConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteSeriesTrashNotice": "这是重复任务，会删除整个系列并移入回收站，可恢复。",
+  "deleteTrashNotice": "会移入回收站，可恢复。"
 }

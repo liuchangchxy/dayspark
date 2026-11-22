@@ -84,6 +84,11 @@ Finder _field(String hint) => find.byWidgetPredicate(
 
 Finder get _picker => find.byKey(const ValueKey('calendar-picker'));
 
+Future<void> _saveDetail(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('event-detail-save')));
+  await _settle(tester);
+}
+
 Future<void> _chooseCalendar(WidgetTester tester, String name) async {
   await tester.tap(_picker);
   await _settle(tester);
@@ -185,6 +190,7 @@ void main() {
     await _settle(tester);
     await tester.tap(find.text('Calendar 17'));
     await _settle(tester);
+    await _saveDetail(tester);
     expect((await _event(db, id)).calendarId, lastId);
     await _unmount(tester);
   });
@@ -208,6 +214,7 @@ void main() {
             );
         await _pumpDetail(tester, db, await _event(db, id), embedded: embedded);
         await _chooseCalendar(tester, 'Work');
+        await _saveDetail(tester);
         final saved = await _event(db, id);
         expect(saved.calendarId, work);
         expect(saved.startDt, DateTime(2026, 10, 5, 9));
@@ -263,6 +270,7 @@ void main() {
       findsWidgets,
     );
     await _chooseCalendar(tester, 'Personal');
+    await _saveDetail(tester);
     expect((await _event(db, id)).calendarId, personal);
     await _unmount(tester);
   });

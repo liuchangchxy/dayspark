@@ -1967,5 +1967,17 @@
   },
   "planPickerEmpty": "No schedulable tasks",
   "planPickerEmptySub": "Add a task from the capture bar first, then plan its execution.",
-  "planPickerContext": "Existing today"
+  "planPickerContext": "Existing today",
+  "saveFailedNotWritten": "Save failed · not written",
+  "retrySave": "Retry save",
+  "deleteTodoConfirm": "Delete \"{title}\"?",
+  "@deleteTodoConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteSeriesTrashNotice": "This is a repeating task. The whole series will move to the trash and can be restored.",
+  "deleteTrashNotice": "It will move to the trash and can be restored."
 }

@@ -152,13 +152,7 @@ void main() {
     await tester.pumpWidget(_app(db, series));
     await _settle(tester);
 
-    await tester.tap(find.text('Schedule'));
-    await _settle(tester);
-    await tester.tap(find.byKey(const ValueKey('a2-composer-plan')));
-    await _settle(tester);
-    await tester.tap(find.text('14:00–15:00'));
-    await _settle(tester);
-    await tester.tap(find.byType(FilledButton));
+    await tester.tap(find.text('Add execution time'));
     await _settle(tester);
 
     expect(
@@ -175,6 +169,9 @@ void main() {
           )
           .first,
     );
+    await _settle(tester);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await _settle(tester);
 
     final allocations = await db.select(db.taskAllocations).get();

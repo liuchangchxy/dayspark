@@ -5782,6 +5782,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Existing today'**
   String get planPickerContext;
+
+  /// No description provided for @saveFailedNotWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed · not written'**
+  String get saveFailedNotWritten;
+
+  /// No description provided for @retrySave.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry save'**
+  String get retrySave;
+
+  /// No description provided for @deleteTodoConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\"?'**
+  String deleteTodoConfirm(String title);
+
+  /// No description provided for @deleteSeriesTrashNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a repeating task. The whole series will move to the trash and can be restored.'**
+  String get deleteSeriesTrashNotice;
+
+  /// No description provided for @deleteTrashNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'It will move to the trash and can be restored.'**
+  String get deleteTrashNotice;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -505,6 +505,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final selection = ref.watch(workspaceSelectionProvider);
     final isDrawerOpen =
         desktop && canShowDesktopDrawer(context) && selection != null;
+    final inlineDetail = isDrawerOpen && _usesInlineDetail(tab);
 
     if (desktop) {
       final body = Column(
@@ -515,22 +516,30 @@ class _HomePageState extends ConsumerState<HomePage>
             onSelect: (index) => _setTab(index),
           ),
           Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTap: isDrawerOpen ? _clearSelection : null,
-                    child: page,
+            child: inlineDetail
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: page),
+                      _InlineDetailPane(child: _buildDetailPane(selection)),
+                    ],
+                  )
+                : Stack(
+                    children: [
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onTap: isDrawerOpen ? _clearSelection : null,
+                          child: page,
+                        ),
+                      ),
+                      if (isDrawerOpen)
+                        SpecDrawerOverlay(
+                          width: specDrawerWidth(context),
+                          child: _buildDetailPane(selection),
+                        ),
+                    ],
                   ),
-                ),
-                if (isDrawerOpen)
-                  SpecDrawerOverlay(
-                    width: specDrawerWidth(context),
-                    child: _buildDetailPane(selection),
-                  ),
-              ],
-            ),
           ),
         ],
       );
@@ -944,6 +953,13 @@ class _HomePageState extends ConsumerState<HomePage>
     router.push('/search');
   }
 
+  /// Todos reads detail as a column beside the list once the window is wide
+  /// enough; Today stays an overlay, and a narrow desktop keeps the 360
+  /// overlay rather than squeezing the list.
+  bool _usesInlineDetail(AppTab tab) =>
+      tab == AppTab.todos &&
+      MediaQuery.sizeOf(context).width >= kWideDesktopBreakpoint;
+
   /// Whether a tap can be answered in place via the desktop drawer overlay.
   /// On wide layouts (>= 1000) Today, Calendar, and Todos destinations show
   /// the overlay drawer; on narrow layouts (< 1000) and mobile (< 720) it navigates.
@@ -973,6 +989,30 @@ class _HomePageState extends ConsumerState<HomePage>
 
 
 
+}
+
+class _InlineDetailPane extends StatelessWidget {
+  const _InlineDetailPane({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    return SizedBox(
+      key: const ValueKey('spec-drawer-inline'),
+      width: width >= kWideDesktopBreakpoint
+          ? kDrawerWidthWide
+          : kDrawerWidthNarrow,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: SpecTokens.paper,
+          border: Border(left: BorderSide(color: SpecTokens.hair)),
+        ),
+        child: child,
+      ),
+    );
+  }
 }
 
 class _MobileDock extends StatelessWidget {

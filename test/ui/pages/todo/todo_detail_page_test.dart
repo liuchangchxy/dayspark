@@ -181,7 +181,15 @@ void main() {
       find.byKey(const ValueKey('todo-detail-title')),
       'Write the final report',
     );
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await _settle(tester);
+
+    expect(
+      (await db.select(db.todos).get()).single.summary,
+      'Write the report',
+      reason: 'typing alone does not write',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
     await _settle(tester);
 
     final rows = await db.select(db.todos).get();
@@ -228,13 +236,13 @@ void main() {
     }
 
     final primary = tester.getSize(
-      find.byKey(const ValueKey('todo-detail-mark-complete')),
+      find.byKey(const ValueKey('todo-detail-save')),
     );
     expect(primary.width, greaterThanOrEqualTo(48));
     expect(primary.height, greaterThanOrEqualTo(48));
     final primaryVisual = tester.getSize(
       find.descendant(
-        of: find.byKey(const ValueKey('todo-detail-mark-complete')),
+        of: find.byKey(const ValueKey('todo-detail-save')),
         matching: find.byType(Ink),
       ),
     );

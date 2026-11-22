@@ -3127,4 +3127,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get planPickerContext => '当天已有';
+
+  @override
+  String get saveFailedNotWritten => '保存失败 · 未写入';
+
+  @override
+  String get retrySave => '重试保存';
+
+  @override
+  String deleteTodoConfirm(String title) {
+    return '删除「$title」？';
+  }
+
+  @override
+  String get deleteSeriesTrashNotice => '这是重复任务，会删除整个系列并移入回收站，可恢复。';
+
+  @override
+  String get deleteTrashNotice => '会移入回收站，可恢复。';
 }

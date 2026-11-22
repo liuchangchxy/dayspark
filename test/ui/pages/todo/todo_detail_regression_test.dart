@@ -104,20 +104,30 @@ void main() {
 
     final title = find.byKey(const ValueKey('todo-detail-title'));
     await tester.enterText(title, 'Changed title');
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pump();
+    await _settle(tester);
 
-    expect(attempts, 1);
-    expect(tester.widget<TextField>(title).controller!.text, 'Changed title');
+    expect(attempts, 0);
     expect(
       (await (db.select(
         db.todos,
       )..where((row) => row.id.equals(todo.id))).getSingle()).summary,
       'Write the report',
     );
-    expect(find.text("That didn't work. Please try again."), findsOneWidget);
 
-    tester.widget<TextField>(title).focusNode!.unfocus();
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
+
+    expect(attempts, 1);
+    expect(tester.widget<TextField>(title).controller!.text, 'Changed title');
+    expect(find.text('Save failed · not written'), findsOneWidget);
+    expect(
+      (await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(todo.id))).getSingle()).summary,
+      'Write the report',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('todo-detail-retry-save')));
     await _settle(tester);
 
     expect(attempts, 2);
@@ -162,11 +172,9 @@ void main() {
 
     final notes = _notesField();
     await tester.enterText(notes, 'Changed notes');
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pump();
+    await _settle(tester);
 
-    expect(attempts, 1);
-    expect(tester.widget<TextField>(notes).controller!.text, 'Changed notes');
+    expect(attempts, 0);
     expect(
       (await (db.select(
         db.todos,
@@ -174,7 +182,20 @@ void main() {
       isNull,
     );
 
-    tester.widget<TextField>(notes).focusNode!.unfocus();
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
+
+    expect(attempts, 1);
+    expect(tester.widget<TextField>(notes).controller!.text, 'Changed notes');
+    expect(find.text('Save failed · not written'), findsOneWidget);
+    expect(
+      (await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(todo.id))).getSingle()).description,
+      isNull,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('todo-detail-retry-save')));
     await _settle(tester);
 
     expect(attempts, 2);
@@ -275,10 +296,10 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.text('Schedule · Completed'), findsOneWidget);
-    await tester.tap(find.text('Schedule'));
-    await _settle(tester);
-    expect(find.byKey(const ValueKey('a2-composer-plan')), findsNothing);
+    expect(find.text('Add execution time'), findsNothing);
+    expect(find.byKey(const ValueKey('todo-detail-save')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-cancel')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-delete')), findsOneWidget);
     await _unmount(tester);
   });
 

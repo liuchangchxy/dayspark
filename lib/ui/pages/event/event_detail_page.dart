@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +26,8 @@ import 'package:dayspark/ui/widgets/undo_bar.dart';
 
 /// An event that is editable where it is read — the same contract as
 /// [TodoDetailPane], so the two object types never teach different gestures.
+/// Edits are a draft: only the footer's save writes them, and cancel discards
+/// them.
 class EventDetailPage extends StatelessWidget {
   const EventDetailPage({super.key, required this.event, this.clock});
 
@@ -76,41 +76,28 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   final _titleFocus = FocusNode();
   final _descriptionFocus = FocusNode();
   final _locationFocus = FocusNode();
-  Timer? _titleTimer;
-  Timer? _descriptionTimer;
-  Timer? _locationTimer;
-  late String _savedTitle;
-  late String _savedDescription;
-  late String _savedLocation;
-  final Set<String> _savingText = {};
+  late _EventDraft _snapshot;
+  late _EventDraft _draft;
+  bool _dirty = false;
+  bool _saving = false;
+  bool _titleError = false;
+  bool _timeError = false;
+  bool _saveFailed = false;
   bool _deleting = false;
   bool _deletedNotified = false;
 
   @override
   void initState() {
     super.initState();
-    _savedTitle = widget.event.title;
-    _savedDescription = widget.event.description ?? '';
-    _savedLocation = widget.event.location ?? '';
-    _title.text = _savedTitle;
-    _description.text = _savedDescription;
-    _location.text = _savedLocation;
-    _titleFocus.addListener(_flushTitle);
-    _descriptionFocus.addListener(_flushDescription);
-    _locationFocus.addListener(_flushLocation);
+    _snapshot = _EventDraft.fromAdapter(widget.event);
+    _draft = _snapshot;
+    _title.text = _draft.title;
+    _description.text = _draft.description;
+    _location.text = _draft.location;
   }
 
   @override
   void dispose() {
-    _flushTitle();
-    _flushDescription();
-    _flushLocation();
-    _titleTimer?.cancel();
-    _descriptionTimer?.cancel();
-    _locationTimer?.cancel();
-    _titleFocus.removeListener(_flushTitle);
-    _descriptionFocus.removeListener(_flushDescription);
-    _locationFocus.removeListener(_flushLocation);
     _titleFocus.dispose();
     _descriptionFocus.dispose();
     _locationFocus.dispose();
@@ -118,6 +105,64 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     _description.dispose();
     _location.dispose();
     super.dispose();
+  }
+
+  void _syncFromLive(CalendaEventAdapter live) {
+    if (_dirty || _saving || _deleting) return;
+    final next = _EventDraft.fromAdapter(live);
+    if (_sameEventDraft(next, _draft)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _dirty || _saving) return;
+      setState(() {
+        _snapshot = next;
+        _draft = next;
+      });
+      if (!_titleFocus.hasFocus && _title.text != next.title) {
+        _title.text = next.title;
+      }
+      if (!_descriptionFocus.hasFocus &&
+          _description.text != next.description) {
+        _description.text = next.description;
+      }
+      if (!_locationFocus.hasFocus && _location.text != next.location) {
+        _location.text = next.location;
+      }
+    });
+  }
+
+  void _setDraft(_EventDraft next) {
+    setState(() {
+      _draft = next;
+      _dirty = true;
+      _saveFailed = false;
+      if (_timeError && next.end.isAfter(next.start)) {
+        _timeError = false;
+      }
+    });
+  }
+
+  _EventDraft _withDraft({
+    String? title,
+    String? description,
+    String? location,
+    DateTime? start,
+    DateTime? end,
+    bool? allDay,
+    int? calendarId,
+    Object? rrule = _unsetEventDraft,
+  }) {
+    return _EventDraft(
+      title: title ?? _draft.title,
+      description: description ?? _draft.description,
+      location: location ?? _draft.location,
+      start: start ?? _draft.start,
+      end: end ?? _draft.end,
+      allDay: allDay ?? _draft.allDay,
+      calendarId: calendarId ?? _draft.calendarId,
+      rrule: identical(rrule, _unsetEventDraft)
+          ? _draft.rrule
+          : rrule as String?,
+    );
   }
 
   @override
@@ -152,13 +197,13 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     }
     _syncFromLive(live);
 
-    final start = live.seriesStart;
-    final end = live.seriesEnd;
+    final start = _draft.start;
+    final end = _draft.end;
     final length = end.difference(start);
     final validRange = !length.isNegative && length > Duration.zero;
     final calendars = ref.watch(calendarsProvider).valueOrNull;
     final currentCalendar = calendars
-        ?.where((c) => c.id == live.calendarId)
+        ?.where((c) => c.id == _draft.calendarId)
         .firstOrNull;
 
     final now = widget.clock?.call() ?? DateTime.now();
@@ -196,12 +241,12 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               24,
             ),
             children: [
+              if (_saveFailed) _saveErrorBanner(context, l),
               _header(context, l, live, currentCalendar),
-              _status(context, live, status, statusColor, fraction, start, end),
+              _status(context, status, statusColor, fraction, start, end),
               _fields(
                 context,
                 l,
-                live,
                 calendars,
                 currentCalendar,
                 validRange,
@@ -217,12 +262,12 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     RepeatRow(
-                      rrule: live.rrule,
-                      anchorDate: start,
+                      rrule: _draft.rrule,
+                      anchorDate: _draft.start,
                       onChanged: (value) =>
-                          _saveSchedule(live, setRrule: true, rrule: value),
+                          _setDraft(_withDraft(rrule: value)),
                     ),
-                    if (live.rrule != null)
+                    if (_draft.rrule != null)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(0, 2, 0, 10),
                         child: Text(
@@ -239,7 +284,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               RemindersSection(
                 parentType: 'event',
                 parentId: live.drifId,
-                anchorTime: live.seriesStart,
+                anchorTime: _draft.start,
               ),
               const SizedBox(height: 18),
               _notes(context, l),
@@ -283,6 +328,38 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     );
   }
 
+  Widget _saveErrorBanner(BuildContext context, AppLocalizations l) {
+    final ds = context.ds;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: ds.dangerSoft,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l.saveFailedNotWritten,
+              style: TextStyle(
+                fontSize: 12,
+                height: 18 / 12,
+                fontWeight: FontWeight.w600,
+                color: ds.danger,
+              ),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('event-detail-retry-save'),
+            onPressed: _saving ? null : _save,
+            child: Text(l.retrySave),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _header(
     BuildContext context,
     AppLocalizations l,
@@ -292,8 +369,8 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     final ds = context.ds;
     final locale = Localizations.localeOf(context).toString();
     final date =
-        '${DateFormat.MMMd(locale).format(live.seriesStart)} '
-        '${DateFormat.E(locale).format(live.seriesStart)}';
+        '${DateFormat.MMMd(locale).format(_draft.start)} '
+        '${DateFormat.E(locale).format(_draft.start)}';
     final eyebrow = calendar == null ? date : '${calendar.name} · $date';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,26 +406,26 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                 maxLines: null,
                 textCapitalization: TextCapitalization.sentences,
                 onChanged: (value) {
-                  _titleTimer?.cancel();
-                  if (value.trim().isEmpty) return;
-                  _titleTimer = Timer(
-                    const Duration(milliseconds: 600),
-                    _flushTitle,
-                  );
+                  if (!_dirty) setState(() => _dirty = true);
+                  if (_titleError && value.trim().isNotEmpty) {
+                    setState(() => _titleError = false);
+                  }
                 },
-                onSubmitted: (_) => _flushTitle(),
                 decoration: InputDecoration(
                   hintText: l.title,
                   isDense: true,
-                  // The title sits on the page, not in a box: the theme fills
-                  // every field, and a white patch behind the one line of
-                  // 20px type reads as a stray input that lost its border.
                   filled: false,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                   hintStyle: AppTypography.headline.copyWith(color: ds.ink3),
+                  errorText: _titleError ? l.titleRequired : null,
+                  errorStyle: TextStyle(
+                    fontSize: 11,
+                    height: 16 / 11,
+                    color: ds.danger,
+                  ),
                 ),
               ),
             ],
@@ -360,7 +437,6 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
 
   Widget _status(
     BuildContext context,
-    CalendaEventAdapter live,
     String status,
     Color statusColor,
     double fraction,
@@ -368,10 +444,10 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     DateTime end,
   ) {
     final ds = context.ds;
-    final left = live.isAllDay
+    final left = _draft.allDay
         ? formatDeadline(context, start)
         : DateFormatters.formatTime(start);
-    final right = live.isAllDay
+    final right = _draft.allDay
         ? formatDeadline(context, end)
         : DateFormatters.formatTime(end);
     final timeStyle = AppTypography.small.copyWith(
@@ -434,7 +510,6 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   Widget _fields(
     BuildContext context,
     AppLocalizations l,
-    CalendaEventAdapter live,
     List<Calendar>? calendars,
     Calendar? currentCalendar,
     bool validRange,
@@ -448,30 +523,42 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         _PaneFieldRow(
           label: l.startTime,
           height: rowHeight,
-          value: live.isAllDay
-              ? formatDeadline(context, live.seriesStart)
-              : formatMoment(context, live.seriesStart),
-          onTap: () => _pickBoundary(live, isStart: true),
+          value: _draft.allDay
+              ? formatDeadline(context, _draft.start)
+              : formatMoment(context, _draft.start),
+          onTap: () => _pickBoundary(isStart: true),
           showChevron: true,
         ),
         _PaneFieldRow(
           label: l.endTime,
           height: rowHeight,
-          value: live.isAllDay
-              ? formatDeadline(context, live.seriesEnd)
-              : formatMoment(context, live.seriesEnd),
-          onTap: () => _pickBoundary(live, isStart: false),
+          value: _draft.allDay
+              ? formatDeadline(context, _draft.end)
+              : formatMoment(context, _draft.end),
+          onTap: () => _pickBoundary(isStart: false),
           showChevron: true,
         ),
+        if (_timeError)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              l.invalidTimeRange,
+              style: TextStyle(
+                fontSize: 11,
+                height: 16 / 11,
+                color: ds.danger,
+              ),
+            ),
+          ),
         _PaneFieldRow(
           label: l.duration,
           height: rowHeight,
           value: validRange
-              ? (live.isAllDay
+              ? (_draft.allDay
                     ? l.durationAllDay
                     : formatExecutionLength(
                         context,
-                        live.seriesEnd.difference(live.seriesStart),
+                        _draft.end.difference(_draft.start),
                       ))
               : l.invalidTimeRange,
         ),
@@ -481,8 +568,8 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
           valueChild: Align(
             alignment: Alignment.centerLeft,
             child: Switch(
-              value: live.isAllDay,
-              onChanged: (value) => _toggleAllDay(live, value),
+              value: _draft.allDay,
+              onChanged: _toggleAllDay,
             ),
           ),
         ),
@@ -501,13 +588,12 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               : calendars.isEmpty
               ? l.noCalendar
               : (currentCalendar?.name ?? l.calendarUnavailable),
-          onTap: () => _pickCalendar(live),
+          onTap: _pickCalendar,
           showChevron: true,
         ),
         _PaneFieldRow(
           label: l.location,
           height: rowHeight,
-          // No chevron: this row edits in place, it does not open anything.
           showChevron: false,
           valueChild: TextField(
             controller: _location,
@@ -515,9 +601,6 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             style: AppTypography.caption.copyWith(color: ds.ink),
             cursorColor: ds.primary,
             decoration: InputDecoration(
-              // The row already says "Location"; repeating it in the empty field
-              // printed the same word twice, six pixels apart. The placeholder
-              // says what to do instead of what the row is.
               hintText: l.locationHint,
               isDense: true,
               border: InputBorder.none,
@@ -528,11 +611,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             ),
             textCapitalization: TextCapitalization.sentences,
             onChanged: (_) {
-              _locationTimer?.cancel();
-              _locationTimer = Timer(
-                const Duration(milliseconds: 600),
-                _flushLocation,
-              );
+              if (!_dirty) setState(() => _dirty = true);
             },
           ),
         ),
@@ -582,11 +661,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             maxLines: null,
             textCapitalization: TextCapitalization.sentences,
             onChanged: (_) {
-              _descriptionTimer?.cancel();
-              _descriptionTimer = Timer(
-                const Duration(milliseconds: 600),
-                _flushDescription,
-              );
+              if (!_dirty) setState(() => _dirty = true);
             },
           ),
         ),
@@ -599,8 +674,6 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     final ds = context.ds;
     final assigned =
         ref.watch(eventTagsProvider(live.drifId)).valueOrNull ?? const [];
-    // An event with no tags has nothing to show here, and a heading over
-    // nothing reads as content that failed to load.
     if (assigned.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,6 +706,27 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   ) {
     final ds = context.ds;
     final height = mobile ? 48.0 : 36.0;
+    final primaryLabel = _saveFailed ? l.retrySave : l.save;
+    final save = _PaneButton(
+      key: const ValueKey('event-detail-save'),
+      label: primaryLabel,
+      height: height,
+      primary: true,
+      onPressed: _saving ? null : _save,
+    );
+    final cancel = _PaneButton(
+      key: const ValueKey('event-detail-cancel'),
+      label: l.cancel,
+      height: height,
+      onPressed: _saving ? null : _cancel,
+    );
+    final remove = _PaneButton(
+      key: const ValueKey('event-detail-delete'),
+      label: l.moveToTrash,
+      height: height,
+      danger: true,
+      onPressed: _deleting ? null : () => _delete(live),
+    );
     return Container(
       decoration: BoxDecoration(
         color: widget.embedded ? ds.surface : ds.bg,
@@ -643,59 +737,19 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         top: false,
         minimum: EdgeInsets.only(bottom: mobile ? 12 : 16),
         child: SizedBox(
-          height: height,
+          height: height < 48 ? 48 : height,
           child: Row(
             children: [
-              Expanded(
-                child: _PaneButton(
-                  label: l.edit,
-                  height: height,
-                  primary: true,
-                  expand: true,
-                  onPressed: () => context.push('/event/edit', extra: live),
-                ),
-              ),
+              Expanded(flex: 2, child: save),
               const SizedBox(width: 8),
-              _PaneButton(
-                label: l.moveToTrash,
-                height: height,
-                danger: true,
-                onPressed: _deleting ? null : () => _delete(live),
-              ),
+              Expanded(child: cancel),
+              const SizedBox(width: 8),
+              Expanded(flex: 2, child: remove),
             ],
           ),
         ),
       ),
     );
-  }
-
-  void _syncFromLive(CalendaEventAdapter live) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!_savingText.contains('title') &&
-          !_titleFocus.hasFocus &&
-          _title.text == _savedTitle &&
-          _title.text != live.title) {
-        _title.text = live.title;
-        _savedTitle = live.title;
-      }
-      final description = live.description ?? '';
-      if (!_savingText.contains('description') &&
-          !_descriptionFocus.hasFocus &&
-          _description.text == _savedDescription &&
-          _description.text != description) {
-        _description.text = description;
-        _savedDescription = description;
-      }
-      final location = live.location ?? '';
-      if (!_savingText.contains('location') &&
-          !_locationFocus.hasFocus &&
-          _location.text == _savedLocation &&
-          _location.text != location) {
-        _location.text = location;
-        _savedLocation = location;
-      }
-    });
   }
 
   void _notifyDeleted() {
@@ -707,189 +761,147 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     }
   }
 
-  void _flushTitle() {
-    if (!mounted) return;
-    _titleTimer?.cancel();
-    _titleTimer = null;
-    final text = _title.text.trim();
-    if (text.isEmpty) {
-      _title.text = _savedTitle;
+  Future<void> _save() async {
+    if (_saving) return;
+    final title = _title.text.trim();
+    if (title.isEmpty) {
+      setState(() {
+        _titleError = true;
+        _saveFailed = false;
+      });
+      _titleFocus.requestFocus();
       return;
     }
-    if (text == _savedTitle || !_savingText.add('title')) return;
-    unawaited(
-      _saveText(title: text).then((saved) {
-        _savingText.remove('title');
-        if (!saved) return;
-        _savedTitle = text;
-        if (mounted && _title.text.trim() != text) _flushTitle();
-      }),
-    );
-  }
-
-  void _flushDescription() {
-    if (!mounted) return;
-    _descriptionTimer?.cancel();
-    _descriptionTimer = null;
-    final text = _description.text.trim();
-    if (text == _savedDescription || !_savingText.add('description')) return;
-    unawaited(
-      _saveText(setDescription: true, description: text).then((saved) {
-        _savingText.remove('description');
-        if (!saved) return;
-        _savedDescription = text;
-        if (mounted && _description.text.trim() != text) _flushDescription();
-      }),
-    );
-  }
-
-  void _flushLocation() {
-    if (!mounted) return;
-    _locationTimer?.cancel();
-    _locationTimer = null;
-    final text = _location.text.trim();
-    if (text == _savedLocation || !_savingText.add('location')) return;
-    unawaited(
-      _saveText(setLocation: true, location: text).then((saved) {
-        _savingText.remove('location');
-        if (!saved) return;
-        _savedLocation = text;
-        if (mounted && _location.text.trim() != text) _flushLocation();
-      }),
-    );
-  }
-
-  Future<bool> _saveText({
-    String? title,
-    bool setDescription = false,
-    String? description,
-    bool setLocation = false,
-    String? location,
-  }) async {
+    if (!_draft.end.isAfter(_draft.start)) {
+      setState(() {
+        _timeError = true;
+        _saveFailed = false;
+      });
+      return;
+    }
+    final description = _description.text.trim();
+    final location = _location.text.trim();
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+      _titleError = false;
+      _timeError = false;
+    });
     try {
       await ref.read(updateEventProvider)(
         widget.event.drifId,
         EventsCompanion(
-          summary: title != null ? Value(title) : const Value.absent(),
-          description: setDescription
-              ? Value(description!.isEmpty ? null : description)
-              : const Value.absent(),
-          location: setLocation
-              ? Value(location!.isEmpty ? null : location)
-              : const Value.absent(),
+          summary: Value(title),
+          description: Value(description.isEmpty ? null : description),
+          location: Value(location.isEmpty ? null : location),
+          startDt: Value(_draft.start),
+          endDt: Value(_draft.end),
+          isAllDay: Value(_draft.allDay),
+          calendarId: Value(_draft.calendarId),
+          rrule: Value(_draft.rrule),
           updatedAt: Value(DateTime.now()),
         ),
       );
-      return true;
-    } on Object catch (error) {
-      debugPrint('event_detail: text update failed: $error');
-      _showError();
-      return false;
+    } catch (error) {
+      debugPrint('event_detail: save failed: $error');
+      if (!mounted) return;
+      setState(() {
+        _saveFailed = true;
+        _saving = false;
+      });
+      return;
     }
+    if (!mounted) return;
+    final saved = _EventDraft(
+      title: title,
+      description: description,
+      location: location,
+      start: _draft.start,
+      end: _draft.end,
+      allDay: _draft.allDay,
+      calendarId: _draft.calendarId,
+      rrule: _draft.rrule,
+    );
+    setState(() {
+      _snapshot = saved;
+      _draft = saved;
+      _dirty = false;
+      _saving = false;
+      _title.text = title;
+    });
   }
 
-  Future<void> _pickCalendar(CalendaEventAdapter live) async {
+  void _cancel() {
+    setState(() {
+      _draft = _snapshot;
+      _dirty = false;
+      _saving = false;
+      _titleError = false;
+      _timeError = false;
+      _saveFailed = false;
+      _title.text = _snapshot.title;
+      _description.text = _snapshot.description;
+      _location.text = _snapshot.location;
+    });
+    _titleFocus.unfocus();
+    _descriptionFocus.unfocus();
+    _locationFocus.unfocus();
+    if (widget.embedded) {
+      widget.onClose?.call();
+      return;
+    }
+    _leaveToSource(context);
+  }
+
+  Future<void> _pickCalendar() async {
     final picked = await pickCalendar(
       context,
       ref,
-      selectedId: live.calendarId,
+      selectedId: _draft.calendarId,
     );
-    if (picked == null || !mounted || picked == live.calendarId) return;
-    try {
-      await ref.read(updateEventProvider)(
-        live.drifId,
-        EventsCompanion(
-          calendarId: Value(picked),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-    } on Object catch (error) {
-      debugPrint('event_detail: calendar update failed: $error');
-      _showError();
-    }
+    if (picked == null || !mounted || picked == _draft.calendarId) return;
+    _setDraft(_withDraft(calendarId: picked));
   }
 
-  Future<void> _toggleAllDay(CalendaEventAdapter live, bool allDay) async {
-    if (allDay == live.isAllDay) return;
+  void _toggleAllDay(bool allDay) {
+    if (allDay == _draft.allDay) return;
     final start = allDay
-        ? DateTime(
-            live.seriesStart.year,
-            live.seriesStart.month,
-            live.seriesStart.day,
-          )
-        : live.seriesStart;
+        ? DateTime(_draft.start.year, _draft.start.month, _draft.start.day)
+        : _draft.start;
     final end = allDay
-        ? DateTime(
-            live.seriesEnd.year,
-            live.seriesEnd.month,
-            live.seriesEnd.day,
-          )
-        : live.seriesEnd;
+        ? DateTime(_draft.end.year, _draft.end.month, _draft.end.day)
+        : _draft.end;
     final validEnd = allDay && !end.isAfter(start)
         ? DateTime(start.year, start.month, start.day + 1)
         : end;
-    await _saveSchedule(live, start: start, end: validEnd, allDay: allDay);
+    _setDraft(
+      _withDraft(allDay: allDay, start: start, end: validEnd),
+    );
   }
 
-  Future<void> _pickBoundary(
-    CalendaEventAdapter live, {
-    required bool isStart,
-  }) async {
-    final current = isStart ? live.seriesStart : live.seriesEnd;
-    final picked = live.isAllDay
+  Future<void> _pickBoundary({required bool isStart}) async {
+    final current = isStart ? _draft.start : _draft.end;
+    final picked = _draft.allDay
         ? await pickDeadline(context, initial: current)
         : await pickDateTime(context, initial: current);
     if (picked == null || !mounted) return;
     if (isStart) {
-      final length = live.seriesEnd.difference(live.seriesStart);
+      final length = _draft.end.difference(_draft.start);
       final span = length.isNegative || length == Duration.zero
           ? const Duration(hours: 1)
           : length;
-      await _saveSchedule(live, start: picked, end: picked.add(span));
-    } else {
-      await _saveSchedule(live, end: picked);
-    }
-  }
-
-  Future<void> _saveSchedule(
-    CalendaEventAdapter live, {
-    DateTime? start,
-    DateTime? end,
-    bool? allDay,
-    bool setRrule = false,
-    String? rrule,
-  }) async {
-    final l = AppLocalizations.of(context)!;
-    final nextStart = start ?? live.seriesStart;
-    final nextEnd = end ?? live.seriesEnd;
-    if (nextEnd.isBefore(nextStart) || nextEnd == nextStart) {
-      _showMessage(l.invalidTimeRange);
-      return;
-    }
-    try {
-      await ref.read(updateEventProvider)(
-        live.drifId,
-        EventsCompanion(
-          startDt: Value(nextStart),
-          endDt: Value(nextEnd),
-          isAllDay: allDay != null ? Value(allDay) : const Value.absent(),
-          rrule: setRrule
-              ? Value(rrule == null || rrule.isEmpty ? null : rrule)
-              : const Value.absent(),
-          updatedAt: Value(DateTime.now()),
-        ),
+      _setDraft(
+        _withDraft(start: picked, end: picked.add(span)),
       );
-    } on Object catch (error) {
-      debugPrint('event_detail: schedule update failed: $error');
-      _showError();
+    } else {
+      _setDraft(_withDraft(end: picked));
     }
   }
 
   Future<void> _delete(CalendaEventAdapter row) async {
     if (_deleting) return;
     final l = AppLocalizations.of(context)!;
-    // A recurring series has two very different deletes; asking which one is
-    // the same question the todo side asks before completing an occurrence.
+    final title = _title.text.trim().isEmpty ? row.title : _title.text.trim();
     var occurrenceOnly = false;
     if (row.rrule != null && widget.event.isRecurringOccurrence) {
       final scope = await showDialog<bool>(
@@ -924,7 +936,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             ),
           ],
           child: Text(
-            l.deleteEventConfirm(row.title),
+            l.deleteEventConfirm(title),
             style: AppTypography.body.copyWith(color: context.ds.ink2),
           ),
         ),
@@ -938,7 +950,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             id: row.drifId,
             occurrenceStart: widget.event.start,
           );
-        } on Object catch (error) {
+        } catch (error) {
           debugPrint('event_detail: delete occurrence failed: $error');
           if (!mounted) return;
           setState(() => _deleting = false);
@@ -973,7 +985,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             ),
           ],
           child: Text(
-            l.deleteRecurringEventConfirm(row.title),
+            l.deleteRecurringEventConfirm(title),
             style: AppTypography.body.copyWith(color: context.ds.ink2),
           ),
         ),
@@ -1000,7 +1012,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             ),
           ],
           child: Text(
-            l.deleteEventConfirm(row.title),
+            l.deleteEventConfirm(title),
             style: AppTypography.body.copyWith(color: context.ds.ink2),
           ),
         ),
@@ -1013,7 +1025,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     setState(() => _deleting = true);
     try {
       await ref.read(deleteEventProvider)(id);
-    } on Object catch (error) {
+    } catch (error) {
       debugPrint('event_detail: delete failed: $error');
       if (!mounted) return;
       setState(() => _deleting = false);
@@ -1088,15 +1100,58 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
 
   void _showError() {
     if (!mounted) return;
-    _showMessage(AppLocalizations.of(context)!.actionFailedRetry);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.actionFailedRetry)),
+    );
+  }
+}
+
+const Object _unsetEventDraft = Object();
+
+class _EventDraft {
+  const _EventDraft({
+    required this.title,
+    required this.description,
+    required this.location,
+    required this.start,
+    required this.end,
+    required this.allDay,
+    required this.calendarId,
+    required this.rrule,
+  });
+
+  factory _EventDraft.fromAdapter(CalendaEventAdapter event) {
+    return _EventDraft(
+      title: event.title,
+      description: event.description ?? '',
+      location: event.location ?? '',
+      start: event.seriesStart,
+      end: event.seriesEnd,
+      allDay: event.isAllDay,
+      calendarId: event.calendarId,
+      rrule: event.rrule,
+    );
   }
 
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
+  final String title;
+  final String description;
+  final String location;
+  final DateTime start;
+  final DateTime end;
+  final bool allDay;
+  final int calendarId;
+  final String? rrule;
+}
+
+bool _sameEventDraft(_EventDraft a, _EventDraft b) {
+  return a.title == b.title &&
+      a.description == b.description &&
+      a.location == b.location &&
+      a.start == b.start &&
+      a.end == b.end &&
+      a.allDay == b.allDay &&
+      a.calendarId == b.calendarId &&
+      a.rrule == b.rrule;
 }
 
 /// A deleted object cannot stay on screen. Pop the detail route so the user
@@ -1242,12 +1297,12 @@ class _PaneFieldRow extends StatelessWidget {
 
 class _PaneButton extends StatelessWidget {
   const _PaneButton({
+    super.key,
     required this.label,
     required this.onPressed,
     required this.height,
     this.primary = false,
     this.danger = false,
-    this.expand = false,
   });
 
   final String label;
@@ -1255,7 +1310,6 @@ class _PaneButton extends StatelessWidget {
   final double height;
   final bool primary;
   final bool danger;
-  final bool expand;
 
   @override
   Widget build(BuildContext context) {
@@ -1263,6 +1317,31 @@ class _PaneButton extends StatelessWidget {
     final bg = primary ? ds.primary : ds.surface;
     final fg = primary ? ds.onPrimary : (danger ? ds.danger : ds.ink2);
     final enabled = onPressed != null;
+    final visual = Ink(
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: primary ? Colors.transparent : ds.line,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: height >= 44 ? 14 : 12,
+            fontWeight: height >= 44 ? FontWeight.w600 : FontWeight.w500,
+            color: fg,
+            height: 1.2,
+          ),
+        ),
+      ),
+    );
     return Semantics(
       button: true,
       enabled: enabled,
@@ -1271,36 +1350,17 @@ class _PaneButton extends StatelessWidget {
         child: Opacity(
           opacity: enabled ? 1 : 0.45,
           child: Material(
-            color: bg,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(6),
             child: InkWell(
               onTap: onPressed,
               borderRadius: BorderRadius.circular(6),
-              child: Container(
-                height: height,
-                width: expand ? double.infinity : null,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: primary ? Colors.transparent : ds.line,
-                  ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: 48,
+                  minHeight: 48,
                 ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: height >= 44 ? 14 : 12,
-                    fontWeight: height >= 44
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                    color: fg,
-                    height: 1.2,
-                  ),
-                ),
+                child: Center(child: visual),
               ),
             ),
           ),

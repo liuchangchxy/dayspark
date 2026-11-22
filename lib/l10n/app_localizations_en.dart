@@ -3151,4 +3151,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get planPickerContext => 'Existing today';
+
+  @override
+  String get saveFailedNotWritten => 'Save failed · not written';
+
+  @override
+  String get retrySave => 'Retry save';
+
+  @override
+  String deleteTodoConfirm(String title) {
+    return 'Delete \"$title\"?';
+  }
+
+  @override
+  String get deleteSeriesTrashNotice => 'This is a repeating task. The whole series will move to the trash and can be restored.';
+
+  @override
+  String get deleteTrashNotice => 'It will move to the trash and can be restored.';
 }

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -31,15 +29,11 @@ import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
 
-import 'a2_composer.dart';
-
 /// A todo that is editable where it is read.
 ///
-/// The old split — list, read-only detail, edit page — made changing a word
-/// cost two page transitions. Detail and edit are now the same surface: every
-/// field writes as soon as it is committed, and there is no second step to
-/// reach. The same [TodoDetailPane] is the mobile page body and the desktop
-/// right-hand pane, so the two platforms cannot drift apart.
+/// The same [TodoDetailPane] is the mobile page body and the desktop right-hand
+/// pane, so the two platforms cannot drift apart. Edits are a draft: only the
+/// footer's save writes them, and cancel discards them.
 class TodoDetailPage extends StatelessWidget {
   const TodoDetailPage({super.key, required this.todo, this.clock});
 
@@ -89,11 +83,13 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   final _description = TextEditingController();
   final _summaryFocus = FocusNode();
   final _descriptionFocus = FocusNode();
-  Timer? _summaryTimer;
-  Timer? _descriptionTimer;
-  late String _savedSummary;
-  late String _savedDescription;
-  final Set<String> _savingText = {};
+  late _TodoDraft _snapshot;
+  late _TodoDraft _draft;
+  bool _dirty = false;
+  bool _saving = false;
+  bool _titleError = false;
+  bool _repeatError = false;
+  bool _saveFailed = false;
   bool _deleting = false;
   bool _deletedNotified = false;
 
@@ -102,22 +98,14 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   @override
   void initState() {
     super.initState();
-    _savedSummary = widget.todo.summary;
-    _savedDescription = widget.todo.description ?? '';
-    _summary.text = _savedSummary;
-    _description.text = _savedDescription;
-    _summaryFocus.addListener(_flushSummary);
-    _descriptionFocus.addListener(_flushDescription);
+    _snapshot = _TodoDraft.fromTodo(widget.todo);
+    _draft = _snapshot;
+    _summary.text = _draft.summary;
+    _description.text = _draft.description;
   }
 
   @override
   void dispose() {
-    _flushSummary();
-    _flushDescription();
-    _summaryTimer?.cancel();
-    _descriptionTimer?.cancel();
-    _summaryFocus.removeListener(_flushSummary);
-    _descriptionFocus.removeListener(_flushDescription);
     _summaryFocus.dispose();
     _descriptionFocus.dispose();
     _summary.dispose();
@@ -126,24 +114,57 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   }
 
   void _syncFromLive(Todo live) {
+    if (_dirty || _saving || _deleting) return;
+    final next = _TodoDraft.fromTodo(live);
+    if (_sameDraft(next, _draft)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!_savingText.contains('summary') &&
-          !_summaryFocus.hasFocus &&
-          _summary.text == _savedSummary &&
-          _summary.text != live.summary) {
-        _summary.text = live.summary;
-        _savedSummary = live.summary;
+      if (!mounted || _dirty || _saving) return;
+      setState(() {
+        _snapshot = next;
+        _draft = next;
+      });
+      if (!_summaryFocus.hasFocus && _summary.text != next.summary) {
+        _summary.text = next.summary;
       }
-      final description = live.description ?? '';
-      if (!_savingText.contains('description') &&
-          !_descriptionFocus.hasFocus &&
-          _description.text == _savedDescription &&
-          _description.text != description) {
-        _description.text = description;
-        _savedDescription = description;
+      if (!_descriptionFocus.hasFocus &&
+          _description.text != next.description) {
+        _description.text = next.description;
       }
     });
+  }
+
+  void _setDraft(_TodoDraft next) {
+    setState(() {
+      _draft = next;
+      _dirty = true;
+      _saveFailed = false;
+    });
+  }
+
+  _TodoDraft _withDraft({
+    String? summary,
+    String? description,
+    Object? dueDate = _unsetDraft,
+    Object? startDate = _unsetDraft,
+    Object? rrule = _unsetDraft,
+    int? calendarId,
+    int? priority,
+  }) {
+    return _TodoDraft(
+      summary: summary ?? _draft.summary,
+      description: description ?? _draft.description,
+      dueDate: identical(dueDate, _unsetDraft)
+          ? _draft.dueDate
+          : dueDate as DateTime?,
+      startDate: identical(startDate, _unsetDraft)
+          ? _draft.startDate
+          : startDate as DateTime?,
+      rrule: identical(rrule, _unsetDraft)
+          ? _draft.rrule
+          : rrule as String?,
+      calendarId: calendarId ?? _draft.calendarId,
+      priority: priority ?? _draft.priority,
+    );
   }
 
   @override
@@ -190,18 +211,18 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final calendars =
         ref.watch(calendarsProvider).valueOrNull ?? const <Calendar>[];
     final currentCalendar = calendars
-        .where((calendar) => calendar.id == live.calendarId)
+        .where((calendar) => calendar.id == _draft.calendarId)
         .firstOrNull;
     final calendarColor = currentCalendar == null
         ? ds.ink3
         : ColorUtils.parseHex(currentCalendar.color);
     final today = DateTime(now.year, now.month, now.day);
-    final dueDay = live.dueDate == null
+    final dueDay = _draft.dueDate == null
         ? null
         : DateTime(
-            live.dueDate!.year,
-            live.dueDate!.month,
-            live.dueDate!.day,
+            _draft.dueDate!.year,
+            _draft.dueDate!.month,
+            _draft.dueDate!.day,
           );
     final days = dueDay?.difference(today).inDays;
     final String status;
@@ -225,14 +246,15 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       status = l.upcoming;
       statusColor = ds.ink3;
     }
-    final startLabel = live.startDate == null
+    final startLabel = _draft.startDate == null
         ? null
-        : formatDeadline(context, live.startDate!);
-    final dueLabel = live.dueDate == null
+        : formatDeadline(context, _draft.startDate!);
+    final dueLabel = _draft.dueDate == null
         ? null
-        : formatDeadline(context, live.dueDate!);
+        : formatDeadline(context, _draft.dueDate!);
     final leftDate = startLabel ?? dueLabel;
     final rightDate = startLabel == null ? null : dueLabel;
+    final recurring = live.rrule != null || live.recurrenceRule != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -248,12 +270,14 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
               24,
             ),
             children: [
+              if (_saveFailed) _saveErrorBanner(context, l),
               _header(
                 context,
                 l,
                 live,
                 currentCalendar?.name,
                 calendarColor,
+                recurring,
               ),
               _status(
                 context,
@@ -268,31 +292,43 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                 padding: const EdgeInsets.only(top: 16, bottom: 6),
               ),
               Container(height: 1, color: ds.line),
-              _deadlineRow(context, l, live, rowHeight, mobile),
+              _deadlineRow(context, l, rowHeight, mobile),
               const SizedBox(height: 8),
               if (legacy) ...[
                 _legacyNotice(context, l, live),
               ] else ...[
-                ExecutionScheduleSection(todo: live, deadline: live.dueDate),
+                ExecutionScheduleSection(todo: live, deadline: _draft.dueDate),
                 RepeatRow(
-                  rrule: live.rrule,
-                  anchorDate: live.startDate ?? live.dueDate,
-                  onChanged: (value) =>
-                      _saveSchedule(setRule: true, rule: value),
-                  startDate: live.startDate,
-                  onStartDateChanged: (value) => _saveSchedule(
-                    setStart: true,
-                    start: value,
-                    setRule: value == null,
-                    rule: value == null ? null : live.rrule,
+                  rrule: _draft.rrule,
+                  anchorDate: _draft.startDate ?? _draft.dueDate,
+                  onChanged: (value) => _setDraft(_withDraft(rrule: value)),
+                  startDate: _draft.startDate,
+                  onStartDateChanged: (value) => _setDraft(
+                    _withDraft(
+                      startDate: value,
+                      rrule: value == null ? null : _draft.rrule,
+                    ),
                   ),
-                  needsDate: live.startDate == null && live.dueDate == null,
+                  needsDate: _draft.startDate == null && _draft.dueDate == null,
                 ),
+                if (_repeatError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _fieldError(context, l.repeatNeedsDate),
+                  ),
+                if (_draft.rrule != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 2, 0, 10),
+                    child: Text(
+                      l.repeatSeriesNotice,
+                      style: AppTypography.small.copyWith(color: ds.ink3),
+                    ),
+                  ),
               ],
               RemindersSection(
                 parentType: 'todo',
                 parentId: live.id,
-                anchorTime: live.dueDate,
+                anchorTime: _draft.dueDate,
               ),
               DsSectionLabel(
                 l.sectionOrganize,
@@ -303,12 +339,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                 _calendarRow(
                   context,
                   l,
-                  live,
                   currentCalendar,
                   calendarColor,
                   rowHeight,
                 ),
-              _priorityRow(context, l, live, rowHeight),
+              _priorityRow(context, l, rowHeight),
               const SizedBox(height: 12),
               _tags(context, live),
               DsSectionLabel(
@@ -324,7 +359,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ],
           ),
         ),
-        _footer(context, l, live, completed, mobile, side),
+        _footer(context, l, live, completed, recurring, mobile, side),
       ],
     );
   }
@@ -357,16 +392,60 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     );
   }
 
+  Widget _fieldError(BuildContext context, String message) {
+    return Text(
+      message,
+      style: TextStyle(
+        fontSize: 11,
+        height: 16 / 11,
+        color: context.ds.danger,
+      ),
+    );
+  }
+
+  Widget _saveErrorBanner(BuildContext context, AppLocalizations l) {
+    final ds = context.ds;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: ds.dangerSoft,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l.saveFailedNotWritten,
+              style: TextStyle(
+                fontSize: 12,
+                height: 18 / 12,
+                fontWeight: FontWeight.w600,
+                color: ds.danger,
+              ),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('todo-detail-retry-save'),
+            onPressed: _saving ? null : _save,
+            child: Text(l.retrySave),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _header(
     BuildContext context,
     AppLocalizations l,
     Todo live,
     String? calendarName,
     Color calendarColor,
+    bool recurring,
   ) {
     final ds = context.ds;
     final locale = Localizations.localeOf(context).toString();
-    final anchor = live.dueDate ?? live.startDate;
+    final anchor = _draft.dueDate ?? _draft.startDate;
     final date = anchor == null
         ? null
         : '${DateFormat.MMMd(locale).format(anchor)} '
@@ -375,6 +454,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       calendarName ?? l.todoDetails,
       if (date != null) date,
     ].join(' · ');
+    final completionLabel = live.status == 'COMPLETED'
+        ? l.markIncomplete
+        : recurring
+        ? l.completeThisOccurrence
+        : l.markComplete;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -407,9 +491,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                     checked: live.status == 'COMPLETED',
                     size: 18,
                     compact: true,
-                    label: live.status == 'COMPLETED'
-                        ? l.markIncomplete
-                        : l.markComplete,
+                    label: completionLabel,
                     onChanged: (_) =>
                         _toggleCompletion(live, live.status == 'COMPLETED'),
                   ),
@@ -433,26 +515,28 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                       maxLines: null,
                       textCapitalization: TextCapitalization.sentences,
                       onChanged: (value) {
-                        _summaryTimer?.cancel();
-                        if (value.trim().isEmpty) return;
-                        _summaryTimer = Timer(
-                          const Duration(milliseconds: 600),
-                          _flushSummary,
-                        );
+                        if (!_dirty) {
+                          setState(() => _dirty = true);
+                        }
+                        if (_titleError && value.trim().isNotEmpty) {
+                          setState(() => _titleError = false);
+                        }
                       },
-                      onSubmitted: (_) => _flushSummary(),
                       decoration: InputDecoration(
                         hintText: l.title,
                         isDense: true,
-                        // The title sits on the page, not in a box: the theme
-                        // fills every field, and a white patch behind the one
-                        // line of 20px type reads as a stray input.
                         filled: false,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
                         hintStyle: TextStyle(fontSize: 20, color: ds.ink3),
+                        errorText: _titleError ? l.titleRequired : null,
+                        errorStyle: TextStyle(
+                          fontSize: 11,
+                          height: 16 / 11,
+                          color: ds.danger,
+                        ),
                       ),
                     ),
                   ),
@@ -505,8 +589,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ],
           ),
         ),
-        // A todo has no progress to show while it is open: an empty bar under
-        // the status reads as a control that failed to load.
         if (fraction > 0) ...[
           const SizedBox(height: 10),
           ClipRRect(
@@ -544,22 +626,21 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Widget _deadlineRow(
     BuildContext context,
     AppLocalizations l,
-    Todo live,
     double rowHeight,
     bool mobile,
   ) {
     return _PaneFieldRow(
       label: l.deadline,
       height: rowHeight,
-      value: live.dueDate == null
+      value: _draft.dueDate == null
           ? l.noDeadline
-          : formatDeadline(context, live.dueDate!),
-      onTap: () => _pickDue(live),
+          : formatDeadline(context, _draft.dueDate!),
+      onTap: _pickDue,
       showChevron: true,
-      trailing: live.dueDate == null
+      trailing: _draft.dueDate == null
           ? null
           : _PaneInlineClear(
-              onPressed: () => _saveSchedule(setDue: true),
+              onPressed: _clearDue,
               tooltip: l.clearDeadline,
               size: mobile ? 44 : 32,
             ),
@@ -569,7 +650,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Widget _calendarRow(
     BuildContext context,
     AppLocalizations l,
-    Todo live,
     Calendar? currentCalendar,
     Color calendarColor,
     double rowHeight,
@@ -579,7 +659,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       height: rowHeight,
       leading: _PaneDot(color: calendarColor, size: 7),
       value: currentCalendar?.name ?? l.calendarUnavailable,
-      onTap: () => _pickCalendar(live),
+      onTap: _pickCalendar,
       showChevron: true,
     );
   }
@@ -587,7 +667,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Widget _priorityRow(
     BuildContext context,
     AppLocalizations l,
-    Todo live,
     double rowHeight,
   ) {
     return _PaneFieldRow(
@@ -596,16 +675,12 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       height: rowHeight,
       valueChild: Align(
         alignment: Alignment.centerLeft,
-        child: _priorityChips(context, l, live),
+        child: _priorityChips(context, l),
       ),
     );
   }
 
-  Widget _priorityChips(
-    BuildContext context,
-    AppLocalizations l,
-    Todo live,
-  ) {
+  Widget _priorityChips(BuildContext context, AppLocalizations l) {
     final labels = <int, String>{
       0: l.priorityNone,
       9: l.priorityLow,
@@ -619,13 +694,13 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         for (final value in const [0, 9, 5, 1])
           Semantics(
             button: true,
-            selected: live.priority == value,
+            selected: _draft.priority == value,
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
                 key: ValueKey('todo-priority-$value'),
                 behavior: HitTestBehavior.opaque,
-                onTap: () => _savePriority(value),
+                onTap: () => _setDraft(_withDraft(priority: value)),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(
                     minWidth: 48,
@@ -637,7 +712,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                     child: DsChip(
                       key: ValueKey('todo-priority-visual-$value'),
                       label: labels[value]!,
-                      selected: live.priority == value,
+                      selected: _draft.priority == value,
                       compact: true,
                     ),
                   ),
@@ -654,8 +729,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The section label above already names this block; a second overline
-        // six pixels lower read as a stray duplicate rather than a heading.
         const SizedBox(height: 10),
         Container(
           width: double.infinity,
@@ -691,11 +764,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             maxLines: null,
             textCapitalization: TextCapitalization.sentences,
             onChanged: (_) {
-              _descriptionTimer?.cancel();
-              _descriptionTimer = Timer(
-                const Duration(milliseconds: 600),
-                _flushDescription,
-              );
+              if (!_dirty) setState(() => _dirty = true);
             },
           ),
         ),
@@ -708,42 +777,28 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     AppLocalizations l,
     Todo live,
     bool completed,
+    bool recurring,
     bool mobile,
     double side,
   ) {
     final ds = context.ds;
     final height = mobile ? 48.0 : 36.0;
-    final hitHeight = height < 48 ? 48.0 : height;
-    final primaryLabel = completed ? l.markIncomplete : l.markComplete;
-    final scheduleDisabledReason = completed
-        ? l.completed
-        : live.status == 'CANCELLED'
-        ? l.cancelledTaskAllocation
-        : null;
-    final primary = _PaneButton(
-      key: const ValueKey('todo-detail-mark-complete'),
+    final primaryLabel = _saveFailed ? l.retrySave : l.save;
+    final save = _PaneButton(
+      key: const ValueKey('todo-detail-save'),
       label: primaryLabel,
       height: height,
       primary: true,
-      onPressed: () => _toggleCompletion(live, completed),
+      onPressed: _saving ? null : _save,
     );
-    final schedule = _PaneButton(
-      label: l.schedule,
+    final cancel = _PaneButton(
+      key: const ValueKey('todo-detail-cancel'),
+      label: l.cancel,
       height: height,
-      onPressed: scheduleDisabledReason == null
-          ? () => showA2Composer(
-              context,
-              contextDate: widget.clock?.call() ?? DateTime.now(),
-              todo: live,
-            )
-          : null,
-    );
-    final edit = _PaneButton(
-      label: l.edit,
-      height: height,
-      onPressed: () => context.push('/todo/edit', extra: live),
+      onPressed: _saving ? null : _cancel,
     );
     final remove = _PaneButton(
+      key: const ValueKey('todo-detail-delete'),
       label: l.moveToTrash,
       height: height,
       danger: true,
@@ -758,94 +813,37 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       child: SafeArea(
         top: false,
         minimum: EdgeInsets.only(bottom: mobile ? 12 : 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (scheduleDisabledReason != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  '${l.schedule} · $scheduleDisabledReason',
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 16 / 11,
-                    color: ds.ink3,
-                  ),
-                ),
-              ),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final fontSize = height >= 44 ? 14.0 : 12.0;
-                final singleRow =
-                    _estimatedWidth(primaryLabel, fontSize) +
-                        _estimatedWidth(l.schedule, fontSize) +
-                        _estimatedWidth(l.edit, fontSize) +
-                        _estimatedWidth(l.moveToTrash, fontSize) +
-                        24 <=
-                    constraints.maxWidth;
-                if (singleRow) {
-                  return SizedBox(
-                    height: hitHeight,
-                    child: Row(
-                      children: [
-                        Expanded(child: primary),
-                        const SizedBox(width: 8),
-                        schedule,
-                        const SizedBox(width: 8),
-                        edit,
-                        const SizedBox(width: 8),
-                        remove,
-                      ],
-                    ),
-                  );
-                }
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      height: hitHeight,
-                      child: Row(children: [Expanded(child: primary)]),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: hitHeight,
-                      child: Row(
-                        children: [
-                          Expanded(child: schedule),
-                          const SizedBox(width: 8),
-                          Expanded(child: edit),
-                          const SizedBox(width: 8),
-                          Expanded(child: remove),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
+        child: SizedBox(
+          height: height < 48 ? 48 : height,
+          child: Row(
+            children: [
+              Expanded(flex: 2, child: save),
+              const SizedBox(width: 8),
+              Expanded(child: cancel),
+              const SizedBox(width: 8),
+              Expanded(flex: 2, child: remove),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  double _estimatedWidth(String label, double fontSize) =>
-      label.runes.length * fontSize + 22;
-
-  Future<void> _pickCalendar(Todo live) async {
+  Future<void> _pickCalendar() async {
     final picked = await pickCalendar(
       context,
       ref,
-      selectedId: live.calendarId,
+      selectedId: _draft.calendarId,
     );
-    if (picked != null) await _writeBasics(calendarId: picked);
+    if (picked != null && mounted) {
+      _setDraft(_withDraft(calendarId: picked));
+    }
   }
 
   bool _isUnknownLegacy(Todo row) {
     try {
       return TodoRecurrence.fromTodo(row).isUnknownLegacy;
-    } on Object {
+    } catch (_) {
       return false;
     }
   }
@@ -1021,135 +1019,134 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     }
   }
 
-  void _flushSummary() {
-    if (!mounted) return;
-    _summaryTimer?.cancel();
-    _summaryTimer = null;
-    final text = _summary.text.trim();
-    if (text.isEmpty) {
-      _summary.text = _savedSummary;
+  Future<void> _save() async {
+    if (_saving) return;
+    final title = _summary.text.trim();
+    if (title.isEmpty) {
+      setState(() {
+        _titleError = true;
+        _saveFailed = false;
+      });
+      _summaryFocus.requestFocus();
       return;
     }
-    if (text == _savedSummary || !_savingText.add('summary')) return;
-    unawaited(
-      _writeBasics(summary: text).then((saved) {
-        _savingText.remove('summary');
-        if (!saved) return;
-        _savedSummary = text;
-        if (mounted && _summary.text.trim() != text) _flushSummary();
-      }),
-    );
-  }
-
-  void _flushDescription() {
-    if (!mounted) return;
-    _descriptionTimer?.cancel();
-    _descriptionTimer = null;
-    final text = _description.text.trim();
-    if (text == _savedDescription || !_savingText.add('description')) return;
-    unawaited(
-      _writeBasics(description: text).then((saved) {
-        _savingText.remove('description');
-        if (!saved) return;
-        _savedDescription = text;
-        if (mounted && _description.text.trim() != text) {
-          _flushDescription();
-        }
-      }),
-    );
-  }
-
-  Future<bool> _writeBasics({
-    String? summary,
-    String? description,
-    int? priority,
-    int? calendarId,
-  }) async {
-    try {
-      await ref.read(updateTodoProvider)(
-        widget.todo.id,
-        TodosCompanion(
-          summary: summary != null ? Value(summary) : const Value.absent(),
-          description: description != null
-              ? Value(description.isEmpty ? null : description)
-              : const Value.absent(),
-          priority: priority != null ? Value(priority) : const Value.absent(),
-          calendarId: calendarId != null
-              ? Value(calendarId)
-              : const Value.absent(),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-      return true;
-    } on Object catch (error) {
-      debugPrint('todo_detail: update failed: $error');
-      _showError();
-      return false;
+    final anchor = _draft.startDate ?? _draft.dueDate;
+    if (_draft.rrule != null && anchor == null) {
+      setState(() {
+        _repeatError = true;
+        _saveFailed = false;
+      });
+      return;
     }
-  }
-
-  Future<void> _savePriority(int value) async {
-    final current = _currentRow;
-    if (current == null || current.priority == value) return;
-    await _writeBasics(priority: value);
-  }
-
-  Future<void> _pickDue(Todo live) async {
-    final now = DateTime.now();
-    final picked = await pickDeadline(
-      context,
-      initial: live.dueDate ?? DateTime(now.year, now.month, now.day, 9),
-      withTime:
-          live.dueDate != null &&
-          !(live.dueDate!.hour == 0 && live.dueDate!.minute == 0),
-    );
-    if (picked == null || !mounted) return;
-    await _saveSchedule(setDue: true, due: picked);
-  }
-
-  /// Deadline, start and rule are one projection: a recurring todo refuses a
-  /// half-updated anchor, so they are always written together as a spec.
-  Future<void> _saveSchedule({
-    bool setDue = false,
-    DateTime? due,
-    bool setStart = false,
-    DateTime? start,
-    bool setRule = false,
-    String? rule,
-  }) async {
+    final description = _description.text.trim();
     final current = _currentRow ?? widget.todo;
-    if (_isUnknownLegacy(current)) return;
-    final nextDue = setDue ? due : current.dueDate;
-    final nextStart = setStart ? start : current.startDate;
-    final nextRule = setRule ? rule : current.rrule;
-    if (nextRule != null && nextStart == null && nextDue == null) {
-      _showMessage(AppLocalizations.of(context)!.repeatNeedsDate);
-      return;
-    }
+    final legacy = _isUnknownLegacy(current);
     RecurrenceSpec? spec;
-    try {
-      spec = _specFor(current, nextRule, nextStart, nextDue);
-    } on Object catch (error) {
-      debugPrint('todo_detail: recurrence spec failed: $error');
-      _showError();
-      return;
+    if (!legacy) {
+      try {
+        spec = _specFor(
+          current,
+          _draft.rrule,
+          _draft.startDate,
+          _draft.dueDate,
+        );
+      } catch (error) {
+        debugPrint('todo_detail: recurrence spec failed: $error');
+        if (!mounted) return;
+        setState(() {
+          _saveFailed = true;
+          _saving = false;
+        });
+        return;
+      }
     }
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+      _titleError = false;
+      _repeatError = false;
+    });
     try {
       await ref.read(updateTodoProvider)(
         current.id,
         TodosCompanion(
-          dueDate: Value(nextDue),
-          startDate: Value(nextStart),
-          rrule: Value(nextRule),
+          summary: Value(title),
+          description: Value(description.isEmpty ? null : description),
+          dueDate: Value(_draft.dueDate),
+          startDate: Value(_draft.startDate),
+          rrule: Value(_draft.rrule),
+          calendarId: Value(_draft.calendarId),
+          priority: Value(_draft.priority),
           updatedAt: Value(DateTime.now()),
         ),
         recurrenceSpec: spec,
-        replaceRecurrence: true,
+        replaceRecurrence: !legacy,
       );
-    } on Object catch (error) {
-      debugPrint('todo_detail: schedule update failed: $error');
-      _showError();
+    } catch (error) {
+      debugPrint('todo_detail: save failed: $error');
+      if (!mounted) return;
+      setState(() {
+        _saveFailed = true;
+        _saving = false;
+      });
+      return;
     }
+    if (!mounted) return;
+    final saved = _TodoDraft(
+      summary: title,
+      description: description,
+      dueDate: _draft.dueDate,
+      startDate: _draft.startDate,
+      rrule: _draft.rrule,
+      calendarId: _draft.calendarId,
+      priority: _draft.priority,
+    );
+    setState(() {
+      _snapshot = saved;
+      _draft = saved;
+      _dirty = false;
+      _saving = false;
+      _summary.text = title;
+    });
+  }
+
+  void _cancel() {
+    setState(() {
+      _draft = _snapshot;
+      _dirty = false;
+      _saving = false;
+      _titleError = false;
+      _repeatError = false;
+      _saveFailed = false;
+      _summary.text = _snapshot.summary;
+      _description.text = _snapshot.description;
+    });
+    _summaryFocus.unfocus();
+    _descriptionFocus.unfocus();
+    if (widget.embedded) {
+      widget.onClose?.call();
+      return;
+    }
+    _leaveToSource(context);
+  }
+
+  Future<void> _pickDue() async {
+    final now = DateTime.now();
+    final initial = _draft.dueDate ?? DateTime(now.year, now.month, now.day, 9);
+    final picked = await pickDeadline(
+      context,
+      initial: initial,
+      withTime:
+          _draft.dueDate != null &&
+          !(_draft.dueDate!.hour == 0 && _draft.dueDate!.minute == 0),
+    );
+    if (picked == null || !mounted) return;
+    _setDraft(_withDraft(dueDate: picked));
+  }
+
+  void _clearDue() {
+    final rule = _draft.startDate == null ? null : _draft.rrule;
+    _setDraft(_withDraft(dueDate: null, rrule: rule));
   }
 
   RecurrenceSpec? _specFor(
@@ -1194,7 +1191,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         todo: live,
         completed: !completed,
       );
-    } on Object catch (error) {
+    } catch (error) {
       if (mounted) showCompletionError(context, error);
     }
   }
@@ -1202,12 +1199,18 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Future<void> _delete(Todo live) async {
     if (_deleting) return;
     final l = AppLocalizations.of(context)!;
+    final title = _summary.text.trim().isEmpty
+        ? live.summary
+        : _summary.text.trim();
+    final series = live.rrule != null || live.recurrenceRule != null;
     final confirmed = await showDialog<bool>(
       animationStyle: AnimationStyle.noAnimation,
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l.moveToTrash),
-        content: Text(l.confirmDelete),
+        title: Text(l.deleteTodoConfirm(title)),
+        content: Text(
+          series ? l.deleteSeriesTrashNotice : l.deleteTrashNotice,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -1229,7 +1232,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     setState(() => _deleting = true);
     try {
       await ref.read(deleteTodoProvider)(id);
-    } on Object catch (error) {
+    } catch (error) {
       debugPrint('todo_detail: delete failed: $error');
       if (!mounted) return;
       setState(() => _deleting = false);
@@ -1300,15 +1303,54 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
 
   void _showError() {
     if (!mounted) return;
-    _showMessage(AppLocalizations.of(context)!.actionFailedRetry);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(AppLocalizations.of(context)!.actionFailedRetry)),
+    );
+  }
+}
+
+const Object _unsetDraft = Object();
+
+class _TodoDraft {
+  const _TodoDraft({
+    required this.summary,
+    required this.description,
+    required this.dueDate,
+    required this.startDate,
+    required this.rrule,
+    required this.calendarId,
+    required this.priority,
+  });
+
+  factory _TodoDraft.fromTodo(Todo todo) {
+    return _TodoDraft(
+      summary: todo.summary,
+      description: todo.description ?? '',
+      dueDate: todo.dueDate,
+      startDate: todo.startDate,
+      rrule: todo.rrule,
+      calendarId: todo.calendarId,
+      priority: todo.priority,
+    );
   }
 
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
+  final String summary;
+  final String description;
+  final DateTime? dueDate;
+  final DateTime? startDate;
+  final String? rrule;
+  final int calendarId;
+  final int priority;
+}
+
+bool _sameDraft(_TodoDraft a, _TodoDraft b) {
+  return a.summary == b.summary &&
+      a.description == b.description &&
+      a.dueDate == b.dueDate &&
+      a.startDate == b.startDate &&
+      a.rrule == b.rrule &&
+      a.calendarId == b.calendarId &&
+      a.priority == b.priority;
 }
 
 /// A deleted object cannot stay on screen. Pop the detail route so the user
