@@ -15,6 +15,7 @@ import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+
 import 'default_calendar_view.dart';
 import 'settings_sections/about_section.dart';
 import 'settings_sections/account_section.dart';
@@ -83,7 +84,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _selectSection(int index) {
-    if (_section == index && _customSectionKey == null && !_showingDefaultCalendar) return;
+    if (_section == index &&
+        _customSectionKey == null &&
+        !_showingDefaultCalendar) {
+      return;
+    }
     setState(() {
       _section = index;
       _customSectionKey = null;
@@ -211,47 +216,77 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     _ => l.settings,
   };
 
-  String? _mobileSubtitle(AppLocalizations l, String section) => switch (section) {
-    'general' => l.generalDesc,
-    'calendars' => l.calendarManagementDesc,
-    'data' => l.dataSectionDesc,
-    'tags' => l.tagManagementDesc,
-    'trash' => l.trashDesc,
-    'io' => l.ioSectionDesc,
-    'notify' => l.notifySectionDesc,
-    'sync' => l.syncSectionDesc,
-    'account' => l.accountSectionDesc,
-    'ai' => l.aiSectionDesc,
-    'about' => l.aboutDesc,
-    _ => null,
-  };
+  String? _mobileSubtitle(AppLocalizations l, String section) =>
+      switch (section) {
+        'general' => l.generalDesc,
+        'calendars' => l.calendarManagementDesc,
+        'data' => l.dataSectionDesc,
+        'tags' => l.tagManagementDesc,
+        'trash' => l.trashDesc,
+        'io' => l.ioSectionDesc,
+        'notify' => l.notifySectionDesc,
+        'sync' => l.syncSectionDesc,
+        'account' => l.accountSectionDesc,
+        'ai' => l.aiSectionDesc,
+        'about' => l.aboutDesc,
+        _ => null,
+      };
 
-  Widget _mobileSectionWidget(AppLocalizations l, String section) => switch (section) {
-    'general' => AppearanceSection(
-      onOpenDefaultCalendar: () {
-        setState(() => _showingDefaultCalendar = true);
+  Widget _mobileSectionWidget(AppLocalizations l, String section) =>
+      switch (section) {
+        'general' => AppearanceSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
+        'calendars' => CalendarSettingsSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
+        'data' => DataSection(
+          onSelectSection: (key) => setState(() => _mobileSection = key),
+        ),
+        'tags' => const TagsPage(embedded: true),
+        'trash' => const TrashPage(embedded: true),
+        'io' => const ImportExportSection(),
+        'notify' => const NotificationsSection(),
+        'sync' => SyncSection(
+          onGoToAccount: () => setState(() => _mobileSection = 'account'),
+        ),
+        'account' => const AccountSection(),
+        'ai' => const AiSection(),
+        'about' => AboutSection(version: _cachedVersion ?? ''),
+        _ => const SizedBox.shrink(),
+      };
+
+  void _mobileBack() {
+    if (_showingDefaultCalendar) {
+      setState(() => _showingDefaultCalendar = false);
+      return;
+    }
+    final section = _mobileSection;
+    if (section == null) {
+      _leave(context);
+      return;
+    }
+    if (section == 'tags' || section == 'trash' || section == 'io') {
+      setState(() => _mobileSection = 'data');
+      return;
+    }
+    setState(() => _mobileSection = null);
+  }
+
+  Widget _mobilePopScope(Widget child) {
+    return PopScope(
+      canPop: _mobileSection == null && !_showingDefaultCalendar,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _mobileBack();
       },
-    ),
-    'calendars' => CalendarSettingsSection(
-      onOpenDefaultCalendar: () {
-        setState(() => _showingDefaultCalendar = true);
-      },
-    ),
-    'data' => DataSection(
-      onSelectSection: (key) => setState(() => _mobileSection = key),
-    ),
-    'tags' => const TagsPage(embedded: true),
-    'trash' => const TrashPage(embedded: true),
-    'io' => const ImportExportSection(),
-    'notify' => const NotificationsSection(),
-    'sync' => SyncSection(
-      onGoToAccount: () => setState(() => _mobileSection = 'account'),
-    ),
-    'account' => const AccountSection(),
-    'ai' => const AiSection(),
-    'about' => AboutSection(version: _cachedVersion ?? ''),
-    _ => const SizedBox.shrink(),
-  };
+      child: child,
+    );
+  }
 
   Widget _settingsHead(AppLocalizations l) {
     return Container(
@@ -302,108 +337,104 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
 
       if (_mobileSection == null) {
-        return Scaffold(
-          backgroundColor: SpecTokens.wash,
-          appBar: DsTopBar(
-            title: l.settings,
-            subtitle: l.settingsSubtitle,
-            leading: DsIconButton(
-              icon: CupertinoIcons.back,
-              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-              onPressed: () => _leave(context),
-            ),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-            children: [
-              Container(
-                color: SpecTokens.paper,
-                child: SettingsRows(
-                  children: [
-                    SettingsRow(
-                      label: l.general,
-                      subtitle: l.mobileGeneralDesc,
-                      chevron: SettingsChevron.right,
-                      onTap: () => setState(() => _mobileSection = 'general'),
-                    ),
-                    SettingsRow(
-                      label: l.manageCalendars,
-                      subtitle: l.mobileCalendarsDesc(calCount),
-                      chevron: SettingsChevron.right,
-                      onTap: () => setState(() => _mobileSection = 'calendars'),
-                    ),
-                    SettingsRow(
-                      label: l.data,
-                      subtitle: l.mobileDataDesc,
-                      chevron: SettingsChevron.right,
-                      onTap: () => setState(() => _mobileSection = 'data'),
-                    ),
-                    if (hasNotificationSettings)
-                      SettingsRow(
-                        label: l.notify,
-                        subtitle: l.mobileNotifyDesc,
-                        chevron: SettingsChevron.right,
-                        onTap: () => setState(() => _mobileSection = 'notify'),
-                      ),
-                    SettingsRow(
-                      label: l.sync,
-                      subtitle: l.mobileSyncDesc,
-                      chevron: SettingsChevron.right,
-                      onTap: () => setState(() => _mobileSection = 'sync'),
-                    ),
-                    SettingsRow(
-                      label: l.about,
-                      subtitle: l.mobileAboutDesc,
-                      chevron: SettingsChevron.right,
-                      onTap: () => setState(() => _mobileSection = 'about'),
-                    ),
-                  ],
-                ),
+        return _mobilePopScope(
+          Scaffold(
+            backgroundColor: SpecTokens.wash,
+            appBar: DsTopBar(
+              title: l.settings,
+              subtitle: l.settingsSubtitle,
+              leading: DsIconButton(
+                icon: CupertinoIcons.back,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => _leave(context),
               ),
-            ],
+            ),
+            body: ListView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+              children: [
+                Container(
+                  color: SpecTokens.paper,
+                  child: SettingsRows(
+                    children: [
+                      SettingsRow(
+                        label: l.general,
+                        subtitle: l.mobileGeneralDesc,
+                        chevron: SettingsChevron.right,
+                        onTap: () => setState(() => _mobileSection = 'general'),
+                      ),
+                      SettingsRow(
+                        label: l.manageCalendars,
+                        subtitle: l.mobileCalendarsDesc(calCount),
+                        chevron: SettingsChevron.right,
+                        onTap: () =>
+                            setState(() => _mobileSection = 'calendars'),
+                      ),
+                      SettingsRow(
+                        label: l.data,
+                        subtitle: l.mobileDataDesc,
+                        chevron: SettingsChevron.right,
+                        onTap: () => setState(() => _mobileSection = 'data'),
+                      ),
+                      if (hasNotificationSettings)
+                        SettingsRow(
+                          label: l.notify,
+                          subtitle: l.mobileNotifyDesc,
+                          chevron: SettingsChevron.right,
+                          onTap: () =>
+                              setState(() => _mobileSection = 'notify'),
+                        ),
+                      SettingsRow(
+                        label: l.sync,
+                        subtitle: l.mobileSyncDesc,
+                        chevron: SettingsChevron.right,
+                        onTap: () => setState(() => _mobileSection = 'sync'),
+                      ),
+                      SettingsRow(
+                        label: l.about,
+                        subtitle: l.mobileAboutDesc,
+                        chevron: SettingsChevron.right,
+                        onTap: () => setState(() => _mobileSection = 'about'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       }
 
-      return Scaffold(
-        backgroundColor: SpecTokens.wash,
-        appBar: DsTopBar(
-          title: _mobileTitle(l, _mobileSection!),
-          subtitle: _mobileSubtitle(l, _mobileSection!),
-          leading: DsIconButton(
-            icon: CupertinoIcons.back,
-            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: () {
-              if (_showingDefaultCalendar) {
-                setState(() => _showingDefaultCalendar = false);
-                return;
-              }
-              if (_mobileSection == 'tags' ||
-                  _mobileSection == 'trash' ||
-                  _mobileSection == 'io') {
-                setState(() => _mobileSection = 'data');
-                return;
-              }
-              setState(() => _mobileSection = null);
-            },
+      return _mobilePopScope(
+        Scaffold(
+          backgroundColor: SpecTokens.wash,
+          appBar: DsTopBar(
+            title: _mobileTitle(l, _mobileSection!),
+            subtitle: _mobileSubtitle(l, _mobileSection!),
+            leading: DsIconButton(
+              icon: CupertinoIcons.back,
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              onPressed: _mobileBack,
+            ),
           ),
+          body: _showingDefaultCalendar
+              ? Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: DefaultCalendarView(
+                    onBack: () =>
+                        setState(() => _showingDefaultCalendar = false),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+                  child: SettingsGroupBlock(
+                    title: _mobileTitle(l, _mobileSection!),
+                    subtitle: _mobileSubtitle(l, _mobileSection!),
+                    mobile: true,
+                    showHeader: false,
+                    child: _mobileSectionWidget(l, _mobileSection!),
+                  ),
+                ),
         ),
-        body: _showingDefaultCalendar
-            ? Padding(
-                padding: const EdgeInsets.all(16),
-                child: DefaultCalendarView(
-                  onBack: () => setState(() => _showingDefaultCalendar = false),
-                ),
-              )
-            : SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-                child: SettingsGroupBlock(
-                  title: _mobileTitle(l, _mobileSection!),
-                  subtitle: _mobileSubtitle(l, _mobileSection!),
-                  mobile: true,
-                  child: _mobileSectionWidget(l, _mobileSection!),
-                ),
-              ),
       );
     }
 
@@ -432,12 +463,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       autofocus: true,
                       onKeyEvent: (node, event) {
                         if (event is KeyDownEvent) {
-                          if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                          if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowDown) {
                             if (_section < sections.length - 1) {
                               _selectSection(_section + 1);
                               return KeyEventResult.handled;
                             }
-                          } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                          } else if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowUp) {
                             if (_section > 0) {
                               _selectSection(_section - 1);
                               return KeyEventResult.handled;
@@ -453,7 +486,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             for (var i = 0; i < sections.length; i++)
                               SettingsNavItem(
                                 label: sections[i].label,
-                                selected: _customSectionKey == null &&
+                                selected:
+                                    _customSectionKey == null &&
                                     !_showingDefaultCalendar &&
                                     selected == i,
                                 onTap: () => _selectSection(i),
@@ -535,14 +569,14 @@ class _SettingsNavItemState extends State<SettingsNavItem> {
     final bg = widget.selected
         ? SpecTokens.wash
         : _hovered
-            ? SpecTokens.wash
-            : Colors.transparent;
+        ? SpecTokens.wash
+        : Colors.transparent;
 
     final fg = widget.selected
         ? SpecTokens.ink
         : _hovered
-            ? SpecTokens.ink2
-            : SpecTokens.muted;
+        ? SpecTokens.ink2
+        : SpecTokens.muted;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,

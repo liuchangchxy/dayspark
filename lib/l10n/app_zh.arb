@@ -215,6 +215,89 @@
   "importFailed": "导入失败",
   "importedResult": "已导入 {events} 条日程和 {todos} 条待办",
   "importedResultWithFailed": "已导入 {events} 条日程和 {todos} 条待办（{failed} 条失败）",
+  "importPreviewTitle": "导入预览",
+  "importPreviewSummary": "从 {fileName} 读到 {events} 个事件、{todos} 个待办。",
+  "@importPreviewSummary": {
+    "placeholders": {
+      "events": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      },
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "importPreviewCounts": "新增 {create} 项 · 重复 {duplicate} 项 · 跳过 {skipped} 项",
+  "@importPreviewCounts": {
+    "placeholders": {
+      "create": {
+        "type": "int"
+      },
+      "duplicate": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewNew": "新增",
+  "importPreviewDuplicate": "重复",
+  "importPreviewSkipped": "跳过",
+  "importPreviewMore": "另有 {count} 项",
+  "@importPreviewMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailedRows": "导入时另有 {count} 项失败",
+  "@importFailedRows": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailureDetail": "没有写入任何内容。文件：{fileName}",
+  "@importFailureDetail": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "startImport": "开始导入",
+  "importInProgress": "正在读取并导入…",
+  "importResultTitle": "导入结果",
+  "importResultSummary": "新建 {created} 项 · 更新 {updated} 项 · 跳过 {skipped} 项",
+  "@importResultSummary": {
+    "placeholders": {
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "importNothing": "这个文件里没有事件或待办。",
+  "backupInProgress": "正在备份…",
+  "backupComplete": "备份完成：{filename}",
+  "@backupComplete": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
   "importExportDesc": "将日程和待办导出为 .ics 文件，或从 .ics 文件导入。",
   "error": "出错了，请重试。",
   "endBeforeStart": "结束时间必须晚于开始时间",
@@ -1411,6 +1494,9 @@
   "notifySectionDesc": "提醒是每个条目自己的事实；这里只管系统权限。",
   "notifyDeniedBanner": "系统通知权限已关闭。提醒仍保存，到点不会弹。",
   "openSystemSettings": "打开系统设置",
+  "notificationAllowed": "已允许",
+  "notificationOff": "已关闭",
+  "notificationUnknown": "未知",
   "inAppReminders": "应用内提醒",
   "inAppRemindersDesc": "前台仍可显示",
   "available": "可用",

@@ -326,6 +326,89 @@
       }
     }
   },
+  "importPreviewTitle": "Import preview",
+  "importPreviewSummary": "Read {events} event(s) and {todos} task(s) from {fileName}.",
+  "@importPreviewSummary": {
+    "placeholders": {
+      "events": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      },
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "importPreviewCounts": "{create} new · {duplicate} duplicate · {skipped} skipped",
+  "@importPreviewCounts": {
+    "placeholders": {
+      "create": {
+        "type": "int"
+      },
+      "duplicate": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewNew": "New",
+  "importPreviewDuplicate": "Duplicate",
+  "importPreviewSkipped": "Skipped",
+  "importPreviewMore": "+{count} more",
+  "@importPreviewMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailedRows": "{count} row(s) failed during import",
+  "@importFailedRows": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailureDetail": "Nothing was written. File: {fileName}",
+  "@importFailureDetail": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "startImport": "Start import",
+  "importInProgress": "Reading and importing…",
+  "importResultTitle": "Import result",
+  "importResultSummary": "Created {created} · updated {updated} · skipped {skipped}",
+  "@importResultSummary": {
+    "placeholders": {
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "importNothing": "No events or tasks found in this file.",
+  "backupInProgress": "Backing up…",
+  "backupComplete": "Backup complete: {filename}",
+  "@backupComplete": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
   "importExportDesc": "Export calendar events and tasks to .ics, or import from a .ics file.",
   "error": "Something went wrong. Please try again.",
   "endBeforeStart": "End time must be after start time",
@@ -1688,6 +1771,9 @@
   "notifySectionDesc": "Reminders belong to each item; this manages system permissions only.",
   "notifyDeniedBanner": "System notification permission is off. Reminders are saved, but will not alert when due.",
   "openSystemSettings": "Open System Settings",
+  "notificationAllowed": "Allowed",
+  "notificationOff": "Off",
+  "notificationUnknown": "Unknown",
   "inAppReminders": "In-app Reminders",
   "inAppRemindersDesc": "Displays in foreground",
   "available": "Available",

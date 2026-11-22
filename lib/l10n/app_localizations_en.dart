@@ -602,6 +602,68 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get importPreviewTitle => 'Import preview';
+
+  @override
+  String importPreviewSummary(int events, int todos, String fileName) {
+    return 'Read $events event(s) and $todos task(s) from $fileName.';
+  }
+
+  @override
+  String importPreviewCounts(int create, int duplicate, int skipped) {
+    return '$create new · $duplicate duplicate · $skipped skipped';
+  }
+
+  @override
+  String get importPreviewNew => 'New';
+
+  @override
+  String get importPreviewDuplicate => 'Duplicate';
+
+  @override
+  String get importPreviewSkipped => 'Skipped';
+
+  @override
+  String importPreviewMore(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String importFailedRows(int count) {
+    return '$count row(s) failed during import';
+  }
+
+  @override
+  String importFailureDetail(String fileName) {
+    return 'Nothing was written. File: $fileName';
+  }
+
+  @override
+  String get startImport => 'Start import';
+
+  @override
+  String get importInProgress => 'Reading and importing…';
+
+  @override
+  String get importResultTitle => 'Import result';
+
+  @override
+  String importResultSummary(int created, int updated, int skipped) {
+    return 'Created $created · updated $updated · skipped $skipped';
+  }
+
+  @override
+  String get importNothing => 'No events or tasks found in this file.';
+
+  @override
+  String get backupInProgress => 'Backing up…';
+
+  @override
+  String backupComplete(String filename) {
+    return 'Backup complete: $filename';
+  }
+
+  @override
   String get importExportDesc => 'Export calendar events and tasks to .ics, or import from a .ics file.';
 
   @override
@@ -2697,6 +2759,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openSystemSettings => 'Open System Settings';
+
+  @override
+  String get notificationAllowed => 'Allowed';
+
+  @override
+  String get notificationOff => 'Off';
+
+  @override
+  String get notificationUnknown => 'Unknown';
 
   @override
   String get inAppReminders => 'In-app Reminders';
