@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
@@ -411,7 +412,14 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          head,
+          _mobileTopBar(context, l),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _modeSwitch(l, view),
+            ),
+          ),
           if (strip != null) strip,
           Expanded(child: body),
           footer,
@@ -421,6 +429,92 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   }
 
   // ------------------------------------------------------------------ header
+
+  Widget _mobileTopBar(BuildContext context, AppLocalizations l) {
+    return Container(
+      key: const ValueKey('m-top'),
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l.allTasks,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                fontVariations: [FontVariation('wght', 650)],
+                letterSpacing: 0.15,
+                color: SpecTokens.ink,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+          const SizedBox(width: 9),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _mIcon(
+                key: const ValueKey('todos-search-tool'),
+                icon: CupertinoIcons.search,
+                tooltip: l.search,
+                onTap: () {
+                  try {
+                    context.push('/search');
+                  } catch (_) {}
+                },
+              ),
+              const SizedBox(width: 5),
+              _mIcon(
+                key: const ValueKey('todos-filter-tool'),
+                icon: CupertinoIcons.slider_horizontal_3,
+                size: 14,
+                tooltip: l.filter,
+                onTap: () => _showFilterSheet(context),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mIcon({
+    Key? key,
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    double size = 15,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          key: key,
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: SizedBox(
+            width: 30,
+            height: 30,
+            child: Center(
+              child: Icon(
+                icon,
+                size: size,
+                color: SpecTokens.muted,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   bool get _hasFilter =>
       ref.watch(todoCalendarFilterProvider) != null ||

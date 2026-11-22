@@ -100,7 +100,7 @@ void main() {
   testWidgets('date strip reads past days backwards and future days forwards', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = const Size(1024, 768);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -554,7 +554,42 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('filter, mode switch and date cells expose 48dp hit targets', (
+  testWidgets('desktop filter exposes 48dp hit target', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final semantics = tester.ensureSemantics();
+
+    await tester.pumpWidget(
+      _app(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          todosViewProvider.overrideWith((ref) => const TodosDayView()),
+          viewedDateProvider.overrideWith((ref) => DateTime(2026, 11, 10)),
+        ],
+        now: now,
+      ),
+    );
+    await _settle(tester);
+
+    final size = tester.getSize(find.byKey(const ValueKey('todos-filter-tool')));
+    expect(size.width, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(48));
+
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('todos-filter-tool-visual')))
+          .height,
+      29,
+    );
+
+    semantics.dispose();
+    await _unmount(tester);
+  });
+
+  testWidgets('mobile mode switch and date cells expose 48dp hit targets', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -575,7 +610,6 @@ void main() {
     await _settle(tester);
 
     for (final key in const [
-      'todos-filter-tool',
       'todo-mode-inbox',
       'todo-mode-all',
       'todo-mode-date',
@@ -588,12 +622,6 @@ void main() {
       expect(size.height, greaterThanOrEqualTo(48), reason: key);
     }
 
-    expect(
-      tester
-          .getSize(find.byKey(const ValueKey('todos-filter-tool-visual')))
-          .height,
-      29,
-    );
     expect(
       tester
           .getSize(find.byKey(const ValueKey('todos-mode-switch-visual')))
@@ -644,6 +672,68 @@ void main() {
     semantics.dispose();
     await _unmount(tester);
   });
+
+  testWidgets(
+    'mobile todo header matches m-top 50h, 15px title, actions search/filter, and persistent mode switch',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            todosViewProvider.overrideWith((ref) => const TodosDayView()),
+            viewedDateProvider.overrideWith((ref) => DateTime(2026, 11, 10)),
+          ],
+          now: now,
+        ),
+      );
+      await _settle(tester);
+
+      final topBarFinder = find.byKey(const ValueKey('m-top'));
+      expect(topBarFinder, findsOneWidget);
+      expect(tester.getSize(topBarFinder).height, 50.0);
+
+      final titleFinder = find.descendant(
+        of: topBarFinder,
+        matching: find.text('All Tasks'),
+      );
+      expect(titleFinder, findsOneWidget);
+      final titleWidget = tester.widget<Text>(titleFinder);
+      expect(titleWidget.style?.fontSize, 15);
+      expect(
+        titleWidget.style?.fontVariations?.any(
+          (v) => v.axis == 'wght' && v.value == 650,
+        ),
+        isTrue,
+      );
+
+      final searchFinder = find.byKey(const ValueKey('todos-search-tool'));
+      final filterFinder = find.byKey(const ValueKey('todos-filter-tool'));
+      expect(searchFinder, findsOneWidget);
+      expect(filterFinder, findsOneWidget);
+      expect(tester.getSize(searchFinder), const Size(30.0, 30.0));
+      expect(tester.getSize(filterFinder), const Size(30.0, 30.0));
+
+      await tester.tap(searchFinder);
+      await _settle(tester);
+
+      await tester.tap(filterFinder);
+      await _settle(tester);
+      expect(find.text('Filter'), findsOneWidget);
+      await tester.tap(find.text('Done'));
+      await _settle(tester);
+
+      expect(find.byKey(const ValueKey('todos-mode-switch')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-mode-inbox')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-mode-all')), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
 
   testWidgets('date strip keeps its layout and the selected day is not clipped', (
     tester,
