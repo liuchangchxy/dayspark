@@ -455,20 +455,13 @@ void main() {
   testWidgets('a calendar slot opens the composer with that slot prefilled', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = const Size(1440, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(_app(db, _router(0)));
     await _settle(tester);
     await tester.tap(find.text('Calendar').last);
-    await _settle(tester);
-
-    // The spec's phone week view is a grouped list with no time axis; the
-    // pointer-to-slot contract lives on the day grid.
-    await tester.tap(find.byKey(const ValueKey('calendar-view-menu')));
-    await _settle(tester);
-    await tester.tap(find.text('Day').last);
     await _settle(tester);
 
     // Every day column is one tap target that resolves to the half-hour slot

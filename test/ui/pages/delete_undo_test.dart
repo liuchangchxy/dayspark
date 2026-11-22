@@ -148,7 +148,7 @@ void main() {
     await scrollToDelete(tester);
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
-    expect(find.text('Are you sure you want to delete?'), findsOneWidget);
+    expect(find.textContaining('Delete "Pay the rent"?'), findsOneWidget);
     await tester.tap(
       find
           .descendant(
@@ -219,7 +219,14 @@ void main() {
     await scrollToDelete(tester);
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
-    await tester.tap(find.text('Cancel'));
+    await tester.tap(
+      find
+          .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.text('Cancel'),
+          )
+          .last,
+    );
     await _settle(tester);
 
     final row = await (db.select(db.todos)
