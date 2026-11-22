@@ -2084,6 +2084,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get filterEmptyHint => '清除筛选后显示全部。';
 
   @override
+  String get filterEmptyTitle => '没有符合条件的待办';
+
+  @override
+  String filterAppliedCount(int count) {
+    return '已筛选 · $count 项';
+  }
+
+  @override
+  String get filterReset => '重置';
+
+  @override
+  String get filterApply => '应用';
+
+  @override
+  String get emptyInboxNoDateTitle => '没有无日期的待办';
+
+  @override
+  String get emptyInboxNoDateHint => '所有未安排项都带截止日期。';
+
+  @override
+  String todoInboxNoDateContext(int count) {
+    return '$count 项 · 无日期';
+  }
+
+  @override
+  String get todoInboxNoDateBanner => '来自今天 · 只看无日期';
+
+  @override
+  String get todoInboxViewAll => '查看全部未安排';
+
+  @override
   String todoUnplannedContext(int count, int withDue) {
     return '$count 项 · 含 $withDue 项带截止';
   }

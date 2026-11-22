@@ -25,10 +25,16 @@ import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
-GoRouter _router(int initialTab) => GoRouter(
+GoRouter _router(int initialTab, {String? initialTodoView}) => GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(path: '/', builder: (_, __) => HomePage(initialTab: initialTab)),
+    GoRoute(
+      path: '/',
+      builder: (_, __) => HomePage(
+        initialTab: initialTab,
+        initialTodoView: initialTodoView,
+      ),
+    ),
     GoRoute(
       path: '/todo/detail',
       builder: (_, __) => const Scaffold(
@@ -206,7 +212,9 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_app(db, _router(2)));
+    await tester.pumpWidget(
+      _app(db, _router(2, initialTodoView: 'date')),
+    );
     await _settle(tester);
 
     await tester.tap(find.text('Standup'));

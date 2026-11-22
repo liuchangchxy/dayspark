@@ -270,6 +270,7 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
   }
 
   void _selectTodos() {
+    ref.read(todosInboxNoDateOnlyProvider.notifier).state = false;
     ref.read(workspaceTabProvider.notifier).setTab(AppTab.todos);
     widget.onSelect?.call(2);
     _goTab(2);

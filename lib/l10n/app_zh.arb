@@ -893,6 +893,29 @@
   },
   "filter": "筛选",
   "filterEmptyHint": "清除筛选后显示全部。",
+  "filterEmptyTitle": "没有符合条件的待办",
+  "filterAppliedCount": "已筛选 · {count} 项",
+  "@filterAppliedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filterReset": "重置",
+  "filterApply": "应用",
+  "emptyInboxNoDateTitle": "没有无日期的待办",
+  "emptyInboxNoDateHint": "所有未安排项都带截止日期。",
+  "todoInboxNoDateContext": "{count} 项 · 无日期",
+  "@todoInboxNoDateContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoInboxNoDateBanner": "来自今天 · 只看无日期",
+  "todoInboxViewAll": "查看全部未安排",
   "todoUnplannedContext": "{count} 项 · 含 {withDue} 项带截止",
   "@todoUnplannedContext": {
     "placeholders": {

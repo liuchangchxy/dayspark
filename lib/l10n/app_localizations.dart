@@ -3941,6 +3941,60 @@ abstract class AppLocalizations {
   /// **'Clear filters to show all.'**
   String get filterEmptyHint;
 
+  /// No description provided for @filterEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching tasks'**
+  String get filterEmptyTitle;
+
+  /// No description provided for @filterAppliedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Filtered · {count} items'**
+  String filterAppliedCount(int count);
+
+  /// No description provided for @filterReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get filterReset;
+
+  /// No description provided for @filterApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get filterApply;
+
+  /// No description provided for @emptyInboxNoDateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No undated tasks'**
+  String get emptyInboxNoDateTitle;
+
+  /// No description provided for @emptyInboxNoDateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'All unplanned tasks have a deadline.'**
+  String get emptyInboxNoDateHint;
+
+  /// No description provided for @todoInboxNoDateContext.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items · undated'**
+  String todoInboxNoDateContext(int count);
+
+  /// No description provided for @todoInboxNoDateBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'From today · undated only'**
+  String get todoInboxNoDateBanner;
+
+  /// No description provided for @todoInboxViewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View all unplanned'**
+  String get todoInboxViewAll;
+
   /// No description provided for @todoUnplannedContext.
   ///
   /// In en, this message translates to:
