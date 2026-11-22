@@ -15,11 +15,13 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 Widget _app({
   required List<Override> overrides,
@@ -205,10 +207,16 @@ void main() {
     await tester.tap(find.byType(DsCheck).first);
     await _settle(tester);
     expect(calls, [true]);
-    expect(find.text('Completed'), findsOneWidget);
-    expect(find.text('Undo'), findsOneWidget);
+    expect(find.text('Marked completed · Buy milk'), findsOneWidget);
+    expect(find.text('Undo'), findsNWidgets(2));
+    expect(find.byKey(const ValueKey('undo-bar')), findsOneWidget);
 
-    await tester.tap(find.text('Undo'));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const ValueKey('undo-bar')),
+        matching: find.text('Undo'),
+      ),
+    );
     await _settle(tester);
     expect(calls, [true, false]);
 
@@ -1021,7 +1029,7 @@ void main() {
       expect(
         find.descendant(
           of: undoBarFinder,
-          matching: find.text('Desktop Task To Complete'),
+          matching: find.textContaining('Desktop Task To Complete'),
         ),
         findsOneWidget,
       );
@@ -1033,8 +1041,11 @@ void main() {
         findsOneWidget,
       );
 
-      // Spec geometry: bottom 84
-      final undoRect = tester.getRect(undoBarFinder);
+      // Spec geometry: bottom 84, measured on the bar content (the snackbar
+      // widget's own box includes the transparent lifting margin).
+      final undoRect = tester.getRect(
+        find.byKey(const ValueKey('undo-bar-content')),
+      );
       expect(undoRect.bottom, 900 - 84);
 
       // Tap Undo in undo bar
@@ -1253,6 +1264,226 @@ void main() {
 
       expect(tester.widget<TextField>(textFieldFinder).controller!.text, equals(originalText));
       expect(tester.widget<TextField>(textFieldFinder).focusNode!.hasFocus, isTrue);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: mobile completion shows the spec undo bar and Undo restores the task',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final todoId = await db.into(db.todos).insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Walk the dog',
+            ),
+          );
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (todo, occurrenceId, completed) async {
+            await RecordScope.run(
+              db,
+              (tx) => TodoWriter.setCompletion(
+                db,
+                tx,
+                todo.id,
+                isCompleted: completed,
+                occurrenceId: occurrenceId,
+              ),
+            );
+            return true;
+          },
+        ),
+      );
+      await _settle(tester);
+
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) => widget is DsCheck && widget.label == 'Walk the dog',
+        ),
+      );
+      await _settle(tester);
+
+      final bar = find.byKey(const ValueKey('undo-bar-content'));
+      expect(bar, findsOneWidget);
+      expect(
+        find.descendant(
+          of: bar,
+          matching: find.text('Marked completed · Walk the dog'),
+        ),
+        findsOneWidget,
+      );
+      final rect = tester.getRect(bar);
+      expect(rect.left, 12);
+      expect(rect.right, 390 - 12);
+      expect(rect.bottom, 844 - 118);
+
+      await tester.tap(
+        find.descendant(of: bar, matching: find.text('Undo')),
+      );
+      await _settle(tester);
+
+      expect(find.byKey(const ValueKey('undo-bar')), findsNothing);
+      final row = await (db.select(
+        db.todos,
+      )..where((table) => table.id.equals(todoId))).getSingle();
+      expect(row.status, 'NEEDS-ACTION');
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: summary counts the full data, not the visible list subset',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final overdue = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Late report',
+              dueDate: Value(day.subtract(const Duration(days: 1))),
+            ),
+          );
+      final due = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Ship build',
+              dueDate: Value(day.add(const Duration(hours: 18))),
+            ),
+          );
+      final seriesA = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Daily review',
+              dueDate: Value(day.subtract(const Duration(days: 3))),
+              rrule: const Value('FREQ=DAILY'),
+              syncId: const Value('series-a'),
+            ),
+          );
+      final seriesB = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Weekly notes',
+              dueDate: Value(day.subtract(const Duration(days: 3))),
+              rrule: const Value('FREQ=WEEKLY'),
+              syncId: const Value('series-b'),
+            ),
+          );
+      final completed = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Finished item',
+              status: const Value('COMPLETED'),
+              completedAt: Value(DateTime(2026, 10, 6, 10)),
+            ),
+          );
+      for (var i = 0; i < 5; i++) {
+        await db.into(db.todos).insert(
+              TodosCompanion.insert(
+                calendarId: calendarId,
+                summary: 'Undated task $i',
+              ),
+            );
+      }
+
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      final allocationId = await container.read(createTaskAllocationProvider)(
+        todoId: due.id,
+        startAt: DateTime(2026, 10, 6, 9),
+        endAt: DateTime(2026, 10, 6, 10),
+      );
+      container.dispose();
+      final allocation = await (db.select(
+        db.taskAllocations,
+      )..where((table) => table.id.equals(allocationId))).getSingle();
+
+      TodoOccurrence occurrence(String syncId, int dayOfMonth) =>
+          TodoOccurrence(
+            todoSyncId: syncId,
+            occurrenceId: 'v2:DATE:2026-10-${dayOfMonth.toString().padLeft(2, '0')}',
+            nominalAnchor: LocalDate(2026, 10, dayOfMonth),
+            resolvedStartInstant: null,
+            timeZone: 'Asia/Shanghai',
+          );
+
+      final projection = ActionProjectionData(
+        overdueTodos: [overdue],
+        dueTodayTodos: [due],
+        allocations: [
+          TaskAllocationCalendarItem(allocation: allocation, todo: due),
+        ],
+        missedTaskInstances: [
+          ProjectedTaskInstance(
+            todo: seriesA,
+            occurrence: occurrence('series-a', 3),
+            status: 'pending',
+          ),
+          ProjectedTaskInstance(
+            todo: seriesA,
+            occurrence: occurrence('series-a', 4),
+            status: 'pending',
+          ),
+          ProjectedTaskInstance(
+            todo: seriesB,
+            occurrence: occurrence('series-b', 5),
+            status: 'pending',
+          ),
+        ],
+        completedTodayTodos: [completed],
+      );
+
+      const summary = '3 Overdue · 1 Due today · 5 No date · 1 Completed';
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+            actionProjectionProvider.overrideWithValue(
+              AsyncValue.data(projection),
+            ),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+      expect(find.text(summary), findsOneWidget);
+
+      tester.view.physicalSize = const Size(1440, 900);
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+            actionProjectionProvider.overrideWithValue(
+              AsyncValue.data(projection),
+            ),
+          ],
+          onOpenTodo: (_) {},
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+      expect(find.text(summary), findsOneWidget);
 
       await _unmount(tester);
     },

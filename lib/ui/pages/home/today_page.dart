@@ -25,6 +25,7 @@ import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 
 /// 今天: the real today, drawn as four time sections and an unplanned shelf.
 ///
@@ -324,18 +325,19 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         section: section ?? _RecentSection.unplanned,
         index: index,
       );
+      showUndoBar(
+        context,
+        message: l.markedCompleted(todo.summary),
+        undoLabel: l.undo,
+        onUndo: () => _setCompleted(todo, occurrenceId, false),
+      );
     } else {
       _clearUndo();
-    }
-    if (!isWorkspaceLayout(context)) {
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      // The inline key beside the row is the undo affordance on mobile; the message only
-      // reports what happened.
-      messenger
-        ?..clearSnackBars()
-        ..showSnackBar(
-          SnackBar(content: Text(completed ? l.completed : l.openTask)),
+      if (!isWorkspaceLayout(context)) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(content: Text(l.openTask)),
         );
+      }
     }
   }
 
@@ -374,7 +376,69 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   void _clearUndo() {
     if (_recent == null) return;
     _undoTimer?.cancel();
+    if (mounted) {
+      ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+    }
     setState(() => _recent = null);
+  }
+
+  ({int overdue, int due, int noDue, int done}) _summaryCounts(
+    ActionProjectionData? projection,
+    List<Todo> unplanned,
+  ) {
+    final recent = _recent;
+    final recentKey = recent == null
+        ? null
+        : _keyOf(recent.todo.id, recent.occurrenceId);
+    final completedTodos = projection?.completedTodayTodos ?? const <Todo>[];
+    final completedInstances =
+        projection?.completedTodayTaskInstances ??
+        const <ProjectedTaskInstance>[];
+    final recentCompleted =
+        recent != null &&
+        (recent.occurrenceId == null
+            ? completedTodos.any((todo) => todo.id == recent.todo.id)
+            : completedInstances.any(
+                (instance) =>
+                    _keyOf(instance.todo.id, instance.occurrenceId) ==
+                    recentKey,
+              ));
+    final missedSeries = <int>{
+      for (final instance
+          in projection?.missedTaskInstances ??
+              const <ProjectedTaskInstance>[])
+        if (_keyOf(instance.todo.id, instance.occurrenceId) != recentKey)
+          instance.todo.id,
+      for (final todo
+          in projection?.earlierMissedSeries ?? const <Todo>[])
+        todo.id,
+    };
+    final recentTodoId = recent?.occurrenceId == null ? recent?.todo.id : null;
+    final overdueCount = (projection?.overdueTodos ?? const <Todo>[])
+            .where((todo) => todo.id != recentTodoId)
+            .length +
+        missedSeries.length;
+    final dueCount = (projection?.dueTodayTodos ?? const <Todo>[])
+        .where((todo) => todo.id != recentTodoId)
+        .length;
+    final noDueCount = unplanned
+        .where(
+          (todo) =>
+              todo.dueDate == null &&
+              !missedSeries.contains(todo.id) &&
+              todo.id != recentTodoId,
+        )
+        .length;
+    final doneCount =
+        completedTodos.length +
+        completedInstances.length +
+        (recent != null && !recentCompleted ? 1 : 0);
+    return (
+      overdue: overdueCount,
+      due: dueCount,
+      noDue: noDueCount,
+      done: doneCount,
+    );
   }
 
   void _openTodo(Todo todo) {
@@ -710,21 +774,17 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         runningItems.isNotEmpty ||
         upcomingItems.isNotEmpty;
 
-    final overdueCount = visibleOverdue.length + visibleMissed.length;
-    final dueCount = visibleDue.length;
-    final doneCount = (projection?.completedTodayTodos.length ?? 0) +
-        (projection?.completedTodayTaskInstances.length ?? 0) +
-        (_recent != null ? 1 : 0);
+    final counts = _summaryCounts(projection, unplanned);
     final isPageEmpty = _recent == null &&
-        overdueCount == 0 &&
-        dueCount == 0 &&
-        noDueCount == 0 &&
-        doneCount == 0 &&
+        counts.overdue == 0 &&
+        counts.due == 0 &&
+        counts.noDue == 0 &&
+        counts.done == 0 &&
         !hasTimeItems;
 
     final summary = isPageEmpty
         ? l.emptyTodayTitle
-        : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $noDueCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
+        : '${counts.overdue} ${l.todaySummaryOverdue} · ${counts.due} ${l.sectionDueToday} · ${counts.noDue} ${l.todayNoDateGroup} · ${counts.done} ${l.completed}';
 
     final mobileContentHeader = Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
@@ -1306,26 +1366,19 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   Widget _desktopHead(
     AppLocalizations l,
-    AsyncValue<ActionProjectionData> data,
     DayAgenda agenda,
-    int noDueCount,
+    ({int overdue, int due, int noDue, int done}) counts,
   ) {
-    final projection = data.valueOrNull;
-    final overdueCount = agenda.overdueTodos.length +
-        (projection?.missedTaskInstances.length ?? 0);
-    final dueCount = agenda.dueTodos.length;
-    final doneCount = (projection?.completedTodayTodos.length ?? 0) +
-        (projection?.completedTodayTaskInstances.length ?? 0);
-    final isEmpty = overdueCount == 0 &&
-        dueCount == 0 &&
-        noDueCount == 0 &&
-        doneCount == 0 &&
+    final isEmpty = counts.overdue == 0 &&
+        counts.due == 0 &&
+        counts.noDue == 0 &&
+        counts.done == 0 &&
         agenda.events.isEmpty &&
         agenda.allocations.isEmpty;
 
     final summary = isEmpty
         ? l.emptyTodayTitle
-        : '$overdueCount ${l.todaySummaryOverdue} · $dueCount ${l.sectionDueToday} · $noDueCount ${l.todayNoDateGroup} · $doneCount ${l.completed}';
+        : '${counts.overdue} ${l.todaySummaryOverdue} · ${counts.due} ${l.sectionDueToday} · ${counts.noDue} ${l.todayNoDateGroup} · ${counts.done} ${l.completed}';
 
     final weekText = l.weekNumberLabel(isoWeekNumber(widget.now));
     final dateTitle = DateFormat.MMMd(_locale).format(widget.now);
@@ -2350,7 +2403,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _desktopHead(l, data, agenda, noDueCount),
+            _desktopHead(l, agenda, _summaryCounts(data.valueOrNull, unplanned)),
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2392,49 +2445,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         ),
         _desktopCaptureExpandedPanel(l),
         _desktopCaptureBar(l),
-        if (_recent != null)
-          Positioned(
-            bottom: 84,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                key: const ValueKey('undo-bar'),
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                decoration: BoxDecoration(
-                  color: SpecTokens.ink,
-                  borderRadius: BorderRadius.circular(7),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromRGBO(0, 0, 0, 0.16),
-                      blurRadius: 18,
-                      offset: Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        _recent!.todo.summary,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
-                          fontFamilyFallback: AppTypography.fallback,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _undoAction(_recent!),
-                  ],
-                ),
-              ),
-            ),
-          ),
       ],
     );
 

@@ -855,7 +855,7 @@ void main() {
       )..where((table) => table.id.equals(id))).getSingle();
       expect(row.status, 'COMPLETED');
       expect(find.text('Weekly notes'), findsOneWidget);
-      expect(find.text('Undo'), findsOneWidget);
+      expect(find.text('Undo'), findsNWidgets(2));
       // T3 also keeps the moment it was completed, not just the fact.
       expect(
         find.descendant(
@@ -920,7 +920,7 @@ void main() {
       // T4/D3: the projection has dropped the row, but it stays where it stood
       // with an inline undo key; the completed fold does not duplicate it yet.
       expect(find.text('Pay bill'), findsOneWidget);
-      expect(find.text('Undo'), findsOneWidget);
+      expect(find.text('Undo'), findsNWidgets(2));
       expect(find.text('Completed Today'), findsNothing);
 
       await tester.pump(const Duration(seconds: 5));
@@ -1038,7 +1038,7 @@ void main() {
       // reflects the completion while the row is still held for undo.
       expect(find.text('1'), findsOneWidget);
       expect(find.text('Task A'), findsOneWidget);
-      expect(find.text('Undo'), findsOneWidget);
+      expect(find.text('Undo'), findsNWidgets(2));
 
       // Any other interaction closes the window without waiting out the timer.
       await tester.tap(find.text('Task B'));
@@ -1101,10 +1101,10 @@ void main() {
     // key twice and throw in debug builds).
     expect(find.text('Morning review'), findsOneWidget);
     expect(find.text('Upcoming'), findsOneWidget);
-    expect(find.text('Undo'), findsOneWidget);
+    expect(find.text('Undo'), findsNWidgets(2));
 
     await tester.pump(const Duration(seconds: 5));
-    await tester.pump();
+    await _settle(tester);
     expect(find.text('Undo'), findsNothing);
 
     await _unmount(tester);
