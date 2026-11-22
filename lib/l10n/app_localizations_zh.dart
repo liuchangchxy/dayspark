@@ -2778,6 +2778,45 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncFailedBanner => '同步失败。服务器超时；本地修改等待重试。';
 
   @override
+  String get syncOfflineBanner => '离线。本地修改会先保存，联网后自动重试。';
+
+  @override
+  String syncOfflinePending(int count) {
+    return '离线 · $count 条本地修改待同步。';
+  }
+
+  @override
+  String syncPendingUploads(int count) {
+    return '$count 条待上传';
+  }
+
+  @override
+  String syncFailedAt(String time, String reason) {
+    return '$time · $reason';
+  }
+
+  @override
+  String get syncConflicts => '冲突';
+
+  @override
+  String syncConflictCount(int count) {
+    return '$count 条待处理';
+  }
+
+  @override
+  String syncConflictLast(String id) {
+    return '最近：$id';
+  }
+
+  @override
+  String get syncServerRejections => '服务器拒绝';
+
+  @override
+  String syncRejectedTotal(int count) {
+    return '$count 条被拒绝';
+  }
+
+  @override
   String get retryNow => '立即重试';
 
   @override

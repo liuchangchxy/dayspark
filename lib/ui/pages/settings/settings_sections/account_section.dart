@@ -216,39 +216,98 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     final status = ref.watch(syncStatusProvider);
     final engine = ref.watch(syncEngineProvider);
     final server = ref.watch(syncSettingsProvider).valueOrNull?.baseUrl;
-    return SettingsRows(
+    final pending = ref.watch(pendingSyncOpsProvider).valueOrNull ?? 0;
+    final conflicts = ref.watch(syncConflictCountProvider);
+    final rejected = ref.watch(syncRejectedCountProvider);
+    final latestConflict = status.latestConflict;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SettingsRow(label: state.email!, value: _statusText(l, status)),
-        if (server != null) SettingsRow(label: l.serverUrl, value: server),
-        SettingsRow(
-          label: l.connectedDevices,
-          chevron: SettingsChevron.right,
-          onTap: () => _showDevicesDialog(context),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          child: Tooltip(
-            message: l.syncTooltip,
-            child: DsButton(
-              label: l.syncNow,
-              icon: CupertinoIcons.refresh,
-              tone: DsButtonTone.secondary,
-              expand: true,
-              onPressed: engine == null
-                  ? null
-                  : () => unawaited(engine.requestRound()),
+        if (status.phase == SyncPhase.error)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: InlineAlert(
+              title: l.syncPhaseError,
+              isRed: true,
+              message: _failureText(l, status, pending),
             ),
           ),
-        ),
-        SettingsRow(
-          label: l.logout,
-          danger: true,
-          chevron: SettingsChevron.right,
-          onTap: state.busy ? null : () => _confirmLogout(l),
+        SettingsRows(
+          children: [
+            SettingsRow(label: state.email!, value: _statusText(l, status)),
+            if (server != null) SettingsRow(label: l.serverUrl, value: server),
+            if (pending > 0)
+              SettingsRow(
+                label: l.localStatus,
+                value: l.syncPendingUploads(pending),
+              ),
+            if (conflicts > 0)
+              SettingsRow(
+                label: l.syncConflicts,
+                subtitle: latestConflict == null
+                    ? null
+                    : l.syncConflictLast(_shortId(latestConflict.recordId)),
+                value: l.syncConflictCount(conflicts),
+              ),
+            if (rejected > 0)
+              SettingsRow(
+                label: l.syncServerRejections,
+                subtitle: status.rejectedCodes.isEmpty
+                    ? null
+                    : l.syncRejected(status.rejectedCodes.join(', ')),
+                value: l.syncRejectedTotal(rejected),
+              ),
+            SettingsRow(
+              label: l.connectedDevices,
+              chevron: SettingsChevron.right,
+              onTap: () => _showDevicesDialog(context),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              child: Tooltip(
+                message: l.syncTooltip,
+                child: DsButton(
+                  label: l.syncNow,
+                  icon: CupertinoIcons.refresh,
+                  tone: DsButtonTone.secondary,
+                  expand: true,
+                  onPressed: engine == null
+                      ? null
+                      : () => unawaited(engine.requestRound()),
+                ),
+              ),
+            ),
+            SettingsRow(
+              label: l.logout,
+              danger: true,
+              chevron: SettingsChevron.right,
+              onTap: state.busy ? null : () => _confirmLogout(l),
+            ),
+          ],
         ),
       ],
     );
   }
+
+  String _failureText(
+    AppLocalizations l,
+    SyncStatus status,
+    int pending,
+  ) {
+    final failedAt = status.lastErrorAt;
+    final reason = status.lastError ?? l.syncFailedBanner;
+    final when = failedAt == null
+        ? reason
+        : l.syncFailedAt(DateFormatters.formatRelativeTime(failedAt, l), reason);
+    final pendingLine = pending > 0
+        ? '\n${l.syncPendingUploads(pending)}'
+        : '';
+    return '$when$pendingLine';
+  }
+
+  static String _shortId(String id) =>
+      id.length <= 8 ? id : id.substring(0, 8);
 
   /// Logging out stops sync on a device that may be the only place the data
   /// lives, so it is confirmed rather than fired on the first tap.
