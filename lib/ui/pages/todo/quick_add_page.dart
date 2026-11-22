@@ -13,6 +13,7 @@ import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
@@ -57,7 +58,11 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
 
   _QuickAddDraft _draft() => _parseQuickAdd(_controller.text, DateTime.now());
 
-  Calendar? _calendarFor(List<Calendar> calendars, _QuickAddDraft draft) {
+  Calendar? _calendarFor(
+    List<Calendar> calendars,
+    _QuickAddDraft draft, {
+    int? preferredId,
+  }) {
     if (calendars.isEmpty) return null;
     final chosen = _calendarId;
     if (chosen != null) {
@@ -70,6 +75,13 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
       if (calendar.name.isNotEmpty && text.contains(calendar.name)) {
         return calendar;
       }
+    }
+    final defaultId = resolveNewEntryCalendarId(
+      calendars: calendars,
+      preferredId: preferredId,
+    );
+    for (final calendar in calendars) {
+      if (calendar.id == defaultId) return calendar;
     }
     return calendars.first;
   }
@@ -107,7 +119,11 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     });
     try {
       final calendars = await ref.read(calendarsProvider.future);
-      final calendar = _calendarFor(calendars, draft);
+      final calendar = _calendarFor(
+        calendars,
+        draft,
+        preferredId: ref.read(defaultCalendarIdProvider),
+      );
       if (calendar == null) {
         if (!mounted) return;
         setState(() {
@@ -177,7 +193,11 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     });
     try {
       final calendars = await ref.read(calendarsProvider.future);
-      final calendar = _calendarFor(calendars, draft);
+      final calendar = _calendarFor(
+        calendars,
+        draft,
+        preferredId: ref.read(defaultCalendarIdProvider),
+      );
       if (calendar == null) {
         if (!mounted) return;
         setState(() {
@@ -292,7 +312,11 @@ class _QuickAddPageState extends ConsumerState<QuickAddPage> {
     final desktop = isWorkspaceLayout(context);
     final draft = _draft();
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
-    final calendar = _calendarFor(calendars, draft);
+    final calendar = _calendarFor(
+      calendars,
+      draft,
+      preferredId: ref.watch(defaultCalendarIdProvider),
+    );
     final start = _pickedStart ?? draft.start;
     final duration = _pickedDuration ?? draft.duration;
     final hasText = _controller.text.trim().isNotEmpty;

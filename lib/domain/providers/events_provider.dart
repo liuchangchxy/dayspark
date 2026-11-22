@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/event_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
@@ -258,5 +259,9 @@ final deleteCalendarProvider =
 
           await db.calendarsDao.deleteCalendar(id);
         });
+
+        await ref
+            .read(defaultCalendarIdProvider.notifier)
+            .clearDefaultCalendarId(id);
       };
     });

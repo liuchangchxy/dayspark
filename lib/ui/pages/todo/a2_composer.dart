@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
@@ -418,7 +419,13 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
         setState(() => _saving = false);
         return;
       }
-      final calendarId = _calendarId ?? calendars.first.id;
+      final calendarId =
+          _calendarId ??
+          resolveNewEntryCalendarId(
+            calendars: calendars,
+            preferredId: ref.read(defaultCalendarIdProvider),
+          ) ??
+          calendars.first.id;
       final due = _due;
       final start = _start;
       final end = _end;
@@ -549,9 +556,15 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
       Localizations.localeOf(context).toString(),
     ).format(widget.contextDate);
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    final defaultCalId = calendars.isEmpty
+        ? null
+        : resolveNewEntryCalendarId(
+            calendars: calendars,
+            preferredId: ref.watch(defaultCalendarIdProvider),
+          );
     String? calendarName;
     for (final calendar in calendars) {
-      if (calendar.id == (_calendarId ?? calendars.first.id)) {
+      if (calendar.id == (_calendarId ?? defaultCalId)) {
         calendarName = calendar.name;
       }
     }

@@ -1,42 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
-
-/// Provider for the default calendar ID.
-/// Stored in SharedPreferences under 'default_calendar_id'.
-/// When null, the first calendar is used by convention.
-final defaultCalendarIdProvider =
-    StateNotifierProvider<DefaultCalendarNotifier, int?>((ref) {
-  return DefaultCalendarNotifier();
-});
-
-class DefaultCalendarNotifier extends StateNotifier<int?> {
-  DefaultCalendarNotifier() : super(null) {
-    _load();
-  }
-
-  static const _key = 'default_calendar_id';
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final id = prefs.getInt(_key);
-    if (id != null) {
-      state = id;
-    }
-  }
-
-  Future<void> setDefaultCalendarId(int id) async {
-    state = id;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_key, id);
-  }
-}
 
 enum SettingsChevron { none, right, down }
 

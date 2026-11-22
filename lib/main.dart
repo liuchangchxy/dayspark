@@ -14,6 +14,7 @@ import 'core/utils/platform_target.dart';
 import 'core/utils/platform_scroll_behavior.dart';
 import 'domain/providers/home_widget_provider.dart';
 import 'domain/providers/database_provider.dart';
+import 'domain/providers/default_calendar_provider.dart';
 import 'domain/providers/record_bus_provider.dart';
 import 'domain/providers/sync_client_provider.dart'
     show deviceRegistrationProvider, syncRuntimeProvider;
@@ -63,6 +64,9 @@ void main() async {
   };
 
   final container = ProviderContainer();
+  // Load the stored default calendar before the first write can read the
+  // provider, so a capture at launch does not fall back to the first calendar.
+  await container.read(defaultCalendarIdProvider.notifier).ensureLoaded();
   final database = container.read(databaseShutdownProvider);
   late final AppLifecycleListener exitListener;
   exitListener = AppLifecycleListener(
