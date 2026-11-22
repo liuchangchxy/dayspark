@@ -410,7 +410,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _mobileTopBar(context, l),
+          _mobileTopBar(context, l, view),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
             child: Align(
@@ -428,7 +428,24 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
 
   // ------------------------------------------------------------------ header
 
-  Widget _mobileTopBar(BuildContext context, AppLocalizations l) {
+  Widget _mobileTopBar(
+    BuildContext context,
+    AppLocalizations l,
+    TodosView view,
+  ) {
+    final String title;
+    if (view is TodosInboxView) {
+      title = l.inbox;
+    } else if (view is TodosAllView) {
+      title = l.allTasks;
+    } else {
+      final viewed = ref.watch(viewedDateProvider);
+      final day = _dayOf(viewed);
+      final dateText = DateFormat.MMMd(_locale).format(day);
+      final weekText = DateFormat.E(_locale).format(day);
+      title = '$dateText \u00b7 $weekText';
+    }
+
     return Container(
       key: const ValueKey('m-top'),
       height: 50,
@@ -441,7 +458,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         children: [
           Expanded(
             child: Text(
-              l.allTasks,
+              title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(

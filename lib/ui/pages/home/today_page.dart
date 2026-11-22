@@ -22,6 +22,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
+import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 
@@ -69,6 +70,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   bool _missedExpanded = false;
   bool _earlierMissedExpanded = false;
   bool _endedExpanded = true;
+  bool _desktopEndedExpanded = false;
   bool _toastVisible = false;
   Timer? _toastTimer;
   bool _capturing = false;
@@ -325,14 +327,16 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     } else {
       _clearUndo();
     }
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    // The inline key beside the row is the undo affordance; the message only
-    // reports what happened.
-    messenger
-      ?..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(content: Text(completed ? l.completed : l.openTask)),
-      );
+    if (!isWorkspaceLayout(context)) {
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      // The inline key beside the row is the undo affordance on mobile; the message only
+      // reports what happened.
+      messenger
+        ?..clearSnackBars()
+        ..showSnackBar(
+          SnackBar(content: Text(completed ? l.completed : l.openTask)),
+        );
+    }
   }
 
   void _startUndo(
@@ -388,6 +392,15 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     widget.onScheduleTodo(todo);
   }
 
+  void _openComposer({Todo? todo}) {
+    _clearUndo();
+    showA2Composer(
+      context,
+      contextDate: widget.now,
+      todo: todo,
+    );
+  }
+
   /// Any press outside the undo key closes the window: the key is a one-shot
   /// offer, not a persistent state. The key itself is excluded by hit test,
   /// otherwise the press that should undo would dismiss the button first.
@@ -406,6 +419,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   Widget _undoAction(_RecentCompletion recent) {
     final ds = context.ds;
+    final desktop = isWorkspaceLayout(context);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -424,7 +438,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: ds.primary,
+                  color: desktop ? const Color(0xFF6B9EFF) : ds.primary,
                   fontFamilyFallback: AppTypography.fallback,
                 ),
               ),
@@ -672,14 +686,15 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
     final running = timed.where(isRunning).toList();
     final rest = timed
-        .where((item) => !isRunning(item) && !_hasEnded(item))
+        .where((item) => !item.allDay && !isRunning(item) && !_hasEnded(item))
         .toList();
     final ended = timed.where(_hasEnded).toList();
     final endedItems = _injectRecentDayItems(ended, _RecentSection.ended);
     final runningItems = _injectRecentDayItems(running, _RecentSection.now);
 
     final upcoming = <({DayItem item, bool instance})>[
-      for (final item in rest) (item: item, instance: false),
+      for (final item in rest)
+        if (!item.allDay) (item: item, instance: false),
       for (final instance in agenda.instances) (item: instance, instance: true),
     ];
     final upcomingItems = _injectRecentUpcoming(upcoming);
@@ -1181,6 +1196,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             initialDraft: _captureDraft,
             onDraftChanged: (draft) => _captureDraft = draft,
             onSubmit: _capture,
+            onExpand: _openComposer,
             onFocusChange: (focused) {
               if (_captureFocused != focused) {
                 setState(() => _captureFocused = focused);
@@ -2020,7 +2036,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     final shelfSource = _injectRecentTodos(noDue, _RecentSection.unplanned);
     final noDueCount = noDue.length;
     final preview = shelfSource.take(3).toList();
-    final hidden = noDueCount - preview.length;
+    final hidden = shelfSource.length - preview.length;
 
     final allCompletedTodos = projection?.completedTodayTodos ?? const <Todo>[];
     final allCompletedInstances =
@@ -2091,14 +2107,15 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
     final running = timed.where(isRunning).toList();
     final rest = timed
-        .where((item) => !isRunning(item) && !_hasEnded(item))
+        .where((item) => !item.allDay && !isRunning(item) && !_hasEnded(item))
         .toList();
     final ended = timed.where(_hasEnded).toList();
     final endedItems = _injectRecentDayItems(ended, _RecentSection.ended);
     final runningItems = _injectRecentDayItems(running, _RecentSection.now);
 
     final upcoming = <({DayItem item, bool instance})>[
-      for (final item in rest) (item: item, instance: false),
+      for (final item in rest)
+        if (!item.allDay) (item: item, instance: false),
       for (final instance in agenda.instances) (item: instance, instance: true),
     ];
     final upcomingItems = _injectRecentUpcoming(upcoming);
@@ -2125,22 +2142,22 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           count: visibleOverdue.length,
           danger: true,
         ),
-        for (final item in visibleOverdue)
+        for (var i = 0; i < visibleOverdue.length; i++)
           _taskRow(
-            key: ValueKey('overdue-${item.todo!.id}'),
-            title: item.title,
-            checked: item.completed,
+            key: ValueKey('overdue-${visibleOverdue[i].todo!.id}'),
+            title: visibleOverdue[i].title,
+            checked: visibleOverdue[i].completed,
             isOverdue: true,
-            dueLabel: item.todo?.dueDate != null
-                ? DateFormat.Md(_locale).format(item.todo!.dueDate!.toLocal())
+            dueLabel: visibleOverdue[i].todo?.dueDate != null
+                ? DateFormat.Md(_locale).format(visibleOverdue[i].todo!.dueDate!.toLocal())
                 : l.sectionOverdueLabel,
-            calendarName: item.calendarName,
-            calendarColor: item.calendarColor,
-            rrule: item.todo?.rrule,
+            calendarName: visibleOverdue[i].calendarName,
+            calendarColor: visibleOverdue[i].calendarColor,
+            rrule: visibleOverdue[i].todo?.rrule,
             onToggle: (_) =>
-                _setCompleted(item.todo!, item.occurrenceId, !item.completed),
-            onTap: () => _openTodo(item.todo!),
-            onSchedule: () => _scheduleTodo(item.todo!),
+                _toggleItem(visibleOverdue[i], _RecentSection.overdue, i),
+            onTap: () => _openTodo(visibleOverdue[i].todo!),
+            onSchedule: () => _scheduleTodo(visibleOverdue[i].todo!),
           ),
       ],
       if (visibleDue.isNotEmpty) ...[
@@ -2148,20 +2165,20 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           label: l.sectionDueToday,
           count: visibleDue.length,
         ),
-        for (final item in visibleDue)
+        for (var i = 0; i < visibleDue.length; i++)
           _taskRow(
-            key: ValueKey('due-${item.todo!.id}'),
-            title: item.title,
-            checked: item.completed,
+            key: ValueKey('due-${visibleDue[i].todo!.id}'),
+            title: visibleDue[i].title,
+            checked: visibleDue[i].completed,
             isOverdue: false,
             dueLabel: l.today,
-            calendarName: item.calendarName,
-            calendarColor: item.calendarColor,
-            rrule: item.todo?.rrule,
+            calendarName: visibleDue[i].calendarName,
+            calendarColor: visibleDue[i].calendarColor,
+            rrule: visibleDue[i].todo?.rrule,
             onToggle: (_) =>
-                _setCompleted(item.todo!, item.occurrenceId, !item.completed),
-            onTap: () => _openTodo(item.todo!),
-            onSchedule: () => _scheduleTodo(item.todo!),
+                _toggleItem(visibleDue[i], _RecentSection.dueToday, i),
+            onTap: () => _openTodo(visibleDue[i].todo!),
+            onSchedule: () => _scheduleTodo(visibleDue[i].todo!),
           ),
       ],
       if (visibleMissed.isNotEmpty) ...[
@@ -2170,58 +2187,43 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           count: visibleMissed.length,
           danger: true,
         ),
-        for (final missed in visibleMissed)
+        for (var i = 0; i < visibleMissed.length; i++)
           _taskRow(
-            key: ValueKey('missed-${missed.occurrenceId}'),
-            title: missed.todo.summary,
+            key: ValueKey('missed-${visibleMissed[i].occurrenceId}'),
+            title: visibleMissed[i].todo.summary,
             checked: false,
             isOverdue: true,
-            dueLabel: missed.occurrence.displayLabel,
-            rrule: missed.todo.rrule,
+            dueLabel: visibleMissed[i].occurrence.displayLabel,
+            rrule: visibleMissed[i].todo.rrule,
             missedCount: 1,
-            onToggle: (_) => _setCompleted(
-              missed.todo,
-              missed.occurrenceId,
-              true,
-            ),
-            onTap: () => _openTodo(missed.todo),
-            onSchedule: () => _scheduleTodo(missed.todo),
+            onToggle: (_) => _toggleMissed(visibleMissed[i], i),
+            onTap: () => _openTodo(visibleMissed[i].todo),
+            onSchedule: () => _scheduleTodo(visibleMissed[i].todo),
           ),
       ],
-      _groupHead(
-        label: l.todayNoDateGroup,
-        count: noDueCount,
-        trailing: const Icon(
-          CupertinoIcons.chevron_up,
-          size: 11,
-          color: SpecTokens.faint,
-        ),
-        onToggle: widget.onOpenUnplanned,
-      ),
-      if (preview.isEmpty && shelfSource.isEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 12),
-          child: Text(
-            l.unplannedGroupEmpty,
-            style: const TextStyle(
-              fontSize: 11,
-              color: SpecTokens.faint,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
+      if (shelfSource.isNotEmpty) ...[
+        _groupHead(
+          label: l.todayNoDateGroup,
+          count: noDueCount,
+          trailing: const Icon(
+            CupertinoIcons.chevron_up,
+            size: 11,
+            color: SpecTokens.faint,
           ),
+          onToggle: widget.onOpenUnplanned,
         ),
-      for (final todo in preview)
-        _taskRow(
-          key: ValueKey('unplanned-${todo.id}'),
-          title: todo.summary,
-          checked: todo.status == 'COMPLETED',
-          rrule: todo.rrule,
-          onToggle: (_) =>
-              _setCompleted(todo, null, todo.status != 'COMPLETED'),
-          onTap: () => _openTodo(todo),
-          onSchedule: () => _scheduleTodo(todo),
-        ),
-      if (hidden > 0) _showAllRow(l, hidden),
+        for (var i = 0; i < preview.length; i++)
+          _taskRow(
+            key: ValueKey('unplanned-${preview[i].id}'),
+            title: preview[i].summary,
+            checked: preview[i].status == 'COMPLETED',
+            rrule: preview[i].rrule,
+            onToggle: (_) => _toggleUnplanned(preview[i], i),
+            onTap: () => _openTodo(preview[i]),
+            onSchedule: () => _scheduleTodo(preview[i]),
+          ),
+        if (hidden > 0) _showAllRow(l, hidden),
+      ],
       if (completedCount > 0) ...[
         _groupHead(
           label: l.completedTodaySection,
@@ -2292,9 +2294,12 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         _groupHead(
           label: l.actionEarlierToday,
           count: endedItems.length,
+          expanded: _desktopEndedExpanded,
+          onToggle: () => setState(() => _desktopEndedExpanded = !_desktopEndedExpanded),
         ),
-        for (var i = 0; i < endedItems.length; i++)
-          _timeBlockRow(endedItems[i], isQuiet: true),
+        if (_desktopEndedExpanded)
+          for (var i = 0; i < endedItems.length; i++)
+            _timeBlockRow(endedItems[i], isQuiet: true),
       ],
       _groupHead(
         label: l.sectionNow,
@@ -2387,6 +2392,49 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         ),
         _desktopCaptureExpandedPanel(l),
         _desktopCaptureBar(l),
+        if (_recent != null)
+          Positioned(
+            bottom: 84,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                key: const ValueKey('undo-bar'),
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: SpecTokens.ink,
+                  borderRadius: BorderRadius.circular(7),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color.fromRGBO(0, 0, 0, 0.16),
+                      blurRadius: 18,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _recent!.todo.summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontFamilyFallback: AppTypography.fallback,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    _undoAction(_recent!),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
 
