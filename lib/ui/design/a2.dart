@@ -690,14 +690,140 @@ class A2CaptureBarState extends State<A2CaptureBar> {
     final sendSize = isNarrow ? 32.0 : 34.0;
     final sendIconSize = isNarrow ? 14.0 : 15.0;
 
+    final sendButton = Container(
+      key: const ValueKey('capture-send-visual'),
+      width: sendSize,
+      height: sendSize,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: SpecTokens.ink,
+      ),
+      child: Icon(
+        CupertinoIcons.plus,
+        size: sendIconSize,
+        color: Colors.white,
+      ),
+    );
+
+    final row = Row(
+      children: [
+        Container(
+          height: isNarrow ? 23 : 25,
+          padding: EdgeInsets.symmetric(horizontal: isNarrow ? 7 : 8),
+          decoration: BoxDecoration(
+            color: SpecTokens.wash,
+            borderRadius: BorderRadius.circular(isNarrow ? 4 : 5),
+            border: Border.all(color: Colors.transparent),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                CupertinoIcons.checkmark,
+                size: isNarrow ? 9 : 10,
+                color: SpecTokens.muted,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                typeText,
+                style: TextStyle(
+                  fontSize: isNarrow ? 9 : 10,
+                  fontWeight: FontWeight.w500,
+                  color: SpecTokens.ink2,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (!isNarrow) ...[
+          const SizedBox(width: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Text(
+              subText,
+              style: const TextStyle(
+                fontSize: 10,
+                color: SpecTokens.faint,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(width: 8),
+        Expanded(
+          child: TextField(
+            key: widget.fieldKey,
+            controller: _controller,
+            focusNode: _focus,
+            maxLines: 1,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _submit(),
+            cursorColor: SpecTokens.ink,
+            style: _t(
+              isNarrow ? 12.5 : 13.5,
+              FontWeight.w400,
+              active ? SpecTokens.ink : SpecTokens.muted,
+              height: 1.4,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              hintText: widget.placeholder,
+              hintStyle: _t(
+                isNarrow ? 12.5 : 13.5,
+                FontWeight.w400,
+                const Color(0xFF8E8E84),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ),
+        if (widget.hint.isNotEmpty) ...[
+          const SizedBox(width: 6),
+          Text(
+            widget.hint,
+            style: _t(11, FontWeight.w400, SpecTokens.faint).copyWith(
+              fontFeatures: AppTypography.tabular,
+            ),
+          ),
+        ] else if (!isNarrow) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAFAF7),
+              border: Border.all(color: SpecTokens.hair2),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: const Text(
+              '↵',
+              style: TextStyle(
+                fontSize: 9,
+                color: SpecTokens.faint,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(width: 6),
+        isNarrow
+            ? sendButton
+            : GestureDetector(
+                key: const ValueKey('capture-send-target'),
+                onTap: _submit,
+                behavior: HitTestBehavior.opaque,
+                child: sendButton,
+              ),
+      ],
+    );
+
     Widget bar = Container(
       height: barHeight,
       margin: isNarrow
           ? const EdgeInsets.fromLTRB(12, 4, 12, 8)
           : const EdgeInsets.fromLTRB(12, 0, 12, 18),
-      padding: isNarrow
-          ? const EdgeInsets.fromLTRB(12, 0, 7, 0)
-          : const EdgeInsets.fromLTRB(14, 0, 8, 0),
       decoration: BoxDecoration(
         color: SpecTokens.paper,
         border: Border.all(
@@ -725,128 +851,31 @@ class A2CaptureBarState extends State<A2CaptureBar> {
                 ),
               ],
       ),
-      child: Row(
-        children: [
-          Container(
-            height: isNarrow ? 23 : 25,
-            padding: EdgeInsets.symmetric(horizontal: isNarrow ? 7 : 8),
-            decoration: BoxDecoration(
-              color: SpecTokens.wash,
-              borderRadius: BorderRadius.circular(isNarrow ? 4 : 5),
-              border: Border.all(color: Colors.transparent),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+      child: isNarrow
+          ? Stack(
+              clipBehavior: Clip.none,
               children: [
-                Icon(
-                  CupertinoIcons.checkmark,
-                  size: isNarrow ? 9 : 10,
-                  color: SpecTokens.muted,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 7, 0),
+                  child: row,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  typeText,
-                  style: TextStyle(
-                    fontSize: isNarrow ? 9 : 10,
-                    fontWeight: FontWeight.w500,
-                    color: SpecTokens.ink2,
+                Positioned(
+                  right: 0,
+                  top: -1,
+                  height: 48,
+                  width: 48,
+                  child: GestureDetector(
+                    key: const ValueKey('capture-send-target'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _submit,
                   ),
                 ),
               ],
+            )
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 8, 0),
+              child: row,
             ),
-          ),
-          if (!isNarrow) ...[
-            const SizedBox(width: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Text(
-                subText,
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: SpecTokens.faint,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              key: widget.fieldKey,
-              controller: _controller,
-              focusNode: _focus,
-              maxLines: 1,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _submit(),
-              cursorColor: SpecTokens.ink,
-              style: _t(
-                isNarrow ? 12.5 : 13.5,
-                FontWeight.w400,
-                active ? SpecTokens.ink : SpecTokens.muted,
-                height: 1.4,
-              ),
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                hintText: widget.placeholder,
-                hintStyle: _t(
-                  isNarrow ? 12.5 : 13.5,
-                  FontWeight.w400,
-                  const Color(0xFF8E8E84),
-                  height: 1.4,
-                ),
-              ),
-            ),
-          ),
-          if (widget.hint.isNotEmpty) ...[
-            const SizedBox(width: 6),
-            Text(
-              widget.hint,
-              style: _t(11, FontWeight.w400, SpecTokens.faint).copyWith(
-                fontFeatures: AppTypography.tabular,
-              ),
-            ),
-          ] else if (!isNarrow) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFAFAF7),
-                border: Border.all(color: SpecTokens.hair2),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: const Text(
-                '↵',
-                style: TextStyle(
-                  fontSize: 9,
-                  color: SpecTokens.faint,
-                  height: 1.3,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: _submit,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: sendSize,
-              height: sendSize,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: SpecTokens.ink,
-              ),
-              child: Icon(
-                CupertinoIcons.plus,
-                size: sendIconSize,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
 
     final desktopBar = Center(

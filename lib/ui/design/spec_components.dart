@@ -55,6 +55,7 @@ class SpecTaskRow extends StatefulWidget {
     this.scheduleKey,
     this.touchTargetSize,
     this.showCheck = true,
+    this.mobileFidelity = false,
   });
 
   final String title;
@@ -72,6 +73,7 @@ class SpecTaskRow extends StatefulWidget {
   final Key? scheduleKey;
   final double? touchTargetSize;
   final bool showCheck;
+  final bool mobileFidelity;
 
   @override
   State<SpecTaskRow> createState() => _SpecTaskRowState();
@@ -89,6 +91,160 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
         : _hovered
             ? SpecTokens.wash
             : Colors.transparent;
+
+    if (widget.mobileFidelity) {
+      final isDone = widget.checked;
+      final scheduleKey = widget.scheduleKey ??
+          (widget.onSchedule != null ? const ValueKey('spec-task-schedule') : null);
+
+      final visualRow = Container(
+        constraints: const BoxConstraints(minHeight: 50),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: bg,
+          border: const Border(
+            bottom: BorderSide(color: Color(0xFFF3F3EE), width: 1.0),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(width: 22),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: isDone ? SpecTokens.faint : SpecTokens.ink,
+                      decoration: isDone ? TextDecoration.lineThrough : null,
+                      decorationColor: SpecTokens.faint,
+                      fontFamilyFallback: AppTypography.fallback,
+                      height: 1.35,
+                    ),
+                  ),
+                  if (widget.meta.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    DefaultTextStyle(
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        color: SpecTokens.faint,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                      child: SizedBox(
+                        height: 16,
+                        child: ClipRect(
+                          child: OverflowBox(
+                            alignment: Alignment.centerLeft,
+                            maxWidth: double.infinity,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: widget.meta,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (widget.dueLabel != null && widget.dueLabel!.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: widget.isOverdue
+                      ? const Color(0x1AEA5545)
+                      : SpecTokens.wash,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Text(
+                  widget.dueLabel!,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                    color: widget.isOverdue ? SpecTokens.red : SpecTokens.muted,
+                    fontFeatures: AppTypography.tabular,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+            ],
+            if (widget.trailing != null) ...[
+              const SizedBox(width: 6),
+              widget.trailing!,
+            ] else if (widget.onSchedule != null) ...[
+              const SizedBox(width: 4),
+              const SizedBox(
+                width: 32,
+                height: 36,
+                child: Center(
+                  child: Icon(
+                    CupertinoIcons.calendar,
+                    size: 13.5,
+                    color: SpecTokens.muted,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+
+      return Stack(
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: enabled ? widget.onTap : null,
+            child: visualRow,
+          ),
+          if (widget.showCheck)
+            Positioned(
+              left: 3,
+              top: 0,
+              bottom: 0,
+              width: 48,
+              child: Center(
+                child: DsCheck(
+                  checked: isDone,
+                  onChanged: enabled ? widget.onToggle : null,
+                  label: widget.title,
+                  size: 15,
+                  compact: false,
+                ),
+              ),
+            ),
+          if (widget.trailing == null && widget.onSchedule != null)
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 54,
+              child: Tooltip(
+                message: widget.scheduleTooltip ?? '',
+                child: GestureDetector(
+                  key: scheduleKey,
+                  behavior: HitTestBehavior.opaque,
+                  onTap: enabled ? widget.onSchedule : null,
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
 
     final isDesktop = MediaQuery.maybeSizeOf(context)?.width != null &&
         MediaQuery.sizeOf(context).width >= 720;
