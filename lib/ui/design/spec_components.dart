@@ -1267,6 +1267,7 @@ class SpecPlanPicker extends StatelessWidget {
     required this.endLabel,
     required this.durationLabel,
     this.contextText,
+    this.contextIsOverlap = false,
     this.cancelLabel,
     this.submitLabel,
     this.startTitle,
@@ -1287,6 +1288,7 @@ class SpecPlanPicker extends StatelessWidget {
   final String endLabel;
   final String durationLabel;
   final String? contextText;
+  final bool contextIsOverlap;
   final String? cancelLabel;
   final String? submitLabel;
   final String? startTitle;
@@ -1439,15 +1441,19 @@ class SpecPlanPicker extends StatelessWidget {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFBFBF8),
+                        color: contextIsOverlap
+                            ? SpecTokens.amberSoft
+                            : const Color(0xFFFBFBF8),
                         border: Border.all(color: SpecTokens.hair),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         contextText!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 10,
-                          color: SpecTokens.muted,
+                          color: contextIsOverlap
+                              ? SpecTokens.amber
+                              : SpecTokens.muted,
                           height: 1.55,
                           fontFamilyFallback: AppTypography.fallback,
                         ),
@@ -1568,6 +1574,20 @@ class SpecPlanPicker extends StatelessWidget {
   }
 }
 
+/// A block already on the plan date, reduced to what the picker needs to say
+/// whether the chosen span overlaps it.
+class SpecPlanBlock {
+  const SpecPlanBlock({
+    required this.start,
+    required this.end,
+    required this.title,
+  });
+
+  final DateTime start;
+  final DateTime end;
+  final String title;
+}
+
 /// Dialog surface wrapping [SpecPlanPicker] for custom slot selection.
 class SpecPlanPickerDialog extends StatefulWidget {
   const SpecPlanPickerDialog({
@@ -1576,12 +1596,16 @@ class SpecPlanPickerDialog extends StatefulWidget {
     required this.initialStart,
     required this.initialEnd,
     this.contextText,
+    this.existingBlocks,
+    this.isEditing = false,
   });
 
   final String title;
   final DateTime initialStart;
   final DateTime initialEnd;
   final String? contextText;
+  final Future<List<SpecPlanBlock>> Function(DateTime day)? existingBlocks;
+  final bool isEditing;
 
   static Future<(DateTime, DateTime)?> show(
     BuildContext context, {
@@ -1589,6 +1613,8 @@ class SpecPlanPickerDialog extends StatefulWidget {
     required DateTime initialStart,
     required DateTime initialEnd,
     String? contextText,
+    Future<List<SpecPlanBlock>> Function(DateTime day)? existingBlocks,
+    bool isEditing = false,
   }) {
     return showDialog<(DateTime, DateTime)>(
       context: context,
@@ -1601,6 +1627,8 @@ class SpecPlanPickerDialog extends StatefulWidget {
           initialStart: initialStart,
           initialEnd: initialEnd,
           contextText: contextText,
+          existingBlocks: existingBlocks,
+          isEditing: isEditing,
         ),
       ),
     );
@@ -1613,12 +1641,61 @@ class SpecPlanPickerDialog extends StatefulWidget {
 class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
   late DateTime _start;
   late DateTime _end;
+  List<SpecPlanBlock> _blocks = const [];
+  int _blockRequest = 0;
 
   @override
   void initState() {
     super.initState();
     _start = widget.initialStart;
     _end = widget.initialEnd;
+    _reloadBlocks();
+  }
+
+  Future<void> _reloadBlocks() async {
+    final loader = widget.existingBlocks;
+    if (loader == null) return;
+    final request = ++_blockRequest;
+    try {
+      final blocks = await loader(_start);
+      if (!mounted || request != _blockRequest) return;
+      setState(() => _blocks = blocks);
+    } on Object catch (error) {
+      debugPrint('plan picker: block lookup failed: $error');
+    }
+  }
+
+  int _minuteOf(DateTime value) => value.hour * 60 + value.minute;
+
+  List<SpecPlanBlock> get _overlaps {
+    final start = _minuteOf(_start);
+    final end = _minuteOf(_end);
+    return [
+      for (final block in _blocks)
+        if (_minuteOf(block.start) < end && _minuteOf(block.end) > start)
+          block,
+    ];
+  }
+
+  String _contextText(AppLocalizations l, List<SpecPlanBlock> overlaps) {
+    final note = l.planOverlapNote;
+    if (overlaps.isNotEmpty) {
+      final range =
+          '${DateFormatters.formatTime(_start)}–${DateFormatters.formatTime(_end)}';
+      final titles = overlaps
+          .map((block) =>
+              '${DateFormatters.formatTime(block.start)} ${block.title}')
+          .join(' · ');
+      return '${l.planOverlapBlocks(range, overlaps.length)}\n'
+          '$titles\n$note';
+    }
+    if (_blocks.isEmpty) return '${l.planDayEmpty}\n$note';
+    final titles = _blocks
+        .take(3)
+        .map((block) =>
+            '${DateFormatters.formatTime(block.start)} ${block.title}')
+        .join(' · ');
+    return '${l.planDayExisting}\n$titles\n$note';
   }
 
   String _durationLabel(AppLocalizations l, Duration d) {
@@ -1651,6 +1728,7 @@ class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
       _start = DateTime(picked.year, picked.month, picked.day, _start.hour, _start.minute);
       _end = _start.add(duration);
     });
+    _reloadBlocks();
   }
 
   Future<void> _pickStartTime() async {
@@ -1684,14 +1762,17 @@ class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
     final title = widget.title.isNotEmpty
         ? l.planTodoModalTitle(widget.title)
         : l.planSubmitAction;
+    final overlaps = _overlaps;
     return SpecPlanPicker(
       title: title,
       dateLabel: _dayLabel(context, _start),
-      subLabel: l.planTodoSub,
+      subLabel: widget.isEditing ? l.planEditSub : l.planTodoSub,
       startLabel: DateFormatters.formatTime(_start),
       endLabel: DateFormatters.formatTime(_end),
       durationLabel: _durationLabel(l, _end.difference(_start)),
-      contextText: widget.contextText ?? l.planNoConflict,
+      contextText: widget.contextText ?? _contextText(l, overlaps),
+      contextIsOverlap: overlaps.isNotEmpty,
+      isEditing: widget.isEditing,
       onTapDate: _pickDate,
       onTapStart: _pickStartTime,
       onTapEnd: _pickEndTime,

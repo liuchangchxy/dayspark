@@ -157,16 +157,16 @@ void main() {
     expect(find.textContaining('整理周会纪要并发群'), findsOneWidget);
     expect(find.text('08:00'), findsNothing);
 
-    // The hour axis belongs to the day view (and the desktop week grid).
+    // The phone day view is the spec's stacked list: the selected day's rows,
+    // not the desktop 08:00–20:00 axis.
     await _switchView(tester, 'Day');
     await _settle(tester);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.byType(A2TimeGridView), findsNothing);
     expect(find.text('整理周会纪要并发群'), findsOneWidget);
-    // Authoritative frozen spec axis is 08:00–20:00.
-    expect(find.text('00:00'), findsNothing);
-    expect(find.text('08:00'), findsOneWidget);
-    expect(find.text('20:00'), findsOneWidget);
-    expect(find.text('23:00'), findsNothing);
-    expect(find.textContaining('16:00 – 17:00'), findsOneWidget);
+    expect(find.textContaining('16:00–17:00'), findsOneWidget);
+    expect(find.text('08:00'), findsNothing);
+    expect(find.text('20:00'), findsNothing);
 
     // Every view stays reachable from every other one: the menu lists all
     // three whichever mode is current.
@@ -359,8 +359,8 @@ void main() {
     await tester.pump(Duration.zero);
   });
 
-  testWidgets('the time axis opens at 08:00', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
+  testWidgets('the desktop day axis opens at 08:00', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -371,11 +371,11 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
-    // The spec's phone week list has no hour axis; the axis is the day view.
-    await _switchView(tester, 'Day');
+    await tester.tap(find.text('Day'));
     await _settle(tester);
 
     // Authoritative frozen spec: 08:00–20:00 scale with 2-hour increments
+    expect(find.byType(A2TimeGridView), findsOneWidget);
     expect(find.text('08:00'), findsOneWidget);
     expect(find.text('20:00'), findsOneWidget);
     expect(find.text('07:00'), findsNothing);
@@ -404,12 +404,13 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
-    // The pct clamp is a time-axis contract; the phone week is a list now.
+    // The phone day list has no axis; an early item still gets its own row.
     await _switchView(tester, 'Day');
     await _settle(tester);
 
-    // Items before 08:00 map via pct clamp to 0%, remaining visible
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
     expect(find.text('整理周会纪要并发群'), findsOneWidget);
+    expect(find.textContaining('07:00–08:00'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -434,19 +435,14 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
-    // Dawn-band clamping is a time-axis contract; the phone week is a list.
+    // Dawn-band clamping is a time-axis contract; the phone day is a list.
     await _switchView(tester, 'Day');
     await _settle(tester);
 
-    // Spec contract: strictly [08, 10, 12, 14, 16, 18, 20] hour labels
-    expect(find.text('08:00'), findsOneWidget);
-    expect(find.text('10:00'), findsOneWidget);
-    expect(find.text('12:00'), findsOneWidget);
-    expect(find.text('14:00'), findsOneWidget);
-    expect(find.text('16:00'), findsOneWidget);
-    expect(find.text('18:00'), findsOneWidget);
-    expect(find.text('20:00'), findsOneWidget);
-    expect(find.text('03:00'), findsNothing);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.text('03:00'), findsOneWidget);
+    expect(find.textContaining('03:00–04:00'), findsOneWidget);
+    expect(find.text('08:00'), findsNothing);
     expect(find.text('09:00'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -491,12 +487,12 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
-    // The now line is drawn on a time axis; the phone week list has none.
+    // The now line belongs to the desktop grid; the phone day is a list.
     await _switchView(tester, 'Day');
     await _settle(tester);
 
-    // Under frozen spec, .now-line-cal is drawn at pct(NOW)% on today column
-    expect(find.byKey(const ValueKey('calendar-now-line')), findsOneWidget);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.byKey(const ValueKey('calendar-now-line')), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -529,7 +525,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('month-day-2026-11-15')));
     await _settle(tester);
     expect(container.read(calendarViewModeProvider), CalendarViewMode.day);
-    expect(find.textContaining('16:00 – 17:00'), findsOneWidget);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.textContaining('16:00–17:00'), findsOneWidget);
 
     // A day with nothing on it stays on the month grid.
     await _switchView(tester, 'Month');
@@ -696,12 +693,9 @@ void main() {
 
     // Spec mobileCalendar draws no empty 截止 row.
     expect(find.text('Deadline'), findsNothing);
-    // The centred 08:00 reading must not be clipped by the scroll viewport.
-    final labelTop = tester.getTopLeft(find.text('08:00')).dy;
-    final viewportTop = tester
-        .getTopLeft(find.byType(SingleChildScrollView).first)
-        .dy;
-    expect(labelTop, greaterThanOrEqualTo(viewportTop));
+    // The phone day is the stacked list, so there is no hour axis to clip.
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.text('08:00'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -805,7 +799,9 @@ void main() {
     await _switchView(tester, 'Day');
     await _settle(tester);
 
-    expect(find.textContaining('Deadline: Nov 15'), findsOneWidget);
+    // The mobile day list shows the date-only chip without inventing a clock.
+    expect(find.text('提交周报'), findsOneWidget);
+    expect(find.textContaining('00:00'), findsNothing);
 
     await _switchView(tester, 'Month');
     await _settle(tester);
@@ -861,17 +857,17 @@ void main() {
         CalendarDeadline(
           todoId: 1,
           title: 'A',
-          due: DateTime(2026, 11, 15, 12),
+          due: DateTime(2026, 11, 15),
         ),
         CalendarDeadline(
           todoId: 2,
           title: 'B',
-          due: DateTime(2026, 11, 15, 18),
+          due: DateTime(2026, 11, 15),
         ),
         CalendarDeadline(
           todoId: 3,
           title: 'C',
-          due: DateTime(2026, 11, 15, 20),
+          due: DateTime(2026, 11, 15),
         ),
       ],
     );
@@ -1155,7 +1151,7 @@ void main() {
 
     await tester.tap(find.text('Day'));
     await _settle(tester);
-    expect(find.byType(A2TimeGridView), findsOneWidget);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
 
     await tester.tap(find.text('Week'));
     await _settle(tester);
@@ -1165,7 +1161,7 @@ void main() {
     await tester.pump(Duration.zero);
   });
 
-  testWidgets('mobile 390 week and day views have no horizontal overflow and timeline 08:00-20:00 is reachable', (
+  testWidgets('mobile 390 week and day views have no horizontal overflow', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -1202,27 +1198,14 @@ void main() {
     await tester.tap(find.text('Day'));
     await _settle(tester);
 
-    final dayView = find.byType(A2TimeGridView);
+    final dayView = find.byType(A2PhoneDayList);
     expect(dayView, findsOneWidget);
     expect(tester.getSize(dayView).width, lessThanOrEqualTo(390.0));
 
-    expect(find.text('08:00'), findsOneWidget);
-    final top08 = tester.getTopLeft(find.text('08:00')).dy;
-    expect(top08, greaterThanOrEqualTo(0));
-
-    final scrollable = find.byType(Scrollable).first;
-    await tester.scrollUntilVisible(
-      find.text('20:00'),
-      100,
-      scrollable: scrollable,
-    );
-    await _settle(tester);
-
-    expect(find.text('20:00'), findsOneWidget);
+    expect(find.text('Morning Sync'), findsOneWidget);
     expect(find.text('Evening Wrap'), findsOneWidget);
-    final top20 = tester.getTopLeft(find.text('20:00')).dy;
-    expect(top20, greaterThanOrEqualTo(0));
-    expect(top20, lessThanOrEqualTo(844));
+    expect(find.text('08:00'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
 
@@ -1259,6 +1242,203 @@ void main() {
     expect(find.text('Day'), findsOneWidget);
 
     expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the phone day view lists the browsed day under its date strip', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(
+      _app(page, db: db, browse: DateTime(2026, 11, 16)),
+    );
+    await _settle(tester);
+    await _switchView(tester, 'Day');
+    await _settle(tester);
+
+    // The phone day is the spec list, not the desktop time grid.
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.byType(A2TimeGridView), findsNothing);
+    expect(
+      find.byKey(const ValueKey('phone-day-strip-2026-11-16')),
+      findsOneWidget,
+    );
+    // The headbar names the browsed day instead of "today" or the year-month.
+    expect(find.text('Nov 16'), findsOneWidget);
+    expect(find.text('November 2026'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a timed deadline is a marker, not a phone week deadline row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: [
+        CalendarDeadline(
+          todoId: 7,
+          title: 'Timed',
+          due: DateTime(2026, 11, 15, 18),
+        ),
+        CalendarDeadline(
+          todoId: 8,
+          title: 'Date only',
+          due: DateTime(2026, 11, 15),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    // The phone week has no hour axis for a point marker, so a timed deadline
+    // must not become a deadline row; only the date-only one is a row.
+    expect(find.textContaining('Date only'), findsOneWidget);
+    expect(find.text('Timed'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a timed deadline stays out of the desktop deadline lane', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: [
+        CalendarDeadline(
+          todoId: 7,
+          title: 'Timed',
+          due: DateTime(2026, 11, 15, 18),
+        ),
+        CalendarDeadline(
+          todoId: 8,
+          title: 'Date only',
+          due: DateTime(2026, 11, 15),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    expect(find.text('Deadline'), findsOneWidget);
+    expect(find.text('Date only'), findsOneWidget);
+    expect(find.text('Timed'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a desktop month cell selects its day and opens the day view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Month'));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2CalendarPage)),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('desktop-month-day-2026-11-16')),
+    );
+    await _settle(tester);
+
+    expect(container.read(calendarViewModeProvider), CalendarViewMode.day);
+    expect(container.read(viewedDateProvider), DateTime(2026, 11, 16));
+    expect(find.byType(A2TimeGridView), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a desktop week day head selects its day and opens the day view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2CalendarPage)),
+    );
+    await tester.tap(find.byKey(const ValueKey('day-head-2026-11-9')));
+    await _settle(tester);
+
+    expect(container.read(calendarViewModeProvider), CalendarViewMode.day);
+    expect(container.read(viewedDateProvider), DateTime(2026, 11, 9));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('double tapping a desktop month cell invents no time slot', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final ranges = <DateTimeRange>[];
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+      onTimeSlotTapped: ranges.add,
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Month'));
+    await _settle(tester);
+
+    final location = tester.getCenter(
+      find.byKey(const ValueKey('desktop-month-day-2026-11-16')),
+    );
+    await tester.tapAt(location);
+    await tester.tapAt(location);
+    await _settle(tester);
+
+    // A month cell has no time axis: a double tap must not save a made-up span.
+    expect(ranges, isEmpty);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);

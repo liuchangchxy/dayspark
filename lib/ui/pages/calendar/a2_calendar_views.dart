@@ -126,13 +126,6 @@ String _blockMeta(
   return '$time · $name';
 }
 
-DateTimeRange _nextHourSlot(DateTime day, DateTime now) {
-  final sameDay = calSameDay(day, now);
-  final hour = sameDay ? (now.hour + 1).clamp(8, 19) : 9;
-  final start = DateTime(day.year, day.month, day.day, hour);
-  return DateTimeRange(start: start, end: start.add(const Duration(hours: 1)));
-}
-
 class A2MonthStrip extends StatelessWidget {
   const A2MonthStrip({
     super.key,
@@ -587,13 +580,11 @@ class A2DesktopMonthGrid extends StatelessWidget {
     required this.anchor,
     required this.selected,
     required this.today,
-    required this.now,
     required this.events,
     required this.allocations,
     required this.deadlines,
     required this.calendarNames,
     required this.onSelectDay,
-    required this.onSlot,
     this.onEvent,
     this.onAllocation,
     this.onDeadline,
@@ -602,13 +593,11 @@ class A2DesktopMonthGrid extends StatelessWidget {
   final DateTime anchor;
   final DateTime selected;
   final DateTime today;
-  final DateTime now;
   final List<CalendaEventAdapter> events;
   final List<TaskAllocationCalendarItem> allocations;
   final List<CalendarDeadline> deadlines;
   final Map<int, String> calendarNames;
   final ValueChanged<DateTime> onSelectDay;
-  final ValueChanged<DateTimeRange>? onSlot;
   final ValueChanged<CalendaEventAdapter>? onEvent;
   final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
   final ValueChanged<CalendarDeadline>? onDeadline;
@@ -627,6 +616,12 @@ class A2DesktopMonthGrid extends StatelessWidget {
               for (var col = 0; col < 7; col++)
                 Expanded(
                   child: _A2DesktopMonthCell(
+                    key: ValueKey(
+                      'desktop-month-day-'
+                      '${gridStart.add(Duration(days: row * 7 + col)).year}-'
+                      '${gridStart.add(Duration(days: row * 7 + col)).month}-'
+                      '${gridStart.add(Duration(days: row * 7 + col)).day}',
+                    ),
                     date: gridStart.add(Duration(days: row * 7 + col)),
                     inMonth:
                         gridStart.add(Duration(days: row * 7 + col)).month ==
@@ -646,9 +641,7 @@ class A2DesktopMonthGrid extends StatelessWidget {
                       allocations,
                       deadlines,
                     ),
-                    now: now,
                     onSelectDay: onSelectDay,
-                    onSlot: onSlot,
                     onEvent: onEvent,
                     onAllocation: onAllocation,
                     onDeadline: onDeadline,
@@ -723,15 +716,14 @@ class A2DesktopMonthGrid extends StatelessWidget {
 
 class _A2DesktopMonthCell extends StatefulWidget {
   const _A2DesktopMonthCell({
+    super.key,
     required this.date,
     required this.inMonth,
     required this.isToday,
     required this.isSelected,
     required this.firstColumn,
     required this.entries,
-    required this.now,
     required this.onSelectDay,
-    required this.onSlot,
     this.onEvent,
     this.onAllocation,
     this.onDeadline,
@@ -743,9 +735,7 @@ class _A2DesktopMonthCell extends StatefulWidget {
   final bool isSelected;
   final bool firstColumn;
   final List<_A2MonthEntry> entries;
-  final DateTime now;
   final ValueChanged<DateTime> onSelectDay;
-  final ValueChanged<DateTimeRange>? onSlot;
   final ValueChanged<CalendaEventAdapter>? onEvent;
   final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
   final ValueChanged<CalendarDeadline>? onDeadline;
@@ -763,7 +753,9 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
     // .mcell:hover: #fbfbf8; .mcell.is-out: #fbfbf8
     final background = !widget.inMonth
         ? const Color(0xFFFBFBF8)
-        : (_hovered ? const Color(0xFFFBFBF8) : SpecTokens.paper);
+        : (_hovered
+              ? const Color(0xFFFBFBF8)
+              : (widget.isSelected ? SpecTokens.wash : SpecTokens.paper));
     final visible = widget.entries.take(3).toList();
     final hidden = widget.entries.length - visible.length;
     return MouseRegion(
@@ -773,9 +765,6 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () => widget.onSelectDay(widget.date),
-        onDoubleTap: widget.onSlot == null
-            ? null
-            : () => widget.onSlot!(_nextHourSlot(widget.date, widget.now)),
         child: Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
@@ -830,12 +819,16 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
                           widget.date.day.toString(),
                           style: TextStyle(
                             fontSize: 10.5,
-                            fontWeight: widget.inMonth
-                                ? FontWeight.w500
-                                : FontWeight.w400,
-                            color: widget.inMonth
-                                ? SpecTokens.ink2
-                                : const Color(0xFFC3C3BA),
+                            fontWeight: widget.isSelected
+                                ? FontWeight.w600
+                                : (widget.inMonth
+                                      ? FontWeight.w500
+                                      : FontWeight.w400),
+                            color: widget.isSelected
+                                ? SpecTokens.ink
+                                : (widget.inMonth
+                                      ? SpecTokens.ink2
+                                      : const Color(0xFFC3C3BA)),
                             height: 1,
                             fontFeatures: AppTypography.tabular,
                             fontFamilyFallback: AppTypography.fallback,
@@ -1262,8 +1255,12 @@ class A2TimeGridView extends StatelessWidget {
           for (final day in days)
             Expanded(
               child: _DayHeadCell(
+                key: ValueKey(
+                  'day-head-${day.year}-${day.month}-${day.day}',
+                ),
                 day: day,
                 isToday: calSameDay(day, today),
+                isSelected: calSameDay(day, selected),
                 locale: locale,
                 onTap: onSelectDay == null ? null : () => onSelectDay!(day),
               ),
@@ -1414,7 +1411,9 @@ class A2TimeGridView extends StatelessWidget {
 
   Widget _deadlineLane(BuildContext context, AppLocalizations l) {
     final hasDeadlines = deadlines.any(
-      (deadline) => days.any((day) => calSameDay(deadline.due, day)),
+      (deadline) =>
+          !calDeadlineHasTime(deadline.due) &&
+          days.any((day) => calSameDay(deadline.due, day)),
     );
     // Spec mobileCalendar never draws an empty 截止 row; the desktop keeps the
     // fixed 30px lane so the 7 columns stay aligned.
@@ -1447,7 +1446,9 @@ class A2TimeGridView extends StatelessWidget {
       final day = days.first;
       final items = [
         for (final deadline in deadlines)
-          if (calSameDay(deadline.due, day)) deadline,
+          if (!calDeadlineHasTime(deadline.due) &&
+              calSameDay(deadline.due, day))
+            deadline,
       ];
       body = Expanded(
         child: Container(
@@ -1528,7 +1529,7 @@ class A2TimeGridView extends StatelessWidget {
   ) {
     final items = [
       for (final value in deadlines)
-        if (calSameDay(value.due, day)) value,
+        if (!calDeadlineHasTime(value.due) && calSameDay(value.due, day)) value,
     ];
     const maxVisible = 2;
     return Column(
@@ -1798,14 +1799,17 @@ class A2TimeGridView extends StatelessWidget {
 
 class _DayHeadCell extends StatefulWidget {
   const _DayHeadCell({
+    super.key,
     required this.day,
     required this.isToday,
+    required this.isSelected,
     required this.locale,
     this.onTap,
   });
 
   final DateTime day;
   final bool isToday;
+  final bool isSelected;
   final String locale;
   final VoidCallback? onTap;
 
@@ -1824,7 +1828,9 @@ class _DayHeadCellState extends State<_DayHeadCell> {
     final Widget content = Container(
       height: 46,
       decoration: BoxDecoration(
-        color: _hovered ? const Color(0xFFFBFBF8) : SpecTokens.paper,
+        color: widget.isSelected
+            ? SpecTokens.wash
+            : (_hovered ? const Color(0xFFFBFBF8) : SpecTokens.paper),
         border: const Border(
           right: BorderSide(color: SpecTokens.hair, width: 1),
           bottom: BorderSide(color: SpecTokens.hair, width: 1),
@@ -1870,8 +1876,12 @@ class _DayHeadCellState extends State<_DayHeadCell> {
                   dayNum,
                   style: TextStyle(
                     fontSize: isNarrow ? 12.0 : 13.0,
-                    fontWeight: FontWeight.w500,
-                    color: SpecTokens.ink2,
+                    fontWeight: widget.isSelected
+                        ? FontWeight.w600
+                        : FontWeight.w500,
+                    color: widget.isSelected
+                        ? SpecTokens.ink
+                        : SpecTokens.ink2,
                     height: 1,
                     fontFeatures: AppTypography.tabular,
                     fontFamilyFallback: AppTypography.fallback,
@@ -2352,7 +2362,9 @@ class _A2PhoneWeekDay extends StatelessWidget {
       );
     final dayDeadlines = [
       for (final deadline in deadlines)
-        if (calSameDay(deadline.due, day)) deadline,
+        if (!calDeadlineHasTime(deadline.due) &&
+            calSameDay(deadline.due, day))
+          deadline,
     ]..sort((a, b) => a.due.compareTo(b.due));
     final count = dayEvents.length + dayAllocations.length + dayDeadlines.length;
 
@@ -2596,6 +2608,7 @@ class A2PhoneDayList extends StatelessWidget {
     this.onAllocation,
     this.onDeadline,
     this.onSlot,
+    this.onSelectDay,
   });
 
   final DateTime day;
@@ -2608,6 +2621,7 @@ class A2PhoneDayList extends StatelessWidget {
   final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
   final ValueChanged<CalendarDeadline>? onDeadline;
   final ValueChanged<DateTimeRange>? onSlot;
+  final ValueChanged<DateTime>? onSelectDay;
 
   @override
   Widget build(BuildContext context) {
@@ -2619,7 +2633,11 @@ class A2PhoneDayList extends StatelessWidget {
     final allDayEvents = calAllDayEvents(day: day, events: events);
     final dayDeadlines = [
       for (final d in deadlines)
-        if (calSameDay(d.due, day)) d,
+        if (!calDeadlineHasTime(d.due) && calSameDay(d.due, day)) d,
+    ];
+    final timedDeadlines = [
+      for (final d in deadlines)
+        if (calDeadlineHasTime(d.due) && calSameDay(d.due, day)) d,
     ];
     final items = calDayBlocks(
       day: calDayOf(day),
@@ -2629,10 +2647,24 @@ class A2PhoneDayList extends StatelessWidget {
     final allocationItems = {
       for (final a in allocations) a.allocation.id: a,
     };
+    final rows = <({int minute, Widget child})>[
+      for (final item in items)
+        (
+          minute: item.start.hour * 60 + item.start.minute,
+          child: _mobileTimeRow(context, item, allocationItems),
+        ),
+      for (final deadline in timedDeadlines)
+        (
+          minute: deadline.due.hour * 60 + deadline.due.minute,
+          child: _timedDeadlineRow(context, deadline),
+        ),
+    ]..sort((a, b) => a.minute.compareTo(b.minute));
 
     return ListView(
+      key: const ValueKey('phone-day-list'),
       padding: EdgeInsets.zero,
       children: [
+        if (onSelectDay != null) _dateStrip(context),
         // Day headbar (42px)
         Container(
           height: 42,
@@ -2711,13 +2743,13 @@ class A2PhoneDayList extends StatelessWidget {
             ],
           ),
         ),
-        // Stacked list of timed items
-        for (final item in items)
+        // Stacked list of timed items, with timed deadlines as point markers
+        for (final row in rows)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
-            child: _mobileTimeRow(context, item, allocationItems),
+            child: row.child,
           ),
-        if (items.isEmpty)
+        if (rows.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: Text(
@@ -2726,6 +2758,144 @@ class A2PhoneDayList extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _dateStrip(BuildContext context) {
+    final ds = context.ds;
+    final locale = Localizations.localeOf(context).toString();
+    final select = onSelectDay;
+    if (select == null) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 3, 16, 10),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      ),
+      child: Row(
+        children: [
+          for (var offset = -2; offset <= 4; offset++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                child: _dateStripCell(
+                  context,
+                  locale,
+                  day.add(Duration(days: offset)),
+                  select,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dateStripCell(
+    BuildContext context,
+    String locale,
+    DateTime date,
+    ValueChanged<DateTime> select,
+  ) {
+    final ds = context.ds;
+    final selected = calSameDay(date, day);
+    final today = calSameDay(date, now);
+    final foreground = selected ? Colors.white : ds.ink3;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        key: ValueKey(
+          'phone-day-strip-${date.year}-${date.month}-${date.day}',
+        ),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => select(date),
+        child: Semantics(
+          button: true,
+          label: '${calWeekdayLong(locale, date)} ${date.day}',
+          child: Container(
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? ds.ink : Colors.transparent,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  calWeekdayShort(locale, date),
+                  style: _a2Text(9, FontWeight.w400, foreground),
+                ),
+                Text(
+                  '${date.day}',
+                  style: _a2Text(
+                    12,
+                    FontWeight.w500,
+                    selected ? Colors.white : (today ? ds.danger : ds.ink),
+                    height: 1,
+                    tabular: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _timedDeadlineRow(BuildContext context, CalendarDeadline deadline) {
+    final ds = context.ds;
+    final l = AppLocalizations.of(context)!;
+    final time = DateFormatters.formatTime(deadline.due);
+    final isOverdue = deadline.due.isBefore(now);
+    final color = isOverdue ? ds.danger : ds.warn;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onDeadline?.call(deadline),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 44,
+            child: Text(
+              time,
+              style: _a2Text(11, FontWeight.w500, ds.ink3, tabular: true),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 22),
+              padding: const EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: color.withValues(alpha: 0.45))),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 2),
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      l.deadlineMarkerLabel(time, deadline.title),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _a2Text(8.5, FontWeight.w400, color),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

@@ -90,6 +90,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     ref.read(calendarViewModeProvider.notifier).setViewMode(mode);
   }
 
+  void _openDay(DateTime value) {
+    _setBrowse(value);
+    _setMode(CalendarViewMode.day);
+  }
+
   /// The three calendar views named in words, so the header does not have to
   /// teach three different icons. Month / week / day are the only options.
   Future<void> _openViewMenu() async {
@@ -361,26 +366,19 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         onCreateAtDay: widget.onCreateAtDay,
         onSlot: widget.onTimeSlotTapped,
       ),
-      CalendarViewMode.day => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          A2MonthStrip(
-            label: calSameDay(browse, now) ? l.today : _yearMonth(l, browse),
-          ),
-          Expanded(
-            child: _timeGrid(
-              days: [calDayOf(browse)],
-              selected: browse,
-              now: now,
-              names: names,
-              events: visibleEvents,
-              allocations: visibleAllocations,
-              deadlines: visibleDeadlines,
-              dayMode: true,
-              isDesktop: false,
-            ),
-          ),
-        ],
+      CalendarViewMode.day => A2PhoneDayList(
+        key: const ValueKey('phone-day-list-view'),
+        day: calDayOf(browse),
+        now: now,
+        events: visibleEvents,
+        allocations: visibleAllocations,
+        deadlines: visibleDeadlines,
+        calendarNames: names,
+        onEvent: widget.onEventTapped,
+        onAllocation: widget.onAllocationTapped,
+        onDeadline: widget.onDeadlineTapped,
+        onSlot: widget.onTimeSlotTapped,
+        onSelectDay: _setBrowse,
       ),
     };
     return Column(
@@ -548,13 +546,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         anchor: browse,
         selected: browse,
         today: calDayOf(now),
-        now: now,
         events: visibleEvents,
         allocations: visibleAllocations,
         deadlines: visibleDeadlines,
         calendarNames: names,
-        onSelectDay: _setBrowse,
-        onSlot: widget.onTimeSlotTapped,
+        onSelectDay: _openDay,
         onEvent: widget.onEventTapped,
         onAllocation: widget.onAllocationTapped,
         onDeadline: widget.onDeadlineTapped,
@@ -771,7 +767,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       calendarNames: names,
       dayMode: dayMode,
       isDesktop: isDesktop,
-      onSelectDay: _setBrowse,
+      onSelectDay: _openDay,
       onEvent: widget.onEventTapped,
       onAllocation: widget.onAllocationTapped,
       onDeadline: widget.onDeadlineTapped,

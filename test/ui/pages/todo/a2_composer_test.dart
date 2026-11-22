@@ -1499,9 +1499,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('the custom slot picker names the day\'s existing schedule', (
-    tester,
-  ) async {
+  testWidgets('a custom slot reports the blocks it overlaps', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -1511,28 +1509,32 @@ void main() {
         .insert(
           EventsCompanion.insert(
             calendarId: calendarId,
-            summary: 'Dentist',
-            startDt: DateTime(2026, 10, 17, 14),
-            endDt: DateTime(2026, 10, 17, 15),
-            isAllDay: const Value(false),
+            summary: 'Deep work block',
+            startDt: DateTime(2026, 10, 17, 9, 30),
+            endDt: DateTime(2026, 10, 17, 10, 30),
           ),
         );
 
     await tester.pumpWidget(_app(db, A2ComposerSheet(contextDate: day)));
     await _settle(tester);
+
     await tester.enterText(
       find.byKey(const ValueKey('a2-composer-title')),
       'Deep work',
     );
-    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.tap(find.byKey(const ValueKey('a2-composer-plan')));
     await tester.pump();
+
     await tester.tap(find.text('Custom…'));
     await tester.pumpAndSettle();
 
+    // The picker reads the chosen day's real blocks: the default 09:00–10:00
+    // span overlaps the 09:30 block and must say so instead of "No conflict".
     expect(find.byType(SpecPlanPicker), findsOneWidget);
-    expect(find.textContaining('Existing today'), findsOneWidget);
-    expect(find.textContaining('Dentist'), findsOneWidget);
+    expect(find.textContaining('1 item overlaps'), findsOneWidget);
+    expect(find.textContaining('Deep work block'), findsOneWidget);
+    expect(find.textContaining('No time conflict'), findsNothing);
 
     await _unmount(tester);
   });

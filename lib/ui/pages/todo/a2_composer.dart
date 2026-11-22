@@ -10,6 +10,8 @@ import 'package:dayspark/core/theme/app_colors.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
@@ -27,6 +29,7 @@ import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
@@ -374,60 +377,41 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
           9,
         );
     final defaultEnd = _end ?? defaultStart.add(const Duration(hours: 1));
-    final contextText = await _dayScheduleContext(defaultStart);
     if (!mounted) return;
     final picked = await SpecPlanPickerDialog.show(
       context,
       title: title,
       initialStart: defaultStart,
       initialEnd: defaultEnd,
-      contextText: contextText,
+      existingBlocks: _blocksForDay,
+      isEditing: _scheduling && _start != null,
     );
     if (picked == null || !mounted) return;
     _setSlot(picked.$1, picked.$2);
     setState(() => _planOpen = true);
   }
 
-  /// The picker's footer used to promise "no time conflict" unconditionally.
-  /// It now names what the chosen day already holds, or stays quiet when the
-  /// day is empty so the picker keeps its own default.
-  Future<String?> _dayScheduleContext(DateTime day) async {
-    final l = AppLocalizations.of(context)!;
+  Future<List<SpecPlanBlock>> _blocksForDay(DateTime day) async {
+    final db = ref.read(databaseProvider);
     final start = DateTime(day.year, day.month, day.day);
     final end = start.add(const Duration(days: 1));
-    final entries = <(DateTime, String)>[];
-    try {
-      final allocations = await ref.read(
-        allActiveTaskAllocationsProvider.future,
-      );
-      for (final item in allocations) {
-        final allocationStart = item.allocation.startAt.toLocal();
-        final allocationEnd = item.allocation.endAt.toLocal();
-        if (allocationStart.isBefore(end) && allocationEnd.isAfter(start)) {
-          entries.add((allocationStart, item.todo.summary));
-        }
-      }
-      final key =
-          '${start.millisecondsSinceEpoch}-${end.millisecondsSinceEpoch}';
-      final events = await ref.read(eventsInDateRangeProvider(key).future);
-      for (final event in events) {
-        final eventStart = event.startDt.toLocal();
-        final eventEnd = event.endDt.toLocal();
-        if (eventStart.isBefore(end) && eventEnd.isAfter(start)) {
-          entries.add((eventStart, event.summary));
-        }
-      }
-    } on Object catch (error) {
-      debugPrint('composer: day context failed: $error');
-      return null;
-    }
-    if (entries.isEmpty) return null;
-    entries.sort((a, b) => a.$1.compareTo(b.$1));
-    final text = entries
-        .map((entry) =>
-            '${DateFormatters.formatTime(entry.$1)} ${entry.$2}')
-        .join(' · ');
-    return '${l.planPickerContext} $text';
+    final events = await db.eventsDao.getEventCandidates(start, end);
+    final allocations = await fetchTaskAllocationsInDateRange(db, start, end);
+    final blocks = calDayBlocks(
+      day: start,
+      events: [
+        for (final event in events) CalendaEventAdapter.fromDrift(event),
+      ],
+      allocations: [
+        for (final item in allocations)
+          if (item.todo.id != _boundTodo?.id)
+            TaskAllocationCalendarAdapter.fromItem(item),
+      ],
+    );
+    return [
+      for (final block in blocks)
+        SpecPlanBlock(start: block.start, end: block.end, title: block.title),
+    ];
   }
 
   Future<void> _pickReminder() async {

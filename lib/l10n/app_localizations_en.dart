@@ -2554,6 +2554,26 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get planDayEmpty => 'Nothing scheduled that day';
+
+  @override
+  String get planDayExisting => 'Already on that day';
+
+  @override
+  String planOverlapBlocks(String range, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items overlap',
+      one: '1 item overlaps',
+    );
+    return '$range · $_temp0';
+  }
+
+  @override
+  String get planOverlapNote => 'Overlap is allowed; a deadline is not a time block.';
+
+  @override
   String planDurationMinutes(int count) {
     return '$count min';
   }

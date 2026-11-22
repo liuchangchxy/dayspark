@@ -4685,6 +4685,30 @@ abstract class AppLocalizations {
   /// **'Overlaps with {title}'**
   String planConflictWith(String title);
 
+  /// No description provided for @planDayEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled that day'**
+  String get planDayEmpty;
+
+  /// No description provided for @planDayExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Already on that day'**
+  String get planDayExisting;
+
+  /// No description provided for @planOverlapBlocks.
+  ///
+  /// In en, this message translates to:
+  /// **'{range} · {count, plural, =1{1 item overlaps} other{{count} items overlap}}'**
+  String planOverlapBlocks(String range, int count);
+
+  /// No description provided for @planOverlapNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlap is allowed; a deadline is not a time block.'**
+  String get planOverlapNote;
+
   /// No description provided for @planDurationMinutes.
   ///
   /// In en, this message translates to:
