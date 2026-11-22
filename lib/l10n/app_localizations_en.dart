@@ -2102,6 +2102,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filterEmptyHint => 'Clear filters to show all.';
 
   @override
+  String get filterEmptyTitle => 'No matching tasks';
+
+  @override
+  String filterAppliedCount(int count) {
+    return 'Filtered · $count items';
+  }
+
+  @override
+  String get filterReset => 'Reset';
+
+  @override
+  String get filterApply => 'Apply';
+
+  @override
+  String get emptyInboxNoDateTitle => 'No undated tasks';
+
+  @override
+  String get emptyInboxNoDateHint => 'All unplanned tasks have a deadline.';
+
+  @override
+  String todoInboxNoDateContext(int count) {
+    return '$count items · undated';
+  }
+
+  @override
+  String get todoInboxNoDateBanner => 'From today · undated only';
+
+  @override
+  String get todoInboxViewAll => 'View all unplanned';
+
+  @override
   String todoUnplannedContext(int count, int withDue) {
     return '$count items · $withDue with a deadline';
   }

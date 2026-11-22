@@ -355,10 +355,10 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pump();
 
-    // Spec allList() (dayspark-spec.html:1493-1510): 'Completed Today' is an
+    // Spec allList() (dayspark-spec.html:1493-1510): 'Completed' is an
     // independent fold group; expanding it confirms Alpha has sunk into the
     // completed group below active todos.
-    await tester.tap(find.text('Completed Today'));
+    await tester.tap(find.widgetWithText(A2GroupHead, 'Completed'));
     await _settle(tester);
 
     expect(find.byKey(ValueKey('todo-undo-$first-series')), findsNothing);
@@ -507,7 +507,7 @@ void main() {
     await _settle(tester);
 
     expect(find.text('All Tasks'), findsWidgets);
-    expect(find.text('No pending tasks'), findsOneWidget);
+    expect(find.text('No tasks here'), findsOneWidget);
     expect(find.text('Capture one — Enter puts it here'), findsNothing);
 
     await _unmount(tester);
@@ -723,7 +723,7 @@ void main() {
       await tester.tap(filterFinder);
       await _settle(tester);
       expect(find.text('Filter'), findsOneWidget);
-      await tester.tap(find.text('Done'));
+      await tester.tap(find.text('Apply'));
       await _settle(tester);
 
       expect(find.byKey(const ValueKey('todos-mode-switch')), findsOneWidget);

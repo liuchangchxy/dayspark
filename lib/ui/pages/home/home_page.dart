@@ -602,22 +602,26 @@ class _HomePageState extends ConsumerState<HomePage>
     return KeyEventResult.handled;
   }
 
+  void _openInboxNoDate() {
+    ref.read(todosInboxNoDateOnlyProvider.notifier).state = true;
+    ref.read(todosViewProvider.notifier).state = const TodosInboxView();
+    _setTab(2);
+  }
+
   Widget _todayPage() {
     return A2TodayPage(
       now: _now(),
       onOpenTodo: _openTodo,
       onOpenEvent: _openEvent,
       onToggleTodo: _toggleTodo,
-      onOpenUnplanned: () {
-        ref.read(todosViewProvider.notifier).state = const TodosInboxView();
-        _setTab(2);
-      },
+      onOpenUnplanned: _openInboxNoDate,
       onScheduleTodo: (todo) => _openComposer(todo: todo),
     );
   }
 
   Widget _todoPage(bool desktop) {
     final browseDate = ref.watch(viewedDateProvider);
+    final dayView = ref.watch(todosViewProvider) is TodosDayView;
     return A2TodoPage(
       now: _now(),
       dayAgenda: _dayAgenda(browseDate),
@@ -625,9 +629,13 @@ class _HomePageState extends ConsumerState<HomePage>
       onToggleTodo: _toggleTodo,
       onCapture: (text) => _captureOnTodoPage(text),
       onPlanDay: (day) => _openComposer(contextDate: day),
-      onScheduleTodo: (todo) => _openComposer(todo: todo),
+      onScheduleTodo: (todo) => _openComposer(
+        todo: todo,
+        contextDate: dayView ? browseDate : null,
+      ),
       onOpenEvent: _openEvent,
       onOpenUnplanned: () {
+        ref.read(todosInboxNoDateOnlyProvider.notifier).state = false;
         ref.read(todosViewProvider.notifier).state = const TodosInboxView();
       },
     );
@@ -849,9 +857,12 @@ class _HomePageState extends ConsumerState<HomePage>
     DateTime? initialStart,
     DateTime? initialEnd,
   }) {
+    final fallback = todo == null
+        ? ref.read(viewedDateProvider)
+        : DateTime(_now().year, _now().month, _now().day);
     showA2Composer(
       context,
-      contextDate: contextDate ?? ref.read(viewedDateProvider),
+      contextDate: contextDate ?? fallback,
       todo: todo,
       initialStart: initialStart,
       initialEnd: initialEnd,

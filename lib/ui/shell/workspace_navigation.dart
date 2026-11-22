@@ -50,8 +50,13 @@ class TodosAllView extends TodosView {
 }
 
 final todosViewProvider = StateProvider<TodosView>((ref) {
-  return const TodosDayView();
+  return const TodosInboxView();
 });
+
+/// Today's undated shelf opens Inbox narrowed to tasks with no date. The
+/// drill-in rides beside the remembered list instead of replacing it, so
+/// leaving it returns to whatever the user was browsing.
+final todosInboxNoDateOnlyProvider = StateProvider<bool>((ref) => false);
 
 /// The object currently shown in the desktop detail pane.
 ///

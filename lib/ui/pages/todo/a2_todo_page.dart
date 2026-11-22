@@ -237,6 +237,12 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     return label == null ? l.undo : l.undoOccurrence(label);
   }
 
+  DateTime _scheduleContextDate() {
+    final view = ref.read(todosViewProvider);
+    if (view is TodosDayView) return ref.read(viewedDateProvider);
+    return _dayOf(widget.now);
+  }
+
   void _schedule(Todo todo) {
     final onSchedule = widget.onScheduleTodo;
     if (onSchedule != null) {
@@ -245,7 +251,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     }
     showA2Composer(
       context,
-      contextDate: ref.read(viewedDateProvider),
+      contextDate: _scheduleContextDate(),
       todo: todo,
     );
   }
@@ -262,11 +268,17 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   }
 
   void _selectMode(TodosView view) {
+    ref.read(todosInboxNoDateOnlyProvider.notifier).state = false;
     if (view is TodosInboxView && widget.onOpenUnplanned != null) {
       widget.onOpenUnplanned!();
       return;
     }
     ref.read(todosViewProvider.notifier).state = view;
+  }
+
+  void _openInboxNoDate() {
+    ref.read(todosInboxNoDateOnlyProvider.notifier).state = true;
+    ref.read(todosViewProvider.notifier).state = const TodosInboxView();
   }
 
   @override
@@ -286,6 +298,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final calendarFilter = ref.watch(todoCalendarFilterProvider);
     final tagFilter = ref.watch(todoTagFilterProvider);
     final priorityFilter = ref.watch(todoPriorityFilterProvider);
+    final filtered = _hasFilter;
+    final noDateOnly =
+        view is TodosInboxView && ref.watch(todosInboxNoDateOnlyProvider);
 
     // The filter sheet lives in this header, so every list behind it answers
     // to it: a control that changes nothing is worse than no control.
@@ -315,11 +330,15 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       for (final todo in allAsync.valueOrNull ?? const <Todo>[])
         if (todo.status != 'CANCELLED' && visible(todo)) todo,
     ];
+    final inboxRows = <Todo>[
+      for (final todo in unplanned)
+        if (!noDateOnly || todo.dueDate == null) todo,
+    ];
     final allocations =
         allocationsAsync.valueOrNull ?? const <TaskAllocationCalendarItem>[];
     final selection = ref.watch(workspaceSelectionProvider);
 
-    final head = _head(l, view, unplanned, allRows, desktop);
+    final head = _head(l, view, inboxRows, allRows, desktop, noDateOnly);
     // By date needs one entry that reaches any month in two taps. The desktop
     // bar outside this page prints a date but cannot open a picker, so the
     // strip is the only honest entry on both platforms.
@@ -343,11 +362,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     } else if (view is TodosInboxView) {
       body = _inboxBody(
         l,
-        unplanned,
+        inboxRows,
         names,
         selection,
         desktop,
         unplannedAsync.isLoading && !unplannedAsync.hasValue,
+        filtered,
+        noDateOnly,
       );
     } else if (view is TodosAllView) {
       body = _allBody(
@@ -358,13 +379,22 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         selection,
         desktop,
         allAsync.isLoading && !allAsync.hasValue,
+        filtered,
       );
     } else {
       final noDateTodos = <Todo>[
         for (final todo in unplanned)
           if (todo.dueDate == null) todo,
       ];
-      body = _dayBody(l, names, selection, desktop, visible, noDateTodos);
+      body = _dayBody(
+        l,
+        names,
+        selection,
+        desktop,
+        visible,
+        noDateTodos,
+        filtered,
+      );
     }
 
     if (desktop) {
@@ -542,6 +572,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     List<Todo> unplanned,
     List<Todo> allRows,
     bool desktop,
+    bool noDateOnly,
   ) {
     final ds = context.ds;
     final withDue = unplanned.where((todo) => todo.dueDate != null).length;
@@ -555,7 +586,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final title = l.todos;
     final String subtitle;
     if (view is TodosInboxView) {
-      subtitle = l.todoUnplannedContext(unplanned.length, withDue);
+      subtitle = noDateOnly
+          ? l.todoInboxNoDateContext(unplanned.length)
+          : l.todoUnplannedContext(unplanned.length, withDue);
     } else if (view is TodosAllView) {
       subtitle = l.todoAllActiveSummary(active, completed);
     } else {
@@ -691,160 +724,187 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final calendars =
         ref.read(calendarsProvider).valueOrNull ?? const <Calendar>[];
     final tags = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
+    var draftCalendar = ref.read(todoCalendarFilterProvider);
+    var draftTags = ref.read(todoTagFilterProvider);
+    var draftPriority = ref.read(todoPriorityFilterProvider);
+
+    void applyDraft() {
+      ref.read(todoCalendarFilterProvider.notifier).state = draftCalendar;
+      ref.read(todoTagFilterProvider.notifier).state = draftTags;
+      ref.read(todoPriorityFilterProvider.notifier).state = draftPriority;
+    }
+
+    void clearDraft() {
+      draftCalendar = null;
+      draftTags = const <int>{};
+      draftPriority = null;
+    }
+
     return showDsSheet<void>(
       context: context,
       title: l.filter,
       actions: [
-        DsButton(
-          label: l.done,
-          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
+        Expanded(
+          child: DsButton(
+            label: l.filterReset,
+            tone: DsButtonTone.secondary,
+            expand: true,
+            onPressed: () {
+              clearDraft();
+              applyDraft();
+              Navigator.of(context, rootNavigator: true).pop();
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: DsButton(
+            label: l.filterApply,
+            expand: true,
+            onPressed: () {
+              applyDraft();
+              Navigator.of(context, rootNavigator: true).pop();
+            },
+          ),
         ),
       ],
       body: Consumer(
         builder: (ctx, r, _) {
-          final calFilter = r.watch(todoCalendarFilterProvider);
-          final tagFilter = r.watch(todoTagFilterProvider);
-          final prioFilter = r.watch(todoPriorityFilterProvider);
           final hideCompleted =
               r.watch(hideCompletedProvider).valueOrNull ?? false;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DsGroupLabel(l.calendar),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+          return StatefulBuilder(
+            builder: (sheetContext, setSheetState) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final calendar in calendars)
-                      DsChip(
-                        label: calendar.name,
-                        selected: calFilter == calendar.id,
-                        leading: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: ColorUtils.parseHex(calendar.color),
-                            shape: BoxShape.circle,
+                    DsGroupLabel(l.calendar),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final calendar in calendars)
+                          DsChip(
+                            label: calendar.name,
+                            selected: draftCalendar == calendar.id,
+                            leading: Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: ColorUtils.parseHex(calendar.color),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            onTap: () => setSheetState(() {
+                              draftCalendar = draftCalendar == calendar.id
+                                  ? null
+                                  : calendar.id;
+                            }),
                           ),
-                        ),
-                        onTap: () =>
-                            r.read(todoCalendarFilterProvider.notifier).state =
-                                calFilter == calendar.id ? null : calendar.id,
+                      ],
+                    ),
+                    if (tags.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      DsGroupLabel(l.tags),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final tag in tags)
+                            DsChip(
+                              label: tag.name,
+                              selected: draftTags.contains(tag.id),
+                              leading: Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: ColorUtils.parseHex(tag.color),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              onTap: () => setSheetState(() {
+                                final next = {...draftTags};
+                                if (!next.remove(tag.id)) next.add(tag.id);
+                                draftTags = next;
+                              }),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-                if (tags.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  DsGroupLabel(l.tags),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final tag in tags)
+                    ],
+                    const SizedBox(height: 16),
+                    DsGroupLabel(l.priority),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
                         DsChip(
-                          label: tag.name,
-                          selected: tagFilter.contains(tag.id),
-                          leading: Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: ColorUtils.parseHex(tag.color),
-                              shape: BoxShape.circle,
+                          label: l.priorityNone,
+                          selected: draftPriority == null,
+                          onTap: () =>
+                              setSheetState(() => draftPriority = null),
+                        ),
+                        for (final entry in [
+                          (1, l.priorityHigh),
+                          (5, l.priorityMedium),
+                          (9, l.priorityLow),
+                        ])
+                          DsChip(
+                            label: entry.$2,
+                            selected: draftPriority == entry.$1,
+                            onTap: () => setSheetState(() {
+                              draftPriority = draftPriority == entry.$1
+                                  ? null
+                                  : entry.$1;
+                            }),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: SpecTokens.hair, width: 1),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l.hideCompleted,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: SpecTokens.ink,
+                                    fontFamilyFallback: AppTypography.fallback,
+                                  ),
+                                ),
+                                Text(
+                                  l.hideCompletedDesc,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: SpecTokens.faint,
+                                    fontFamilyFallback: AppTypography.fallback,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          onTap: () {
-                            final next = {...tagFilter};
-                            if (!next.remove(tag.id)) next.add(tag.id);
-                            r.read(todoTagFilterProvider.notifier).state = next;
-                          },
-                        ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 16),
-                DsGroupLabel(l.priority),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    DsChip(
-                      label: l.priorityNone,
-                      selected: prioFilter == null,
-                      onTap: () =>
-                          r.read(todoPriorityFilterProvider.notifier).state =
-                              null,
-                    ),
-                    for (final entry in [
-                      (1, l.priorityHigh),
-                      (5, l.priorityMedium),
-                      (9, l.priorityLow),
-                    ])
-                      DsChip(
-                        label: entry.$2,
-                        selected: prioFilter == entry.$1,
-                        onTap: () =>
-                            r.read(todoPriorityFilterProvider.notifier).state =
-                                prioFilter == entry.$1 ? null : entry.$1,
+                          Switch(
+                            value: hideCompleted,
+                            onChanged: (value) =>
+                                r.read(setHideCompletedProvider)(value),
+                          ),
+                        ],
                       ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: SpecTokens.hair, width: 1),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l.hideCompleted,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: SpecTokens.ink,
-                                fontFamilyFallback: AppTypography.fallback,
-                              ),
-                            ),
-                            Text(
-                              l.hideCompletedDesc,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: SpecTokens.faint,
-                                fontFamilyFallback: AppTypography.fallback,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: hideCompleted,
-                        onChanged: (value) =>
-                            r.read(setHideCompletedProvider)(value),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {
-                    r.read(todoCalendarFilterProvider.notifier).state = null;
-                    r.read(todoTagFilterProvider.notifier).state = const {};
-                    r.read(todoPriorityFilterProvider.notifier).state = null;
-                  },
-                  child: Text(
-                    l.retry,
-                    style: const TextStyle(color: SpecTokens.muted),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -1326,6 +1386,98 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
   }
 
+  void _clearFilters() {
+    ref.read(todoCalendarFilterProvider.notifier).state = null;
+    ref.read(todoTagFilterProvider.notifier).state = const <int>{};
+    ref.read(todoPriorityFilterProvider.notifier).state = null;
+  }
+
+  Widget _bannerShell({
+    required Key key,
+    required Key actionKey,
+    required String label,
+    required String action,
+    required VoidCallback onAction,
+    required bool desktop,
+  }) {
+    return Container(
+      key: key,
+      padding: EdgeInsets.symmetric(horizontal: desktop ? 28 : 16),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 10,
+                color: SpecTokens.muted,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              key: actionKey,
+              behavior: HitTestBehavior.opaque,
+              onTap: onAction,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: Center(
+                  child: Text(
+                    action,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: SpecTokens.ink2,
+                      decoration: TextDecoration.underline,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _withBanners({
+    required List<Widget> banners,
+    required Widget child,
+  }) {
+    if (banners.isEmpty) return child;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [...banners, Expanded(child: child)],
+    );
+  }
+
+  Widget _filterBanner(AppLocalizations l, int count, bool desktop) =>
+      _bannerShell(
+        key: const ValueKey('todos-filter-banner'),
+        actionKey: const ValueKey('todos-filter-clear'),
+        label: l.filterAppliedCount(count),
+        action: l.clearFilters,
+        onAction: _clearFilters,
+        desktop: desktop,
+      );
+
+  Widget _inboxNoDateBanner(AppLocalizations l, bool desktop) => _bannerShell(
+    key: const ValueKey('todos-inbox-nodate-banner'),
+    actionKey: const ValueKey('todos-inbox-view-all'),
+    label: l.todoInboxNoDateBanner,
+    action: l.todoInboxViewAll,
+    onAction: () =>
+        ref.read(todosInboxNoDateOnlyProvider.notifier).state = false,
+    desktop: desktop,
+  );
+
   Widget _inboxBody(
     AppLocalizations l,
     List<Todo> todos,
@@ -1333,6 +1485,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     WorkspaceSelection? selection,
     bool desktop,
     bool loading,
+    bool filtered,
+    bool noDateOnly,
   ) {
     if (loading) return _loading();
     final withDue = <Todo>[
@@ -1344,12 +1498,24 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         if (todo.dueDate == null) todo,
     ];
     _pinInboxWindows(withDue, noDue);
+    final banners = <Widget>[
+      if (noDateOnly) _inboxNoDateBanner(l, desktop),
+      if (filtered) _filterBanner(l, todos.length, desktop),
+    ];
     if (withDue.isEmpty && noDue.isEmpty) {
-      return A2Empty(title: l.emptyUnplannedTitle, hint: l.emptyUnplannedHint);
+      final empty = filtered
+          ? A2Empty(title: l.filterEmptyTitle, hint: l.filterEmptyHint)
+          : noDateOnly
+          ? A2Empty(
+              title: l.emptyInboxNoDateTitle,
+              hint: l.emptyInboxNoDateHint,
+            )
+          : A2Empty(title: l.emptyUnplannedTitle, hint: l.emptyUnplannedHint);
+      return _withBanners(banners: banners, child: empty);
     }
     final open = widget.onOpenTodo;
 
-    return ListView(
+    final list = ListView(
       padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
       children: [
         if (withDue.isNotEmpty) ...[
@@ -1380,6 +1546,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         ],
       ],
     );
+    return _withBanners(banners: banners, child: list);
   }
 
   /// A completed row stays where it was for the undo window, even though the
@@ -1408,6 +1575,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     WorkspaceSelection? selection,
     bool desktop,
     bool loading,
+    bool filtered,
   ) {
     if (loading) return _loading();
     final today = _dayOf(widget.now);
@@ -1448,12 +1616,18 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     };
     done.removeWhere((todo) => pinnedIds.contains(todo.id));
 
+    final banners = <Widget>[
+      if (filtered) _filterBanner(l, todos.length, desktop),
+    ];
     if (dueToday.isEmpty &&
         pastDue.isEmpty &&
         later.isEmpty &&
         noDue.isEmpty &&
         done.isEmpty) {
-      return A2Empty(title: l.allTasks, hint: l.noPendingTodos);
+      final empty = filtered
+          ? A2Empty(title: l.filterEmptyTitle, hint: l.filterEmptyHint)
+          : A2Empty(title: l.todosEmptyTitle, hint: l.todosEmptyHint);
+      return _withBanners(banners: banners, child: empty);
     }
 
     final allocationByTodo = _earliestAllocations(allocations);
@@ -1468,7 +1642,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       slot: slot,
     );
 
-    return ListView(
+    final list = ListView(
       padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
       children: [
         if (dueToday.isNotEmpty) ...[
@@ -1501,7 +1675,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         ],
         if (done.isNotEmpty) ...[
           _groupHead(
-            label: l.completedTodaySection,
+            label: l.completed,
             count: done.length,
             countLabel: l.groupCountItems(done.length),
             trailing: Icon(
@@ -1519,6 +1693,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         ],
       ],
     );
+    return _withBanners(banners: banners, child: list);
   }
 
   /// All's natural sort sinks finished work. During the undo window the row
@@ -1556,6 +1731,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     bool desktop,
     bool Function(Todo) visible,
     List<Todo> noDateTodos,
+    bool filtered,
   ) {
     final agenda = widget.dayAgenda;
     final allocations = <DayItem>[
@@ -1579,13 +1755,20 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final openTodo = widget.onOpenTodo;
     final hasNoContent =
         allocations.isEmpty && due.isEmpty && noDateTodos.isEmpty;
+    final matchCount =
+        allocations.length + due.length + noDateTodos.length;
+    final banners = <Widget>[
+      if (filtered) _filterBanner(l, matchCount, desktop),
+    ];
 
-    return ListView(
+    final list = ListView(
       padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
       children: [
         _bgBand(l, events, desktop),
         if (hasNoContent)
-          A2Empty(title: l.emptyDateTitle, hint: l.emptyDateHint),
+          filtered
+              ? A2Empty(title: l.filterEmptyTitle, hint: l.filterEmptyHint)
+              : A2Empty(title: l.emptyDateTitle, hint: l.emptyDateHint),
         if (allocations.isNotEmpty) ...[
           _groupHead(label: l.datePlannedSection, count: allocations.length),
           for (var index = 0; index < allocations.length; index++)
@@ -1645,7 +1828,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => _selectMode(const TodosInboxView()),
+                onTap: _openInboxNoDate,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(33, 8, 16, 8),
                   child: Row(
@@ -1672,6 +1855,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         ],
       ],
     );
+    return _withBanners(banners: banners, child: list);
   }
 
   Widget _bgBand(

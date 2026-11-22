@@ -1170,6 +1170,29 @@
   },
   "filter": "Filter",
   "filterEmptyHint": "Clear filters to show all.",
+  "filterEmptyTitle": "No matching tasks",
+  "filterAppliedCount": "Filtered · {count} items",
+  "@filterAppliedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filterReset": "Reset",
+  "filterApply": "Apply",
+  "emptyInboxNoDateTitle": "No undated tasks",
+  "emptyInboxNoDateHint": "All unplanned tasks have a deadline.",
+  "todoInboxNoDateContext": "{count} items · undated",
+  "@todoInboxNoDateContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoInboxNoDateBanner": "From today · undated only",
+  "todoInboxViewAll": "View all unplanned",
   "todoUnplannedContext": "{count} items · {withDue} with a deadline",
   "@todoUnplannedContext": {
     "placeholders": {
