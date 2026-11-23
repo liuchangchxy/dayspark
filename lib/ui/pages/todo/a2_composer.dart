@@ -131,6 +131,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   bool _planOpen = false;
   bool _saving = false;
   bool _writeFailed = false;
+  bool _titleValidationError = false;
   bool _event = false;
   bool _parsedHasSuggestion = false;
   bool _suggestionApplied = false;
@@ -184,6 +185,9 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   void _onTitleChanged(String value) {
     final parsed = parseCapture(value, DateTime.now());
     setState(() {
+      if (_titleValidationError && value.trim().isNotEmpty) {
+        _titleValidationError = false;
+      }
       _parsedHasSuggestion = parsed.start != null;
       _suggestionRemoved = false;
       if (parsed.start != null && (_start == null || _suggestionApplied)) {
@@ -519,7 +523,10 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     final parsed = _parsed;
     final summary = parsed.start != null ? parsed.title : title;
     if (_saving) return;
-    if (!_scheduling && title.isEmpty) return;
+    if (!_scheduling && title.isEmpty) {
+      setState(() => _titleValidationError = true);
+      return;
+    }
     if (_event && (_start == null || _end == null)) return;
     if (_scheduling && (_start == null || _end == null)) return;
     setState(() {
@@ -1148,6 +1155,24 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
                   if (_writeFailed) ...[
                     Flexible(child: _writeFailureLabel(ds, l)),
                     const SizedBox(width: 8),
+                    if (!_scheduling && !_event) ...[
+                      Flexible(
+                        child: TextButton(
+                          onPressed: _saveToUnplanned,
+                          style: TextButton.styleFrom(
+                            foregroundColor: SpecTokens.ink2,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(0, 44),
+                          ),
+                          child: Text(
+                            l.captureActionSaveLater,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
                   ],
                   Flexible(child: _primaryButton(ds, l, desktop: false)),
                 ],
@@ -1287,52 +1312,87 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
 
   Widget _titleField(DsColors ds, AppLocalizations l) {
     final readOnly = _scheduling;
-    return Container(
-      constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: ds.surface,
-        border: Border.all(color: ds.line),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: readOnly
-          ? Text(
-              _boundTodo!.summary,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.45,
-                color: ds.ink,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-            )
-          : TextField(
-              key: const ValueKey('a2-composer-title'),
-              controller: _title,
-              autofocus: true,
-              maxLines: null,
-              cursorColor: ds.primary,
-              style: TextStyle(
-                fontSize: 15,
-                height: 1.45,
-                color: ds.ink,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-              onChanged: _onTitleChanged,
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-                hintText: l.composerPlaceholder,
-                hintStyle: TextStyle(
-                  fontSize: 15,
-                  height: 1.45,
-                  color: ds.ink3,
-                  fontFamilyFallback: AppTypography.fallback,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: ds.surface,
+            border: Border.all(
+              color: _titleValidationError ? SpecTokens.red : ds.line,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: readOnly
+              ? Text(
+                  _boundTodo!.summary,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.45,
+                    color: ds.ink,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                )
+              : TextField(
+                  key: const ValueKey('a2-composer-title'),
+                  controller: _title,
+                  autofocus: true,
+                  maxLines: null,
+                  cursorColor: ds.primary,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.45,
+                    color: ds.ink,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                  onChanged: _onTitleChanged,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintText: l.composerPlaceholder,
+                    hintStyle: TextStyle(
+                      fontSize: 15,
+                      height: 1.45,
+                      color: ds.ink3,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
                 ),
+        ),
+        if (_titleValidationError) ...[
+          const SizedBox(height: 4),
+          const Text(
+            '标题不能为空。写一个能让你明天看懂的动作。',
+            style: TextStyle(
+              fontSize: 11,
+              color: SpecTokens.red,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: SpecTokens.redSoft,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              '保存前先补标题；其他字段已经保留。',
+              style: TextStyle(
+                fontSize: 11,
+                color: SpecTokens.red,
+                fontFamilyFallback: AppTypography.fallback,
               ),
             ),
+          ),
+        ],
+      ],
     );
   }
 

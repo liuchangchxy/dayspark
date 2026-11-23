@@ -36,6 +36,7 @@ import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -891,9 +892,24 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     );
 
     if (picked == null || !mounted) return;
+
+    final isRecurring = live.rrule != null && live.rrule!.isNotEmpty;
+    String? occurrenceId;
+    if (isRecurring) {
+      final selectedInstance = await TodoOccurrencePickerSheet.show(
+        context,
+        ref: ref,
+        todo: live,
+        anchorDate: picked.$1,
+      );
+      if (selectedInstance == null || !mounted) return;
+      occurrenceId = selectedInstance.occurrenceId;
+    }
+
     try {
       await ref.read(createTaskAllocationProvider)(
         todoId: live.id,
+        occurrenceId: occurrenceId,
         startAt: picked.$1,
         endAt: picked.$2,
       );

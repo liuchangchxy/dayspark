@@ -16,9 +16,9 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
-import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -1297,32 +1297,20 @@ void main() {
       expect(find.byKey(const ValueKey('desktop-capture-input')), findsOneWidget);
       expect(find.byKey(const ValueKey('desktop-capture-expand-btn')), findsOneWidget);
 
-      // Expanding the capture bar is the one unified composer, not a reduced
-      // local panel: every fact the capture can write is reachable there.
+      // Expanding the desktop capture bar opens the 12-state A2CapturePanel
       await tester.tap(find.byKey(const ValueKey('desktop-capture-expand-btn')));
       await _settle(tester);
 
-      expect(find.byType(A2ComposerSheet), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('a2-composer-due')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('a2-composer-plan')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('a2-composer-reminder')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('a2-composer-calendar')),
-        findsOneWidget,
-      );
+      expect(find.byType(A2CapturePanel), findsOneWidget);
+      expect(find.text('待办标题'), findsOneWidget);
+      expect(find.text('截止'), findsOneWidget);
+      expect(find.text('计划执行'), findsOneWidget);
+      expect(find.text('日历'), findsOneWidget);
+      expect(find.text('提醒'), findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await _settle(tester);
-      expect(find.byType(A2ComposerSheet), findsNothing);
+      expect(find.byType(A2CapturePanel), findsNothing);
 
       await _unmount(tester);
     },
