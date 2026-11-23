@@ -19,6 +19,7 @@ import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/records/capture_submit.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -82,6 +83,11 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   late String _captureDraft = widget.initialDraft;
   double? _lastViewport;
   A2CaptureState _desktopCaptureState = A2CaptureState.compact;
+  A2CaptureDraft _desktopCaptureDraft = const A2CaptureDraft();
+  A2CaptureDraft? _captureChoiceBaseline;
+  DateTime? _planDraftStart;
+  DateTime? _planDraftEnd;
+  bool _resetCaptureScheduled = false;
   late final TextEditingController _desktopCaptureController =
       TextEditingController(text: widget.initialDraft);
   final FocusNode _desktopCaptureFocusNode = FocusNode();
@@ -179,16 +185,80 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         _showToast(l.noCalendar);
         return false;
       }
-      final id = await ref.read(createTodoProvider)(
-        calendarId:
-            resolveNewEntryCalendarId(
+      final id = await writeCapturedTodo(
+        ref,
+        calendarId: resolveNewEntryCalendarId(
               calendars: calendars,
               preferredId: ref.read(defaultCalendarIdProvider),
             ) ??
             calendars.first.id,
         summary: text,
-        priority: 0,
-        status: 'NEEDS-ACTION',
+      );
+      if (!mounted) return true;
+      setState(() {
+        _recentId = id;
+        _unplannedExpanded = false;
+      });
+      _recentTimer?.cancel();
+      _recentTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _recentId = null);
+      });
+      _showToast(l.captureAddedToast);
+      if (_scroll.hasClients) {
+        final ctx = _shelfKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          Scrollable.ensureVisible(
+            ctx,
+            alignment: 0.0,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scroll.animateTo(
+            _scroll.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+          );
+        }
+      }
+      return true;
+    } catch (error) {
+      debugPrint('today: capture failed: $error');
+      if (mounted) _showToast(l.actionFailedRetry);
+      return false;
+    } finally {
+      _capturing = false;
+    }
+  }
+
+  Future<bool> _captureWithDraft(String text, A2CaptureDraft draft) async {
+    if (_capturing) return false;
+    final l = AppLocalizations.of(context)!;
+    _capturing = true;
+    try {
+      final calendars = await ref.read(calendarsProvider.future);
+      if (calendars.isEmpty) {
+        _showToast(l.noCalendar);
+        return false;
+      }
+      final requested = draft.calendarId;
+      final calendarId =
+          (requested != null &&
+              calendars.any((calendar) => calendar.id == requested))
+          ? requested
+          : resolveNewEntryCalendarId(
+                calendars: calendars,
+                preferredId: ref.read(defaultCalendarIdProvider),
+              ) ??
+              calendars.first.id;
+      final id = await writeCapturedTodo(
+        ref,
+        calendarId: calendarId,
+        summary: text,
+        dueDate: draft.dueDate,
+        planStart: draft.planStart,
+        planEnd: draft.planEnd,
+        reminderOffset: draft.reminderOffset,
       );
       if (!mounted) return true;
       setState(() {
@@ -498,27 +568,25 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Widget _undoAction(_RecentCompletion recent) {
     final ds = context.ds;
     final desktop = isWorkspaceLayout(context);
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        key: _undoButtonKey,
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _setCompleted(recent.todo, recent.occurrenceId, false),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 44, minHeight: 40),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 132),
-              child: Text(
-                recent.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: desktop ? const Color(0xFF6B9EFF) : ds.primary,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
+    return FocusableTap(
+      key: _undoButtonKey,
+      onTap: () => _setCompleted(recent.todo, recent.occurrenceId, false),
+      semanticsLabel: recent.label,
+      borderRadius: BorderRadius.circular(4),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 40),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 132),
+            child: Text(
+              recent.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: desktop ? const Color(0xFF6B9EFF) : ds.primary,
+                fontFamilyFallback: AppTypography.fallback,
               ),
             ),
           ),
@@ -546,6 +614,23 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final desktop = isWorkspaceLayout(context);
+    if (!desktop &&
+        (_desktopCaptureState != A2CaptureState.compact ||
+            !_desktopCaptureDraft.isEmpty) &&
+        !_resetCaptureScheduled) {
+      _resetCaptureScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _resetCaptureScheduled = false;
+        if (!mounted || isWorkspaceLayout(context)) return;
+        setState(() {
+          _captureChoiceBaseline = null;
+          _planDraftStart = null;
+          _planDraftEnd = null;
+          _desktopCaptureDraft = const A2CaptureDraft();
+          _desktopCaptureState = A2CaptureState.compact;
+        });
+      });
+    }
     final data = ref.watch(actionProjectionProvider);
     final unplannedAsync = ref.watch(unplannedTodosProvider);
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
@@ -1369,12 +1454,14 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       return;
     }
     try {
-      final saved = await _capture(text);
+      final saved = await _captureWithDraft(text, _desktopCaptureDraft);
       if (!mounted) return;
       if (saved) {
         _desktopCaptureController.clear();
         setState(() {
           _captureDraft = '';
+          _captureChoiceBaseline = null;
+          _desktopCaptureDraft = const A2CaptureDraft();
           _desktopCaptureState = A2CaptureState.compact;
         });
       } else {
@@ -1393,12 +1480,14 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       return;
     }
     try {
-      final saved = await _capture(text);
+      final saved = await _captureWithDraft(text, _desktopCaptureDraft);
       if (!mounted) return;
       if (saved) {
         _desktopCaptureController.clear();
         setState(() {
           _captureDraft = '';
+          _captureChoiceBaseline = null;
+          _desktopCaptureDraft = const A2CaptureDraft();
           _desktopCaptureState = A2CaptureState.compact;
         });
       } else {
@@ -1408,6 +1497,146 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       if (!mounted) return;
       setState(() => _desktopCaptureState = A2CaptureState.saveError);
     }
+  }
+
+  void _openCaptureChoice(A2CaptureState state) {
+    setState(() {
+      _captureChoiceBaseline = _desktopCaptureDraft;
+      _desktopCaptureState = state;
+    });
+  }
+
+  void _applyCaptureChoice() {
+    setState(() {
+      if (_desktopCaptureState == A2CaptureState.plan) {
+        _desktopCaptureDraft = _desktopCaptureDraft.withPlan(
+          _planDraftStart,
+          _planDraftEnd,
+        );
+      }
+      _captureChoiceBaseline = null;
+      _planDraftStart = null;
+      _planDraftEnd = null;
+      _desktopCaptureState = A2CaptureState.expanded;
+    });
+  }
+
+  void _cancelCaptureChoice() {
+    setState(() {
+      final baseline = _captureChoiceBaseline;
+      if (baseline != null) _desktopCaptureDraft = baseline;
+      _captureChoiceBaseline = null;
+      _planDraftStart = null;
+      _planDraftEnd = null;
+      _desktopCaptureState = A2CaptureState.expanded;
+    });
+  }
+
+  void _chooseCaptureReminder(Duration? offset) {
+    final l = AppLocalizations.of(context)!;
+    if (offset != null && _desktopCaptureDraft.dueDate == null) {
+      _showToast(l.reminderNeedsAnchor);
+      return;
+    }
+    setState(() {
+      _desktopCaptureDraft = _desktopCaptureDraft.withReminderOffset(offset);
+    });
+  }
+
+  Future<void> _pickCaptureDueDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _desktopCaptureDraft.dueDate ?? now,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 10),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _desktopCaptureDraft = _desktopCaptureDraft.withDueDate(
+        DateTime(picked.year, picked.month, picked.day),
+      );
+      _desktopCaptureState = A2CaptureState.expanded;
+    });
+  }
+
+  void _openPlanCapture() {
+    final now = DateTime.now();
+    setState(() {
+      _captureChoiceBaseline = _desktopCaptureDraft;
+      final start = _desktopCaptureDraft.planStart ??
+          DateTime(now.year, now.month, now.day, 15, 15);
+      _planDraftStart = start;
+      _planDraftEnd = _desktopCaptureDraft.planEnd ??
+          start.add(const Duration(minutes: 45));
+      _desktopCaptureState = A2CaptureState.plan;
+    });
+  }
+
+  Future<void> _pickCapturePlanDate() async {
+    final start = _planDraftStart ?? DateTime.now();
+    final end = _planDraftEnd;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: start,
+      firstDate: DateTime(start.year - 5),
+      lastDate: DateTime(start.year + 10),
+    );
+    if (picked == null || !mounted) return;
+    final day = DateTime(picked.year, picked.month, picked.day);
+    setState(() {
+      _planDraftStart =
+          DateTime(day.year, day.month, day.day, start.hour, start.minute);
+      _planDraftEnd = end == null
+          ? null
+          : DateTime(day.year, day.month, day.day, end.hour, end.minute);
+    });
+  }
+
+  Future<void> _pickCapturePlanStart() async {
+    final current = _planDraftStart ?? DateTime.now();
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+    );
+    if (picked == null || !mounted) return;
+    final start = DateTime(
+      current.year,
+      current.month,
+      current.day,
+      picked.hour,
+      picked.minute,
+    );
+    final end = _planDraftEnd;
+    setState(() {
+      _planDraftStart = start;
+      _planDraftEnd = end != null && end.isAfter(start)
+          ? end
+          : start.add(const Duration(minutes: 45));
+    });
+  }
+
+  Future<void> _pickCapturePlanEnd() async {
+    final start = _planDraftStart;
+    if (start == null) return;
+    final current =
+        _planDraftEnd ?? start.add(const Duration(minutes: 45));
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+    );
+    if (picked == null || !mounted) return;
+    final end = DateTime(
+      start.year,
+      start.month,
+      start.day,
+      picked.hour,
+      picked.minute,
+    );
+    if (!end.isAfter(start)) return;
+    setState(() {
+      _planDraftEnd = end;
+    });
   }
 
   Widget _desktopCaptureBar(AppLocalizations l, {bool isShifted = false}) {
@@ -1516,6 +1745,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                         _desktopCaptureState = A2CaptureState.expanded;
                       }
                     } else {
+                      _desktopCaptureDraft = const A2CaptureDraft();
                       _desktopCaptureState = A2CaptureState.compact;
                     }
                   });
@@ -1623,6 +1853,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     bool showCheck = true,
     String? scheduleTooltip,
   }) {
+    final l = AppLocalizations.of(context)!;
     final visualRow = Container(
       constraints: const BoxConstraints(minHeight: 50),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -1730,6 +1961,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       ),
     );
 
+    final scheduleSemantics = scheduleTooltip ?? '';
+
     return Stack(
       key: key,
       children: [
@@ -1761,9 +1994,13 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             width: 54,
             child: Tooltip(
               message: scheduleTooltip ?? '',
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
+              child: FocusableTap(
                 onTap: onSchedule,
+                semanticsLabel: scheduleSemantics.isEmpty
+                    ? l.scheduleAction
+                    : scheduleSemantics,
+                borderRadius: BorderRadius.circular(4),
+                child: const SizedBox.expand(),
               ),
             ),
           ),
@@ -2202,6 +2439,21 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
     final sel = ref.watch(workspaceSelectionProvider);
     final isShifted = sel != null && canShowDesktopDrawer(context);
+    final captureCalendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    String? captureCalendarName;
+    Color? captureCalendarColor;
+    for (final calendar in captureCalendars) {
+      if (calendar.id == _desktopCaptureDraft.calendarId) {
+        captureCalendarName = calendar.name;
+        captureCalendarColor = ColorUtils.parseHex(calendar.color);
+      }
+    }
+    final captureDefaultCalendar = captureCalendars.isEmpty
+        ? null
+        : captureCalendars.firstWhere(
+            (calendar) => calendar.id == ref.watch(defaultCalendarIdProvider),
+            orElse: () => captureCalendars.first,
+          );
 
     final desktopContent = Stack(
       children: [
@@ -2262,18 +2514,78 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                     state: _desktopCaptureState,
                     titleController: _desktopCaptureController,
                     onStateChanged: (s) => setState(() => _desktopCaptureState = s),
-                    onCancel: () => setState(() => _desktopCaptureState = A2CaptureState.compact),
+                    onCancel: () => setState(() {
+                      _captureChoiceBaseline = null;
+                      _desktopCaptureDraft = const A2CaptureDraft();
+                      _desktopCaptureState = A2CaptureState.compact;
+                    }),
                     onDiscard: () {
                       _desktopCaptureController.clear();
                       setState(() {
                         _captureDraft = '';
+                        _captureChoiceBaseline = null;
+                        _desktopCaptureDraft = const A2CaptureDraft();
                         _desktopCaptureState = A2CaptureState.compact;
                       });
                     },
-                    onPickDate: () => setState(() => _desktopCaptureState = A2CaptureState.date),
-                    onPickPlan: () => setState(() => _desktopCaptureState = A2CaptureState.plan),
-                    onPickCalendar: () => setState(() => _desktopCaptureState = A2CaptureState.calendar),
-                    onPickReminder: () => setState(() => _desktopCaptureState = A2CaptureState.reminder),
+                    dueDate: _desktopCaptureDraft.dueDate,
+                    planStart: _desktopCaptureState == A2CaptureState.plan
+                        ? _planDraftStart
+                        : _desktopCaptureDraft.planStart,
+                    planEnd: _desktopCaptureState == A2CaptureState.plan
+                        ? _planDraftEnd
+                        : _desktopCaptureDraft.planEnd,
+                    calendarName:
+                        captureCalendarName ?? captureDefaultCalendar?.name,
+                    calendarColor: captureCalendarColor ??
+                        (captureDefaultCalendar == null
+                            ? null
+                            : ColorUtils.parseHex(
+                                captureDefaultCalendar.color,
+                              )),
+                    reminderLabel: _desktopCaptureDraft.dueDate == null
+                        ? null
+                        : _reminderLabel(
+                            l,
+                            _desktopCaptureDraft.reminderOffset,
+                          ),
+                    calendarChoices: [
+                      for (final calendar in captureCalendars)
+                        A2CaptureCalendarChoice(
+                          id: calendar.id,
+                          name: calendar.name,
+                          color: ColorUtils.parseHex(calendar.color),
+                        ),
+                    ],
+                    selectedCalendarId:
+                        _desktopCaptureDraft.calendarId ??
+                        captureDefaultCalendar?.id,
+                    selectedReminderOffset: _desktopCaptureDraft.reminderOffset,
+                    onChooseDueDate: (date) => setState(() {
+                      if (date != null) {
+                        _desktopCaptureDraft =
+                            _desktopCaptureDraft.withDueDate(date);
+                      }
+                    }),
+                    onChooseCalendar: (id) => setState(() {
+                      if (id != null) {
+                        _desktopCaptureDraft =
+                            _desktopCaptureDraft.withCalendarId(id);
+                      }
+                    }),
+                    onChooseReminder: _chooseCaptureReminder,
+                    onPickDate: () => _openCaptureChoice(A2CaptureState.date),
+                    onPickCustomDate: _pickCaptureDueDate,
+                    onPickPlan: _openPlanCapture,
+                    onPickPlanDate: _pickCapturePlanDate,
+                    onPickPlanStart: _pickCapturePlanStart,
+                    onPickPlanEnd: _pickCapturePlanEnd,
+                    onPickCalendar: () =>
+                        _openCaptureChoice(A2CaptureState.calendar),
+                    onPickReminder: () =>
+                        _openCaptureChoice(A2CaptureState.reminder),
+                    onApplyChoice: _applyCaptureChoice,
+                    onCancelChoice: _cancelCaptureChoice,
                     onSwitchToEvent: () => setState(() => _desktopCaptureState = A2CaptureState.event),
                     onSwitchToTodo: () => setState(() => _desktopCaptureState = A2CaptureState.expanded),
                     onSubmit: () async {
@@ -2317,6 +2629,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                       CallbackAction<_DismissDesktopCaptureIntent>(
                     onInvoke: (_) {
                       setState(() {
+                        _desktopCaptureDraft = const A2CaptureDraft();
                         _desktopCaptureState = A2CaptureState.compact;
                       });
                       return null;
@@ -2446,65 +2759,61 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () => _openTodo(card.todo),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              card.todo.summary,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                height: 1.4,
-                                color: SpecTokens.ink,
-                                fontFamilyFallback: AppTypography.fallback,
-                              ),
+                    child: FocusableTap(
+                      onTap: () => _openTodo(card.todo),
+                      semanticsLabel: '${card.todo.summary} · $subtitle',
+                      borderRadius: BorderRadius.circular(4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            card.todo.summary,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              height: 1.4,
+                              color: SpecTokens.ink,
+                              fontFamilyFallback: AppTypography.fallback,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              subtitle,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: SpecTokens.red,
-                                fontFamilyFallback: AppTypography.fallback,
-                              ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: SpecTokens.red,
+                              fontFamilyFallback: AppTypography.fallback,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _completeMissed(card),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 3,
+                  FocusableTap(
+                    onTap: () => _completeMissed(card),
+                    semanticsLabel: l.completeThisOccurrence,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: SpecTokens.paper,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: const Color(0xFFE3C8C2),
                         ),
-                        decoration: BoxDecoration(
-                          color: SpecTokens.paper,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: const Color(0xFFE3C8C2),
-                          ),
-                        ),
-                        child: Text(
-                          l.completeThisOccurrence,
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: SpecTokens.red,
-                            fontFamilyFallback: AppTypography.fallback,
-                          ),
+                      ),
+                      child: Text(
+                        l.completeThisOccurrence,
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: SpecTokens.red,
+                          fontFamilyFallback: AppTypography.fallback,
                         ),
                       ),
                     ),
@@ -2652,6 +2961,17 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     for (final calendar in calendars) {
       if (calendar.id == todo.calendarId) return calendar.name;
     }
+    return null;
+  }
+
+  String? _reminderLabel(AppLocalizations l, Duration? offset) {
+    if (offset == null) return null;
+    if (offset == const Duration(minutes: 5)) return l.captureReminder5mBefore;
+    if (offset == const Duration(minutes: 15)) {
+      return l.captureReminder15mBefore;
+    }
+    if (offset == const Duration(hours: 1)) return l.captureReminder1hBefore;
+    if (offset == const Duration(days: 1)) return l.captureReminder1dBefore;
     return null;
   }
 

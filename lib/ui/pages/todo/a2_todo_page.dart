@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +14,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
@@ -47,6 +49,7 @@ class A2TodoPage extends ConsumerStatefulWidget {
     this.onOpenTodo,
     this.onToggleTodo,
     this.onCapture,
+    this.onCaptureDraft,
     this.onPlanDay,
     this.onScheduleTodo,
     this.onOpenEvent,
@@ -66,6 +69,8 @@ class A2TodoPage extends ConsumerStatefulWidget {
   final Future<bool> Function(Todo todo, String? occurrenceId, bool completed)?
   onToggleTodo;
   final Future<void> Function(String text)? onCapture;
+  final Future<bool> Function(String text, A2CaptureDraft draft)?
+  onCaptureDraft;
   final ValueChanged<DateTime>? onPlanDay;
   final ValueChanged<Todo>? onScheduleTodo;
   final ValueChanged<CalendaEventAdapter>? onOpenEvent;
@@ -86,6 +91,12 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   bool _captureFocused = false;
   bool _completedOpen = false;
   A2CaptureState _desktopCaptureState = A2CaptureState.compact;
+  A2CaptureDraft _desktopCaptureDraft = const A2CaptureDraft();
+  A2CaptureDraft? _captureChoiceBaseline;
+  DateTime? _planDraftStart;
+  DateTime? _planDraftEnd;
+  bool _capturing = false;
+  bool _resetCaptureScheduled = false;
   final TextEditingController _desktopCaptureController = TextEditingController();
   Map<int, Calendar> _calendarMap = const {};
   Map<int, int> _currentMissedCounts = const {};
@@ -96,11 +107,20 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   final Map<String, int> _undoGenerations = {};
 
   final LayerLink _filterToolLink = LayerLink();
+  final FocusScopeNode _filterScopeNode =
+      FocusScopeNode(debugLabel: 'todos-filter-popover');
+  final FocusNode _filterToolFocusNode =
+      FocusNode(debugLabel: 'todos-filter-tool');
+  final FocusNode _filterInitialFocusNode =
+      FocusNode(debugLabel: 'todos-filter-initial');
   OverlayEntry? _filterOverlay;
 
   @override
   void dispose() {
-    _closeFilterOverlay();
+    _closeFilterOverlay(restoreFocus: false);
+    _filterScopeNode.dispose();
+    _filterToolFocusNode.dispose();
+    _filterInitialFocusNode.dispose();
     for (final timer in _undoTimers.values) {
       timer.cancel();
     }
@@ -108,10 +128,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     super.dispose();
   }
 
-  void _closeFilterOverlay() {
+  void _closeFilterOverlay({bool restoreFocus = true}) {
     final overlay = _filterOverlay;
     _filterOverlay = null;
     overlay?.remove();
+    if (restoreFocus && mounted) {
+      _filterToolFocusNode.requestFocus();
+    }
   }
 
   String get _locale => Localizations.localeOf(context).toString();
@@ -273,17 +296,181 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
   }
 
-  Future<bool> _capture(String text) async {
-    final callback = widget.onCapture;
-    if (callback == null) return false;
+  Future<bool> _capture(
+    String text, {
+    A2CaptureDraft draft = const A2CaptureDraft(),
+  }) async {
+    if (_capturing) return false;
+    _capturing = true;
     try {
+      final draftCallback = widget.onCaptureDraft;
+      if (draftCallback != null) {
+        return await draftCallback(text, draft);
+      }
+      final callback = widget.onCapture;
+      if (callback == null) return false;
       await callback(text);
       return true;
     } on Object catch (error) {
       debugPrint('todo: capture failed: $error');
       if (mounted) showCompletionError(context, error);
       return false;
+    } finally {
+      _capturing = false;
     }
+  }
+
+  void _openCaptureChoice(A2CaptureState state) {
+    setState(() {
+      _captureChoiceBaseline = _desktopCaptureDraft;
+      _desktopCaptureState = state;
+    });
+  }
+
+  void _applyCaptureChoice() {
+    setState(() {
+      if (_desktopCaptureState == A2CaptureState.plan) {
+        _desktopCaptureDraft = _desktopCaptureDraft.withPlan(
+          _planDraftStart,
+          _planDraftEnd,
+        );
+      }
+      _captureChoiceBaseline = null;
+      _planDraftStart = null;
+      _planDraftEnd = null;
+      _desktopCaptureState = A2CaptureState.expanded;
+    });
+  }
+
+  void _cancelCaptureChoice() {
+    setState(() {
+      final baseline = _captureChoiceBaseline;
+      if (baseline != null) _desktopCaptureDraft = baseline;
+      _captureChoiceBaseline = null;
+      _planDraftStart = null;
+      _planDraftEnd = null;
+      _desktopCaptureState = A2CaptureState.expanded;
+    });
+  }
+
+  void _chooseCaptureReminder(Duration? offset) {
+    final l = AppLocalizations.of(context)!;
+    if (offset != null && _desktopCaptureDraft.dueDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l.reminderNeedsAnchor)),
+      );
+      return;
+    }
+    setState(() {
+      _desktopCaptureDraft = _desktopCaptureDraft.withReminderOffset(offset);
+    });
+  }
+
+  Future<void> _pickCaptureDueDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _desktopCaptureDraft.dueDate ?? now,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 10),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _desktopCaptureDraft = _desktopCaptureDraft.withDueDate(
+        DateTime(picked.year, picked.month, picked.day),
+      );
+      _desktopCaptureState = A2CaptureState.expanded;
+    });
+  }
+
+  void _openPlanCapture() {
+    final now = DateTime.now();
+    setState(() {
+      _captureChoiceBaseline = _desktopCaptureDraft;
+      final start = _desktopCaptureDraft.planStart ??
+          DateTime(now.year, now.month, now.day, 15, 15);
+      _planDraftStart = start;
+      _planDraftEnd = _desktopCaptureDraft.planEnd ??
+          start.add(const Duration(minutes: 45));
+      _desktopCaptureState = A2CaptureState.plan;
+    });
+  }
+
+  Future<void> _pickCapturePlanDate() async {
+    final start = _planDraftStart ?? DateTime.now();
+    final end = _planDraftEnd;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: start,
+      firstDate: DateTime(start.year - 5),
+      lastDate: DateTime(start.year + 10),
+    );
+    if (picked == null || !mounted) return;
+    final day = DateTime(picked.year, picked.month, picked.day);
+    setState(() {
+      _planDraftStart =
+          DateTime(day.year, day.month, day.day, start.hour, start.minute);
+      _planDraftEnd = end == null
+          ? null
+          : DateTime(day.year, day.month, day.day, end.hour, end.minute);
+    });
+  }
+
+  Future<void> _pickCapturePlanStart() async {
+    final current = _planDraftStart ?? DateTime.now();
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+    );
+    if (picked == null || !mounted) return;
+    final start = DateTime(
+      current.year,
+      current.month,
+      current.day,
+      picked.hour,
+      picked.minute,
+    );
+    final end = _planDraftEnd;
+    setState(() {
+      _planDraftStart = start;
+      _planDraftEnd = end != null && end.isAfter(start)
+          ? end
+          : start.add(const Duration(minutes: 45));
+    });
+  }
+
+  Future<void> _pickCapturePlanEnd() async {
+    final start = _planDraftStart;
+    if (start == null) return;
+    final current =
+        _planDraftEnd ?? start.add(const Duration(minutes: 45));
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+    );
+    if (picked == null || !mounted) return;
+    final end = DateTime(
+      start.year,
+      start.month,
+      start.day,
+      picked.hour,
+      picked.minute,
+    );
+    if (!end.isAfter(start)) return;
+    setState(() {
+      _planDraftEnd = end;
+    });
+  }
+
+  String? _reminderLabel(AppLocalizations l, Duration? offset) {
+    if (offset == null) return null;
+    if (offset == const Duration(minutes: 5)) return l.captureReminder5mBefore;
+    if (offset == const Duration(minutes: 15)) {
+      return l.captureReminder15mBefore;
+    }
+    if (offset == const Duration(hours: 1)) return l.captureReminder1hBefore;
+    if (offset == const Duration(days: 1)) return l.captureReminder1dBefore;
+    return null;
   }
 
   Future<bool> _openCaptureComposer(String? draft) async {
@@ -321,11 +508,41 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final view = ref.watch(todosViewProvider);
     final viewed = ref.watch(viewedDateProvider);
     final desktop = isWorkspaceLayout(context);
+    if (!desktop &&
+        (_desktopCaptureState != A2CaptureState.compact ||
+            !_desktopCaptureDraft.isEmpty) &&
+        !_resetCaptureScheduled) {
+      _resetCaptureScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _resetCaptureScheduled = false;
+        if (!mounted || isWorkspaceLayout(context)) return;
+        setState(() {
+          _captureChoiceBaseline = null;
+          _planDraftStart = null;
+          _planDraftEnd = null;
+          _desktopCaptureDraft = const A2CaptureDraft();
+          _desktopCaptureState = A2CaptureState.compact;
+        });
+      });
+    }
     final unplannedAsync = ref.watch(unplannedTodosProvider);
     final allAsync = ref.watch(allTodosProvider);
     final allocationsAsync = ref.watch(allActiveTaskAllocationsProvider);
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
     _calendarMap = {for (final c in calendars) c.id: c};
+    final captureDefaultCalendar = calendars.isEmpty
+        ? null
+        : calendars.firstWhere(
+            (calendar) => calendar.id == ref.watch(defaultCalendarIdProvider),
+            orElse: () => calendars.first,
+          );
+    Calendar? captureCalendar;
+    for (final calendar in calendars) {
+      if (calendar.id == _desktopCaptureDraft.calendarId) {
+        captureCalendar = calendar;
+      }
+    }
+    captureCalendar ??= captureDefaultCalendar;
     final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
     final tagMap =
         ref.watch(todoTagIdsMapProvider).valueOrNull ?? const <int, Set<int>>{};
@@ -498,15 +715,82 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                             state: _desktopCaptureState,
                             titleController: _desktopCaptureController,
                             onStateChanged: (s) => setState(() => _desktopCaptureState = s),
-                            onCancel: () => setState(() => _desktopCaptureState = A2CaptureState.compact),
+                            onCancel: () => setState(() {
+                              _captureChoiceBaseline = null;
+                              _planDraftStart = null;
+                              _planDraftEnd = null;
+                              _desktopCaptureDraft = const A2CaptureDraft();
+                              _desktopCaptureState = A2CaptureState.compact;
+                            }),
                             onDiscard: () {
                               _desktopCaptureController.clear();
-                              setState(() => _desktopCaptureState = A2CaptureState.compact);
+                              setState(() {
+                                _captureChoiceBaseline = null;
+                                _planDraftStart = null;
+                                _planDraftEnd = null;
+                                _desktopCaptureDraft = const A2CaptureDraft();
+                                _desktopCaptureState = A2CaptureState.compact;
+                              });
                             },
-                            onPickDate: () => setState(() => _desktopCaptureState = A2CaptureState.date),
-                            onPickPlan: () => setState(() => _desktopCaptureState = A2CaptureState.plan),
-                            onPickCalendar: () => setState(() => _desktopCaptureState = A2CaptureState.calendar),
-                            onPickReminder: () => setState(() => _desktopCaptureState = A2CaptureState.reminder),
+                            dueDate: _desktopCaptureDraft.dueDate,
+                            planStart:
+                                _desktopCaptureState == A2CaptureState.plan
+                                ? _planDraftStart
+                                : _desktopCaptureDraft.planStart,
+                            planEnd:
+                                _desktopCaptureState == A2CaptureState.plan
+                                ? _planDraftEnd
+                                : _desktopCaptureDraft.planEnd,
+                            calendarName: captureCalendar?.name,
+                            calendarColor: captureCalendar == null
+                                ? null
+                                : ColorUtils.parseHex(captureCalendar.color),
+                            reminderLabel:
+                                _desktopCaptureDraft.dueDate == null
+                                ? null
+                                : _reminderLabel(
+                                    l,
+                                    _desktopCaptureDraft.reminderOffset,
+                                  ),
+                            calendarChoices: [
+                              for (final calendar in calendars)
+                                A2CaptureCalendarChoice(
+                                  id: calendar.id,
+                                  name: calendar.name,
+                                  color: ColorUtils.parseHex(calendar.color),
+                                ),
+                            ],
+                            selectedCalendarId:
+                                _desktopCaptureDraft.calendarId ??
+                                captureDefaultCalendar?.id,
+                            selectedReminderOffset:
+                                _desktopCaptureDraft.reminderOffset,
+                            onChooseDueDate: (date) => setState(() {
+                              if (date != null) {
+                                _desktopCaptureDraft =
+                                    _desktopCaptureDraft.withDueDate(date);
+                              }
+                            }),
+                            onChooseCalendar: (id) => setState(() {
+                              if (id != null) {
+                                _desktopCaptureDraft =
+                                    _desktopCaptureDraft.withCalendarId(id);
+                              }
+                            }),
+                            onChooseReminder: _chooseCaptureReminder,
+                            onPickDate: () =>
+                                _openCaptureChoice(A2CaptureState.date),
+                            onPickCustomDate: _pickCaptureDueDate,
+                            onPickPlan: _openPlanCapture,
+                            onPickPlanDate: _pickCapturePlanDate,
+                            onPickPlanStart: _pickCapturePlanStart,
+                            onPickPlanEnd: _pickCapturePlanEnd,
+                            onPickCalendar: () =>
+                                _openCaptureChoice(A2CaptureState.calendar),
+                            onPickReminder: () =>
+                                _openCaptureChoice(A2CaptureState.reminder),
+                            onApplyChoice: _applyCaptureChoice,
+                            onCancelChoice: _cancelCaptureChoice,
                             onSwitchToEvent: () => setState(() => _desktopCaptureState = A2CaptureState.event),
                             onSwitchToTodo: () => setState(() => _desktopCaptureState = A2CaptureState.expanded),
                             onSubmit: () async {
@@ -516,10 +800,18 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 return;
                               }
                               try {
-                                final saved = await _capture(text);
+                                final saved = await _capture(
+                                  text,
+                                  draft: _desktopCaptureDraft,
+                                );
                                 if (saved) {
                                   _desktopCaptureController.clear();
-                                  setState(() => _desktopCaptureState = A2CaptureState.compact);
+                                  setState(() {
+                                    _desktopCaptureDraft =
+                                        const A2CaptureDraft();
+                                    _desktopCaptureState =
+                                        A2CaptureState.compact;
+                                  });
                                 } else {
                                   setState(() => _desktopCaptureState = A2CaptureState.saveError);
                                 }
@@ -534,10 +826,18 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 return;
                               }
                               try {
-                                final saved = await _capture(text);
+                                final saved = await _capture(
+                                  text,
+                                  draft: _desktopCaptureDraft,
+                                );
                                 if (saved) {
                                   _desktopCaptureController.clear();
-                                  setState(() => _desktopCaptureState = A2CaptureState.compact);
+                                  setState(() {
+                                    _desktopCaptureDraft =
+                                        const A2CaptureDraft();
+                                    _desktopCaptureState =
+                                        A2CaptureState.compact;
+                                  });
                                 } else {
                                   setState(() => _desktopCaptureState = A2CaptureState.saveError);
                                 }
@@ -665,21 +965,19 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   }) {
     return Tooltip(
       message: tooltip,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          key: key,
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: SizedBox(
-            width: 30,
-            height: 30,
-            child: Center(
-              child: Icon(
-                icon,
-                size: size,
-                color: SpecTokens.muted,
-              ),
+      child: FocusableTap(
+        key: key,
+        onTap: onTap,
+        semanticsLabel: tooltip,
+        borderRadius: BorderRadius.circular(4),
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: Center(
+            child: Icon(
+              icon,
+              size: size,
+              color: SpecTokens.muted,
             ),
           ),
         ),
@@ -798,49 +1096,47 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       link: _filterToolLink,
       child: Tooltip(
         message: l.filter,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            key: const ValueKey('todos-filter-tool'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _showFilterSheet(context),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              child: Align(
-                widthFactor: 1,
-                heightFactor: 1,
-                child: Container(
-                  key: const ValueKey('todos-filter-tool-visual'),
-                  height: 29,
-                  padding: const EdgeInsets.symmetric(horizontal: 9),
-                  decoration: BoxDecoration(
-                    color: active ? SpecTokens.wash : Colors.white,
-                    border: Border.all(
-                      color: active ? SpecTokens.ink2 : SpecTokens.hair2,
+        child: FocusableTap(
+          key: const ValueKey('todos-filter-tool'),
+          focusNode: _filterToolFocusNode,
+          onTap: () => _showFilterSheet(context),
+          semanticsLabel: l.filter,
+          borderRadius: BorderRadius.circular(6),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            child: Align(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Container(
+                key: const ValueKey('todos-filter-tool-visual'),
+                height: 29,
+                padding: const EdgeInsets.symmetric(horizontal: 9),
+                decoration: BoxDecoration(
+                  color: active ? SpecTokens.wash : Colors.white,
+                  border: Border.all(
+                    color: active ? SpecTokens.ink2 : SpecTokens.hair2,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      CupertinoIcons.slider_horizontal_3,
+                      size: 12,
+                      color: SpecTokens.muted,
                     ),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        CupertinoIcons.slider_horizontal_3,
-                        size: 12,
-                        color: SpecTokens.muted,
+                    const SizedBox(width: 5),
+                    Text(
+                      l.filter,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                        color: active ? SpecTokens.ink : SpecTokens.ink2,
+                        fontFamilyFallback: AppTypography.fallback,
                       ),
-                      const SizedBox(width: 5),
-                      Text(
-                        l.filter,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight:
-                              active ? FontWeight.w600 : FontWeight.w400,
-                          color: active ? SpecTokens.ink : SpecTokens.ink2,
-                          fontFamilyFallback: AppTypography.fallback,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -897,7 +1193,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     }
 
     if (isWorkspaceLayout(context)) {
-      _closeFilterOverlay();
+      _closeFilterOverlay(restoreFocus: false);
       final entry = OverlayEntry(
         builder: (overlayContext) {
           return StatefulBuilder(
@@ -908,7 +1204,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                   Positioned.fill(
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
-                      onTap: _closeFilterOverlay,
+                      onTap: () => _closeFilterOverlay(),
                     ),
                   ),
                   Positioned(
@@ -920,9 +1216,22 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                       targetAnchor: Alignment.bottomRight,
                       followerAnchor: Alignment.topRight,
                       offset: const Offset(0, 6),
-                      child: SizedBox(
-                        width: 260,
-                        child: Material(
+                      child: FocusScope(
+                        node: _filterScopeNode,
+                        autofocus: true,
+                        child: Focus(
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent &&
+                                event.logicalKey ==
+                                    LogicalKeyboardKey.escape) {
+                              _closeFilterOverlay();
+                              return KeyEventResult.handled;
+                            }
+                            return KeyEventResult.ignored;
+                          },
+                          child: SizedBox(
+                            width: 260,
+                            child: Material(
                       color: Colors.white,
                       elevation: 16,
                       shape: RoundedRectangleBorder(
@@ -947,8 +1256,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                     fontFamilyFallback: AppTypography.fallback,
                                   ),
                                 ),
-                                GestureDetector(
+                                FocusableTap(
+                                  focusNode: _filterInitialFocusNode,
                                   onTap: () => _closeFilterOverlay(),
+                                  semanticsLabel: l.close,
+                                  borderRadius: BorderRadius.circular(4),
                                   child: const Icon(CupertinoIcons.xmark, size: 12, color: SpecTokens.muted),
                                 ),
                               ],
@@ -981,41 +1293,44 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                               runSpacing: 6,
                               children: [
                                 for (final c in calendars)
-                                  GestureDetector(
+                                  FocusableTap(
                                     onTap: () => setPopState(() {
                                       draftCalendar = draftCalendar == c.id ? null : c.id;
                                     }),
+                                    semanticsLabel: c.name,
+                                    selected: draftCalendar == c.id,
+                                    borderRadius: BorderRadius.circular(4),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: draftCalendar == c.id ? SpecTokens.ink : Colors.white,
-                                        border: Border.all(color: draftCalendar == c.id ? SpecTokens.ink : SpecTokens.hair2),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            width: 5,
-                                            height: 5,
-                                            decoration: BoxDecoration(
-                                              color: ColorUtils.parseHex(c.color),
-                                              shape: BoxShape.circle,
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: draftCalendar == c.id ? SpecTokens.ink : Colors.white,
+                                          border: Border.all(color: draftCalendar == c.id ? SpecTokens.ink : SpecTokens.hair2),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 5,
+                                              height: 5,
+                                              decoration: BoxDecoration(
+                                                color: ColorUtils.parseHex(c.color),
+                                                shape: BoxShape.circle,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            c.name,
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: draftCalendar == c.id ? Colors.white : SpecTokens.ink2,
-                                              fontFamilyFallback: AppTypography.fallback,
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              c.name,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: draftCalendar == c.id ? Colors.white : SpecTokens.ink2,
+                                                fontFamilyFallback: AppTypography.fallback,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
                               ],
                             ),
                             if (tags.isNotEmpty) ...[
@@ -1038,12 +1353,15 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 runSpacing: 6,
                                 children: [
                                   for (final t in tags)
-                                    GestureDetector(
+                                    FocusableTap(
                                       onTap: () => setPopState(() {
                                         final next = {...draftTags};
                                         if (!next.remove(t.id)) next.add(t.id);
                                         draftTags = next;
                                       }),
+                                      semanticsLabel: t.name,
+                                      selected: draftTags.contains(t.id),
+                                      borderRadius: BorderRadius.circular(4),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                         decoration: BoxDecoration(
@@ -1088,8 +1406,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                   (5, l.priorityMedium),
                                   (9, l.priorityLow),
                                 ])
-                                  GestureDetector(
+                                  FocusableTap(
                                     onTap: () => setPopState(() => draftPriority = p.$1),
+                                    semanticsLabel: p.$2,
+                                    selected: draftPriority == p.$1,
+                                    borderRadius: BorderRadius.circular(4),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                       decoration: BoxDecoration(
@@ -1112,9 +1433,10 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                             const SizedBox(height: 8),
                             const Divider(height: 1, color: SpecTokens.hair),
                             const SizedBox(height: 8),
-                            GestureDetector(
-                              behavior: HitTestBehavior.opaque,
+                            FocusableTap(
                               onTap: () => setPopState(() => draftOverdue = !draftOverdue),
+                              semanticsLabel: l.filterOverdueOnly,
+                              borderRadius: BorderRadius.circular(4),
                               child: Row(
                                 children: [
                                   Container(
@@ -1215,6 +1537,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                       ),
                     ),
                   ),
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -1225,6 +1549,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   );
   _filterOverlay = entry;
   Overlay.of(context).insert(entry);
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (mounted && _filterOverlay == entry) {
+      _filterInitialFocusNode.requestFocus();
+    }
+  });
   return Future<void>.value();
 }
 
@@ -1359,9 +1688,10 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
+                    FocusableTap(
                       onTap: () => setSheetState(() => draftOverdue = !draftOverdue),
+                      semanticsLabel: l.filterOverdueOnly,
+                      borderRadius: BorderRadius.circular(4),
                       child: Row(
                         children: [
                           Container(
@@ -1559,25 +1889,19 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     required bool active,
     required VoidCallback onTap,
   }) {
-    return Semantics(
-      button: true,
+    return FocusableTap(
+      key: key,
+      onTap: onTap,
+      semanticsLabel: label,
       selected: active,
-      label: label,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          key: key,
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            child: Center(
-              child: ExcludeSemantics(
-                child: Opacity(
-                  opacity: 0,
-                  child: _modeButtonVisual(label, active),
-                ),
-              ),
+      borderRadius: BorderRadius.circular(5),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+        child: Center(
+          child: ExcludeSemantics(
+            child: Opacity(
+              opacity: 0,
+              child: _modeButtonVisual(label, active),
             ),
           ),
         ),
@@ -1612,45 +1936,43 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       ),
       child: Row(
         children: [
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              key: const ValueKey('todos-date-strip'),
-              behavior: HitTestBehavior.opaque,
-              onTap: () => showMonthYearPicker(context, initial: day),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                child: Align(
-                  widthFactor: 1,
-                  heightFactor: 1,
-                  child: Container(
-                    key: const ValueKey('todos-date-strip-visual'),
-                    height: 28,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(color: SpecTokens.hair2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          monthText,
-                          style: TextStyle(
-                            fontSize: desktop ? 10.5 : 10.0,
-                            color: SpecTokens.ink2,
-                            fontFamilyFallback: AppTypography.fallback,
-                          ),
+          FocusableTap(
+            key: const ValueKey('todos-date-strip'),
+            onTap: () => showMonthYearPicker(context, initial: day),
+            semanticsLabel: monthText,
+            borderRadius: BorderRadius.circular(6),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: Align(
+                widthFactor: 1,
+                heightFactor: 1,
+                child: Container(
+                  key: const ValueKey('todos-date-strip-visual'),
+                  height: 28,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: SpecTokens.hair2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        monthText,
+                        style: TextStyle(
+                          fontSize: desktop ? 10.5 : 10.0,
+                          color: SpecTokens.ink2,
+                          fontFamilyFallback: AppTypography.fallback,
                         ),
-                        const SizedBox(width: 5),
-                        const Icon(
-                          CupertinoIcons.chevron_down,
-                          size: 10,
-                          color: SpecTokens.faint,
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 5),
+                      const Icon(
+                        CupertinoIcons.chevron_down,
+                        size: 10,
+                        color: SpecTokens.faint,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1737,14 +2059,18 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                   top: 0,
                   width: hitSize,
                   height: hitSize,
-                  child: Semantics(
-                    key: ValueKey('todos-date-strip-day-${_dateKey(days[i])}'),
-                    button: true,
-                    selected: _sameDay(days[i], day),
-                    label:
-                        '${DateFormat.E(_locale).format(days[i])} ${days[i].day}',
+                  child: FocusableTap(
+                    key: ValueKey(
+                      'todos-date-strip-day-${_dateKey(days[i])}',
+                    ),
                     onTap: () =>
                         ref.read(viewedDateProvider.notifier).state = days[i],
+                    semanticsLabel:
+                        '${DateFormat.E(_locale).format(days[i])} '
+                        '${days[i].day}',
+                    selected: _sameDay(days[i], day),
+                    borderRadius: BorderRadius.circular(7),
+                    pointerEnabled: false,
                     child: const SizedBox.expand(),
                   ),
                 ),
@@ -1812,35 +2138,33 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   Widget _dateStripTodayButton(AppLocalizations l, DateTime today) {
     return Tooltip(
       message: l.goToToday,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          key: const ValueKey('todos-date-strip-today'),
-          behavior: HitTestBehavior.opaque,
-          onTap: () => ref.read(viewedDateProvider.notifier).state = today,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            child: Align(
-              widthFactor: 1,
-              heightFactor: 1,
-              child: Container(
-                key: const ValueKey('todos-date-strip-today-visual'),
-                height: 28,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: SpecTokens.hair2),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  l.today,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
-                    color: SpecTokens.ink,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
+      child: FocusableTap(
+        key: const ValueKey('todos-date-strip-today'),
+        onTap: () => ref.read(viewedDateProvider.notifier).state = today,
+        semanticsLabel: l.goToToday,
+        borderRadius: BorderRadius.circular(6),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          child: Align(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: Container(
+              key: const ValueKey('todos-date-strip-today-visual'),
+              height: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: SpecTokens.hair2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                l.today,
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                  color: SpecTokens.ink,
+                  fontFamilyFallback: AppTypography.fallback,
                 ),
               ),
             ),
@@ -1874,11 +2198,19 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                 }
                 return;
               }
-              final saved = await _capture(text);
+              final saved = await _capture(
+                text,
+                draft: desktop
+                    ? _desktopCaptureDraft
+                    : const A2CaptureDraft(),
+              );
               if (saved) {
                 _desktopCaptureController.clear();
                 if (desktop) {
-                  setState(() => _desktopCaptureState = A2CaptureState.compact);
+                  setState(() {
+                    _desktopCaptureDraft = const A2CaptureDraft();
+                    _desktopCaptureState = A2CaptureState.compact;
+                  });
                 }
               } else if (desktop) {
                 setState(() => _desktopCaptureState = A2CaptureState.saveError);
@@ -1896,6 +2228,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                       _desktopCaptureState = A2CaptureState.expanded;
                     }
                   } else {
+                    _desktopCaptureDraft = const A2CaptureDraft();
                     _desktopCaptureState = A2CaptureState.compact;
                   }
                 });
@@ -1994,23 +2327,21 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
               ),
             ),
           ),
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              key: actionKey,
-              behavior: HitTestBehavior.opaque,
-              onTap: onAction,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                child: Center(
-                  child: Text(
-                    action,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: SpecTokens.ink2,
-                      decoration: TextDecoration.underline,
-                      fontFamilyFallback: AppTypography.fallback,
-                    ),
+          FocusableTap(
+            key: actionKey,
+            onTap: onAction,
+            semanticsLabel: action,
+            borderRadius: BorderRadius.circular(4),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: Center(
+                child: Text(
+                  action,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: SpecTokens.ink2,
+                    decoration: TextDecoration.underline,
+                    fontFamilyFallback: AppTypography.fallback,
                   ),
                 ),
               ),
@@ -2565,56 +2896,54 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final start = item.start;
     final timeStr = start == null ? '' : DateFormatters.formatTime(start);
     final color = item.calendarColor ?? SpecTokens.work;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (widget.onOpenEvent != null && item.event != null) {
-            widget.onOpenEvent!(item.event!);
-          }
-        },
-        child: Container(
-          height: 24,
-          padding: const EdgeInsets.symmetric(horizontal: 7),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFBFBF8),
-            border: Border.all(color: SpecTokens.hair),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+    return FocusableTap(
+      onTap: () {
+        if (widget.onOpenEvent != null && item.event != null) {
+          widget.onOpenEvent!(item.event!);
+        }
+      },
+      semanticsLabel: timeStr.isEmpty ? item.title : '$timeStr ${item.title}',
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        height: 24,
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFBFBF8),
+          border: Border.all(color: SpecTokens.hair),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: 5),
-              if (timeStr.isNotEmpty) ...[
-                Text(
-                  timeStr,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: SpecTokens.ink2,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-                const SizedBox(width: 4),
-              ],
+            ),
+            const SizedBox(width: 5),
+            if (timeStr.isNotEmpty) ...[
               Text(
-                item.title,
+                timeStr,
                 style: const TextStyle(
                   fontSize: 10,
                   color: SpecTokens.ink2,
                   fontFamilyFallback: AppTypography.fallback,
                 ),
               ),
+              const SizedBox(width: 4),
             ],
-          ),
+            Text(
+              item.title,
+              style: const TextStyle(
+                fontSize: 10,
+                color: SpecTokens.ink2,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -2643,6 +2972,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final overdue = hasDue ? _isOverdue(due) : false;
 
     return SpecTaskRow(
+      key: ValueKey('todo-row-${todo.id}-${occurrenceId ?? 'series'}'),
       title: todo.summary,
       checked: checked || inWindow,
       selected: selected,
@@ -2854,47 +3184,39 @@ class _A2RowAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: Semantics(
-        button: true,
-        label: tooltip,
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: InkWell(
-            key: actionKey,
-            onTap: onPressed,
-            splashFactory: NoSplash.splashFactory,
-            overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-            borderRadius: BorderRadius.circular(4),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minWidth: 44,
-                minHeight: 44,
-                maxHeight: 44,
-                maxWidth: 160,
+      child: FocusableTap(
+        key: actionKey,
+        onTap: onPressed,
+        semanticsLabel: tooltip,
+        borderRadius: BorderRadius.circular(4),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minWidth: 44,
+            minHeight: 44,
+            maxHeight: 44,
+            maxWidth: 160,
+          ),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 3,
               ),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: highlight
-                      ? BoxDecoration(
-                          color: SpecTokens.wash,
-                          borderRadius: BorderRadius.circular(4),
-                        )
-                      : null,
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: SpecTokens.ink,
-                      fontFamilyFallback: AppTypography.fallback,
-                    ),
-                  ),
+              decoration: highlight
+                  ? BoxDecoration(
+                      color: SpecTokens.wash,
+                      borderRadius: BorderRadius.circular(4),
+                    )
+                  : null,
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: SpecTokens.ink,
+                  fontFamilyFallback: AppTypography.fallback,
                 ),
               ),
             ),

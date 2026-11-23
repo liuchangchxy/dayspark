@@ -7,6 +7,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1554,6 +1555,64 @@ void main() {
       tester.widget<TextField>(field).onSubmitted!('Keep this sentence');
       await _settle(tester);
       expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'P1: the missed card opens its task from the keyboard',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final earlierTodo = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Ancient recurring task',
+              rrule: const Value('FREQ=DAILY;COUNT=10'),
+            ),
+          );
+
+      final customProjection = ActionProjectionData(
+        missedTaskInstances: const [],
+        hasEarlierMissed: true,
+        earlierMissedSeries: [earlierTodo],
+      );
+
+      Todo? opened;
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+            actionProjectionProvider.overrideWithValue(
+              AsyncValue.data(customProjection),
+            ),
+          ],
+          onOpenTodo: (todo) => opened = todo,
+          onScheduleTodo: (_) {},
+          onToggleTodo: (_, __, ___) async => true,
+        ),
+      );
+      await _settle(tester);
+
+      final body = find
+          .ancestor(
+            of: find.text('Ancient recurring task'),
+            matching: find.byType(FocusableTap),
+          )
+          .first;
+      final gesture = find
+          .descendant(of: body, matching: find.byType(GestureDetector))
+          .first;
+      Focus.of(tester.element(gesture)).requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await _settle(tester);
+
+      expect(opened?.id, earlierTodo.id);
 
       await _unmount(tester);
     },

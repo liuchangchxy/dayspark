@@ -12,6 +12,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart' show FocusableTap;
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
@@ -136,10 +137,10 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                 cursor: SystemMouseCursors.click,
                 onEnter: (_) => setState(() => _searchHovered = true),
                 onExit: (_) => setState(() => _searchHovered = false),
-                child: GestureDetector(
+                child: FocusableTap(
                   key: const ValueKey('nav-search'),
-                  behavior: HitTestBehavior.opaque,
                   onTap: () => showCommandOverlay(context),
+                  semanticsLabel: l.search,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(
                       minWidth: 48,
@@ -226,28 +227,27 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
               const SizedBox(width: 13),
               Tooltip(
                 message: l.settings,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => context.push('/settings'),
-                    child: Container(
-                      width: 27,
-                      height: 27,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFBFBF8),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: SpecTokens.hair2, width: 1.0),
-                      ),
-                      child: Text(
-                        l.meLabel,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: SpecTokens.muted,
-                          fontFamilyFallback: AppTypography.fallback,
-                        ),
+                child: FocusableTap(
+                  key: const ValueKey('nav-settings'),
+                  onTap: () => context.push('/settings'),
+                  semanticsLabel: l.settings,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    width: 27,
+                    height: 27,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFBFBF8),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: SpecTokens.hair2, width: 1.0),
+                    ),
+                    child: Text(
+                      l.meLabel,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: SpecTokens.muted,
+                        fontFamilyFallback: AppTypography.fallback,
                       ),
                     ),
                   ),
@@ -325,9 +325,10 @@ class _DesktopNavButtonState extends State<_DesktopNavButton> {
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: FocusableTap(
         onTap: widget.onTap,
+        semanticsLabel: widget.label,
+        focusRing: const BorderSide(color: SpecTokens.ink, width: 2),
         child: Container(
           height: 52,
           padding: const EdgeInsets.symmetric(horizontal: 10),

@@ -277,9 +277,10 @@ class A2GroupHead extends StatelessWidget {
       ),
     );
     if (onTap == null) return row;
+    final countText = countLabel ?? (count != null ? '$count' : null);
     return FocusableTap(
       onTap: onTap,
-      semanticsLabel: label,
+      semanticsLabel: countText == null ? label : '$label $countText',
       borderRadius: BorderRadius.circular(4),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
@@ -868,10 +869,11 @@ class A2CaptureBarState extends State<A2CaptureBar> {
         const SizedBox(width: 6),
         isNarrow
             ? sendButton
-            : GestureDetector(
+            : FocusableTap(
                 key: const ValueKey('capture-send-target'),
                 onTap: () => widget.onExpand?.call(),
-                behavior: HitTestBehavior.opaque,
+                semanticsLabel: widget.placeholder,
+                borderRadius: BorderRadius.circular(sendSize / 2),
                 child: sendButton,
               ),
       ],
@@ -922,10 +924,12 @@ class A2CaptureBarState extends State<A2CaptureBar> {
                   top: -1,
                   height: 48,
                   width: 48,
-                  child: GestureDetector(
+                  child: FocusableTap(
                     key: const ValueKey('capture-send-target'),
-                    behavior: HitTestBehavior.opaque,
                     onTap: () => widget.onExpand?.call(),
+                    semanticsLabel: widget.placeholder,
+                    borderRadius: BorderRadius.circular(24),
+                    child: const SizedBox.expand(),
                   ),
                 ),
               ],
@@ -1340,6 +1344,9 @@ class FocusableTap extends StatefulWidget {
     this.semanticsLabel,
     this.focusNode,
     this.borderRadius,
+    this.focusRing = const BorderSide(color: SpecTokens.ink, width: 2),
+    this.pointerEnabled = true,
+    this.selected,
   });
 
   final Widget child;
@@ -1347,6 +1354,17 @@ class FocusableTap extends StatefulWidget {
   final String? semanticsLabel;
   final FocusNode? focusNode;
   final BorderRadius? borderRadius;
+
+  /// Drawn inside a two-pixel border while the control holds focus. Pass
+  /// [BorderSide.none] where the cell already paints its own focus.
+  final BorderSide focusRing;
+
+  /// False leaves an ancestor's pointer recognizer in charge: the control
+  /// only adds a tab stop, its focus ring, and Enter/Space activation.
+  final bool pointerEnabled;
+
+  /// Marks a toggle-style control as selected on its semantic node.
+  final bool? selected;
 
   @override
   State<FocusableTap> createState() => _FocusableTapState();
@@ -1357,15 +1375,16 @@ class _FocusableTapState extends State<FocusableTap> {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      label: widget.semanticsLabel,
-      button: true,
-      enabled: widget.onTap != null,
+    final enabled = widget.onTap != null;
+    final content = MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
       child: Focus(
         focusNode: widget.focusNode,
+        canRequestFocus: enabled,
+        skipTraversal: !enabled,
         onFocusChange: (f) => setState(() => _focused = f),
         onKeyEvent: (node, event) {
-          if (widget.onTap == null) return KeyEventResult.ignored;
+          if (!enabled) return KeyEventResult.ignored;
           if (event is KeyDownEvent &&
               (event.logicalKey == LogicalKeyboardKey.enter ||
                   event.logicalKey == LogicalKeyboardKey.space)) {
@@ -1375,22 +1394,134 @@ class _FocusableTapState extends State<FocusableTap> {
           return KeyEventResult.ignored;
         },
         child: Container(
-          decoration: _focused
+          foregroundDecoration: _focused && widget.focusRing.width > 0
               ? BoxDecoration(
-                  borderRadius: widget.borderRadius ?? BorderRadius.circular(4),
-                  border: Border.all(color: SpecTokens.ink, width: 2),
+                  borderRadius:
+                      widget.borderRadius ?? BorderRadius.circular(4),
+                  border: Border.fromBorderSide(widget.focusRing),
                 )
               : null,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: widget.onTap,
+            onTap: widget.pointerEnabled ? widget.onTap : null,
             child: widget.child,
           ),
         ),
       ),
     );
+    final label = widget.semanticsLabel;
+    if (label == null) {
+      return Semantics(
+        container: true,
+        explicitChildNodes: true,
+        selected: widget.selected,
+        child: content,
+      );
+    }
+    return Semantics(
+      label: label,
+      button: true,
+      enabled: enabled,
+      selected: widget.selected,
+      container: true,
+      excludeSemantics: true,
+      onTap: widget.onTap,
+      child: content,
+    );
   }
 }
+
+class A2CaptureCalendarChoice {
+  const A2CaptureCalendarChoice({
+    required this.id,
+    required this.name,
+    required this.color,
+  });
+
+  final int id;
+  final String name;
+  final Color color;
+}
+
+/// The desktop capture panel's pending facts. Empty means the capture writes a
+/// bare todo: no deadline, no plan, no reminder, the default calendar.
+class A2CaptureDraft {
+  const A2CaptureDraft({
+    this.dueDate,
+    this.calendarId,
+    this.reminderOffset,
+    this.planStart,
+    this.planEnd,
+  });
+
+  final DateTime? dueDate;
+  final int? calendarId;
+  final Duration? reminderOffset;
+  final DateTime? planStart;
+  final DateTime? planEnd;
+
+  bool get isEmpty =>
+      dueDate == null &&
+      calendarId == null &&
+      reminderOffset == null &&
+      planStart == null &&
+      planEnd == null;
+
+  A2CaptureDraft withDueDate(DateTime? value) {
+    return A2CaptureDraft(
+      dueDate: value,
+      calendarId: calendarId,
+      reminderOffset: reminderOffset,
+      planStart: planStart,
+      planEnd: planEnd,
+    );
+  }
+
+  A2CaptureDraft withCalendarId(int? value) {
+    return A2CaptureDraft(
+      dueDate: dueDate,
+      calendarId: value,
+      reminderOffset: reminderOffset,
+      planStart: planStart,
+      planEnd: planEnd,
+    );
+  }
+
+  A2CaptureDraft withReminderOffset(Duration? value) {
+    return A2CaptureDraft(
+      dueDate: dueDate,
+      calendarId: calendarId,
+      reminderOffset: value,
+      planStart: planStart,
+      planEnd: planEnd,
+    );
+  }
+
+  A2CaptureDraft withPlan(DateTime? start, DateTime? end) {
+    return A2CaptureDraft(
+      dueDate: dueDate,
+      calendarId: calendarId,
+      reminderOffset: reminderOffset,
+      planStart: start,
+      planEnd: end,
+    );
+  }
+}
+
+DateTime _captureDay(DateTime value) =>
+    DateTime(value.year, value.month, value.day);
+
+bool _sameCaptureDay(DateTime? a, DateTime b) =>
+    a != null && a.year == b.year && a.month == b.month && a.day == b.day;
+
+DateTime _nextCaptureMonday(DateTime from) {
+  final days = (DateTime.monday - from.weekday + 7) % 7;
+  return from.add(Duration(days: days == 0 ? 7 : days));
+}
+
+String _captureClock(DateTime value) =>
+    '${value.hour.toString().padLeft(2, '0')}:'
+    '${value.minute.toString().padLeft(2, '0')}';
 
 /// The 12 surface states of the A″ capture panel according to spec HTML 1878-2000 & 2308-2333.
 enum A2CaptureState {
@@ -1421,6 +1552,18 @@ class A2CapturePanel extends StatelessWidget {
     this.calendarName,
     this.calendarColor,
     this.reminderLabel,
+    this.calendarChoices = const <A2CaptureCalendarChoice>[],
+    this.selectedCalendarId,
+    this.selectedReminderOffset,
+    this.onChooseDueDate,
+    this.onChooseCalendar,
+    this.onChooseReminder,
+    this.onPickCustomDate,
+    this.onPickPlanDate,
+    this.onPickPlanStart,
+    this.onPickPlanEnd,
+    this.onApplyChoice,
+    this.onCancelChoice,
     this.priority = 0,
     this.isEvent = false,
     this.suggestionRemoved = false,
@@ -1447,6 +1590,18 @@ class A2CapturePanel extends StatelessWidget {
   final String? calendarName;
   final Color? calendarColor;
   final String? reminderLabel;
+  final List<A2CaptureCalendarChoice> calendarChoices;
+  final int? selectedCalendarId;
+  final Duration? selectedReminderOffset;
+  final ValueChanged<DateTime?>? onChooseDueDate;
+  final ValueChanged<int?>? onChooseCalendar;
+  final ValueChanged<Duration?>? onChooseReminder;
+  final VoidCallback? onPickCustomDate;
+  final VoidCallback? onPickPlanDate;
+  final VoidCallback? onPickPlanStart;
+  final VoidCallback? onPickPlanEnd;
+  final VoidCallback? onApplyChoice;
+  final VoidCallback? onCancelChoice;
   final int priority;
   final bool isEvent;
   final bool suggestionRemoved;
@@ -1797,46 +1952,82 @@ class A2CapturePanel extends StatelessWidget {
         );
 
       case A2CaptureState.date:
-        final now = DateTime.now();
+        final today = _captureDay(DateTime.now());
+        final tomorrow = today.add(const Duration(days: 1));
+        final nextMonday = _nextCaptureMonday(today);
+        final custom = dueDate == null ? null : _captureDay(dueDate!);
+        final customSelected =
+            custom != null &&
+            !_sameCaptureDay(custom, today) &&
+            !_sameCaptureDay(custom, tomorrow) &&
+            !_sameCaptureDay(custom, nextMonday);
         return Column(
           children: [
             _choiceRow(
               l?.captureFieldDateToday ?? 'Today',
-              l?.captureDateSelectedSuffix('${now.month}/${now.day}') ?? '${now.month}/${now.day} · Selected',
-              isSelected: true,
+              '${today.month}/${today.day}',
+              isSelected: _sameCaptureDay(custom, today),
               selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: () => onStateChanged?.call(A2CaptureState.expanded),
+              onTap: () {
+                onChooseDueDate?.call(today);
+                onStateChanged?.call(A2CaptureState.expanded);
+              },
             ),
             _choiceRow(
               l?.captureFieldDateTomorrow ?? 'Tomorrow',
-              '${now.add(const Duration(days: 1)).month}/${now.add(const Duration(days: 1)).day}',
+              '${tomorrow.month}/${tomorrow.day}',
+              isSelected: _sameCaptureDay(custom, tomorrow),
               selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: () => onStateChanged?.call(A2CaptureState.expanded),
+              onTap: () {
+                onChooseDueDate?.call(tomorrow);
+                onStateChanged?.call(A2CaptureState.expanded);
+              },
             ),
             _choiceRow(
               l?.captureFieldDateNextMonday ?? 'Next Monday',
-              l?.captureDateNextWeek ?? 'Next week',
+              '${nextMonday.month}/${nextMonday.day}',
+              isSelected: _sameCaptureDay(custom, nextMonday),
               selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: () => onStateChanged?.call(A2CaptureState.expanded),
+              onTap: () {
+                onChooseDueDate?.call(nextMonday);
+                onStateChanged?.call(A2CaptureState.expanded);
+              },
             ),
             _choiceRow(
               l?.captureFieldDateOther ?? 'Other date',
-              l?.captureFieldDateOpenCalendar ?? 'Open calendar',
+              customSelected
+                  ? '${custom.month}/${custom.day}'
+                  : (l?.captureFieldDateOpenCalendar ?? 'Open calendar'),
+              isSelected: customSelected,
               selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: onPickDate ?? () => onStateChanged?.call(A2CaptureState.expanded),
+              onTap: onPickCustomDate ??
+                  () => onStateChanged?.call(A2CaptureState.expanded),
             ),
           ],
         );
 
       case A2CaptureState.plan:
-        final startStr = planStart != null ? '${planStart!.hour.toString().padLeft(2, '0')}:${planStart!.minute.toString().padLeft(2, '0')}' : '15:15';
-        final endStr = planEnd != null ? '${planEnd!.hour.toString().padLeft(2, '0')}:${planEnd!.minute.toString().padLeft(2, '0')}' : '16:00';
+        final startStr = planStart != null ? _captureClock(planStart!) : '15:15';
+        final endStr = planEnd != null ? _captureClock(planEnd!) : '16:00';
+        final duration = planStart != null && planEnd != null
+            ? planEnd!.difference(planStart!).inMinutes
+            : 45;
         return Column(
           children: [
-            _fieldRow(l?.dueDate ?? 'Date', planStart != null ? '${planStart!.month}/${planStart!.day}' : (l?.captureFieldDateToday ?? 'Today'), onTap: onPickDate),
-            _fieldRow(l?.planStartTime ?? 'Start', startStr, onTap: onPickPlan),
-            _fieldRow(l?.planEndTime ?? 'End', endStr, onTap: onPickPlan),
-            _fieldRow(l?.captureFieldDuration ?? 'Duration', l?.planDurationMinutes(45) ?? '45 minutes', onTap: null),
+            _fieldRow(
+              l?.dueDate ?? 'Date',
+              planStart != null
+                  ? '${planStart!.month}/${planStart!.day}'
+                  : (l?.captureFieldDateToday ?? 'Today'),
+              onTap: onPickPlanDate,
+            ),
+            _fieldRow(l?.planStartTime ?? 'Start', startStr, onTap: onPickPlanStart),
+            _fieldRow(l?.planEndTime ?? 'End', endStr, onTap: onPickPlanEnd),
+            _fieldRow(
+              l?.captureFieldDuration ?? 'Duration',
+              l?.planDurationMinutes(duration) ?? '$duration minutes',
+              onTap: null,
+            ),
             _fieldRow(l?.captureFieldDayExisting ?? 'Schedule on day', l?.captureFieldNoOverlap ?? 'No overlap', onTap: null),
           ],
         );
@@ -1844,52 +2035,49 @@ class A2CapturePanel extends StatelessWidget {
       case A2CaptureState.calendar:
         return Column(
           children: [
-            _choiceRow(
-              l?.captureCalPersonal ?? 'Personal',
-              l?.captureCalDefaultSelected ?? 'Default · Selected',
-              dotColor: SpecTokens.scheduleBlue,
-              isSelected: true,
-              selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: () => onStateChanged?.call(A2CaptureState.expanded),
-            ),
-            _choiceRow(
-              l?.captureCalWork ?? 'Work',
-              l?.captureCalWorkCalendar ?? 'Work calendar',
-              dotColor: SpecTokens.work,
-              selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: () => onStateChanged?.call(A2CaptureState.expanded),
-            ),
-            _choiceRow(
-              l?.captureCalHome ?? 'Home',
-              l?.captureCalHomeCalendar ?? 'Home calendar',
-              dotColor: SpecTokens.amber,
-              selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: () => onStateChanged?.call(A2CaptureState.expanded),
-            ),
-            _choiceRow(
-              l?.captureCalHealth ?? 'Health',
-              l?.captureCalHealthCalendar ?? 'Health calendar',
-              dotColor: SpecTokens.red,
-              selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: () => onStateChanged?.call(A2CaptureState.expanded),
-            ),
+            for (final choice in calendarChoices)
+              _choiceRow(
+                choice.name,
+                '',
+                dotColor: choice.color,
+                isSelected: choice.id == selectedCalendarId,
+                selectedLabel: l?.captureSelectedTag ?? 'Selected',
+                onTap: () {
+                  onChooseCalendar?.call(choice.id);
+                  onStateChanged?.call(A2CaptureState.expanded);
+                },
+              ),
           ],
         );
 
       case A2CaptureState.reminder:
+        const options = <Duration?>[
+          null,
+          Duration(minutes: 5),
+          Duration(minutes: 15),
+          Duration(hours: 1),
+          Duration(days: 1),
+        ];
+        final labels = <String?>[
+          l?.captureReminderNoReminder ?? 'No reminder',
+          l?.captureReminder5mBefore ?? '5 minutes before',
+          l?.captureReminder15mBefore ?? '15 minutes before',
+          l?.captureReminder1hBefore ?? '1 hour before',
+          l?.captureReminder1dBefore ?? '1 day before',
+        ];
         return Column(
           children: [
-            _choiceRow(l?.captureReminderNoReminder ?? 'No reminder', '', selectedLabel: l?.captureSelectedTag ?? 'Selected', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
-            _choiceRow(l?.captureReminder5mBefore ?? '5 minutes before', '', selectedLabel: l?.captureSelectedTag ?? 'Selected', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
-            _choiceRow(
-              l?.captureReminder15mBefore ?? '15 minutes before',
-              l?.captureSelectedTag ?? 'Selected',
-              isSelected: true,
-              selectedLabel: l?.captureSelectedTag ?? 'Selected',
-              onTap: () => onStateChanged?.call(A2CaptureState.expanded),
-            ),
-            _choiceRow(l?.captureReminder1hBefore ?? '1 hour before', '', selectedLabel: l?.captureSelectedTag ?? 'Selected', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
-            _choiceRow(l?.captureReminder1dBefore ?? '1 day before', '', selectedLabel: l?.captureSelectedTag ?? 'Selected', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            for (var index = 0; index < options.length; index++)
+              _choiceRow(
+                labels[index] ?? '',
+                '',
+                isSelected: selectedReminderOffset == options[index],
+                selectedLabel: l?.captureSelectedTag ?? 'Selected',
+                onTap: () {
+                  onChooseReminder?.call(options[index]);
+                  onStateChanged?.call(A2CaptureState.expanded);
+                },
+              ),
           ],
         );
 
@@ -1932,7 +2120,7 @@ class A2CapturePanel extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             _fieldRow(l?.captureFieldDeadline ?? 'Deadline', dueDate != null ? '${dueDate!.month}/${dueDate!.day}' : (l?.captureFieldNoDeadline ?? 'No deadline'), onTap: onPickDate),
-            _fieldRow(l?.captureFieldPlanExecution ?? 'Planned execution', planStart != null ? '${planStart!.hour}:${planStart!.minute}' : (l?.captureFieldNotScheduled ?? 'Not scheduled'), onTap: onPickPlan),
+            _fieldRow(l?.captureFieldPlanExecution ?? 'Planned execution', planStart != null ? '${_captureClock(planStart!)}${planEnd != null ? '–${_captureClock(planEnd!)}' : ''}' : (l?.captureFieldNotScheduled ?? 'Not scheduled'), onTap: onPickPlan),
           ],
         );
 
@@ -1949,7 +2137,9 @@ class A2CapturePanel extends StatelessWidget {
             ),
             _fieldRow(
               l?.captureFieldPlanExecution ?? 'Planned execution',
-              planStart != null ? '${planStart!.hour}:${planStart!.minute}' : (l?.captureFieldNotScheduled ?? 'Not scheduled'),
+              planStart != null
+                  ? '${planStart!.month}/${planStart!.day} ${_captureClock(planStart!)}${planEnd != null ? '–${_captureClock(planEnd!)}' : ''}'
+                  : (l?.captureFieldNotScheduled ?? 'Not scheduled'),
               isHighlight: planStart != null,
               onTap: onPickPlan,
             ),
@@ -2066,11 +2256,13 @@ class A2CapturePanel extends StatelessWidget {
         hintText = l?.captureHintDate ?? 'Writes date only, not time; will not become an event.';
         actionButtons = [
           TextButton(
-            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            onPressed: onCancelChoice ??
+                () => onStateChanged?.call(A2CaptureState.expanded),
             child: Text(l?.cancelAction ?? 'Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            onPressed: onApplyChoice ??
+                () => onStateChanged?.call(A2CaptureState.expanded),
             style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
             child: Text(l?.captureActionApply ?? 'Apply', style: const TextStyle(color: Colors.white)),
           ),
@@ -2080,11 +2272,13 @@ class A2CapturePanel extends StatelessWidget {
         hintText = l?.captureHintPlan ?? 'Overlaps allowed; will not modify deadline.';
         actionButtons = [
           TextButton(
-            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            onPressed: onCancelChoice ??
+                () => onStateChanged?.call(A2CaptureState.expanded),
             child: Text(l?.cancelAction ?? 'Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            onPressed: onApplyChoice ??
+                () => onStateChanged?.call(A2CaptureState.expanded),
             style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
             child: Text(l?.captureActionApply ?? 'Apply', style: const TextStyle(color: Colors.white)),
           ),
@@ -2094,11 +2288,13 @@ class A2CapturePanel extends StatelessWidget {
         hintText = l?.captureHintCalendar ?? 'Default calendar comes from settings; no "uncategorized".';
         actionButtons = [
           TextButton(
-            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            onPressed: onCancelChoice ??
+                () => onStateChanged?.call(A2CaptureState.expanded),
             child: Text(l?.cancelAction ?? 'Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            onPressed: onApplyChoice ??
+                () => onStateChanged?.call(A2CaptureState.expanded),
             style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
             child: Text(l?.captureActionApply ?? 'Apply', style: const TextStyle(color: Colors.white)),
           ),
@@ -2108,11 +2304,13 @@ class A2CapturePanel extends StatelessWidget {
         hintText = l?.captureHintReminder ?? 'Reminder is the item\'s own fact, does not affect deadline.';
         actionButtons = [
           TextButton(
-            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            onPressed: onCancelChoice ??
+                () => onStateChanged?.call(A2CaptureState.expanded),
             child: Text(l?.cancelAction ?? 'Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            onPressed: onApplyChoice ??
+                () => onStateChanged?.call(A2CaptureState.expanded),
             style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
             child: Text(l?.captureActionApply ?? 'Apply', style: const TextStyle(color: Colors.white)),
           ),

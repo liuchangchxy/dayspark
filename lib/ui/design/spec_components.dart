@@ -215,6 +215,7 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
 
     if (widget.mobileFidelity) {
       final isDone = widget.checked;
+      final l = AppLocalizations.of(context);
       final scheduleKey = widget.scheduleKey ??
           (widget.onSchedule != null ? const ValueKey('spec-task-schedule') : null);
 
@@ -328,7 +329,6 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
         children: [
           FocusableTap(
             onTap: enabled ? widget.onTap : null,
-            semanticsLabel: widget.title,
             child: visualRow,
           ),
           if (widget.showCheck)
@@ -341,7 +341,7 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                 child: DsCheck(
                   checked: isDone,
                   onChanged: enabled ? widget.onToggle : null,
-                  label: widget.title,
+                  label: l?.markComplete ?? widget.title,
                   size: 15,
                   compact: false,
                 ),
@@ -355,10 +355,13 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
               width: 54,
               child: Tooltip(
                 message: widget.scheduleTooltip ?? '',
-                child: GestureDetector(
+                child: FocusableTap(
                   key: scheduleKey,
-                  behavior: HitTestBehavior.opaque,
                   onTap: enabled ? widget.onSchedule : null,
+                  semanticsLabel: widget.scheduleTooltip ??
+                      AppLocalizations.of(context)?.scheduleAction ??
+                      '',
+                  borderRadius: BorderRadius.circular(4),
                   child: const SizedBox.expand(),
                 ),
               ),
@@ -492,24 +495,24 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                   const SizedBox(width: 4),
                   Tooltip(
                     message: widget.scheduleTooltip ?? 'Schedule',
-                    child: MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        key: widget.scheduleKey,
-                        behavior: HitTestBehavior.opaque,
-                        onTap: widget.onSchedule,
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Icon(
-                            CupertinoIcons.calendar,
-                            size: 13.5,
-                            color: SpecTokens.faint,
-                          ),
+                    child: FocusableTap(
+                      key: widget.scheduleKey,
+                      onTap: widget.onSchedule,
+                      semanticsLabel: widget.scheduleTooltip ??
+                          AppLocalizations.of(context)?.scheduleAction ??
+                          '',
+                      borderRadius: BorderRadius.circular(4),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.calendar,
+                          size: 13.5,
+                          color: SpecTokens.faint,
                         ),
                       ),
                     ),

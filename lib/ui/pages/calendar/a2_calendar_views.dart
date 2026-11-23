@@ -13,6 +13,7 @@ import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart' show FocusableTap;
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
@@ -427,6 +428,7 @@ class _A2PhoneMonthCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
+    final locale = Localizations.localeOf(context).toString();
     final dots = math.min(count, 3);
     final background = isToday
         ? ds.primaryTint
@@ -446,79 +448,81 @@ class _A2PhoneMonthCell extends StatelessWidget {
       numberColor = ds.ink;
       numberWeight = FontWeight.w500;
     }
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            color: background,
-            border: Border(
-              right: lastColumn
-                  ? BorderSide.none
-                  : BorderSide(color: ds.lineSoft),
-              bottom: lastRow
-                  ? BorderSide.none
-                  : BorderSide(color: ds.lineSoft),
-            ),
-          ),
-          padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (isToday)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: ds.primary,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Text(
-                    '${date.day}',
-                    style: _a2Text(
-                      10.5,
-                      FontWeight.w600,
-                      Colors.white,
-                      height: 1,
-                      tabular: true,
-                    ),
-                  ),
-                )
-              else
-                Text(
-                  '${date.day}',
-                  style: _a2Text(
-                    11.5,
-                    numberWeight,
-                    numberColor,
-                    height: 1,
-                    tabular: true,
-                  ),
-                ),
-              if (dots > 0) ...[
-                const SizedBox(height: 3),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0; i < dots; i++)
-                      Container(
-                        width: 3.5,
-                        height: 3.5,
-                        margin: const EdgeInsets.only(right: 2),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isToday || isSelected ? ds.primary : ds.ink3,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ],
-          ),
+    final cell = Container(
+      decoration: BoxDecoration(
+        color: background,
+        border: Border(
+          right: lastColumn
+              ? BorderSide.none
+              : BorderSide(color: ds.lineSoft),
+          bottom: lastRow
+              ? BorderSide.none
+              : BorderSide(color: ds.lineSoft),
         ),
       ),
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (isToday)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: ds.primary,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Text(
+                '${date.day}',
+                style: _a2Text(
+                  10.5,
+                  FontWeight.w600,
+                  Colors.white,
+                  height: 1,
+                  tabular: true,
+                ),
+              ),
+            )
+          else
+            Text(
+              '${date.day}',
+              style: _a2Text(
+                11.5,
+                numberWeight,
+                numberColor,
+                height: 1,
+                tabular: true,
+              ),
+            ),
+          if (dots > 0) ...[
+            const SizedBox(height: 3),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < dots; i++)
+                  Container(
+                    width: 3.5,
+                    height: 3.5,
+                    margin: const EdgeInsets.only(right: 2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isToday || isSelected ? ds.primary : ds.ink3,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+    return FocusableTap(
+      onTap: onTap,
+      semanticsLabel:
+          '${DateFormat.MMMd(locale).format(date)} · '
+          '${calWeekdayLong(locale, date)}',
+      borderRadius: BorderRadius.circular(4),
+      focusRing: const BorderSide(color: SpecTokens.ink, width: 2),
+      child: cell,
     );
   }
 }
@@ -557,45 +561,45 @@ class _A2MobileMonthRow extends StatelessWidget {
       barColor = ds.warn;
       bgColor = ds.surface2;
     }
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (event != null) onEvent?.call(event);
-          if (allocation != null) onAllocation?.call(allocation);
-          if (deadline != null) onDeadline?.call(deadline);
-        },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(4),
-            border: Border(left: BorderSide(color: barColor, width: 3)),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 44,
-                child: Text(
-                  timeStr,
-                  style: _a2Text(10, FontWeight.w500, ds.ink3, tabular: true),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  entry.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _a2Text(11, FontWeight.w500, ds.ink),
-                ),
-              ),
-            ],
-          ),
-        ),
+    final row = Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+        border: Border(left: BorderSide(color: barColor, width: 3)),
       ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 44,
+            child: Text(
+              timeStr,
+              style: _a2Text(10, FontWeight.w500, ds.ink3, tabular: true),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              entry.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _a2Text(11, FontWeight.w500, ds.ink),
+            ),
+          ),
+        ],
+      ),
+    );
+    return FocusableTap(
+      onTap: () {
+        if (event != null) onEvent?.call(event);
+        if (allocation != null) onAllocation?.call(allocation);
+        if (deadline != null) onDeadline?.call(deadline);
+      },
+      semanticsLabel:
+          timeStr.isEmpty ? entry.title : '$timeStr · ${entry.title}',
+      borderRadius: BorderRadius.circular(4),
+      child: row,
     );
   }
 }
@@ -636,13 +640,11 @@ class _A2SpanChip extends StatelessWidget {
     );
 
     if (onTap == null) return chip;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: chip,
-      ),
+    return FocusableTap(
+      onTap: onTap,
+      semanticsLabel: label,
+      borderRadius: BorderRadius.circular(4),
+      child: chip,
     );
   }
 }
@@ -737,9 +739,21 @@ class _MobileSpanBand extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final event in events) ...[
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
+                  FocusableTap(
                     onTap: onEvent == null ? null : () => onEvent!(event),
+                    semanticsLabel: l.multiDayEventSpanSummary(
+                      event.title,
+                      '${event.start.month}/${event.start.day}',
+                      '${event.end.month}/${event.end.day}',
+                      math.max(
+                        1,
+                        calDayOf(event.end)
+                                .difference(calDayOf(event.start))
+                                .inDays +
+                            1,
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Text(
@@ -955,6 +969,7 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
   Widget build(BuildContext context) {
     // Spec .mcell: border-right & border-bottom 1px solid var(--hair); padding: 6px 7px; background: #fff
     // .mcell:hover: #fbfbf8; .mcell.is-out: #fbfbf8
+    final locale = Localizations.localeOf(context).toString();
     final background = !widget.inMonth
         ? const Color(0xFFFBFBF8)
         : (_hovered
@@ -964,9 +979,12 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: FocusableTap(
         onTap: () => widget.onSelectDay(widget.date),
+        semanticsLabel:
+            '${DateFormat.MMMd(locale).format(widget.date)} · '
+            '${calWeekdayLong(locale, widget.date)}',
+        borderRadius: BorderRadius.circular(4),
         child: Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
@@ -2093,13 +2111,11 @@ class A2TimeGridView extends StatelessWidget {
       ),
     );
     if (onDeadline == null) return chip;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => onDeadline!(deadline),
-        child: chip,
-      ),
+    return FocusableTap(
+      onTap: () => onDeadline!(deadline),
+      semanticsLabel: text,
+      borderRadius: BorderRadius.circular(3),
+      child: chip,
     );
   }
 
@@ -2416,9 +2432,10 @@ class _DayHeadCellState extends State<_DayHeadCell> {
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: FocusableTap(
         onTap: widget.onTap,
+        semanticsLabel: '$weekdayStr $dayNum',
+        borderRadius: BorderRadius.circular(4),
         child: content,
       ),
     );
@@ -2552,9 +2569,11 @@ class _A2AllDayChip extends StatelessWidget {
       ),
     );
     if (onTap == null) return chip;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(onTap: onTap, child: chip),
+    return FocusableTap(
+      onTap: onTap,
+      semanticsLabel: event.title,
+      borderRadius: BorderRadius.circular(4),
+      child: chip,
     );
   }
 }
@@ -2723,30 +2742,41 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
       offset: Offset(0, _dragDy),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        child: FocusableTap(
           onTap: widget.onTap,
-          onLongPressStart: canDrag ? (_) => setState(() => _dragDy = 0) : null,
-          onLongPressMoveUpdate: canDrag
-              ? (details) =>
-                    setState(() => _dragDy = details.offsetFromOrigin.dy)
-              : null,
-          onLongPressEnd: canDrag ? (_) => _finishDrag() : null,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (_resizeDy == 0) return card;
-              final effectiveHeight = math.max(15.55, constraints.maxHeight + _resizeDy);
-              return OverflowBox(
-                alignment: Alignment.topCenter,
-                minHeight: 0,
-                maxHeight: double.infinity,
-                child: SizedBox(
-                  height: effectiveHeight,
-                  width: constraints.maxWidth,
-                  child: card,
-                ),
-              );
-            },
+          semanticsLabel: widget.meta == null
+              ? widget.title
+              : '${widget.title} · ${widget.meta}',
+          borderRadius: BorderRadius.circular(4),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onLongPressStart: canDrag
+                ? (_) => setState(() => _dragDy = 0)
+                : null,
+            onLongPressMoveUpdate: canDrag
+                ? (details) =>
+                      setState(() => _dragDy = details.offsetFromOrigin.dy)
+                : null,
+            onLongPressEnd: canDrag ? (_) => _finishDrag() : null,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (_resizeDy == 0) return card;
+                final effectiveHeight = math.max(
+                  15.55,
+                  constraints.maxHeight + _resizeDy,
+                );
+                return OverflowBox(
+                  alignment: Alignment.topCenter,
+                  minHeight: 0,
+                  maxHeight: double.infinity,
+                  child: SizedBox(
+                    height: effectiveHeight,
+                    width: constraints.maxWidth,
+                    child: card,
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -3066,6 +3096,9 @@ class _A2PhoneWeekDay extends StatelessWidget {
           deadline,
     ]..sort((a, b) => a.due.compareTo(b.due));
     final count = dayEvents.length + dayAllocations.length + dayDeadlines.length;
+    final headLabel =
+        '${calWeekdayLong(locale, day)} · ${day.day} · '
+        '${l.dayItemCount(count)}';
 
     return Container(
       padding: const EdgeInsets.only(top: 6, bottom: 8),
@@ -3075,9 +3108,10 @@ class _A2PhoneWeekDay extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          FocusableTap(
             onTap: _canCreate ? _openCreate : null,
+            semanticsLabel: headLabel,
+            borderRadius: BorderRadius.circular(4),
             child: SizedBox(
               height: 48,
               child: Row(
@@ -3236,55 +3270,60 @@ class _A2PhoneWeekItemState extends State<_A2PhoneWeekItem> {
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: FocusableTap(
         onTap: widget.onTap,
-        onLongPressStart: _canDrag
-            ? (_) {
-                HapticFeedback.mediumImpact();
-                setState(() => _dragDy = 0);
-              }
-            : null,
-        onLongPressMoveUpdate: _canDrag
-            ? (details) => setState(() => _dragDy = details.offsetFromOrigin.dy)
-            : null,
-        onLongPressEnd: _canDrag ? (_) => _finishDrag() : null,
-        child: Transform.translate(
-          offset: Offset(0, _dragDy),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 28),
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            decoration: _dragDy == 0
-                ? null
-                : BoxDecoration(
-                    color: SpecTokens.wash,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-            child: Row(
-              children: [
-                Container(
-                  width: 3,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: widget.color,
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text.rich(
-                    widget.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      height: 1.45,
-                      color: SpecTokens.ink2,
-                      fontFamilyFallback: AppTypography.fallback,
+        semanticsLabel: widget.label.toPlainText(),
+        borderRadius: BorderRadius.circular(4),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onLongPressStart: _canDrag
+              ? (_) {
+                  HapticFeedback.mediumImpact();
+                  setState(() => _dragDy = 0);
+                }
+              : null,
+          onLongPressMoveUpdate: _canDrag
+              ? (details) =>
+                    setState(() => _dragDy = details.offsetFromOrigin.dy)
+              : null,
+          onLongPressEnd: _canDrag ? (_) => _finishDrag() : null,
+          child: Transform.translate(
+            offset: Offset(0, _dragDy),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 28),
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+              decoration: _dragDy == 0
+                  ? null
+                  : BoxDecoration(
+                      color: SpecTokens.wash,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 3,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: widget.color,
+                      borderRadius: BorderRadius.circular(1),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text.rich(
+                      widget.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        height: 1.45,
+                        color: SpecTokens.ink2,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -3474,45 +3513,40 @@ class A2PhoneDayList extends StatelessWidget {
     final selected = calSameDay(date, day);
     final today = calSameDay(date, now);
     final foreground = selected ? Colors.white : ds.ink3;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        key: ValueKey(
-          'phone-day-strip-${date.year}-${date.month}-${date.day}',
+    final label = '${calWeekdayLong(locale, date)} ${date.day}';
+    return FocusableTap(
+      key: ValueKey(
+        'phone-day-strip-${date.year}-${date.month}-${date.day}',
+      ),
+      onTap: () => select(date),
+      semanticsLabel: label,
+      borderRadius: BorderRadius.circular(7),
+      child: Container(
+        height: 48,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 48),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? ds.ink : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
         ),
-        behavior: HitTestBehavior.opaque,
-        onTap: () => select(date),
-        child: Semantics(
-          button: true,
-          label: '${calWeekdayLong(locale, date)} ${date.day}',
-          child: Container(
-            height: 48,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 48),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: selected ? ds.ink : Colors.transparent,
-              borderRadius: BorderRadius.circular(7),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              calWeekdayShort(locale, date),
+              style: _a2Text(9, FontWeight.w400, foreground),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  calWeekdayShort(locale, date),
-                  style: _a2Text(9, FontWeight.w400, foreground),
-                ),
-                Text(
-                  '${date.day}',
-                  style: _a2Text(
-                    12,
-                    FontWeight.w500,
-                    selected ? Colors.white : (today ? ds.danger : ds.ink),
-                    height: 1,
-                    tabular: true,
-                  ),
-                ),
-              ],
+            Text(
+              '${date.day}',
+              style: _a2Text(
+                12,
+                FontWeight.w500,
+                selected ? Colors.white : (today ? ds.danger : ds.ink),
+                height: 1,
+                tabular: true,
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -3524,9 +3558,10 @@ class A2PhoneDayList extends StatelessWidget {
     final time = DateFormatters.formatTime(deadline.due);
     final isOverdue = calDayOf(deadline.due).isBefore(calDayOf(now));
     final color = isOverdue ? ds.danger : ds.warn;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return FocusableTap(
       onTap: () => onDeadline?.call(deadline),
+      semanticsLabel: l.deadlineMarkerLabel(time, deadline.title),
+      borderRadius: BorderRadius.circular(4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -3577,9 +3612,12 @@ class A2PhoneDayList extends StatelessWidget {
   Widget _deadlineChip(BuildContext context, CalendarDeadline dl) {
     final ds = context.ds;
     final isOverdue = calDayOf(dl.due).isBefore(calDayOf(now));
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    final label =
+        '${calDeadlineHasTime(dl.due) ? '${DateFormatters.formatTime(dl.due)} ' : ''}${dl.title}';
+    return FocusableTap(
       onTap: () => onDeadline?.call(dl),
+      semanticsLabel: label,
+      borderRadius: BorderRadius.circular(3),
       child: Container(
         height: 22,
         padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -3593,7 +3631,7 @@ class A2PhoneDayList extends StatelessWidget {
         child: Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            '${calDeadlineHasTime(dl.due) ? '${DateFormatters.formatTime(dl.due)} ' : ''}${dl.title}',
+            label,
             style: _a2Text(
               9.5,
               FontWeight.w400,
@@ -3619,8 +3657,7 @@ class A2PhoneDayList extends StatelessWidget {
     final timeStr = DateFormatters.formatTime(item.start);
     final endStr = DateFormatters.formatTime(item.end);
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return FocusableTap(
       onTap: () {
         final ev = item.event;
         if (ev != null) {
@@ -3633,6 +3670,10 @@ class A2PhoneDayList extends StatelessWidget {
           if (original != null) onAllocation?.call(original);
         }
       },
+      semanticsLabel: isPlan
+          ? l.calendarTimeRowPlanned('$timeStr–$endStr ${item.title}')
+          : '$timeStr–$endStr ${item.title}',
+      borderRadius: BorderRadius.circular(4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [

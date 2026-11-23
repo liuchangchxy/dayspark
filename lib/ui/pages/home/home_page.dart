@@ -31,6 +31,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
@@ -40,6 +41,7 @@ import 'package:dayspark/ui/pages/home/today_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/pages/todo/a2_todo_page.dart';
+import 'package:dayspark/ui/pages/todo/capture_panel_submit.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/shell/spark_top_bar.dart';
@@ -710,6 +712,7 @@ class _HomePageState extends ConsumerState<HomePage>
       onOpenTodo: _openTodo,
       onToggleTodo: _toggleTodo,
       onCapture: (text) => _captureOnTodoPage(text),
+      onCaptureDraft: (text, draft) => _captureOnTodoPageWithDraft(text, draft),
       onPlanDay: (day) => _openComposer(contextDate: day),
       onScheduleTodo: (todo) => _scheduleTodoWithPlanPicker(
         todo,
@@ -1027,6 +1030,13 @@ class _HomePageState extends ConsumerState<HomePage>
         );
       }
     }
+  }
+
+  Future<bool> _captureOnTodoPageWithDraft(
+    String text,
+    A2CaptureDraft draft,
+  ) {
+    return submitTodoCapture(ref, context, text, draft);
   }
 
   void _openComposer({

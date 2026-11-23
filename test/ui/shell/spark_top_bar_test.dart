@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -179,4 +180,39 @@ void main() {
       await tester.pump(Duration.zero);
     },
   );
+
+  testWidgets('top-bar nav buttons activate from the keyboard', (tester) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    int? selected;
+    await tester.pumpWidget(
+      _app(
+        width: 900,
+        height: 700,
+        onSelect: (index) => selected = index,
+        container: container,
+      ),
+    );
+    await tester.pump();
+
+    final todosNav = find.byKey(const ValueKey('nav-todos'));
+    final gesture = find
+        .descendant(of: todosNav, matching: find.byType(GestureDetector))
+        .first;
+    Focus.of(tester.element(gesture)).requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    expect(selected, 2);
+    expect(container.read(workspaceTabProvider), AppTab.todos);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
 }

@@ -12,6 +12,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/calendar/frozen_calendar_colors.dart';
 import 'package:dayspark/ui/pages/settings/settings_ui.dart';
@@ -164,7 +165,7 @@ class _TagsPageState extends ConsumerState<TagsPage> {
           ),
         ],
         child: Text(
-          '${l.tagDeleteBody(tag.name)}\n$count ${l.dayItemCount(count)}',
+          '${l.tagDeleteBody(tag.name)}\n${l.dayItemCount(count)}',
           style: AppTypography.body.copyWith(color: context.ds.ink2),
         ),
       ),
@@ -443,13 +444,17 @@ class _TagsPageState extends ConsumerState<TagsPage> {
   }
 
   Widget _buildColorChips() {
+    final l = AppLocalizations.of(context)!;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
         for (final hex in FrozenPalette.hexColors)
-          GestureDetector(
+          FocusableTap(
             onTap: () => setState(() => _selectedColor = hex),
+            semanticsLabel: _colorLabel(l, hex),
+            selected: _selectedColor.toUpperCase() == hex.toUpperCase(),
+            borderRadius: BorderRadius.circular(4),
             child: Container(
               width: 28,
               height: 24,
@@ -476,5 +481,17 @@ class _TagsPageState extends ConsumerState<TagsPage> {
           ),
       ],
     );
+  }
+
+  String _colorLabel(AppLocalizations l, String hex) {
+    return switch (hex.toUpperCase()) {
+      '#4F7BBF' => l.colorBlue,
+      '#6A9464' => l.colorGreen,
+      '#C4794A' => l.colorOrange,
+      '#6C6FA8' => l.colorPurple,
+      '#A98B4F' => l.colorAmber,
+      '#8A8A82' => l.colorGray,
+      _ => hex,
+    };
   }
 }

@@ -828,7 +828,7 @@ class DsRow extends StatelessWidget {
 
 /// 48px hit area around a 20–22px circle. The row itself is still the tap
 /// target for opening the item; this is the completion affordance.
-class DsCheck extends StatelessWidget {
+class DsCheck extends StatefulWidget {
   const DsCheck({
     super.key,
     required this.checked,
@@ -845,50 +845,74 @@ class DsCheck extends StatelessWidget {
   final bool compact;
 
   @override
+  State<DsCheck> createState() => _DsCheckState();
+}
+
+class _DsCheckState extends State<DsCheck> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final target = compact ? 36.0 : 48.0;
+    final target = widget.compact ? 36.0 : 48.0;
     return Semantics(
-      checked: checked,
-      label: label,
+      checked: widget.checked,
+      label: widget.label,
       button: true,
-      enabled: onChanged != null,
+      enabled: widget.onChanged != null,
       child: FocusableActionDetector(
-        enabled: onChanged != null,
-        mouseCursor: onChanged == null
+        enabled: widget.onChanged != null,
+        onShowFocusHighlight: (value) => setState(() => _focused = value),
+        mouseCursor: widget.onChanged == null
             ? SystemMouseCursors.basic
             : SystemMouseCursors.click,
         actions: {
           ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) => onChanged?.call(!checked),
+            onInvoke: (_) => widget.onChanged?.call(!widget.checked),
           ),
         },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: onChanged == null ? null : () => onChanged!(!checked),
+          onTap: widget.onChanged == null
+              ? null
+              : () => widget.onChanged!(!widget.checked),
           child: SizedBox(
             width: target,
             height: target,
             child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: checked ? ds.ink : Colors.transparent,
-                  border: Border.all(
-                    color: checked ? ds.ink : const Color(0xFFCFCFC7),
-                    width: 1.4,
-                  ),
-                ),
-                child: checked
-                    ? Icon(
-                        CupertinoIcons.checkmark,
-                        size: size * 0.62,
-                        color: Colors.white,
+              child: Container(
+                width: widget.size + 8,
+                height: widget.size + 8,
+                decoration: _focused
+                    ? BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: ds.ink, width: 2),
                       )
                     : null,
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    width: widget.size,
+                    height: widget.size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.checked ? ds.ink : Colors.transparent,
+                      border: Border.all(
+                        color: widget.checked
+                            ? ds.ink
+                            : const Color(0xFFCFCFC7),
+                        width: 1.4,
+                      ),
+                    ),
+                    child: widget.checked
+                        ? Icon(
+                            CupertinoIcons.checkmark,
+                            size: widget.size * 0.62,
+                            color: Colors.white,
+                          )
+                        : null,
+                  ),
+                ),
               ),
             ),
           ),

@@ -595,10 +595,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       message: tooltip,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        child: GestureDetector(
+        child: FocusableTap(
           key: key,
-          behavior: HitTestBehavior.opaque,
           onTap: onTap,
+          semanticsLabel: tooltip,
+          borderRadius: BorderRadius.circular(4),
           child: SizedBox(
             width: 48,
             height: 48,
@@ -1013,9 +1014,10 @@ class _SpecToolButtonState extends State<_SpecToolButton> {
       cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: FocusableTap(
         onTap: widget.onTap,
+        semanticsLabel: widget.tooltip ?? widget.label ?? '',
+        borderRadius: BorderRadius.circular(6),
         child: content,
       ),
     );
@@ -1088,9 +1090,10 @@ class _SpecSwitchButtonState extends State<_SpecSwitchButton> {
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: FocusableTap(
         onTap: widget.onTap,
+        semanticsLabel: widget.label,
+        borderRadius: BorderRadius.circular(5),
         child: Container(
           height: 27,
           padding: const EdgeInsets.symmetric(horizontal: 11),
@@ -1169,9 +1172,10 @@ class _CalHiddenBanner extends StatelessWidget {
           const Spacer(),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            child: FocusableTap(
               onTap: onRestore,
+              semanticsLabel: l.restoreAllCalendars,
+              borderRadius: BorderRadius.circular(4),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(
@@ -1189,9 +1193,10 @@ class _CalHiddenBanner extends StatelessWidget {
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            child: FocusableTap(
               onTap: onShowCalendars,
+              semanticsLabel: l.showCalendars,
+              borderRadius: BorderRadius.circular(4),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Text(

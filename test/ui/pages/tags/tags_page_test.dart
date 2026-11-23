@@ -97,5 +97,15 @@ void main() {
 
     expect(find.byType(DsDialog), findsOneWidget);
     expect(find.textContaining('2 项'), findsOneWidget);
+
+    final body = tester.widget<Text>(
+      find.descendant(
+        of: find.byType(DsDialog),
+        matching: find.textContaining('删除标签「Work」'),
+      ),
+    );
+    final bodyText = body.data ?? body.textSpan?.toPlainText() ?? '';
+    expect(bodyText, contains('2 项'));
+    expect(bodyText, isNot(contains('2 2 项')));
   });
 }
