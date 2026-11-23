@@ -979,5 +979,93 @@ void main() {
         if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
       }
     });
+
+    test('eventTags and todoTags are gated when parent or association resolution is keepLocal', () async {
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Cal', syncId: const Value('cal-sync')),
+      );
+      final tagId = await db.into(db.tags).insert(
+        TagsCompanion.insert(name: 'Tag 1', color: const Value('#111111'), syncId: const Value('tag-sync-1')),
+      );
+      final eventId = await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: calId,
+          summary: 'Local Event',
+          startDt: DateTime.utc(2026, 11, 20, 9),
+          endDt: DateTime.utc(2026, 11, 20, 10),
+          syncId: const Value('event-sync-local'),
+        ),
+      );
+      final todoId = await db.into(db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: calId,
+          summary: 'Local Todo',
+          syncId: const Value('todo-sync-local'),
+        ),
+      );
+
+      // Pre-condition: no eventTags or todoTags
+      expect(await db.select(db.eventTags).get(), isEmpty);
+      expect(await db.select(db.todoTags).get(), isEmpty);
+
+      // Scenario A: parent item kept local -> association rows must NOT be written
+      final dataA = {
+        'calendars': <Map<String, dynamic>>[],
+        'tags': <Map<String, dynamic>>[],
+        'events': [
+          {
+            'id': eventId,
+            'calendarId': calId,
+            'summary': 'Remote Event Conflict',
+            'startDt': '2026-11-20T09:00:00.000Z',
+            'endDt': '2026-11-20T10:00:00.000Z',
+            'syncId': 'diff-event-sync',
+          }
+        ],
+        'todos': [
+          {
+            'id': todoId,
+            'calendarId': calId,
+            'summary': 'Remote Todo Conflict',
+            'syncId': 'diff-todo-sync',
+          }
+        ],
+        'eventTags': [
+          {'eventId': eventId, 'tagId': tagId, 'syncId': 'et-sync-1'}
+        ],
+        'todoTags': [
+          {'todoId': todoId, 'tagId': tagId, 'syncId': 'tt-sync-1'}
+        ],
+        'reminders': <Map<String, dynamic>>[],
+        'attachments': <Map<String, dynamic>>[],
+      };
+
+      await service.restoreData(
+        dataA,
+        resolutions: {
+          'events:$eventId': BackupConflictResolution.keepLocal,
+          'todos:$todoId': BackupConflictResolution.keepLocal,
+        },
+      );
+
+      expect(await db.select(db.eventTags).get(), isEmpty,
+          reason: 'eventTags must not be written when event resolution is keepLocal');
+      expect(await db.select(db.todoTags).get(), isEmpty,
+          reason: 'todoTags must not be written when todo resolution is keepLocal');
+
+      // Scenario B: parent item keepRemote -> association rows ARE written
+      await service.restoreData(
+        dataA,
+        resolutions: {
+          'events:$eventId': BackupConflictResolution.keepRemote,
+          'todos:$todoId': BackupConflictResolution.keepRemote,
+        },
+      );
+
+      expect(await db.select(db.eventTags).get(), hasLength(1),
+          reason: 'eventTags must be written when event resolution is keepRemote');
+      expect(await db.select(db.todoTags).get(), hasLength(1),
+          reason: 'todoTags must be written when todo resolution is keepRemote');
+    });
   });
 }
