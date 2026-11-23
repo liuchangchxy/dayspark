@@ -1145,8 +1145,8 @@ class _CalHiddenBanner extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final summaryText = (l.localeName.startsWith('zh') && hiddenNames.isNotEmpty)
         ? (hiddenNames.length == 1
-            ? '已隐藏『${hiddenNames.first}』日历 · $hiddenItemsCount 项'
-            : '已隐藏 ${hiddenNames.length} 个日历 · $hiddenItemsCount 项')
+            ? l.calendarHiddenSingleSummary(hiddenNames.first, hiddenItemsCount)
+            : l.calendarHiddenMultipleSummary(hiddenNames.length, hiddenItemsCount))
         : l.hiddenCalendarsSummary(hiddenCount);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 5),

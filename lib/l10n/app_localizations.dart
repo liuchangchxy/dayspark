@@ -6028,6 +6028,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Change calendar'**
   String get importChangeCalendar;
+
+  /// No description provided for @calendarHiddenSingleSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden \"{name}\" · {count} items'**
+  String calendarHiddenSingleSummary(String name, int count);
+
+  /// No description provided for @calendarHiddenMultipleSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden {calCount} calendars · {count} items'**
+  String calendarHiddenMultipleSummary(int calCount, int count);
+
+  /// No description provided for @multiDaySpanLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Span'**
+  String get multiDaySpanLabel;
+
+  /// No description provided for @multiDayEventSpanSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} · {start}–{end} · {days} d'**
+  String multiDayEventSpanSummary(String title, String start, String end, int days);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
