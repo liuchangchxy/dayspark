@@ -2,7 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -220,13 +222,20 @@ class _TrashPageState extends ConsumerState<TrashPage> {
     AppLocalizations l,
     Todo todo,
   ) {
-    // No swipe-to-delete: on a desktop pointer a swipe is a mistimed drag, and
-    // the row already carries two explicit buttons.
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    final calName = calendars
+            .where((c) => c.id == todo.calendarId)
+            .map((c) => c.name)
+            .firstOrNull ??
+        '';
+
     return DsRow(
       key: ValueKey('trash-todo-${todo.id}'),
       title: todo.summary,
       meta: DsMeta(
         parts: [
+          DsMetaPart(l.todos),
+          if (calName.isNotEmpty) DsMetaPart(calName),
           if (todo.deletedAt != null)
             DsMetaPart(l.deletedOn(DateFormatters.formatDate(todo.deletedAt!))),
         ],
@@ -234,6 +243,16 @@ class _TrashPageState extends ConsumerState<TrashPage> {
       trailing: _restoreDeleteActions(
         l,
         onRestore: () async {
+          final cals = ref.read(calendarsProvider).valueOrNull ?? const [];
+          if (cals.isNotEmpty && !cals.any((c) => c.id == todo.calendarId)) {
+            final defaultCalId = ref.read(defaultCalendarIdProvider) ?? cals.first.id;
+            try {
+              await ref.read(updateTodoProvider)(
+                todo.id,
+                TodosCompanion(calendarId: Value(defaultCalId)),
+              );
+            } catch (_) {}
+          }
           await ref.read(restoreTodoProvider)(todo.id);
           if (mounted) _showFeedback(l.trashRestoredBanner(todo.summary));
         },
@@ -252,11 +271,20 @@ class _TrashPageState extends ConsumerState<TrashPage> {
     AppLocalizations l,
     Event event,
   ) {
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    final calName = calendars
+            .where((c) => c.id == event.calendarId)
+            .map((c) => c.name)
+            .firstOrNull ??
+        '';
+
     return DsRow(
       key: ValueKey('trash-event-${event.id}'),
       title: event.summary,
       meta: DsMeta(
         parts: [
+          DsMetaPart(l.events),
+          if (calName.isNotEmpty) DsMetaPart(calName),
           DsMetaPart(DateFormatters.formatDateTime(event.startDt)),
           if (event.deletedAt != null)
             DsMetaPart(
@@ -267,6 +295,16 @@ class _TrashPageState extends ConsumerState<TrashPage> {
       trailing: _restoreDeleteActions(
         l,
         onRestore: () async {
+          final cals = ref.read(calendarsProvider).valueOrNull ?? const [];
+          if (cals.isNotEmpty && !cals.any((c) => c.id == event.calendarId)) {
+            final defaultCalId = ref.read(defaultCalendarIdProvider) ?? cals.first.id;
+            try {
+              await ref.read(updateEventProvider)(
+                event.id,
+                EventsCompanion(calendarId: Value(defaultCalId)),
+              );
+            } catch (_) {}
+          }
           await ref.read(restoreEventProvider)(event.id);
           if (mounted) _showFeedback(l.trashRestoredBanner(event.summary));
         },

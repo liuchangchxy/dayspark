@@ -22,6 +22,7 @@ import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 
 class AiChatPage extends ConsumerStatefulWidget {
@@ -234,12 +235,15 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: isUser
-                                      ? context.ds.primarySoft
-                                      : context.ds.surface,
+                                      ? const Color(0xFFF7F7F4)
+                                      : SpecTokens.paper,
                                   borderRadius: BorderRadius.circular(
-                                    AppRadii.lg,
+                                    SpecTokens.r8,
                                   ),
-                                  border: Border.all(color: context.ds.line),
+                                  border: Border.all(
+                                    color: SpecTokens.hair2,
+                                    width: 1,
+                                  ),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,34 +399,40 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                             ),
                           ),
                           const SizedBox(width: AppSpacing.s2),
-                          MouseRegion(
-                            cursor: SystemMouseCursors.click,
-                            child: GestureDetector(
-                              onTap: _sending ? null : _send,
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: _sending
-                                      ? context.ds.surface3
-                                      : context.ds.primary,
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadii.sm + 2,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: _sending ? null : _send,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: _sending
+                                        ? context.ds.surface3
+                                        : SpecTokens.ink,
+                                    borderRadius: BorderRadius.circular(
+                                      SpecTokens.r8,
+                                    ),
                                   ),
-                                ),
-                                child: _sending
-                                    ? Padding(
-                                        padding: const EdgeInsets.all(11),
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: context.ds.ink3,
+                                  child: _sending
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(14),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: SpecTokens.muted,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          CupertinoIcons.arrow_up,
+                                          size: 18,
+                                          color: SpecTokens.paper,
                                         ),
-                                      )
-                                    : Icon(
-                                        CupertinoIcons.arrow_up,
-                                        size: 18,
-                                        color: context.ds.onPrimary,
-                                      ),
+                                ),
                               ),
                             ),
                           ),

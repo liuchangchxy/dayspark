@@ -138,6 +138,11 @@ final deletedEventsProvider = StreamProvider<List<Event>>((ref) {
   return db.eventsDao.watchDeletedEvents();
 });
 
+final allEventsProvider = StreamProvider<List<Event>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.events)..where((t) => t.deletedAt.isNull())).watch();
+});
+
 final restoreEventProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   return (int id) =>

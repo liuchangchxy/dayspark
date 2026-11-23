@@ -5,43 +5,216 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/pages/calendar/frozen_calendar_colors.dart';
+import 'package:dayspark/ui/pages/settings/settings_ui.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
-import 'package:dayspark/ui/widgets/color_swatch_grid.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
-
-const _tagColors = [
-  '#EF4444',
-  '#F59E0B',
-  '#10B981',
-  '#3B82F6',
-  '#8B5CF6',
-  '#EC4899',
-  '#6B7280',
-  '#14B8A6',
-  '#F97316',
-  '#6366F1',
-];
 
 const int _maxTagNameLength = 50;
 
-class TagsPage extends ConsumerWidget {
+enum _TagSubpage { list, newTag, editTag }
+
+class TagsPage extends ConsumerStatefulWidget {
   const TagsPage({super.key, this.embedded = false});
 
   final bool embedded;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TagsPage> createState() => _TagsPageState();
+}
+
+class _TagsPageState extends ConsumerState<TagsPage> {
+  _TagSubpage _subpage = _TagSubpage.list;
+  Tag? _editingTag;
+
+  final TextEditingController _nameController = TextEditingController();
+  String _selectedColor = FrozenPalette.hexColors.first;
+  String? _errorMessage;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _startNewTag() {
+    setState(() {
+      _subpage = _TagSubpage.newTag;
+      _editingTag = null;
+      _nameController.text = '';
+      _selectedColor = FrozenPalette.hexColors.first;
+      _errorMessage = null;
+      _saving = false;
+    });
+  }
+
+  void _startEditTag(Tag tag) {
+    setState(() {
+      _subpage = _TagSubpage.editTag;
+      _editingTag = tag;
+      _nameController.text = tag.name;
+      _selectedColor = tag.color.isNotEmpty ? tag.color : FrozenPalette.hexColors.first;
+      _errorMessage = null;
+      _saving = false;
+    });
+  }
+
+  int _countFor(WidgetRef ref, int tagId) {
+    final todos = ref.watch(allTodosProvider).valueOrNull ?? const [];
+    final todoTagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
+    final events = ref.watch(allEventsProvider).valueOrNull ?? const [];
+    final eventTagMap =
+        ref.watch(eventTagIdsMapProvider).valueOrNull ?? const {};
+    var count = 0;
+    for (final todo in todos) {
+      if (todo.status == 'COMPLETED' || todo.status == 'CANCELLED') continue;
+      if (todoTagMap[todo.id]?.contains(tagId) ?? false) count++;
+    }
+    for (final event in events) {
+      if (eventTagMap[event.id]?.contains(tagId) ?? false) count++;
+    }
+    return count;
+  }
+
+  Future<void> _saveTag(AppLocalizations l) async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      setState(() => _errorMessage = l.tagNameRequired);
+      return;
+    }
+    if (name.length > _maxTagNameLength) {
+      setState(() => _errorMessage = l.tagNameTooLong(_maxTagNameLength));
+      return;
+    }
+    final existing = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
+    final clash = existing.any(
+      (other) =>
+          other.id != _editingTag?.id &&
+          other.name.toLowerCase() == name.toLowerCase(),
+    );
+    if (clash) {
+      setState(() => _errorMessage = l.tagDuplicate);
+      return;
+    }
+
+    setState(() {
+      _errorMessage = null;
+      _saving = true;
+    });
+
+    try {
+      if (_editingTag == null) {
+        await ref.read(createTagProvider)(
+          name: name,
+          color: _selectedColor,
+        );
+      } else {
+        await ref.read(updateTagProvider)(
+          id: _editingTag!.id,
+          name: name,
+          color: _selectedColor,
+        );
+      }
+      if (mounted) {
+        setState(() => _subpage = _TagSubpage.list);
+      }
+    } catch (failure) {
+      debugPrint('tags: save error: $failure');
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _errorMessage = l.actionFailedRetry;
+        });
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteTag(
+    BuildContext context,
+    AppLocalizations l,
+    Tag tag,
+    int count,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.deleteTag,
+        width: 440,
+        actions: [
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.delete,
+            tone: DsButtonTone.danger,
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+        child: Text(
+          '${l.tagDeleteBody(tag.name)}\n$count ${l.dayItemCount(count)}',
+          style: AppTypography.body.copyWith(color: context.ds.ink2),
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(deleteTagProvider)(tag.id);
+      if (mounted) setState(() => _subpage = _TagSubpage.list);
+    } catch (error) {
+      debugPrint('tags: delete error: $error');
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l.error)));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+
+    Widget body;
+    switch (_subpage) {
+      case _TagSubpage.newTag:
+        body = _buildNewTagView(context, l);
+        break;
+      case _TagSubpage.editTag:
+        body = _buildEditTagView(context, l, _editingTag!);
+        break;
+      case _TagSubpage.list:
+        body = _buildListView(context, l);
+        break;
+    }
+
+    if (widget.embedded) {
+      return body;
+    }
+
+    return WorkspacePage(
+      title: l.manageTags,
+      maxContentWidth: 720,
+      child: body,
+    );
+  }
+
+  Widget _buildListView(BuildContext context, AppLocalizations l) {
     final ds = context.ds;
     final tagsAsync = ref.watch(tagsProvider);
-
-    final content = tagsAsync.when(
+    return tagsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) {
         debugPrint('tags: load error: $error');
@@ -73,293 +246,234 @@ class TagsPage extends ConsumerWidget {
             action: DsButton(
               label: l.tagsEmptyAction,
               icon: CupertinoIcons.add,
-              onPressed: () => _editTag(context, ref, null),
+              onPressed: _startNewTag,
             ),
           );
         }
-        if (embedded) {
-          return Column(
-            mainAxisSize: MainAxisSize.min,
+
+        final tagRows = [
+          for (final tag in tags)
+            DsSettingRow(
+              label: tag.name,
+              value: l.dayItemCount(_countFor(ref, tag.id)),
+              leading: DsDot(
+                color: ColorUtils.parseHex(tag.color),
+                size: 8,
+              ),
+              trailing: const Icon(
+                CupertinoIcons.chevron_right,
+                size: 11,
+                color: SpecTokens.faint,
+              ),
+              onTap: () => _startEditTag(tag),
+            ),
+        ];
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DsGroup(margin: EdgeInsets.zero, children: tagRows),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s4,
+                AppSpacing.s3,
+                AppSpacing.s4,
+                AppSpacing.s1,
+              ),
+              child: DsButton(
+                label: l.createTag,
+                icon: CupertinoIcons.add,
+                tone: DsButtonTone.secondary,
+                expand: true,
+                onPressed: _startNewTag,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildNewTagView(BuildContext context, AppLocalizations l) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l.createTag,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: SpecTokens.ink,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l.tagEmptyHint,
+          style: const TextStyle(
+            fontSize: 11,
+            height: 1.55,
+            color: SpecTokens.faint,
+          ),
+        ),
+        const SizedBox(height: 12),
+        IoCard(
+          title: l.tagName,
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final tag in tags)
-                DsSettingRow(
-                  label: tag.name,
-                  value: l.dayItemCount(_countFor(ref, tag.id)),
-                  leading: DsDot(
-                    color: ColorUtils.parseHex(tag.color),
-                    size: 8,
-                  ),
-                  trailing: DsIconButton(
-                    icon: CupertinoIcons.delete,
-                    size: 16,
-                    compact: true,
-                    tooltip: l.deleteTag,
-                    onPressed: () => _confirmDeleteTag(context, ref, tag),
-                  ),
-                  onTap: () => _editTag(context, ref, tag),
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s4,
-                  AppSpacing.s3,
-                  AppSpacing.s4,
-                  AppSpacing.s1,
-                ),
-                child: DsButton(
-                  label: l.createTag,
-                  icon: CupertinoIcons.add,
-                  tone: DsButtonTone.secondary,
-                  expand: true,
-                  onPressed: () => _editTag(context, ref, null),
-                ),
+              DsTextField(
+                controller: _nameController,
+                autofocus: true,
+                onSubmitted: (_) => _saveTag(l),
               ),
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(fontSize: 12, color: SpecTokens.red),
+                  ),
+                ),
             ],
-          );
-        }
-        return ListView(
-          key: const ValueKey('tags-list'),
-          padding: const EdgeInsets.only(bottom: AppSpacing.s6),
+          ),
+        ),
+        IoCard(
+          title: l.calendarColorLabel,
+          child: _buildColorChips(),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            DsGroupLabel(l.allTags),
-              DsGroup(
-                children: [
-                  for (final tag in tags)
-                    DsSettingRow(
-                      label: tag.name,
-                      value: l.dayItemCount(_countFor(ref, tag.id)),
-                      leading: DsDot(
-                        color: ColorUtils.parseHex(tag.color),
-                        size: 8,
-                      ),
-                      trailing: DsIconButton(
-                        icon: CupertinoIcons.delete,
-                        size: 16,
-                        compact: true,
-                        tooltip: l.deleteTag,
-                        onPressed: () => _confirmDeleteTag(context, ref, tag),
-                      ),
-                      onTap: () => _editTag(context, ref, tag),
-                    ),
-                ],
+            DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.secondary,
+              onPressed: () => setState(() => _subpage = _TagSubpage.list),
+            ),
+            const SizedBox(width: 8),
+            DsButton(
+              label: l.create,
+              tone: DsButtonTone.primary,
+              loading: _saving,
+              onPressed: () => _saveTag(l),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEditTagView(BuildContext context, AppLocalizations l, Tag tag) {
+    final count = _countFor(ref, tag.id);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l.editTag,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: SpecTokens.ink,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l.tagEditDesc(tag.name),
+          style: const TextStyle(
+            fontSize: 11,
+            height: 1.55,
+            color: SpecTokens.faint,
+          ),
+        ),
+        const SizedBox(height: 12),
+        IoCard(
+          title: l.tagName,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DsTextField(
+                controller: _nameController,
+                autofocus: false,
+                onSubmitted: (_) => _saveTag(l),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s4,
-                  AppSpacing.s3,
-                  AppSpacing.s4,
-                  AppSpacing.s1,
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(fontSize: 12, color: SpecTokens.red),
+                  ),
                 ),
-                child: DsButton(
-                  label: l.createTag,
-                  icon: CupertinoIcons.add,
-                  tone: DsButtonTone.secondary,
-                  expand: true,
-                  onPressed: () => _editTag(context, ref, null),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s5,
-                  AppSpacing.s3,
-                  AppSpacing.s5,
-                  AppSpacing.s2,
-                ),
-                child: Text(
-                  l.tagEmptyHint,
-                  style: AppTypography.caption.copyWith(color: ds.ink3),
-                ),
-              ),
             ],
-          );
-        },
-      );
-
-    if (embedded) {
-      return content;
-    }
-
-    return WorkspacePage(
-      title: l.manageTags,
-      maxContentWidth: 720,
-      child: content,
-    );
-  }
-
-  int _countFor(WidgetRef ref, int tagId) {
-    final todos = ref.watch(allTodosProvider).valueOrNull ?? const [];
-    final tagMap = ref.watch(todoTagIdsMapProvider).valueOrNull ?? const {};
-    var count = 0;
-    for (final todo in todos) {
-      if (todo.status == 'COMPLETED' || todo.status == 'CANCELLED') continue;
-      if (tagMap[todo.id]?.contains(tagId) ?? false) count++;
-    }
-    return count;
-  }
-
-  Future<void> _confirmDeleteTag(
-    BuildContext context,
-    WidgetRef ref,
-    Tag tag,
-  ) async {
-    final l = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => DsDialog(
-        title: l.deleteTag,
-        width: 440,
-        actions: [
-          const Spacer(),
-          DsButton(
-            label: l.cancel,
-            tone: DsButtonTone.ghost,
-            onPressed: () => Navigator.of(ctx).pop(false),
           ),
-          const SizedBox(width: AppSpacing.s2),
-          DsButton(
-            label: l.delete,
-            tone: DsButtonTone.danger,
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-        // A delete that says which tag, and what happens to the records, is
-        // the difference between a mistake and a decision. Tags apply to both
-        // events and tasks, so the body names both.
-        child: Text(
-          '${l.tagDeleteBody(tag.name)}\n${l.events} · ${l.todos}',
-          style: AppTypography.body.copyWith(color: context.ds.ink2),
         ),
-      ),
+        IoCard(
+          title: l.calendarColorLabel,
+          child: _buildColorChips(),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.secondary,
+              onPressed: () => setState(() => _subpage = _TagSubpage.list),
+            ),
+            const SizedBox(width: 8),
+            DsButton(
+              label: '${l.deleteTag} ($count)',
+              tone: DsButtonTone.danger,
+              onPressed: () => _confirmDeleteTag(context, l, tag, count),
+            ),
+            const SizedBox(width: 8),
+            DsButton(
+              label: l.save,
+              tone: DsButtonTone.primary,
+              loading: _saving,
+              onPressed: () => _saveTag(l),
+            ),
+          ],
+        ),
+      ],
     );
-    if (confirmed != true) return;
-    try {
-      await ref.read(deleteTagProvider)(tag.id);
-    } catch (error) {
-      debugPrint('tags: delete error: $error');
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.error)));
-      }
-    }
   }
 
-  /// Create and edit are the same dialog: two different UIs for one field is
-  /// how validation ended up only on one of them.
-  Future<void> _editTag(BuildContext context, WidgetRef ref, Tag? tag) async {
-    final l = AppLocalizations.of(context)!;
-    final existing = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
-    final nameController = TextEditingController(text: tag?.name ?? '');
-    final selectedColor = ValueNotifier<String>(tag?.color ?? '#6B7280');
-    final error = ValueNotifier<String?>(null);
-    final saving = ValueNotifier<bool>(false);
-
-    Future<void> save(BuildContext sheetContext) async {
-      final name = nameController.text.trim();
-      if (name.isEmpty) {
-        error.value = l.tagNameRequired;
-        return;
-      }
-      if (name.length > _maxTagNameLength) {
-        error.value = l.tagNameTooLong(_maxTagNameLength);
-        return;
-      }
-      final clash = existing.any(
-        (other) =>
-            other.id != tag?.id &&
-            other.name.toLowerCase() == name.toLowerCase(),
-      );
-      if (clash) {
-        error.value = l.tagDuplicate;
-        return;
-      }
-      error.value = null;
-      saving.value = true;
-      try {
-        if (tag == null) {
-          await ref.read(createTagProvider)(
-            name: name,
-            color: selectedColor.value,
-          );
-        } else {
-          await ref.read(updateTagProvider)(
-            id: tag.id,
-            name: name,
-            color: selectedColor.value,
-          );
-        }
-        if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-      } catch (failure) {
-        debugPrint('tags: save error: $failure');
-        if (sheetContext.mounted) {
-          saving.value = false;
-          error.value = l.actionFailedRetry;
-        }
-      }
-    }
-
-    await showDsSheet<void>(
-      context: context,
-      title: tag == null ? l.createTag : l.editTag,
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ValueListenableBuilder<String?>(
-            valueListenable: error,
-            builder: (ctx, message, _) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                DsField(
-                  label: l.tagName,
-                  child: DsTextField(
-                    controller: nameController,
-                    autofocus: tag == null,
-                    onSubmitted: (_) => save(ctx),
-                  ),
+  Widget _buildColorChips() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final hex in FrozenPalette.hexColors)
+          GestureDetector(
+            onTap: () => setState(() => _selectedColor = hex),
+            child: Container(
+              width: 28,
+              height: 24,
+              decoration: BoxDecoration(
+                color: ColorUtils.parseHex(hex),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: _selectedColor.toUpperCase() == hex.toUpperCase()
+                      ? SpecTokens.ink
+                      : Colors.transparent,
+                  width: 2,
                 ),
-                if (message != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.s3),
-                    child: Text(
-                      message,
-                      style: AppTypography.small.copyWith(
-                        color: context.ds.danger,
+              ),
+              child: _selectedColor.toUpperCase() == hex.toUpperCase()
+                  ? const Center(
+                      child: Icon(
+                        CupertinoIcons.checkmark,
+                        size: 12,
+                        color: Colors.white,
                       ),
-                    ),
-                  ),
-              ],
+                    )
+                  : null,
             ),
           ),
-          ValueListenableBuilder<String>(
-            valueListenable: selectedColor,
-            builder: (ctx, color, _) => ColorSwatchGrid(
-              colors: _tagColors,
-              selected: color,
-              onSelected: (hex) => selectedColor.value = hex,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        const Spacer(),
-        Builder(
-          builder: (ctx) => DsButton(
-            label: l.cancel,
-            tone: DsButtonTone.ghost,
-            onPressed: () => Navigator.of(ctx).maybePop(),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.s2),
-        ValueListenableBuilder<bool>(
-          valueListenable: saving,
-          builder: (ctx, isSaving, _) => DsButton(
-            label: tag == null ? l.create : l.save,
-            loading: isSaving,
-            onPressed: () => save(ctx),
-          ),
-        ),
       ],
     );
   }
