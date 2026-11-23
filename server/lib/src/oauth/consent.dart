@@ -1,4 +1,5 @@
 import '../auth.dart';
+import 'page.dart';
 
 // One-time consent-form CSRF tokens (AllisWell design reference only — no
 // code copied; PolyForm NC). Issued when the authorize page renders,
@@ -50,18 +51,6 @@ String _scopeDescription(String scope) => switch (scope) {
   _ => scope,
 };
 
-const String _pageStyle = '''
-body { font-family: system-ui, sans-serif; max-width: 28rem;
-  margin: 4rem auto; padding: 0 1rem; color: #111; }
-h1 { font-size: 1.25rem; }
-ul { padding-left: 1.25rem; }
-label { display: block; margin: 0.75rem 0; }
-input { width: 100%; padding: 0.5rem; box-sizing: border-box; }
-button { margin-top: 1rem; padding: 0.6rem 1.2rem; }
-.error { color: #b00020; }
-.muted { color: #555; font-size: 0.9rem; }
-''';
-
 String renderConsentPage({
   required String clientName,
   required List<String> scopes,
@@ -83,18 +72,9 @@ String renderConsentPage({
             'value="${htmlEscape(entry.value)}">',
       )
       .join('\n    ');
-  return '''<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Authorize DaySpark / 授权 DaySpark</title>
-<style>$_pageStyle</style>
-</head>
-<body>
-<h1>Authorize DaySpark / 授权 DaySpark</h1>
-<p><strong>${htmlEscape(clientName)}</strong> wants access to your DaySpark
-data. Sign in to grant the requested scopes.</p>
+  final body =
+      '''
+<p><strong>${htmlEscape(clientName)}</strong> wants access to your DaySpark data. Sign in to grant the requested scopes.</p>
 <ul>
       $scopeItems
 </ul>
@@ -109,27 +89,22 @@ ${error == null ? '' : '<p class="error">${htmlEscape(error)}</p>'}
       <input type="password" name="password" autocomplete="current-password"
         required>
     </label>
-    <button type="submit">Authorize / 授权</button>
+    <button type="submit" class="btn">Authorize / 授权</button>
 </form>
 <p class="muted">Scopes requested: ${htmlEscape(scopes.join(' '))}</p>
-</body>
-</html>
 ''';
+  return renderOauthDocument(
+    title: 'Authorize DaySpark / 授权 DaySpark',
+    heading: 'Authorize DaySpark / 授权 DaySpark',
+    body: body,
+  );
 }
 
 // Shown only when a request can never be safely redirected (unknown client,
 // unvalidated redirect_uri, dead form token) — deliberately carries no code
 // and no Location header.
-String renderOAuthErrorPage(String message) => '''<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Authorization error</title>
-<style>$_pageStyle</style>
-</head>
-<body>
-<h1>Authorization error / 授权错误</h1>
-<p class="error">${htmlEscape(message)}</p>
-</body>
-</html>
-''';
+String renderOAuthErrorPage(String message) => renderOauthDocument(
+  title: 'Authorization error',
+  heading: 'Authorization error / 授权错误',
+  body: '<p class="error">${htmlEscape(message)}</p>',
+);
