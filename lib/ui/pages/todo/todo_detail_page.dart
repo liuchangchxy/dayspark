@@ -17,12 +17,16 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
@@ -688,16 +692,104 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         minimum: const EdgeInsets.only(bottom: 16),
         child: SizedBox(
           height: 48,
-          child: _PaneButton(
-            key: const ValueKey('todo-detail-edit'),
-            label: l.edit,
-            height: 48,
-            primary: true,
-            onPressed: () => _beginEdit(live),
+          child: Row(
+            children: [
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('todo-detail-edit'),
+                  label: l.edit,
+                  height: 48,
+                  primary: true,
+                  onPressed: () => _beginEdit(live),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('todo-detail-schedule'),
+                  label: l.addTaskAllocation,
+                  height: 48,
+                  onPressed: () => _scheduleWithPlanPicker(live),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('todo-detail-delete-summary'),
+                  label: l.deleteToTrashAction,
+                  height: 48,
+                  danger: true,
+                  onPressed: () => _delete(live),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _scheduleWithPlanPicker(Todo live) async {
+    final now = widget.clock?.call() ?? DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialStart = DateTime(today.year, today.month, today.day, 15, 15);
+    final initialEnd = initialStart.add(const Duration(minutes: 45));
+
+    final picked = await SpecPlanPickerDialog.show(
+      context,
+      title: live.summary,
+      initialStart: initialStart,
+      initialEnd: initialEnd,
+      existingBlocks: (day) async {
+        final start = DateTime(day.year, day.month, day.day);
+        final end = start.add(const Duration(days: 1));
+        final db = ref.read(databaseProvider);
+        final events = await db.eventsDao.getEventCandidates(start, end);
+        final allocations = await fetchTaskAllocationsInDateRange(db, start, end);
+        final blocks = calDayBlocks(
+          day: start,
+          events: [
+            for (final event in events) CalendaEventAdapter.fromDrift(event),
+          ],
+          allocations: [
+            for (final item in allocations)
+              if (item.todo.id != live.id)
+                TaskAllocationCalendarAdapter.fromItem(item),
+          ],
+        );
+        return [
+          for (final b in blocks)
+            SpecPlanBlock(start: b.start, end: b.end, title: b.title),
+        ];
+      },
+    );
+
+    if (picked == null || !mounted) return;
+    try {
+      await ref.read(createTaskAllocationProvider)(
+        todoId: live.id,
+        startAt: picked.$1,
+        endAt: picked.$2,
+      );
+      ref.invalidate(allActiveTaskAllocationsProvider);
+      ref.invalidate(allTodosProvider);
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.scheduledTodoSuccess(live.summary))),
+        );
+      }
+    } catch (e) {
+      debugPrint('todo_detail: schedule allocation failed: $e');
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.schedulingFailed)),
+        );
+      }
+    }
   }
 
   void _beginEdit(Todo live) {

@@ -12,6 +12,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
 /// The Direction C desktop shell: one 52px bar, always present.
@@ -53,6 +54,13 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
     final now = (widget.clock ?? DateTime.now)();
     final isMac = defaultTargetPlatform == TargetPlatform.macOS;
     final shortcutText = isMac ? '\u2318 K' : 'Ctrl K';
+
+    final router = GoRouter.maybeOf(context);
+    final location = router?.routerDelegate.currentConfiguration.uri.path ?? '';
+    final inSubpage = location.startsWith('/settings') ||
+        location.startsWith('/about') ||
+        location.startsWith('/trash');
+    final activeTab = inSubpage ? null : tab;
 
     final topPadding = MediaQuery.of(context).padding.top;
 
@@ -104,21 +112,21 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                   _DesktopNavButton(
                     key: const ValueKey('nav-today'),
                     label: l.today,
-                    selected: tab == AppTab.action,
+                    selected: activeTab == AppTab.action,
                     onTap: () => _goToday(now),
                   ),
                   const SizedBox(width: 4),
                   _DesktopNavButton(
                     key: const ValueKey('nav-todos'),
                     label: l.todos,
-                    selected: tab == AppTab.todos,
+                    selected: activeTab == AppTab.todos,
                     onTap: () => _selectTodos(),
                   ),
                   const SizedBox(width: 4),
                   _DesktopNavButton(
                     key: const ValueKey('nav-calendar'),
                     label: l.calendar,
-                    selected: tab == AppTab.calendar,
+                    selected: activeTab == AppTab.calendar,
                     onTap: () => _selectCalendar(),
                   ),
                 ],
@@ -131,7 +139,7 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
                 child: GestureDetector(
                   key: const ValueKey('nav-search'),
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => context.push('/search'),
+                  onTap: () => showCommandOverlay(context),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(
                       minWidth: 48,

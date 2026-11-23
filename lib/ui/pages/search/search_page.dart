@@ -53,6 +53,19 @@ final recentCommandEventsProvider = StreamProvider.autoDispose<List<Event>>((
       .watch();
 });
 
+/// Opens the command overlay on desktop or navigates to search page on mobile.
+Future<void> showCommandOverlay(BuildContext context) {
+  if (isWorkspaceLayout(context)) {
+    return showDialog<void>(
+      context: context,
+      barrierColor: Colors.transparent,
+      useSafeArea: false,
+      builder: (_) => const SearchPage(),
+    );
+  }
+  return context.push('/search');
+}
+
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
 

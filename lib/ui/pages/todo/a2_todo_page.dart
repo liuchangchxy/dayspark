@@ -85,6 +85,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
 
   bool _captureFocused = false;
   bool _completedOpen = false;
+  A2CaptureState _desktopCaptureState = A2CaptureState.compact;
+  final TextEditingController _desktopCaptureController = TextEditingController();
+  Map<int, Calendar> _calendarMap = const {};
 
   final Map<String, _UndoEntry> _undoEntries = {};
   final Map<String, _UndoSlot> _lastSlots = {};
@@ -96,6 +99,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     for (final timer in _undoTimers.values) {
       timer.cancel();
     }
+    _desktopCaptureController.dispose();
     super.dispose();
   }
 
@@ -114,10 +118,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   ).difference(DateTime.utc(b.year, b.month, b.day)).inDays;
 
   bool _isOverdue(DateTime due) {
-    final hasTime = due.hour != 0 || due.minute != 0;
-    if (hasTime) {
-      return due.isBefore(widget.now);
-    }
     final today = _dayOf(widget.now);
     return _dayOf(due).isBefore(today);
   }
@@ -313,6 +313,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final allAsync = ref.watch(allTodosProvider);
     final allocationsAsync = ref.watch(allActiveTaskAllocationsProvider);
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    _calendarMap = {for (final c in calendars) c.id: c};
     final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
     final tagMap =
         ref.watch(todoTagIdsMapProvider).valueOrNull ?? const <int, Set<int>>{};
@@ -454,6 +455,43 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                     bottom: 18,
                     child: footer,
                   ),
+                  if (_desktopCaptureState != A2CaptureState.compact)
+                    Positioned(
+                      bottom: 78,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 620),
+                          child: A2CapturePanel(
+                            state: _desktopCaptureState,
+                            titleController: _desktopCaptureController,
+                            onStateChanged: (s) => setState(() => _desktopCaptureState = s),
+                            onCancel: () => setState(() => _desktopCaptureState = A2CaptureState.compact),
+                            onDiscard: () {
+                              _desktopCaptureController.clear();
+                              setState(() => _desktopCaptureState = A2CaptureState.compact);
+                            },
+                            onSubmit: () async {
+                              final text = _desktopCaptureController.text.trim();
+                              if (text.isNotEmpty) {
+                                await _capture(text);
+                                _desktopCaptureController.clear();
+                              }
+                              setState(() => _desktopCaptureState = A2CaptureState.compact);
+                            },
+                            onSubmitLater: () async {
+                              final text = _desktopCaptureController.text.trim();
+                              if (text.isNotEmpty) {
+                                await _capture(text);
+                                _desktopCaptureController.clear();
+                              }
+                              setState(() => _desktopCaptureState = A2CaptureState.compact);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1369,7 +1407,17 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
             onSubmit: _capture,
             onExpand: () {
-              _openCaptureComposer('');
+              if (desktop) {
+                setState(() {
+                  if (_desktopCaptureState == A2CaptureState.compact) {
+                    _desktopCaptureState = A2CaptureState.expanded;
+                  } else {
+                    _desktopCaptureState = A2CaptureState.compact;
+                  }
+                });
+              } else {
+                _openCaptureComposer('');
+              }
             },
             onParsedSubmit: _openCaptureComposer,
             onFocusChange: (focused) {
@@ -1524,6 +1572,37 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     bool noDateOnly,
   ) {
     if (loading) return _loading();
+    final open = widget.onOpenTodo;
+
+    if (filtered) {
+      final activeTodos = todos.where((t) => t.status != 'COMPLETED').toList();
+      final banners = <Widget>[
+        if (noDateOnly) _inboxNoDateBanner(l, desktop),
+        _filterBanner(l, activeTodos.length, desktop),
+      ];
+      if (activeTodos.isEmpty) {
+        final empty = A2Empty(title: l.filterEmptyTitle, hint: l.filterEmptyHint);
+        return _withBanners(banners: banners, child: empty);
+      }
+      final list = ListView.builder(
+        padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
+        itemCount: activeTodos.length,
+        itemBuilder: (context, index) {
+          final todo = activeTodos[index];
+          return _todoRow(
+            todo,
+            meta: _inboxMeta(l, todo, names),
+            desktop: desktop,
+            selected: _isTodoSelected(selection, todo.id),
+            checked: false,
+            onTap: open == null ? null : () => open(todo),
+            slot: _UndoSlot(_UndoGroup.inboxNoDue, index),
+          );
+        },
+      );
+      return _withBanners(banners: banners, child: list);
+    }
+
     final withDue = <Todo>[
       for (final todo in todos)
         if (todo.dueDate != null) todo,
@@ -1535,12 +1614,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     _pinInboxWindows(withDue, noDue);
     final banners = <Widget>[
       if (noDateOnly) _inboxNoDateBanner(l, desktop),
-      if (filtered) _filterBanner(l, todos.length, desktop),
     ];
     if (withDue.isEmpty && noDue.isEmpty) {
-      final empty = filtered
-          ? A2Empty(title: l.filterEmptyTitle, hint: l.filterEmptyHint)
-          : noDateOnly
+      final empty = noDateOnly
           ? A2Empty(
               title: l.emptyInboxNoDateTitle,
               hint: l.emptyInboxNoDateHint,
@@ -1548,7 +1624,6 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           : A2Empty(title: l.emptyUnplannedTitle, hint: l.emptyUnplannedHint);
       return _withBanners(banners: banners, child: empty);
     }
-    final open = widget.onOpenTodo;
 
     final list = ListView(
       padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
@@ -1567,7 +1642,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
             ),
         ],
         if (noDue.isNotEmpty) ...[
-          _groupHead(label: l.noDueSection, count: noDue.length),
+          _groupHead(label: noDateOnly ? l.noDateGroupSection : l.noDueSection, count: noDue.length),
           for (var index = 0; index < noDue.length; index++)
             _todoRow(
               noDue[index],
@@ -1613,6 +1688,36 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     bool filtered,
   ) {
     if (loading) return _loading();
+
+    if (filtered) {
+      final activeTodos = todos.where((t) => t.status != 'COMPLETED').toList();
+      final banners = <Widget>[
+        _filterBanner(l, activeTodos.length, desktop),
+      ];
+      if (activeTodos.isEmpty) {
+        final empty = A2Empty(title: l.filterEmptyTitle, hint: l.filterEmptyHint);
+        return _withBanners(banners: banners, child: empty);
+      }
+      final allocationByTodo = _earliestAllocations(allocations);
+      final open = widget.onOpenTodo;
+      final list = ListView.builder(
+        padding: EdgeInsets.fromLTRB(desktop ? 28 : 0, desktop ? 8 : 14, desktop ? 28 : 0, 118),
+        itemCount: activeTodos.length,
+        itemBuilder: (context, index) {
+          final todo = activeTodos[index];
+          return _todoRow(
+            todo,
+            meta: _allMeta(l, todo, allocationByTodo[todo.id], names),
+            desktop: desktop,
+            selected: _isTodoSelected(selection, todo.id),
+            checked: false,
+            onTap: open == null ? null : () => open(todo),
+            slot: _UndoSlot(_UndoGroup.allLater, index),
+          );
+        },
+      );
+      return _withBanners(banners: banners, child: list);
+    }
     final today = _dayOf(widget.now);
     final dueToday = <Todo>[];
     final pastDue = <Todo>[];
@@ -1775,8 +1880,14 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       for (final item in agenda.allocations)
         if (item.todo == null || visible(item.todo!)) item,
     ]..sort((a, b) => a.start!.compareTo(b.start!));
-    final events = <DayItem>[...agenda.events]
-      ..sort((a, b) => a.start!.compareTo(b.start!));
+    final events = <DayItem>[
+      for (final item in agenda.events)
+        if (!item.allDay &&
+            item.start != null &&
+            item.end != null &&
+            item.start!.day == item.end!.day)
+          item,
+    ]..sort((a, b) => a.start!.compareTo(b.start!));
     final dueAll = <DayItem>[
       for (final item in agenda.dueTodos)
         if (item.todo == null || visible(item.todo!)) item,
@@ -2079,14 +2190,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     Todo todo,
     Map<int, String> names,
   ) {
-    final parts = <Widget>[];
-    final name = names[todo.calendarId];
-    if (name != null && name.isNotEmpty) {
-      parts.add(A2MetaText(name));
-    } else {
-      parts.add(A2MetaText(l.inbox));
-    }
-    return parts;
+    final cal = _calendarMap[todo.calendarId];
+    return buildSharedRowMeta(
+      context,
+      calendarName: cal?.name ?? names[todo.calendarId] ?? l.inbox,
+      calendarColor: cal != null ? ColorUtils.parseHex(cal.color) : SpecTokens.scheduleBlue,
+      rrule: todo.rrule,
+    );
   }
 
   List<Widget> _allMeta(
@@ -2095,55 +2205,50 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     TaskAllocationCalendarItem? allocation,
     Map<int, String> names,
   ) {
-    final parts = <Widget>[];
+    final cal = _calendarMap[todo.calendarId];
+    String? planLabel;
     if (allocation != null) {
       final start = allocation.allocation.startAt.toLocal();
       final end = allocation.allocation.endAt.toLocal();
       final sameDay = _sameDay(_dayOf(start), _dayOf(widget.now));
-      parts.add(
-        A2MetaText(
-          l.plannedShortRangeLabel(
-            _rangeLabel(start, end, includeDate: !sameDay),
-          ),
-          color: context.ds.work,
-        ),
+      planLabel = l.plannedShortRangeLabel(
+        _rangeLabel(start, end, includeDate: !sameDay),
       );
-      final name = names[todo.calendarId];
-      if (name != null && name.isNotEmpty) {
-        parts.add(const A2Sep());
-        parts.add(A2MetaText(name));
-      }
-      return parts;
     }
-    final name = names[todo.calendarId];
-    if (name != null && name.isNotEmpty) {
-      parts.add(A2MetaText(name));
-    } else {
-      parts.add(A2MetaText(l.inbox));
-    }
-    return parts;
+    return buildSharedRowMeta(
+      context,
+      calendarName: cal?.name ?? names[todo.calendarId] ?? l.inbox,
+      calendarColor: cal != null ? ColorUtils.parseHex(cal.color) : SpecTokens.scheduleBlue,
+      rrule: todo.rrule,
+      planLabel: planLabel,
+    );
   }
 
   List<Widget> _dayAllocationMeta(AppLocalizations l, DayItem item) {
-    final parts = <Widget>[];
+    String? planLabel;
     final start = item.start;
     final end = item.end;
     if (start != null && end != null) {
-      parts.add(
-        A2MetaText(
-          l.plannedShortRangeLabel(_rangeLabel(start, end, includeDate: false)),
-          color: context.ds.work,
-        ),
-      );
+      planLabel = l.plannedShortRangeLabel(_rangeLabel(start, end, includeDate: false));
     }
-    return parts;
+    final cal = item.todo != null ? _calendarMap[item.todo!.calendarId] : null;
+    return buildSharedRowMeta(
+      context,
+      calendarName: item.calendarName ?? cal?.name ?? '个人',
+      calendarColor: item.calendarColor ?? (cal != null ? ColorUtils.parseHex(cal.color) : SpecTokens.scheduleBlue),
+      rrule: item.todo?.rrule,
+      planLabel: planLabel,
+    );
   }
 
   List<Widget> _deadlineMeta(AppLocalizations l, DayItem item) {
-    if (item.completed) {
-      return [A2MetaText(l.completed)];
-    }
-    return const [];
+    final cal = item.todo != null ? _calendarMap[item.todo!.calendarId] : null;
+    return buildSharedRowMeta(
+      context,
+      calendarName: item.calendarName ?? cal?.name ?? '个人',
+      calendarColor: item.calendarColor ?? (cal != null ? ColorUtils.parseHex(cal.color) : SpecTokens.scheduleBlue),
+      rrule: item.todo?.rrule,
+    );
   }
 
 

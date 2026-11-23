@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
+import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/shell/spark_top_bar.dart';
 import 'package:dayspark/ui/shell/sync_status_banner.dart';
 
@@ -25,12 +25,10 @@ class WorkspaceScaffold extends ConsumerWidget {
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyK, control: true): () {
-          final router = GoRouter.maybeOf(context);
-          if (router == null) return;
-          if (router.routerDelegate.currentConfiguration.uri.path == '/search') {
-            return;
-          }
-          router.push('/search');
+          showCommandOverlay(context);
+        },
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () {
+          showCommandOverlay(context);
         },
       },
       child: Focus(

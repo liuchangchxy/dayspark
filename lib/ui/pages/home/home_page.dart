@@ -36,6 +36,7 @@ import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/pages/todo/a2_todo_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
@@ -1000,12 +1001,7 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _openSearch() {
-    final router = GoRouter.maybeOf(context);
-    if (router == null) return;
-    if (router.routerDelegate.currentConfiguration.uri.path == '/search') {
-      return;
-    }
-    router.push('/search');
+    showCommandOverlay(context);
   }
 
   /// Todos and Calendar read detail as a column beside the content once the

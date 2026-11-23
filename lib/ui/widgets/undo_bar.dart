@@ -37,6 +37,7 @@ const double _mobileEdge = 12;
 ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoBar(
   BuildContext context, {
   required String message,
+  String? title,
   required String undoLabel,
   required VoidCallback onUndo,
 }) {
@@ -68,6 +69,7 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? showUndoBar(
       content: _UndoBarContent(
         key: const ValueKey('undo-bar-content'),
         message: message,
+        title: title,
         undoLabel: undoLabel,
         onUndo: onUndo,
       ),
@@ -79,11 +81,13 @@ class _UndoBarContent extends StatelessWidget {
   const _UndoBarContent({
     super.key,
     required this.message,
+    this.title,
     required this.undoLabel,
     required this.onUndo,
   });
 
   final String message;
+  final String? title;
   final String undoLabel;
   final VoidCallback onUndo;
 
@@ -105,11 +109,27 @@ class _UndoBarContent extends StatelessWidget {
                 onTap: dismiss,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  child: Text(
-                    message,
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: message,
+                          style: textStyle.copyWith(color: const Color(0xFF8B8B82)),
+                        ),
+                        if (title != null && title!.isNotEmpty) ...[
+                          const TextSpan(
+                            text: ' · ',
+                            style: TextStyle(color: Color(0xFF8B8B82)),
+                          ),
+                          TextSpan(
+                            text: title!,
+                            style: textStyle.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ],
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: textStyle,
                   ),
                 ),
               ),
@@ -117,6 +137,7 @@ class _UndoBarContent extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           TextButton(
+            key: const ValueKey('undo-bar-action'),
             onPressed: () {
               dismiss();
               onUndo();

@@ -5,6 +5,7 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'ds.dart';
 
 /// Frozen spec checkbox: 16x16 circle, 1.4px border.
@@ -33,6 +34,76 @@ class SpecCheck extends StatelessWidget {
       compact: touchTargetSize < 40,
     );
   }
+}
+
+/// Shared metadata row builder: cal-dot + calendarName, real repeat description,
+/// missed count, and plan clock.
+List<Widget> buildSharedRowMeta(
+  BuildContext context, {
+  required String calendarName,
+  required Color calendarColor,
+  String? rrule,
+  int? missedCount,
+  String? planLabel,
+}) {
+  final l = AppLocalizations.of(context)!;
+  final parts = <Widget>[];
+
+  // cal-dot + calendarName
+  parts.add(
+    Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 5,
+          height: 5,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: calendarColor),
+        ),
+        const SizedBox(width: 4),
+        Text(calendarName, style: const TextStyle(fontSize: 11, color: SpecTokens.muted)),
+      ],
+    ),
+  );
+
+  // Real repeat description
+  if (rrule != null && rrule.isNotEmpty) {
+    parts.add(const SizedBox(width: 4));
+    parts.add(
+      Text(
+        '· ${describeRepeat(context, rrule)}',
+        style: const TextStyle(fontSize: 11, color: SpecTokens.muted),
+      ),
+    );
+  }
+
+  // Missed count
+  if (missedCount != null && missedCount > 0) {
+    parts.add(const SizedBox(width: 4));
+    parts.add(
+      Text(
+        '· ${l.missed} $missedCount',
+        style: const TextStyle(fontSize: 11, color: SpecTokens.red),
+      ),
+    );
+  }
+
+  // Plan clock
+  if (planLabel != null && planLabel.isNotEmpty) {
+    parts.add(const SizedBox(width: 4));
+    parts.add(
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('· ', style: TextStyle(fontSize: 11, color: SpecTokens.muted)),
+          const Icon(CupertinoIcons.clock, size: 10, color: SpecTokens.work),
+          const SizedBox(width: 2),
+          Text(planLabel, style: const TextStyle(fontSize: 11, color: SpecTokens.work)),
+        ],
+      ),
+    );
+  }
+
+  return parts;
 }
 
 /// Frozen spec task row.
@@ -1616,6 +1687,31 @@ class SpecPlanPickerDialog extends StatefulWidget {
     Future<List<SpecPlanBlock>> Function(DateTime day)? existingBlocks,
     bool isEditing = false,
   }) {
+    final isDesktop = MediaQuery.sizeOf(context).width >= 720;
+    if (!isDesktop) {
+      return showModalBottomSheet<(DateTime, DateTime)>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => Container(
+          decoration: const BoxDecoration(
+            color: SpecTokens.paper,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SpecPlanPickerDialog(
+              title: title,
+              initialStart: initialStart,
+              initialEnd: initialEnd,
+              contextText: contextText,
+              existingBlocks: existingBlocks,
+              isEditing: isEditing,
+            ),
+          ),
+        ),
+      );
+    }
     return showDialog<(DateTime, DateTime)>(
       context: context,
       barrierColor: const Color.fromRGBO(25, 25, 24, 0.26),
