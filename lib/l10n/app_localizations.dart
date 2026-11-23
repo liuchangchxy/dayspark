@@ -6400,6 +6400,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close'**
   String get closeTooltip;
+
+  /// No description provided for @backupConflictSkipAssociated.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeping local will skip {count} associated items in backup'**
+  String backupConflictSkipAssociated(int count);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

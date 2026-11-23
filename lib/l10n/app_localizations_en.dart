@@ -3526,4 +3526,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get closeTooltip => 'Close';
+
+  @override
+  String backupConflictSkipAssociated(int count) {
+    return 'Keeping local will skip $count associated items in backup';
+  }
 }

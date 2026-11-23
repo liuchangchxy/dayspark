@@ -3472,4 +3472,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get closeTooltip => '关闭';
+
+  @override
+  String backupConflictSkipAssociated(int count) {
+    return '保留本机将跳过 $count 个关联项';
+  }
 }

@@ -1898,5 +1898,13 @@
     }
   },
   "captureDateNextWeek": "下周",
-  "closeTooltip": "关闭"
+  "closeTooltip": "关闭",
+  "backupConflictSkipAssociated": "保留本机将跳过 {count} 个关联项",
+  "@backupConflictSkipAssociated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }
