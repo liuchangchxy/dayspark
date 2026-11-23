@@ -11,7 +11,6 @@ import 'attachment_files.dart';
 enum BackupConflictResolution {
   keepLocal,
   keepRemote,
-  merge,
 }
 
 class BackupConflictItem {
@@ -509,21 +508,24 @@ class BackupService {
         final localById = (await (_db.select(_db.calendars)
               ..where((tbl) => tbl.id.equals(oldId)))
             .get()).firstOrNull;
-        if (match == null && localById != null && localById.name == name && (localById.syncId == null || localById.syncId == syncId)) {
-          match = localById;
-        }
-        if (match == null) {
-          final matchesByName = await (_db.select(_db.calendars)
-                ..where((tbl) => tbl.name.equals(name)))
-              .get();
-          if (matchesByName.isNotEmpty && matchesByName.first.syncId == null && syncId == null) {
-            match = matchesByName.first;
-          }
+
+        final isIdentical = (localById != null &&
+                localById.name == name &&
+                localById.syncId == syncId) ||
+            (match != null &&
+                match.name == name &&
+                match.syncId == syncId);
+        if (isIdentical) {
+          calendarIdMap[oldId] = match?.id ?? localById!.id;
+          continue;
         }
 
-        final isConflict = localById != null &&
-            ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
-                (localById.name != name));
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isConflict = hasIdCollision ||
+            (localById != null &&
+                ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
+                    (localById.name != name))) ||
+            (match != null && match.name != name);
 
         if (isConflict) {
           final res = resolutions?[conflictKey];
@@ -578,21 +580,24 @@ class BackupService {
         final localById = (await (_db.select(_db.tags)
               ..where((tbl) => tbl.id.equals(oldId)))
             .get()).firstOrNull;
-        if (match == null && localById != null && localById.name == name && (localById.syncId == null || localById.syncId == syncId)) {
-          match = localById;
-        }
-        if (match == null) {
-          final matchesByName = await (_db.select(_db.tags)
-                ..where((tbl) => tbl.name.equals(name)))
-              .get();
-          if (matchesByName.isNotEmpty && matchesByName.first.syncId == null && syncId == null) {
-            match = matchesByName.first;
-          }
+
+        final isIdentical = (localById != null &&
+                localById.name == name &&
+                localById.syncId == syncId) ||
+            (match != null &&
+                match.name == name &&
+                match.syncId == syncId);
+        if (isIdentical) {
+          tagIdMap[oldId] = match?.id ?? localById!.id;
+          continue;
         }
 
-        final isConflict = localById != null &&
-            ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
-                (localById.name != name));
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isConflict = hasIdCollision ||
+            (localById != null &&
+                ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
+                    (localById.name != name))) ||
+            (match != null && match.name != name);
 
         if (isConflict) {
           final res = resolutions?[conflictKey];
@@ -921,7 +926,7 @@ class BackupService {
         }
       }
 
-      // 6. EventTags & TodoTags (Item 21: skip if parent was skipped)
+      // 6. EventTags & TodoTags (Item 21: skip if parent was skipped; Item 5: resolution gate)
       final eventTags =
           (data['eventTags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final et in eventTags) {
@@ -929,6 +934,10 @@ class BackupService {
         final rawTagId = et['tagId'] as int;
         if (skippedEventIds.contains(rawEventId) || !eventIdMap.containsKey(rawEventId)) continue;
         if (skippedTagIds.contains(rawTagId) || !tagIdMap.containsKey(rawTagId)) continue;
+        if (resolutions?['events:$rawEventId'] == BackupConflictResolution.keepLocal) continue;
+        if (resolutions?['tags:$rawTagId'] == BackupConflictResolution.keepLocal) continue;
+        if (resolutions?['eventTags:$rawEventId'] == BackupConflictResolution.keepLocal) continue;
+        if (resolutions?['eventTags:$rawEventId-$rawTagId'] == BackupConflictResolution.keepLocal) continue;
         final eventId = eventIdMap[rawEventId]!;
         final tagId = tagIdMap[rawTagId]!;
         final syncId = et['syncId'] as String?;
@@ -949,6 +958,10 @@ class BackupService {
         final rawTagId = tt['tagId'] as int;
         if (skippedTodoIds.contains(rawTodoId) || !todoIdMap.containsKey(rawTodoId)) continue;
         if (skippedTagIds.contains(rawTagId) || !tagIdMap.containsKey(rawTagId)) continue;
+        if (resolutions?['todos:$rawTodoId'] == BackupConflictResolution.keepLocal) continue;
+        if (resolutions?['tags:$rawTagId'] == BackupConflictResolution.keepLocal) continue;
+        if (resolutions?['todoTags:$rawTodoId'] == BackupConflictResolution.keepLocal) continue;
+        if (resolutions?['todoTags:$rawTodoId-$rawTagId'] == BackupConflictResolution.keepLocal) continue;
         final todoId = todoIdMap[rawTodoId]!;
         final tagId = tagIdMap[rawTagId]!;
         final syncId = tt['syncId'] as String?;

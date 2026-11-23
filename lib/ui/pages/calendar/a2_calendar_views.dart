@@ -1710,9 +1710,10 @@ class A2TimeGridView extends StatelessWidget {
       final weekStart = calDayOf(days.first);
       final weekEnd = calDayOf(days.last);
       final relevant = <CalendaEventAdapter>[];
-      final seenIds = <int>{};
+      final seenKeys = <String>{};
       for (final e in allDayEvents) {
-        if (!seenIds.add(e.drifId)) continue;
+        final key = '${e.drifId}_${e.start.millisecondsSinceEpoch}_${e.end.millisecondsSinceEpoch}';
+        if (!seenKeys.add(key)) continue;
         final s = calDayOf(e.start);
         final endDay = calDayOf(
           e.isAllDay ? e.end.subtract(const Duration(seconds: 1)) : e.end,

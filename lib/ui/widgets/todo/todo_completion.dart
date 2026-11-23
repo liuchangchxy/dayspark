@@ -6,6 +6,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 
 /// Resolves the current uncompleted occurrence for a recurring series.
 Future<String?> resolveCurrentOccurrenceId(
@@ -70,11 +71,31 @@ Future<({bool changed, String? occurrenceId})> toggleTodoCompletion(
     return (changed: true, occurrenceId: null);
   }
 
-  final targetOccurrenceId = await resolveCurrentOccurrenceId(ref, todo);
-  if (targetOccurrenceId == null) {
-    await ref.read(toggleTodoProvider)(id: todo.id, isCompleted: completed);
-    return (changed: true, occurrenceId: null);
+  var targetOccurrenceId = await resolveCurrentOccurrenceId(ref, todo);
+
+  if (targetOccurrenceId == null && context.mounted) {
+    final selected = await TodoOccurrencePickerSheet.show(
+      context,
+      ref: ref,
+      todo: todo,
+    );
+    if (selected != null) {
+      targetOccurrenceId = selected.occurrenceId;
+    }
   }
+
+  if (targetOccurrenceId == null) {
+    if (context.mounted) {
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.actionFailedRetry)),
+        );
+      }
+    }
+    return (changed: false, occurrenceId: null);
+  }
+
   await ref.read(toggleTodoProvider)(
     id: todo.id,
     isCompleted: completed,
