@@ -826,10 +826,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 return;
                               }
                               try {
-                                final saved = await _capture(
-                                  text,
-                                  draft: _desktopCaptureDraft,
-                                );
+                                final saved = await _capture(text);
                                 if (saved) {
                                   _desktopCaptureController.clear();
                                   setState(() {

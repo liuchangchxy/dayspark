@@ -1480,7 +1480,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       return;
     }
     try {
-      final saved = await _captureWithDraft(text, _desktopCaptureDraft);
+      final saved = await _capture(text);
       if (!mounted) return;
       if (saved) {
         _desktopCaptureController.clear();
