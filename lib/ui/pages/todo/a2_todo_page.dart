@@ -263,14 +263,16 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
   }
 
-  Future<void> _capture(String text) async {
+  Future<bool> _capture(String text) async {
     final callback = widget.onCapture;
-    if (callback == null) return;
+    if (callback == null) return false;
     try {
       await callback(text);
+      return true;
     } on Object catch (error) {
       debugPrint('todo: capture failed: $error');
       if (mounted) showCompletionError(context, error);
+      return false;
     }
   }
 
@@ -491,21 +493,47 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                               _desktopCaptureController.clear();
                               setState(() => _desktopCaptureState = A2CaptureState.compact);
                             },
+                            onPickDate: () => setState(() => _desktopCaptureState = A2CaptureState.date),
+                            onPickPlan: () => setState(() => _desktopCaptureState = A2CaptureState.plan),
+                            onPickCalendar: () => setState(() => _desktopCaptureState = A2CaptureState.calendar),
+                            onPickReminder: () => setState(() => _desktopCaptureState = A2CaptureState.reminder),
+                            onSwitchToEvent: () => setState(() => _desktopCaptureState = A2CaptureState.event),
+                            onSwitchToTodo: () => setState(() => _desktopCaptureState = A2CaptureState.expanded),
                             onSubmit: () async {
                               final text = _desktopCaptureController.text.trim();
-                              if (text.isNotEmpty) {
-                                await _capture(text);
-                                _desktopCaptureController.clear();
+                              if (text.isEmpty) {
+                                setState(() => _desktopCaptureState = A2CaptureState.validation);
+                                return;
                               }
-                              setState(() => _desktopCaptureState = A2CaptureState.compact);
+                              try {
+                                final saved = await _capture(text);
+                                if (saved) {
+                                  _desktopCaptureController.clear();
+                                  setState(() => _desktopCaptureState = A2CaptureState.compact);
+                                } else {
+                                  setState(() => _desktopCaptureState = A2CaptureState.saveError);
+                                }
+                              } catch (_) {
+                                setState(() => _desktopCaptureState = A2CaptureState.saveError);
+                              }
                             },
                             onSubmitLater: () async {
                               final text = _desktopCaptureController.text.trim();
-                              if (text.isNotEmpty) {
-                                await _capture(text);
-                                _desktopCaptureController.clear();
+                              if (text.isEmpty) {
+                                setState(() => _desktopCaptureState = A2CaptureState.validation);
+                                return;
                               }
-                              setState(() => _desktopCaptureState = A2CaptureState.compact);
+                              try {
+                                final saved = await _capture(text);
+                                if (saved) {
+                                  _desktopCaptureController.clear();
+                                  setState(() => _desktopCaptureState = A2CaptureState.compact);
+                                } else {
+                                  setState(() => _desktopCaptureState = A2CaptureState.saveError);
+                                }
+                              } catch (_) {
+                                setState(() => _desktopCaptureState = A2CaptureState.saveError);
+                              }
                             },
                           ),
                         ),
@@ -1809,25 +1837,54 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 560),
           child: A2CaptureBar(
+            controller: _desktopCaptureController,
             placeholder: l.capturePlaceholder,
             hint: _captureFocused
                 ? l.captureHintSubmit
                 : (desktop ? l.captureHintEnter : ''),
-            onSubmit: _capture,
+            onSubmit: (text) async {
+              if (text.trim().isEmpty) {
+                if (desktop) {
+                  setState(() => _desktopCaptureState = A2CaptureState.validation);
+                }
+                return;
+              }
+              final saved = await _capture(text);
+              if (saved) {
+                _desktopCaptureController.clear();
+                if (desktop) {
+                  setState(() => _desktopCaptureState = A2CaptureState.compact);
+                }
+              } else if (desktop) {
+                setState(() => _desktopCaptureState = A2CaptureState.saveError);
+              }
+            },
             onExpand: () {
               if (desktop) {
                 setState(() {
                   if (_desktopCaptureState == A2CaptureState.compact) {
-                    _desktopCaptureState = A2CaptureState.expanded;
+                    final text = _desktopCaptureController.text.trim();
+                    final parsed = text.isNotEmpty ? parseCapture(text, DateTime.now()) : null;
+                    if (parsed?.start != null) {
+                      _desktopCaptureState = A2CaptureState.parsed;
+                    } else {
+                      _desktopCaptureState = A2CaptureState.expanded;
+                    }
                   } else {
                     _desktopCaptureState = A2CaptureState.compact;
                   }
                 });
               } else {
-                _openCaptureComposer('');
+                _openCaptureComposer(_desktopCaptureController.text);
               }
             },
-            onParsedSubmit: _openCaptureComposer,
+            onParsedSubmit: (draft) async {
+              if (desktop) {
+                setState(() => _desktopCaptureState = A2CaptureState.parsed);
+                return false;
+              }
+              return _openCaptureComposer(draft);
+            },
             onFocusChange: (focused) {
               if (_captureFocused == focused) return;
               setState(() => _captureFocused = focused);

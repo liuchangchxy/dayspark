@@ -579,6 +579,7 @@ class A2CaptureBar extends StatefulWidget {
     required this.placeholder,
     required this.hint,
     required this.onSubmit,
+    this.controller,
     this.onFocusChange,
     this.fieldKey,
     this.initialDraft,
@@ -591,6 +592,7 @@ class A2CaptureBar extends StatefulWidget {
   final String placeholder;
   final String hint;
   final Future<void> Function(String text) onSubmit;
+  final TextEditingController? controller;
   final ValueChanged<bool>? onFocusChange;
   final Key? fieldKey;
   final String? initialDraft;
@@ -614,7 +616,7 @@ class A2CaptureBarState extends State<A2CaptureBar> {
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialDraft);
+    _controller = widget.controller ?? TextEditingController(text: widget.initialDraft);
     _controller.addListener(_onTextChanged);
     _focus.addListener(_onFocus);
   }
@@ -631,7 +633,8 @@ class A2CaptureBarState extends State<A2CaptureBar> {
   @override
   void didUpdateWidget(covariant A2CaptureBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialDraft != null &&
+    if (widget.controller == null &&
+        widget.initialDraft != null &&
         widget.initialDraft != oldWidget.initialDraft &&
         widget.initialDraft != _controller.text) {
       _controller.text = widget.initialDraft!;
@@ -643,7 +646,9 @@ class A2CaptureBarState extends State<A2CaptureBar> {
     _focus.removeListener(_onFocus);
     _controller.removeListener(_onTextChanged);
     _focus.dispose();
-    _controller.dispose();
+    if (widget.controller == null) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -1464,36 +1469,52 @@ class A2CapturePanel extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final isDesktop = MediaQuery.sizeOf(context).width >= 720;
-    return Container(
-      width: isDesktop ? 620 : double.infinity,
-      margin: isDesktop
-          ? const EdgeInsets.fromLTRB(12, 0, 12, 8)
-          : const EdgeInsets.fromLTRB(8, 0, 8, 4),
-      decoration: BoxDecoration(
-        color: SpecTokens.paper,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: SpecTokens.hair),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(24, 24, 22, 0.10),
-            blurRadius: 40,
-            offset: Offset(0, 14),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHead(context),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: _buildBody(context),
+    return Focus(
+      autofocus: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          if (state == A2CaptureState.saveError) {
+            onStateChanged?.call(A2CaptureState.discard);
+          } else {
+            onCancel?.call();
+            onStateChanged?.call(A2CaptureState.compact);
+          }
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Container(
+        width: isDesktop ? 620 : double.infinity,
+        margin: isDesktop
+            ? const EdgeInsets.fromLTRB(12, 0, 12, 8)
+            : const EdgeInsets.fromLTRB(8, 0, 8, 4),
+        decoration: BoxDecoration(
+          color: SpecTokens.paper,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: SpecTokens.hair),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(24, 24, 22, 0.10),
+              blurRadius: 40,
+              offset: Offset(0, 14),
             ),
-            _buildFoot(context),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHead(context),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: _buildBody(context),
+              ),
+              _buildFoot(context),
+            ],
+          ),
         ),
       ),
     );
@@ -1748,6 +1769,110 @@ class A2CapturePanel extends StatelessWidget {
           ],
         );
 
+      case A2CaptureState.event:
+        final timeStr = planStart != null
+            ? '${planStart!.month}/${planStart!.day} ${planStart!.hour.toString().padLeft(2, '0')}:${planStart!.minute.toString().padLeft(2, '0')}'
+                '–${planEnd != null ? "${planEnd!.hour.toString().padLeft(2, '0')}:${planEnd!.minute.toString().padLeft(2, '0')}" : ""}'
+            : '11/21 10:00–11:00';
+        return Column(
+          children: [
+            _fieldRow('标题', titleController.text.isNotEmpty ? titleController.text : '未填写', onTap: null),
+            _fieldRow('时间', timeStr, onTap: onPickPlan),
+            _fieldRow('全天', '否', onTap: null),
+            _fieldRow('日历', calendarName ?? '工作', dotColor: calendarColor ?? SpecTokens.work, onTap: onPickCalendar),
+            _fieldRow('重复', '不重复', onTap: null),
+            _fieldRow('提醒', reminderLabel ?? '15 分钟前', onTap: onPickReminder),
+          ],
+        );
+
+      case A2CaptureState.date:
+        final now = DateTime.now();
+        return Column(
+          children: [
+            _choiceRow('今天', '${now.month}/${now.day} · 选中', isSelected: true, onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('明天', '${now.add(const Duration(days: 1)).month}/${now.add(const Duration(days: 1)).day}', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('下周一', '下周', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('其他日期', '打开日历', onTap: onPickDate ?? () => onStateChanged?.call(A2CaptureState.expanded)),
+          ],
+        );
+
+      case A2CaptureState.plan:
+        final startStr = planStart != null ? '${planStart!.hour.toString().padLeft(2, '0')}:${planStart!.minute.toString().padLeft(2, '0')}' : '15:15';
+        final endStr = planEnd != null ? '${planEnd!.hour.toString().padLeft(2, '0')}:${planEnd!.minute.toString().padLeft(2, '0')}' : '16:00';
+        return Column(
+          children: [
+            _fieldRow('日期', planStart != null ? '${planStart!.month}/${planStart!.day}' : '今天', onTap: onPickDate),
+            _fieldRow('开始', startStr, onTap: onPickPlan),
+            _fieldRow('结束', endStr, onTap: onPickPlan),
+            _fieldRow('时长', '45 分钟', onTap: null),
+            _fieldRow('当天已有', '无重叠日程', onTap: null),
+          ],
+        );
+
+      case A2CaptureState.calendar:
+        return Column(
+          children: [
+            _choiceRow('个人', '默认 · 选中', dotColor: SpecTokens.scheduleBlue, isSelected: true, onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('工作', '工作日历', dotColor: SpecTokens.work, onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('家事', '生活日历', dotColor: SpecTokens.amber, onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('健康', '健康日历', dotColor: SpecTokens.red, onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+          ],
+        );
+
+      case A2CaptureState.reminder:
+        return Column(
+          children: [
+            _choiceRow('不提醒', '', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('5 分钟前', '', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('15 分钟前', '选中', isSelected: true, onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('1 小时前', '', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+            _choiceRow('1 天前', '', onTap: () => onStateChanged?.call(A2CaptureState.expanded)),
+          ],
+        );
+
+      case A2CaptureState.keyboard:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: SpecTokens.ink),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color.fromRGBO(25, 25, 24, 0.10),
+                    blurRadius: 3,
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('标题', style: TextStyle(fontSize: 11, color: SpecTokens.muted)),
+                  TextField(
+                    controller: titleController,
+                    autofocus: true,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 4),
+                      border: InputBorder.none,
+                    ),
+                  ),
+                  const Text(
+                    '焦点在标题；Tab 到截止、计划、提醒。',
+                    style: TextStyle(fontSize: 11, color: SpecTokens.faint),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            _fieldRow('截止', dueDate != null ? '${dueDate!.month}/${dueDate!.day}' : '无截止', onTap: onPickDate),
+            _fieldRow('计划执行', planStart != null ? '${planStart!.hour}:${planStart!.minute}' : '未安排', onTap: onPickPlan),
+          ],
+        );
+
       case A2CaptureState.expanded:
       default:
         return Column(
@@ -1771,6 +1896,48 @@ class A2CapturePanel extends StatelessWidget {
           ],
         );
     }
+  }
+
+  Widget _choiceRow(String label, String value, {bool isSelected = false, Color? dotColor, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (dotColor != null) ...[
+                  Container(width: 6, height: 6, decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                ],
+                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: SpecTokens.ink)),
+              ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(value, style: const TextStyle(fontSize: 11, color: SpecTokens.faint)),
+                if (isSelected) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: SpecTokens.ink,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: const Text('选中', style: TextStyle(fontSize: 9, color: Colors.white)),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _fieldRow(String label, String value, {bool isHighlight = false, Color? dotColor, VoidCallback? onTap}) {
@@ -1811,6 +1978,90 @@ class A2CapturePanel extends StatelessWidget {
     var actionButtons = <Widget>[];
 
     switch (state) {
+      case A2CaptureState.event:
+        hintText = '只有主动切换“日程”，或从 Calendar 时间槽进入，才是日程。';
+        actionButtons = [
+          TextButton(
+            onPressed: onSwitchToTodo ?? () => onStateChanged?.call(A2CaptureState.expanded),
+            child: const Text('改回待办'),
+          ),
+          ElevatedButton(
+            onPressed: onSubmit,
+            style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
+            child: const Text('创建日程', style: TextStyle(color: Colors.white)),
+          ),
+        ];
+
+      case A2CaptureState.date:
+        hintText = '只写日期，不写时间；不会自动变成日程。';
+        actionButtons = [
+          TextButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
+            child: const Text('应用', style: TextStyle(color: Colors.white)),
+          ),
+        ];
+
+      case A2CaptureState.plan:
+        hintText = '允许重叠；不会把截止改成 16:00。';
+        actionButtons = [
+          TextButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
+            child: const Text('应用', style: TextStyle(color: Colors.white)),
+          ),
+        ];
+
+      case A2CaptureState.calendar:
+        hintText = '默认日历来自设置；没有“未分类”。';
+        actionButtons = [
+          TextButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
+            child: const Text('应用', style: TextStyle(color: Colors.white)),
+          ),
+        ];
+
+      case A2CaptureState.reminder:
+        hintText = '提醒是条目自身的事实，不影响截止。';
+        actionButtons = [
+          TextButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.expanded),
+            style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
+            child: const Text('应用', style: TextStyle(color: Colors.white)),
+          ),
+        ];
+
+      case A2CaptureState.keyboard:
+        hintText = '焦点可见；Esc 走放弃确认。';
+        actionButtons = [
+          TextButton(
+            onPressed: () => onStateChanged?.call(A2CaptureState.discard),
+            child: const Text('Esc'),
+          ),
+          ElevatedButton(
+            onPressed: onSubmit,
+            style: ElevatedButton.styleFrom(backgroundColor: SpecTokens.ink),
+            child: const Text('Enter 保存', style: TextStyle(color: Colors.white)),
+          ),
+        ];
+
       case A2CaptureState.validation:
         hintText = '校验错误贴着字段，不弹全局错误。';
         actionButtons = [

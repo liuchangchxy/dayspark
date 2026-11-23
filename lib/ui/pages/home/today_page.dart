@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -1357,18 +1358,55 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   Future<void> _submitDesktopCapture() async {
     final text = _desktopCaptureController.text.trim();
-    if (text.isEmpty) return;
-    final parsed = parseCapture(text, DateTime.now());
-    if (parsed.start != null) {
-      await _openCaptureComposer(text);
+    if (text.isEmpty) {
+      setState(() => _desktopCaptureState = A2CaptureState.validation);
       return;
     }
-    final saved = await _capture(text);
-    if (!mounted || !saved) return;
-    // A failed write keeps the sentence exactly where the user typed it.
-    if (_desktopCaptureController.text.trim() != text) return;
-    _desktopCaptureController.clear();
-    setState(() => _captureDraft = '');
+    final parsed = parseCapture(text, DateTime.now());
+    if (parsed.start != null) {
+      setState(() => _desktopCaptureState = A2CaptureState.parsed);
+      return;
+    }
+    try {
+      final saved = await _capture(text);
+      if (!mounted) return;
+      if (saved) {
+        _desktopCaptureController.clear();
+        setState(() {
+          _captureDraft = '';
+          _desktopCaptureState = A2CaptureState.compact;
+        });
+      } else {
+        setState(() => _desktopCaptureState = A2CaptureState.saveError);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _desktopCaptureState = A2CaptureState.saveError);
+    }
+  }
+
+  Future<void> _submitDesktopCaptureLater() async {
+    final text = _desktopCaptureController.text.trim();
+    if (text.isEmpty) {
+      setState(() => _desktopCaptureState = A2CaptureState.validation);
+      return;
+    }
+    try {
+      final saved = await _capture(text);
+      if (!mounted) return;
+      if (saved) {
+        _desktopCaptureController.clear();
+        setState(() {
+          _captureDraft = '';
+          _desktopCaptureState = A2CaptureState.compact;
+        });
+      } else {
+        setState(() => _desktopCaptureState = A2CaptureState.saveError);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _desktopCaptureState = A2CaptureState.saveError);
+    }
   }
 
   Widget _desktopCaptureBar(AppLocalizations l, {bool isShifted = false}) {
@@ -1467,7 +1505,19 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               InkWell(
                 key: const ValueKey('desktop-capture-expand-btn'),
                 onTap: () {
-                  _openCaptureComposer(_desktopCaptureController.text);
+                  setState(() {
+                    if (_desktopCaptureState == A2CaptureState.compact) {
+                      final text = _desktopCaptureController.text.trim();
+                      final parsed = text.isNotEmpty ? parseCapture(text, DateTime.now()) : null;
+                      if (parsed?.start != null) {
+                        _desktopCaptureState = A2CaptureState.parsed;
+                      } else {
+                        _desktopCaptureState = A2CaptureState.expanded;
+                      }
+                    } else {
+                      _desktopCaptureState = A2CaptureState.compact;
+                    }
+                  });
                 },
                 borderRadius: BorderRadius.circular(17),
                 child: Container(
@@ -2225,13 +2275,17 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                         _desktopCaptureState = A2CaptureState.compact;
                       });
                     },
+                    onPickDate: () => setState(() => _desktopCaptureState = A2CaptureState.date),
+                    onPickPlan: () => setState(() => _desktopCaptureState = A2CaptureState.plan),
+                    onPickCalendar: () => setState(() => _desktopCaptureState = A2CaptureState.calendar),
+                    onPickReminder: () => setState(() => _desktopCaptureState = A2CaptureState.reminder),
+                    onSwitchToEvent: () => setState(() => _desktopCaptureState = A2CaptureState.event),
+                    onSwitchToTodo: () => setState(() => _desktopCaptureState = A2CaptureState.expanded),
                     onSubmit: () async {
                       await _submitDesktopCapture();
-                      setState(() => _desktopCaptureState = A2CaptureState.compact);
                     },
                     onSubmitLater: () async {
-                      await _submitDesktopCapture();
-                      setState(() => _desktopCaptureState = A2CaptureState.compact);
+                      await _submitDesktopCaptureLater();
                     },
                   ),
                 ),
@@ -2254,7 +2308,33 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       ],
     );
 
-    return _listSlot(l, data, desktopContent);
+    final wrappedDesktop = _desktopCaptureState != A2CaptureState.compact
+        ? FocusScope(
+            autofocus: true,
+            child: Shortcuts(
+              shortcuts: <ShortcutActivator, Intent>{
+                SingleActivator(LogicalKeyboardKey.escape):
+                    const _DismissDesktopCaptureIntent(),
+              },
+              child: Actions(
+                actions: <Type, Action<Intent>>{
+                  _DismissDesktopCaptureIntent:
+                      CallbackAction<_DismissDesktopCaptureIntent>(
+                    onInvoke: (_) {
+                      setState(() {
+                        _desktopCaptureState = A2CaptureState.compact;
+                      });
+                      return null;
+                    },
+                  ),
+                },
+                child: desktopContent,
+              ),
+            ),
+          )
+        : desktopContent;
+
+    return _listSlot(l, data, wrappedDesktop);
   }
 
   // ------------------------------------------------------------- recent injections
@@ -2765,4 +2845,8 @@ class _Toast extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DismissDesktopCaptureIntent extends Intent {
+  const _DismissDesktopCaptureIntent();
 }
