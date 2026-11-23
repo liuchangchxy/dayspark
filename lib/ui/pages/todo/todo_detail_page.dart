@@ -1990,6 +1990,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         ref,
         todo: live,
         completed: !completed,
+        anchorDate: widget.clock?.call(),
       );
     } catch (error) {
       if (mounted) showCompletionError(context, error);

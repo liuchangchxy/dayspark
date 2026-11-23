@@ -49,6 +49,7 @@ Future<({bool changed, String? occurrenceId})> toggleTodoCompletion(
   required Todo todo,
   required bool completed,
   String? occurrenceId,
+  DateTime? anchorDate,
 }) async {
   if (occurrenceId != null) {
     await ref.read(toggleTodoProvider)(
@@ -72,7 +73,11 @@ Future<({bool changed, String? occurrenceId})> toggleTodoCompletion(
     return (changed: true, occurrenceId: null);
   }
 
-  var targetOccurrenceId = await resolveCurrentOccurrenceId(ref, todo);
+  var targetOccurrenceId = await resolveCurrentOccurrenceId(
+    ref,
+    todo,
+    anchorDate: anchorDate,
+  );
 
   if (targetOccurrenceId == null && context.mounted) {
     final selected = await TodoOccurrencePickerSheet.show(
