@@ -1098,6 +1098,11 @@ class _CalHiddenBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final summaryText = (l.localeName.startsWith('zh') && hiddenNames.isNotEmpty)
+        ? (hiddenNames.length == 1
+            ? '已隐藏『${hiddenNames.first}』日历 · $hiddenItemsCount 项'
+            : '已隐藏 ${hiddenNames.length} 个日历 · $hiddenItemsCount 项')
+        : l.hiddenCalendarsSummary(hiddenCount);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 5),
       decoration: const BoxDecoration(
@@ -1109,7 +1114,7 @@ class _CalHiddenBanner extends StatelessWidget {
           const Icon(CupertinoIcons.eye_slash, size: 12, color: SpecTokens.muted),
           const SizedBox(width: 6),
           Text(
-            l.hiddenCalendarsSummary(hiddenCount),
+            summaryText,
             style: const TextStyle(
               fontSize: 9.5,
               color: SpecTokens.muted,

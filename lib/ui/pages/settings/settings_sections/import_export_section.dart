@@ -169,7 +169,61 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
           picked.bytes ??
           (picked.path == null ? null : await File(picked.path!).readAsBytes());
       if (bytes == null) throw StateError('backup file has no content');
-      await BackupService(ref.read(databaseProvider)).restoreZip(bytes);
+      final backupService = BackupService(ref.read(databaseProvider));
+      final decoded = BackupService.decodeZip(bytes);
+      final conflicts = await backupService.inspectConflicts(decoded.data);
+      Map<String, BackupConflictResolution>? resolutions;
+      if (conflicts.isNotEmpty && mounted) {
+        final res = await showDialog<BackupConflictResolution>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('检测到 ${conflicts.length} 项数据冲突'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('备份中的部分记录与本机已有记录存在冲突。请选择合并策略：'),
+                const SizedBox(height: 12),
+                ...conflicts.take(3).map(
+                      (c) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          '• ${c.title} (${c.table})',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                if (conflicts.length > 3)
+                  Text(
+                    '...等共 ${conflicts.length} 项',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(ctx, BackupConflictResolution.keepLocal),
+                child: const Text('保留本机'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(ctx, BackupConflictResolution.keepRemote),
+                child: const Text('覆盖为备份'),
+              ),
+            ],
+          ),
+        );
+        if (res == null) return;
+        resolutions = {
+          for (final c in conflicts) '${c.table}:${c.id}': res,
+        };
+      }
+      await backupService.restoreZip(bytes, resolutions: resolutions);
       if (!mounted) return;
       setState(() => _backupResult = l.backupRestored);
     } catch (e) {
