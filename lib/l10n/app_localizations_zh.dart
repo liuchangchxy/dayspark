@@ -3230,4 +3230,50 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get deleteTrashNotice => '会移入回收站，可恢复。';
+
+  @override
+  String backupConflictTitle(int count) {
+    return '检测到 $count 项数据冲突';
+  }
+
+  @override
+  String get backupConflictDesc => '备份中的部分记录与本机已有记录存在冲突。请逐项选择合并策略：';
+
+  @override
+  String get backupKeepLocal => '保留本机';
+
+  @override
+  String get backupKeepRemote => '覆盖为备份';
+
+  @override
+  String get backupApplyResolutions => '应用选择';
+
+  @override
+  String get importStepFile => '1 · 选择文件';
+
+  @override
+  String get importStepCalendar => '2 · 目标日历';
+
+  @override
+  String get importStepPreview => '3 · 预览与写入';
+
+  @override
+  String get importFileHelp => '支持 .ics；不会覆盖同 UID 的事件。';
+
+  @override
+  String importCalendarHelp(int count) {
+    return '目标日历 · 当前 $count 项';
+  }
+
+  @override
+  String get importPreviewHelp => '先看将新增 / 跳过 / 重复的条目。';
+
+  @override
+  String get importNextStep => '下一步';
+
+  @override
+  String get importChangeFile => '重新选择';
+
+  @override
+  String get importChangeCalendar => '更改日历';
 }

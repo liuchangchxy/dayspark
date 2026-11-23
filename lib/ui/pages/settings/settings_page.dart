@@ -104,7 +104,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final index = sections.indexWhere((s) => s.key == key);
     if (index >= 0) {
       _selectSection(index);
-    } else if (key == 'account' || key == 'ai') {
+    } else if (key == 'account' || key == 'ai' || key == 'home') {
       setState(() {
         _customSectionKey = key;
         _showingDefaultCalendar = false;
@@ -116,6 +116,55 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   _SettingsSectionItem? _customSection(AppLocalizations l, String key) {
+    if (key == 'home') {
+      final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
+      return _SettingsSectionItem(
+        key: 'home',
+        label: l.settings,
+        subtitle: l.settingsSubtitle,
+        widget: SettingsRows(
+          children: [
+            SettingsRow(
+              label: l.general,
+              subtitle: l.mobileGeneralDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('general'),
+            ),
+            SettingsRow(
+              label: l.manageCalendars,
+              subtitle: l.mobileCalendarsDesc(calCount),
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('calendars'),
+            ),
+            SettingsRow(
+              label: l.data,
+              subtitle: l.mobileDataDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('data'),
+            ),
+            if (hasNotificationSettings)
+              SettingsRow(
+                label: l.notify,
+                subtitle: l.mobileNotifyDesc,
+                chevron: SettingsChevron.right,
+                onTap: () => _goToSectionKey('notify'),
+              ),
+            SettingsRow(
+              label: l.sync,
+              subtitle: l.mobileSyncDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('sync'),
+            ),
+            SettingsRow(
+              label: l.about,
+              subtitle: l.mobileAboutDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('about'),
+            ),
+          ],
+        ),
+      );
+    }
     if (key == 'account') {
       return _SettingsSectionItem(
         key: 'account',
@@ -135,17 +184,65 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return null;
   }
 
-  List<_SettingsSectionItem> _desktopSections(AppLocalizations l) => [
-    _SettingsSectionItem(
-      key: 'general',
-      label: l.general,
-      subtitle: l.generalDesc,
-      widget: AppearanceSection(
-        onOpenDefaultCalendar: () {
-          setState(() => _showingDefaultCalendar = true);
-        },
+  List<_SettingsSectionItem> _desktopSections(AppLocalizations l) {
+    final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
+    return [
+      _SettingsSectionItem(
+        key: 'home',
+        label: l.settings,
+        subtitle: l.settingsSubtitle,
+        widget: SettingsRows(
+          children: [
+            SettingsRow(
+              label: l.general,
+              subtitle: l.mobileGeneralDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('general'),
+            ),
+            SettingsRow(
+              label: l.manageCalendars,
+              subtitle: l.mobileCalendarsDesc(calCount),
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('calendars'),
+            ),
+            SettingsRow(
+              label: l.data,
+              subtitle: l.mobileDataDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('data'),
+            ),
+            if (hasNotificationSettings)
+              SettingsRow(
+                label: l.notify,
+                subtitle: l.mobileNotifyDesc,
+                chevron: SettingsChevron.right,
+                onTap: () => _goToSectionKey('notify'),
+              ),
+            SettingsRow(
+              label: l.sync,
+              subtitle: l.mobileSyncDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('sync'),
+            ),
+            SettingsRow(
+              label: l.about,
+              subtitle: l.mobileAboutDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('about'),
+            ),
+          ],
+        ),
       ),
-    ),
+      _SettingsSectionItem(
+        key: 'general',
+        label: l.general,
+        subtitle: l.generalDesc,
+        widget: AppearanceSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
+      ),
     _SettingsSectionItem(
       key: 'calendars',
       label: l.manageCalendars,
@@ -200,6 +297,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       widget: AboutSection(version: _cachedVersion ?? ''),
     ),
   ];
+  }
 
   String _mobileTitle(AppLocalizations l, String section) => switch (section) {
     'general' => l.general,
@@ -299,15 +397,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          Text(
-            l.settings,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.1,
-              height: 1.22,
-              color: SpecTokens.ink,
-              fontFamilyFallback: AppTypography.fallback,
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _goToSectionKey('home'),
+              child: Text(
+                l.settings,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                  height: 1.22,
+                  color: SpecTokens.ink,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 10),

@@ -3284,4 +3284,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteTrashNotice => 'It will move to the trash and can be restored.';
+
+  @override
+  String backupConflictTitle(int count) {
+    return 'Data Conflicts ($count)';
+  }
+
+  @override
+  String get backupConflictDesc => 'Some records in the backup conflict with existing records on this device. Select a resolution for each item:';
+
+  @override
+  String get backupKeepLocal => 'Keep local';
+
+  @override
+  String get backupKeepRemote => 'Overwrite with backup';
+
+  @override
+  String get backupApplyResolutions => 'Apply resolutions';
+
+  @override
+  String get importStepFile => '1 · Choose File';
+
+  @override
+  String get importStepCalendar => '2 · Target Calendar';
+
+  @override
+  String get importStepPreview => '3 · Preview & Import';
+
+  @override
+  String get importFileHelp => 'Supports .ics files. Events with matching UIDs will not be duplicated.';
+
+  @override
+  String importCalendarHelp(int count) {
+    return 'Target calendar · currently $count items';
+  }
+
+  @override
+  String get importPreviewHelp => 'Review events and tasks that will be added or skipped.';
+
+  @override
+  String get importNextStep => 'Next step';
+
+  @override
+  String get importChangeFile => 'Change file';
+
+  @override
+  String get importChangeCalendar => 'Change calendar';
 }

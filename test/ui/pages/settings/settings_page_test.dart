@@ -201,6 +201,7 @@ void main() {
       );
       final labels = navItemWidgets.map((item) => item.label).toList();
       expect(labels, [
+        'Settings',
         'General',
         'Manage Calendars',
         'Data',
@@ -226,9 +227,15 @@ void main() {
         );
       }
 
-      // Default section is General (AppearanceSection is visible, CalendarSettingsSection is not)
+      // Default section is Home (Settings overview)
+      expect(find.byType(AppearanceSection), findsNothing);
+
+      // Clicking General nav item switches to General
+      await tester.tap(
+        find.widgetWithText(SettingsNavItem, 'General'),
+      );
+      await tester.pump(const Duration(milliseconds: 350));
       expect(find.byType(AppearanceSection), findsOneWidget);
-      expect(find.byType(CalendarSettingsSection), findsNothing);
 
       // Clicking nav item switches section
       await tester.tap(
@@ -440,16 +447,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
+    // Default section is Home (0)
+    expect(find.byType(AppearanceSection), findsNothing);
+
+    // Down arrow moves from Home (0) to General (1)
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(milliseconds: 350));
+
     expect(find.byType(AppearanceSection), findsOneWidget);
 
-    // Down arrow moves from General (0) to Calendars (1)
+    // Down arrow moves from General (1) to Calendars (2)
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump(const Duration(milliseconds: 350));
 
     expect(find.byType(AppearanceSection), findsNothing);
     expect(find.byType(CalendarSettingsSection), findsOneWidget);
 
-    // Up arrow moves back to General (0)
+    // Up arrow moves back to General (1)
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.pump(const Duration(milliseconds: 350));
 

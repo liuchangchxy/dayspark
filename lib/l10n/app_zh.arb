@@ -1758,5 +1758,33 @@
     }
   },
   "deleteSeriesTrashNotice": "这是重复任务，会删除整个系列并移入回收站，可恢复。",
-  "deleteTrashNotice": "会移入回收站，可恢复。"
+  "deleteTrashNotice": "会移入回收站，可恢复。",
+  "backupConflictTitle": "检测到 {count} 项数据冲突",
+  "@backupConflictTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupConflictDesc": "备份中的部分记录与本机已有记录存在冲突。请逐项选择合并策略：",
+  "backupKeepLocal": "保留本机",
+  "backupKeepRemote": "覆盖为备份",
+  "backupApplyResolutions": "应用选择",
+  "importStepFile": "1 · 选择文件",
+  "importStepCalendar": "2 · 目标日历",
+  "importStepPreview": "3 · 预览与写入",
+  "importFileHelp": "支持 .ics；不会覆盖同 UID 的事件。",
+  "importCalendarHelp": "目标日历 · 当前 {count} 项",
+  "@importCalendarHelp": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewHelp": "先看将新增 / 跳过 / 重复的条目。",
+  "importNextStep": "下一步",
+  "importChangeFile": "重新选择",
+  "importChangeCalendar": "更改日历"
 }

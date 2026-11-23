@@ -118,21 +118,32 @@ String _blockMeta(
   CalBlockItem item,
   Map<int, String> names,
   Map<int, TaskAllocationCalendarItem> allocationItems,
+  AppLocalizations l,
 ) {
   final time = calTimeRange(item.start, item.end);
   final event = item.event;
   final allocation = item.allocation;
+  final isPlan = item.isAllocation;
+  final prefix = isPlan ? '${l.planTagLabel} · ' : '';
+
+  if (isPlan && allocation != null) {
+    final original = allocationItems[allocation.id];
+    final dueDate = original?.todo.dueDate;
+    if (dueDate != null) {
+      final dueStr = DateFormatters.formatDate(dueDate);
+      return '$prefix$time · ${l.deadline} $dueStr';
+    }
+    return '$prefix$time';
+  }
+
   final String name;
   if (event != null) {
     name = _calendarName(names, event.calendarId);
-  } else if (allocation != null) {
-    final original = allocationItems[allocation.id];
-    name = original == null ? '' : _calendarName(names, original.todo.calendarId);
   } else {
     name = '';
   }
-  if (name.isEmpty) return time;
-  return '$time · $name';
+  if (name.isEmpty) return '$prefix$time';
+  return '$prefix$time · $name';
 }
 
 class A2MonthStrip extends StatelessWidget {
@@ -309,9 +320,15 @@ class A2PhoneMonthGrid extends StatelessWidget {
       );
     }
     final selectedEntries = _entriesFor(selected, events, allocations, deadlines);
+    final multiDayEvents = [
+      for (final e in events)
+        if (!calSameDay(e.start, e.end)) e,
+    ];
     return ListView(
       padding: EdgeInsets.zero,
       children: [
+        if (multiDayEvents.isNotEmpty)
+          _MobileSpanBand(events: multiDayEvents, onEvent: onEvent),
         Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           clipBehavior: Clip.antiAlias,
@@ -583,6 +600,169 @@ class _A2MobileMonthRow extends StatelessWidget {
   }
 }
 
+class _A2SpanChip extends StatelessWidget {
+  const _A2SpanChip({required this.event, this.onTap});
+
+  final CalendaEventAdapter event;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final locale = Localizations.localeOf(context).toString();
+    final isZh = locale.startsWith('zh');
+    final accent = ds.eventAccent(event.color ?? ds.primary);
+    final days = math.max(
+      1,
+      calDayOf(event.end).difference(calDayOf(event.start)).inDays + 1,
+    );
+    final startFmt = '${event.start.month}/${event.start.day}';
+    final endFmt = '${event.end.month}/${event.end.day}';
+    final label = isZh
+        ? '${event.title} · $startFmt–$endFmt · $days 天'
+        : '${event.title} · $startFmt–$endFmt · $days d';
+
+    final chip = Container(
+      height: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: ds.tint(accent),
+        borderRadius: BorderRadius.circular(4),
+        border: Border(left: BorderSide(color: accent, width: 2.5)),
+      ),
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        maxLines: 1,
+        style: _a2Text(9.5, FontWeight.w500, ds.ink, height: 1.2),
+      ),
+    );
+
+    if (onTap == null) return chip;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: chip,
+      ),
+    );
+  }
+}
+
+class _MonthSpanBand extends StatelessWidget {
+  const _MonthSpanBand({required this.events, this.onEvent});
+
+  final List<CalendaEventAdapter> events;
+  final ValueChanged<CalendaEventAdapter>? onEvent;
+
+  @override
+  Widget build(BuildContext context) {
+    final locale = Localizations.localeOf(context).toString();
+    final isZh = locale.startsWith('zh');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border.all(color: SpecTokens.hair, width: 1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        children: [
+          Text(
+            isZh ? '跨天' : 'Span',
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: SpecTokens.ink,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final event in events) ...[
+                    _A2SpanChip(
+                      event: event,
+                      onTap: onEvent == null ? null : () => onEvent!(event),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileSpanBand extends StatelessWidget {
+  const _MobileSpanBand({required this.events, this.onEvent});
+
+  final List<CalendaEventAdapter> events;
+  final ValueChanged<CalendaEventAdapter>? onEvent;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    final locale = Localizations.localeOf(context).toString();
+    final isZh = locale.startsWith('zh');
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border.all(color: SpecTokens.hair, width: 1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              isZh ? '跨天' : 'Span',
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: SpecTokens.ink,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final event in events) ...[
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onEvent == null ? null : () => onEvent!(event),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        '${event.title} · ${event.start.month}/${event.start.day}–${event.end.month}/${event.end.day} · ${math.max(1, calDayOf(event.end).difference(calDayOf(event.start)).inDays + 1)} ${isZh ? "天" : "d"}',
+                        style: _a2Text(10, FontWeight.w400, ds.ink),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class A2DesktopMonthGrid extends StatelessWidget {
   const A2DesktopMonthGrid({
     super.key,
@@ -661,8 +841,14 @@ class A2DesktopMonthGrid extends StatelessWidget {
         ),
       );
     }
+    final multiDayEvents = [
+      for (final e in events)
+        if (!calSameDay(e.start, e.end)) e,
+    ];
     return Column(
       children: [
+        if (multiDayEvents.isNotEmpty)
+          _MonthSpanBand(events: multiDayEvents, onEvent: onEvent),
         // Spec .month-week: height 30px, 9.5px faint font, border 1px solid var(--hair)
         Container(
           height: 30,
@@ -765,8 +951,6 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
         : (_hovered
               ? const Color(0xFFFBFBF8)
               : (widget.isSelected ? SpecTokens.wash : SpecTokens.paper));
-    final visible = widget.entries.take(3).toList();
-    final hidden = widget.entries.length - visible.length;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -786,15 +970,12 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
           child: LayoutBuilder(
             builder: (context, constraints) {
+              const limit = 2;
               final capacity = ((constraints.maxHeight - 20) / 22)
                   .floor()
-                  .clamp(0, visible.length);
-              final overflows = capacity < visible.length;
-              final fits = overflows
-                  ? (capacity - 1).clamp(0, visible.length)
-                  : capacity;
-              final shown = visible.take(fits).toList();
-              final folded = hidden + (visible.length - shown.length);
+                  .clamp(0, limit);
+              final shown = widget.entries.take(capacity).toList();
+              final folded = widget.entries.length - shown.length;
 
               // Spec .mnum: min-width 20px, height 20px, 10.5px ink-2 tabular.
               // .mnum.is-today: background: var(--red); color: #fff; border-radius: 10px;
@@ -898,7 +1079,6 @@ class _A2MonthChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
     final event = entry.event;
     final allocation = entry.allocation;
     final deadline = entry.deadline;
@@ -906,14 +1086,14 @@ class _A2MonthChip extends StatelessWidget {
     final Color barColor;
     final Color textColor;
     if (event != null) {
-      final accent = ds.eventAccent(event.color ?? ds.primary);
-      background = ds.tint(accent);
-      barColor = accent;
-      textColor = SpecTokens.ink2;
+      final palette = frozenPaletteFor(event.color ?? const Color(0xFF8A8A82));
+      background = palette.bg;
+      barColor = palette.color;
+      textColor = palette.ink;
     } else if (allocation != null) {
       background = const Color(0xFFF1F0EA);
       barColor = SpecTokens.work;
-      textColor = SpecTokens.ink2;
+      textColor = const Color(0xFF3B3B33);
     } else {
       final isOverdue =
           deadline != null && calDayOf(deadline.due).isBefore(calDayOf(DateTime.now()));
@@ -922,7 +1102,16 @@ class _A2MonthChip extends StatelessWidget {
       textColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
     }
     final l = AppLocalizations.of(context)!;
-    final trailing = entry.label(l);
+    final String chipText;
+    if (deadline != null) {
+      final hasTime = calDeadlineHasTime(deadline.due);
+      final timeStr = hasTime ? DateFormatters.formatTime(deadline.due) : '';
+      chipText = timeStr.isNotEmpty
+          ? '${l.deadline} $timeStr ${deadline.title}'
+          : '${l.deadline} ${deadline.title}';
+    } else {
+      chipText = entry.title;
+    }
     return Container(
       width: double.infinity,
       height: 18,
@@ -946,7 +1135,7 @@ class _A2MonthChip extends StatelessWidget {
             child: Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(text: entry.title),
+                  TextSpan(text: chipText),
                   if (event != null && calEventIsRecurring(event))
                     calRepeatBadgeSpan(context),
                 ],
@@ -962,20 +1151,6 @@ class _A2MonthChip extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing.isNotEmpty) ...[
-            const SizedBox(width: 2),
-            Text(
-              trailing,
-              maxLines: 1,
-              style: const TextStyle(
-                fontSize: 8.5,
-                fontWeight: FontWeight.w400,
-                color: SpecTokens.faint,
-                fontFeatures: AppTypography.tabular,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1210,6 +1385,7 @@ class A2TimeGridView extends StatelessWidget {
     this.onDeadline,
     this.onSlot,
     this.onReschedule,
+    this.onResize,
   });
 
   final List<DateTime> days;
@@ -1229,6 +1405,7 @@ class A2TimeGridView extends StatelessWidget {
   final ValueChanged<CalendarDeadline>? onDeadline;
   final ValueChanged<DateTimeRange>? onSlot;
   final void Function(CalBlockItem item, int minutes)? onReschedule;
+  final void Function(CalBlockItem item, int deltaMinutes)? onResize;
 
   static const _axis = _A2Axis();
   static const _hourLabels = [8, 10, 12, 14, 16, 18, 20];
@@ -1373,32 +1550,34 @@ class A2TimeGridView extends StatelessWidget {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment:
+            isDesktop ? MainAxisAlignment.end : MainAxisAlignment.spaceBetween,
         children: [
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: calWeekdayLong(locale, day),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: SpecTokens.ink2,
-                    fontFamilyFallback: AppTypography.fallback,
+          if (!isDesktop)
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: calWeekdayLong(locale, day),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: SpecTokens.ink2,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
                   ),
-                ),
-                TextSpan(
-                  text: ' · ${DateFormat.MMMd(locale).format(day)}',
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w400,
-                    color: SpecTokens.muted,
-                    fontFamilyFallback: AppTypography.fallback,
+                  TextSpan(
+                    text: ' · ${DateFormat.MMMd(locale).format(day)}',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w400,
+                      color: SpecTokens.muted,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           Text(
             l.timeArrangementsCount(count),
             style: const TextStyle(
@@ -1485,7 +1664,7 @@ class A2TimeGridView extends StatelessWidget {
         ),
       ),
     );
-    const maxVisible = 2;
+    var laneHeight = 30.0;
     final Widget body;
     if (dayMode) {
       final items = byDay[calDayOf(days.first)] ?? const [];
@@ -1516,63 +1695,173 @@ class A2TimeGridView extends StatelessWidget {
         ),
       );
     } else {
+      final weekStart = calDayOf(days.first);
+      final weekEnd = calDayOf(days.last);
+      final relevant = <CalendaEventAdapter>[];
+      final seenIds = <int>{};
+      for (final e in allDayEvents) {
+        if (!seenIds.add(e.drifId)) continue;
+        final s = calDayOf(e.start);
+        final endDay = calDayOf(
+          e.isAllDay ? e.end.subtract(const Duration(seconds: 1)) : e.end,
+        );
+        if (!s.isAfter(weekEnd) && !endDay.isBefore(weekStart)) {
+          relevant.add(e);
+        }
+      }
+
+      relevant.sort((a, b) {
+        final aStart = calDayOf(a.start);
+        final bStart = calDayOf(b.start);
+        final cmp = aStart.compareTo(bStart);
+        if (cmp != 0) return cmp;
+        return b.end.difference(b.start).compareTo(a.end.difference(a.start));
+      });
+
+      final rows = <int>[];
+      final rowEnds = <int>[];
+      for (final e in relevant) {
+        final s = calDayOf(e.start);
+        final endDay = calDayOf(
+          e.isAllDay ? e.end.subtract(const Duration(seconds: 1)) : e.end,
+        );
+        var from = days.indexWhere((d) => calSameDay(d, s));
+        if (from < 0) from = 0;
+        var to = days.lastIndexWhere((d) => calSameDay(d, endDay));
+        if (to < 0) to = days.length - 1;
+
+        var assignedRow = -1;
+        for (var r = 0; r < rowEnds.length; r++) {
+          if (rowEnds[r] < from) {
+            assignedRow = r;
+            rowEnds[r] = to;
+            break;
+          }
+        }
+        if (assignedRow == -1) {
+          assignedRow = rowEnds.length;
+          rowEnds.add(to);
+        }
+        rows.add(assignedRow);
+      }
+
+      final shouldFold = isDesktop;
+      final colOverflow = List<int>.filled(days.length, 0);
+      for (var i = 0; i < relevant.length; i++) {
+        final r = rows[i];
+        if (shouldFold && r >= 2) {
+          final e = relevant[i];
+          final s = calDayOf(e.start);
+          final endDay = calDayOf(
+            e.isAllDay ? e.end.subtract(const Duration(seconds: 1)) : e.end,
+          );
+          var from = days.indexWhere((d) => calSameDay(d, s));
+          if (from < 0) from = 0;
+          var to = days.lastIndexWhere((d) => calSameDay(d, endDay));
+          if (to < 0) to = days.length - 1;
+          for (var c = from; c <= to; c++) {
+            colOverflow[c]++;
+          }
+        }
+      }
+
+      final hasOverflow = colOverflow.any((count) => count > 0);
+      final renderedRows = shouldFold
+          ? (hasOverflow ? 3 : (rowEnds.isEmpty ? 1 : math.min(rowEnds.length, 2)))
+          : (rowEnds.isEmpty ? 1 : rowEnds.length);
+      laneHeight = math.max(30.0, renderedRows * 24.0 + 6.0);
+
       body = Expanded(
         child: Container(
-          constraints: const BoxConstraints(minHeight: 30),
+          height: laneHeight,
           decoration: const BoxDecoration(
             color: SpecTokens.paper,
             border: Border(
               bottom: BorderSide(color: SpecTokens.hair, width: 1),
             ),
           ),
-          child: Row(
-            children: [
-              for (final day in days)
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final items = byDay[calDayOf(day)] ?? const [];
-                      final shown = items.take(maxVisible).toList();
-                      final folded = items.length - shown.length;
-                      return Container(
-                        constraints: const BoxConstraints(minHeight: 30),
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-                        decoration: const BoxDecoration(
-                          border: Border(
-                            right: BorderSide(color: SpecTokens.hair, width: 1),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final colWidth = constraints.maxWidth / days.length;
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < days.length; i++)
+                          Expanded(
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  right: BorderSide(
+                                    color: SpecTokens.hair,
+                                    width: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  for (var i = 0; i < relevant.length; i++) ...[
+                    if (!shouldFold || rows[i] < 2)
+                      Builder(
+                        builder: (context) {
+                          final e = relevant[i];
+                          final r = rows[i];
+                          final s = calDayOf(e.start);
+                          final endDay = calDayOf(
+                            e.isAllDay
+                                ? e.end.subtract(const Duration(seconds: 1))
+                                : e.end,
+                          );
+                          var from = days.indexWhere((d) => calSameDay(d, s));
+                          if (from < 0) from = 0;
+                          var to = days.lastIndexWhere(
+                            (d) => calSameDay(d, endDay),
+                          );
+                          if (to < 0) to = days.length - 1;
+                          final left = from * colWidth + 2.0;
+                          final width = (to - from + 1) * colWidth - 4.0;
+                          final top = 3.0 + r * 24.0;
+
+                          return Positioned(
+                            top: top,
+                            left: left,
+                            width: width,
+                            child: _A2AllDayChip(
+                              event: e,
+                              showTitle: true,
+                              onTap: onEvent == null ? null : () => onEvent!(e),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                  if (shouldFold)
+                    for (var c = 0; c < days.length; c++)
+                      if (colOverflow[c] > 0)
+                        Positioned(
+                          top: 3.0 + 2 * 24.0,
+                          left: c * colWidth + 4.0,
+                          width: colWidth - 8.0,
+                          child: Text(
+                            _a2OverflowLabel(colOverflow[c]),
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w400,
+                              color: SpecTokens.muted,
+                              fontFamilyFallback: AppTypography.fallback,
+                            ),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (final event in shown)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 2),
-                                child: _A2AllDayChip(
-                                  event: event,
-                                  onTap: onEvent == null ? null : () => onEvent!(event),
-                                ),
-                              ),
-                            if (folded > 0)
-                              Text(
-                                _a2OverflowLabel(folded),
-                                maxLines: 1,
-                                softWrap: false,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w400,
-                                  color: SpecTokens.muted,
-                                  fontFamilyFallback: AppTypography.fallback,
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            ],
+                ],
+              );
+            },
           ),
         ),
       );
@@ -1585,12 +1874,20 @@ class A2TimeGridView extends StatelessWidget {
           left: BorderSide(color: SpecTokens.hair, width: 1),
         ),
       ),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [label, body],
-        ),
-      ),
+      child: dayMode
+          ? IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [label, body],
+              ),
+            )
+          : SizedBox(
+              height: laneHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [label, body],
+              ),
+            ),
     );
   }
 
@@ -1748,7 +2045,7 @@ class A2TimeGridView extends StatelessWidget {
   Widget _deadlineChip(BuildContext context, CalendarDeadline deadline) {
     final l = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).toString();
-    final isOverdue = deadline.due.isBefore(now);
+    final isOverdue = calDayOf(deadline.due).isBefore(calDayOf(now));
     final text = dayMode
         ? (calDeadlineHasTime(deadline.due)
             ? '${DateFormatters.formatTime(deadline.due)} ${deadline.title}'
@@ -1835,7 +2132,7 @@ class A2TimeGridView extends StatelessWidget {
     Map<int, TaskAllocationCalendarItem> allocationItems, {
     required bool isToday,
   }) {
-    final ds = context.ds;
+    final l = AppLocalizations.of(context)!;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -1843,15 +2140,14 @@ class A2TimeGridView extends StatelessWidget {
         final showNow = isToday && now.hour >= 8 && now.hour <= 20;
 
         final widgets = <Widget>[
-          // Slot tap background
+          // Slot tap background & hover ghost
           Positioned.fill(
-            child: onSlot == null
-                ? const SizedBox.shrink()
-                : GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTapUp: (details) =>
-                        onSlot!(_axis.rangeAt(day, details.localPosition.dy)),
-                  ),
+            child: _SlotHoverLayer(
+              day: day,
+              axis: _axis,
+              isDesktop: isDesktop,
+              onSlot: onSlot,
+            ),
           ),
           // Hairlines every 54px (from hour 9 to 20)
           for (var hour = 9; hour <= 20; hour++)
@@ -1890,19 +2186,24 @@ class A2TimeGridView extends StatelessWidget {
           final spanFraction = (endM - startM) / _a2SpanMinutes;
           final isShort = spanFraction < 0.06;
 
-          final accent = ds.eventAccent(item.event?.color ?? ds.primary);
           final isPlan = item.isAllocation;
+          final palette = frozenPaletteFor(item.event?.color ?? const Color(0xFF8A8A82));
+          final fill = isPlan ? const Color(0xFFF1F0EA) : palette.bg;
+          final edge = isPlan ? SpecTokens.work : palette.color;
           final allocationItem = item.allocation == null
               ? null
               : allocationItems[item.allocation!.id];
           final hasOverdueDot = isPlan &&
               allocationItem != null &&
               allocationItem.todo.dueDate != null &&
-              allocationItem.todo.dueDate!.isBefore(now);
+              calDayOf(allocationItem.todo.dueDate!).isBefore(calDayOf(now));
 
           final meta = isShort
               ? null
-              : _blockMeta(item, calendarNames, allocationItems);
+              : _blockMeta(item, calendarNames, allocationItems, l);
+
+          final canDrag = item.canDrag &&
+              (item.isAllocation ? onAllocation != null : onEvent != null);
 
           widgets.add(
             Positioned(
@@ -1913,8 +2214,8 @@ class A2TimeGridView extends StatelessWidget {
               child: _A2TimeBlock(
                 title: item.title,
                 meta: meta,
-                fill: isPlan ? const Color(0xFFF1F0EA) : ds.tint(accent),
-                edge: isPlan ? SpecTokens.work : accent,
+                fill: fill,
+                edge: edge,
                 isPlan: isPlan,
                 isShort: isShort,
                 hasOverdueDot: hasOverdueDot,
@@ -1922,12 +2223,11 @@ class A2TimeGridView extends StatelessWidget {
                     item.event != null && calEventIsRecurring(item.event!),
                 compact: laneWidth < 50,
                 onTap: () => _openBlock(item, allocationItems),
-                onReschedule: item.canDrag &&
-                        onReschedule != null &&
-                        (item.isAllocation
-                            ? onAllocation != null
-                            : onEvent != null)
+                onReschedule: canDrag && onReschedule != null
                     ? (minutes) => onReschedule!(item, minutes)
+                    : null,
+                onResize: canDrag && onResize != null
+                    ? (delta) => onResize!(item, delta)
                     : null,
               ),
             ),
@@ -1941,7 +2241,7 @@ class A2TimeGridView extends StatelessWidget {
           final dueM = deadline.due.hour * 60 + deadline.due.minute;
           if (dueM < _a2StartMinute || dueM > _a2EndHour * 60) continue;
           final top = _axis.offsetOf(dueM);
-          final isOverdue = deadline.due.isBefore(now);
+          final isOverdue = calDayOf(deadline.due).isBefore(calDayOf(now));
           widgets.add(
             _A2DeadlineMarker(
               top: top,
@@ -2112,32 +2412,130 @@ class _DayHeadCellState extends State<_DayHeadCell> {
   }
 }
 
-class _A2AllDayChip extends StatelessWidget {
-  const _A2AllDayChip({required this.event, this.onTap});
+class _SlotHoverLayer extends StatefulWidget {
+  const _SlotHoverLayer({
+    required this.day,
+    required this.axis,
+    required this.isDesktop,
+    required this.onSlot,
+  });
 
-  final CalendaEventAdapter event;
-  final VoidCallback? onTap;
+  final DateTime day;
+  final _A2Axis axis;
+  final bool isDesktop;
+  final ValueChanged<DateTimeRange>? onSlot;
+
+  @override
+  State<_SlotHoverLayer> createState() => _SlotHoverLayerState();
+}
+
+class _SlotHoverLayerState extends State<_SlotHoverLayer> {
+  DateTimeRange? _hoveredRange;
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
-    final accent = ds.eventAccent(event.color ?? ds.primary);
+    if (widget.onSlot == null) return const SizedBox.shrink();
+
+    final range = _hoveredRange;
+    return MouseRegion(
+      opaque: true,
+      onHover: widget.isDesktop
+          ? (event) {
+              final r = widget.axis.rangeAt(widget.day, event.localPosition.dy);
+              if (_hoveredRange?.start != r.start ||
+                  _hoveredRange?.end != r.end) {
+                setState(() => _hoveredRange = r);
+              }
+            }
+          : null,
+      onExit: widget.isDesktop
+          ? (_) => setState(() => _hoveredRange = null)
+          : null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapUp: (details) {
+          final target =
+              widget.axis.rangeAt(widget.day, details.localPosition.dy);
+          widget.onSlot!(target);
+        },
+        child: Stack(
+          children: [
+            if (widget.isDesktop && range != null)
+              Positioned(
+                top: widget.axis
+                    .offsetOf(range.start.hour * 60 + range.start.minute),
+                left: 2,
+                right: 2,
+                height: widget.axis.offsetOf(
+                        range.end.hour * 60 + range.end.minute) -
+                    widget.axis.offsetOf(
+                        range.start.hour * 60 + range.start.minute),
+                child: IgnorePointer(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0x12000000),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: const Color(0xB28A8A82),
+                        width: 1,
+                      ),
+                    ),
+                    alignment: Alignment.topLeft,
+                    child: Text(
+                      '＋ ${calTimeRange(range.start, range.end)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w500,
+                        color: SpecTokens.muted,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _A2AllDayChip extends StatelessWidget {
+  const _A2AllDayChip({
+    required this.event,
+    this.onTap,
+    this.showTitle = true,
+  });
+
+  final CalendaEventAdapter event;
+  final VoidCallback? onTap;
+  final bool showTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = frozenPaletteFor(event.color ?? const Color(0xFF8A8A82));
     final chip = Container(
       height: 21,
       padding: const EdgeInsets.symmetric(horizontal: 5),
       decoration: BoxDecoration(
-        color: ds.tint(accent),
+        color: palette.bg,
         borderRadius: BorderRadius.circular(4),
-        border: Border(left: BorderSide(color: accent, width: 2)),
+        border: Border(left: BorderSide(color: palette.color, width: 2)),
       ),
       child: Align(
         alignment: Alignment.centerLeft,
-        child: Text(
-          event.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: _a2Text(9.5, FontWeight.w500, ds.ink, height: 1.2),
-        ),
+        child: showTitle
+            ? Text(
+                event.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: _a2Text(9.5, FontWeight.w500, palette.ink, height: 1.2),
+              )
+            : const SizedBox.shrink(),
       ),
     );
     if (onTap == null) return chip;
@@ -2162,6 +2560,7 @@ class _A2TimeBlock extends StatefulWidget {
     required this.isRecurring,
     required this.onTap,
     this.onReschedule,
+    this.onResize,
     this.compact = false,
   });
 
@@ -2176,6 +2575,7 @@ class _A2TimeBlock extends StatefulWidget {
   final bool compact;
   final VoidCallback onTap;
   final ValueChanged<int>? onReschedule;
+  final ValueChanged<int>? onResize;
 
   @override
   State<_A2TimeBlock> createState() => _A2TimeBlockState();
@@ -2183,6 +2583,7 @@ class _A2TimeBlock extends StatefulWidget {
 
 class _A2TimeBlockState extends State<_A2TimeBlock> {
   double _dragDy = 0;
+  double _resizeDy = 0;
 
   void _finishDrag() {
     final minutes = (_dragDy / _a2HourHeight * 60).round();
@@ -2191,10 +2592,18 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
     if (snapped != 0) widget.onReschedule?.call(snapped);
   }
 
+  void _finishResize() {
+    final minutes = (_resizeDy / _a2HourHeight * 60).round();
+    setState(() => _resizeDy = 0);
+    final snapped = (minutes / 30).round() * 30;
+    if (snapped != 0) widget.onResize?.call(snapped);
+  }
+
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
     final canDrag = widget.onReschedule != null;
+    final canResize = widget.onResize != null;
     final card = Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -2263,6 +2672,36 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
                 ),
               ),
             ),
+          if (canResize)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 10,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeUpDown,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragStart: (_) => setState(() => _resizeDy = 0),
+                  onVerticalDragUpdate: (details) =>
+                      setState(() => _resizeDy += details.delta.dy),
+                  onVerticalDragEnd: (_) => _finishResize(),
+                  child: Container(
+                    height: 10,
+                    alignment: Alignment.bottomCenter,
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Container(
+                      width: 14,
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: widget.edge.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -2280,7 +2719,22 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
                     setState(() => _dragDy = details.offsetFromOrigin.dy)
               : null,
           onLongPressEnd: canDrag ? (_) => _finishDrag() : null,
-          child: card,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (_resizeDy == 0) return card;
+              final effectiveHeight = math.max(15.55, constraints.maxHeight + _resizeDy);
+              return OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: 0,
+                maxHeight: double.infinity,
+                child: SizedBox(
+                  height: effectiveHeight,
+                  width: constraints.maxWidth,
+                  child: card,
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -2612,7 +3066,7 @@ class _A2PhoneWeekDay extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             onTap: _canCreate ? _openCreate : null,
             child: SizedBox(
-              height: 44,
+              height: 48,
               child: Row(
                 children: [
                   Expanded(
@@ -2712,19 +3166,21 @@ class _A2PhoneWeekDay extends StatelessWidget {
               dragHourHeight: _dragHourHeight,
             ),
           for (final deadline in dayDeadlines)
-            _A2PhoneWeekItem(
-              color: deadline.due.isBefore(today)
-                  ? SpecTokens.red
-                  : SpecTokens.amber,
-              label: TextSpan(
-                text: '${l.deadline} ${deadline.title}',
-                style: TextStyle(
-                  color: deadline.due.isBefore(today)
-                      ? SpecTokens.red
-                      : SpecTokens.amber,
-                ),
-              ),
-              onTap: onDeadline == null ? null : () => onDeadline!(deadline),
+            Builder(
+              builder: (context) {
+                final isOverdue =
+                    calDayOf(deadline.due).isBefore(calDayOf(today));
+                return _A2PhoneWeekItem(
+                  color: isOverdue ? SpecTokens.red : SpecTokens.amber,
+                  label: TextSpan(
+                    text: '${l.deadline} ${deadline.title}',
+                    style: TextStyle(
+                      color: isOverdue ? SpecTokens.red : SpecTokens.amber,
+                    ),
+                  ),
+                  onTap: onDeadline == null ? null : () => onDeadline!(deadline),
+                );
+              },
             ),
         ],
       ),
@@ -2897,38 +3353,6 @@ class A2PhoneDayList extends StatelessWidget {
       padding: EdgeInsets.zero,
       children: [
         if (onSelectDay != null) _dateStrip(context),
-        // Day headbar (42px)
-        Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: ds.surface2,
-            border: Border(bottom: BorderSide(color: ds.lineSoft)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: isToday ? l.today : calWeekdayLong(locale, day),
-                      style: _a2Text(12, FontWeight.w500, ds.ink),
-                    ),
-                    TextSpan(
-                      text: ' · ${DateFormat.MMMd(locale).format(day)}',
-                      style: _a2Text(10.5, FontWeight.w400, ds.ink3),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                l.timeArrangementsCount(items.length),
-                style: _a2Text(10.5, FontWeight.w400, ds.ink3),
-              ),
-            ],
-          ),
-        ),
         // All-day chips
         if (allDayEvents.isNotEmpty)
           Padding(
@@ -3049,7 +3473,8 @@ class A2PhoneDayList extends StatelessWidget {
           button: true,
           label: '${calWeekdayLong(locale, date)} ${date.day}',
           child: Container(
-            height: 46,
+            height: 48,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 48),
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: selected ? ds.ink : Colors.transparent,
@@ -3084,7 +3509,7 @@ class A2PhoneDayList extends StatelessWidget {
     final ds = context.ds;
     final l = AppLocalizations.of(context)!;
     final time = DateFormatters.formatTime(deadline.due);
-    final isOverdue = deadline.due.isBefore(now);
+    final isOverdue = calDayOf(deadline.due).isBefore(calDayOf(now));
     final color = isOverdue ? ds.danger : ds.warn;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -3138,7 +3563,7 @@ class A2PhoneDayList extends StatelessWidget {
 
   Widget _deadlineChip(BuildContext context, CalendarDeadline dl) {
     final ds = context.ds;
-    final isOverdue = dl.due.isBefore(now);
+    final isOverdue = calDayOf(dl.due).isBefore(calDayOf(now));
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => onDeadline?.call(dl),

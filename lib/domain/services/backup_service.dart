@@ -498,7 +498,7 @@ class BackupService {
                 ..where((tbl) => tbl.icsUid.equals(icsUid)))
               .get()).firstOrNull;
         }
-        if (match == null && localById != null && !isConflict) {
+        if (match == null && localById != null) {
           match = localById;
         }
 
@@ -578,7 +578,7 @@ class BackupService {
                 ..where((tbl) => tbl.icsUid.equals(icsUid)))
               .get()).firstOrNull;
         }
-        if (match == null && localById != null && !isConflict) {
+        if (match == null && localById != null) {
           match = localById;
         }
 

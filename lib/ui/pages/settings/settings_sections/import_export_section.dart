@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:dayspark/data/file_downloader.dart';
 import 'package:dayspark/data/file_reader.dart';
+import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:dayspark/domain/providers/database_provider.dart';
@@ -42,6 +43,15 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   bool _backupFailed = false;
   String? _backupResult;
 
+  bool _importMode = false;
+  PlatformFile? _pickedFile;
+  String? _fileContent;
+  int? _targetCalendarId;
+  String? _targetCalendarName;
+  IcsImportPreview? _importPreview;
+  String? _importResultSummary;
+  List<Calendar> _availableCalendars = [];
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -59,47 +69,138 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
             ),
             child: Text(l.data, style: AppTypography.title),
           ),
-        IoCard(
-          title: l.importIcs,
-          description: l.ioCardImportDesc,
-          actions: [
-            DsButton(
-              label: l.importIcs,
-              tone: DsButtonTone.primary,
-              loading: _importBusy,
-              onPressed: _importBusy ? null : _importIcs,
+        if (_importMode) ...[
+          IoCard(
+            title: l.importStepFile,
+            description: _pickedFile == null
+                ? l.importFileHelp
+                : '${_pickedFile!.name} (${(_pickedFile!.size / 1024).toStringAsFixed(1)} KB)',
+            actions: [
+              DsButton(
+                label: _pickedFile == null ? l.importIcs : l.importChangeFile,
+                tone: DsButtonTone.primary,
+                onPressed: _pickIcsFile,
+              ),
+            ],
+          ),
+          IoCard(
+            title: l.importStepCalendar,
+            description: _targetCalendarName != null
+                ? '$_targetCalendarName · ${l.importTo}'
+                : l.defaultCalendar,
+            actions: [
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final cal in _availableCalendars)
+                    ChoiceChip(
+                      label: Text(cal.name),
+                      selected: _targetCalendarId == cal.id,
+                      onSelected: (val) {
+                        if (val) {
+                          setState(() {
+                            _targetCalendarId = cal.id;
+                            _targetCalendarName = cal.name;
+                          });
+                          _updatePreview();
+                        }
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+          IoCard(
+            title: l.importStepPreview,
+            description: _importPreview == null
+                ? l.importPreviewHelp
+                : l.importResultSummary(
+                    _importPreview!.createCount,
+                    _importPreview!.duplicateCount,
+                    _importPreview!.skippedCount,
+                  ),
+            actions: [
+              DsButton(
+                label: l.startImport,
+                tone: DsButtonTone.primary,
+                loading: _importBusy,
+                onPressed: (_fileContent != null && _targetCalendarId != null && !_importBusy)
+                    ? _executeImport
+                    : null,
+              ),
+            ],
+            child: _importPreview == null
+                ? null
+                : Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _ImportPreviewBody(
+                      preview: _importPreview!,
+                      fileName: _pickedFile?.name ?? '',
+                      calendarName: _targetCalendarName ?? '',
+                    ),
+                  ),
+          ),
+          if (_importResultSummary != null)
+            InlineAlert(message: _importResultSummary!),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
+              onPressed: () => setState(() {
+                _importMode = false;
+                _pickedFile = null;
+                _fileContent = null;
+                _importPreview = null;
+                _importResultSummary = null;
+              }),
             ),
-          ],
-        ),
-        IoCard(
-          title: l.exportIcs,
-          description: l.ioCardExportDesc,
-          actions: [
-            DsButton(
-              label: l.exportAllCalendars,
-              tone: DsButtonTone.secondary,
-              onPressed: () => _exportIcs(context, ref),
-            ),
-          ],
-        ),
-        IoCard(
-          title: l.fullBackup,
-          description: l.ioCardBackupDesc,
-          actions: [
-            DsButton(
-              label: l.fullBackup,
-              tone: DsButtonTone.primary,
-              loading: _backupBusy,
-              onPressed: _backupBusy ? null : _exportBackup,
-            ),
-            const SizedBox(width: 8),
-            DsButton(
-              label: l.mergeBackup,
-              tone: DsButtonTone.secondary,
-              onPressed: _backupBusy ? null : _mergeBackup,
-            ),
-          ],
-        ),
+          ),
+        ] else ...[
+          IoCard(
+            title: l.importIcs,
+            description: l.ioCardImportDesc,
+            actions: [
+              DsButton(
+                label: l.importIcs,
+                tone: DsButtonTone.primary,
+                loading: _importBusy,
+                onPressed: _importBusy ? null : _startImportFlow,
+              ),
+            ],
+          ),
+          IoCard(
+            title: l.exportIcs,
+            description: l.ioCardExportDesc,
+            actions: [
+              DsButton(
+                label: l.exportAllCalendars,
+                tone: DsButtonTone.secondary,
+                onPressed: () => _exportIcs(context, ref),
+              ),
+            ],
+          ),
+          IoCard(
+            title: l.fullBackup,
+            description: l.ioCardBackupDesc,
+            actions: [
+              DsButton(
+                key: const ValueKey('full-backup-btn'),
+                label: l.fullBackup,
+                tone: DsButtonTone.primary,
+                loading: _backupBusy,
+                onPressed: _backupBusy ? null : _exportBackup,
+              ),
+              const SizedBox(width: 8),
+              DsButton(
+                label: l.mergeBackup,
+                tone: DsButtonTone.secondary,
+                onPressed: _backupBusy ? null : _mergeBackup,
+              ),
+            ],
+          ),
+        ],
         if (_backupBusy || _backupResult != null)
           InlineAlert(
             message: _backupBusy ? l.backupInProgress : _backupResult!,
@@ -185,54 +286,12 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       final conflicts = await backupService.inspectConflicts(decoded.data);
       Map<String, BackupConflictResolution>? resolutions;
       if (conflicts.isNotEmpty && mounted) {
-        final res = await showDialog<BackupConflictResolution>(
+        final res = await showDialog<Map<String, BackupConflictResolution>>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text('检测到 ${conflicts.length} 项数据冲突'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('备份中的部分记录与本机已有记录存在冲突。请选择合并策略：'),
-                const SizedBox(height: 12),
-                ...conflicts.take(3).map(
-                      (c) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(
-                          '• ${c.title} (${c.table})',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ),
-                if (conflicts.length > 3)
-                  Text(
-                    '...等共 ${conflicts.length} 项',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, null),
-                child: const Text('取消'),
-              ),
-              TextButton(
-                onPressed: () =>
-                    Navigator.pop(ctx, BackupConflictResolution.keepLocal),
-                child: const Text('保留本机'),
-              ),
-              TextButton(
-                onPressed: () =>
-                    Navigator.pop(ctx, BackupConflictResolution.keepRemote),
-                child: const Text('覆盖为备份'),
-              ),
-            ],
-          ),
+          builder: (ctx) => _BackupConflictDialog(conflicts: conflicts),
         );
         if (res == null) return;
-        resolutions = {
-          for (final c in conflicts) '${c.table}:${c.id}': res,
-        };
+        resolutions = res;
       }
       await backupService.restoreZip(bytes, resolutions: resolutions);
       if (!mounted) return;
@@ -250,52 +309,35 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     }
   }
 
-  /// Import asks one question the old combined dialog never made clear: which
-  /// calendar the file's events land in. The picker comes after the file, so
-  /// cancelling a file pick never leaves an unanswered dialog behind.
-  Future<void> _importIcs() async {
-    if (_importBusy) return;
-    final l = AppLocalizations.of(context)!;
-    final messenger = ScaffoldMessenger.of(context);
+  Future<void> _startImportFlow() async {
     final db = ref.read(databaseProvider);
-
     final calendars = await (db.select(db.calendars)).get();
     if (!mounted) return;
     if (calendars.isEmpty) {
-      messenger.showSnackBar(SnackBar(content: Text(l.noCalendarToImport)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.noCalendarToImport)),
+      );
       return;
     }
+    setState(() {
+      _importMode = true;
+      _availableCalendars = calendars;
+      _targetCalendarId ??= calendars.first.id;
+      _targetCalendarName ??= calendars.first.name;
+    });
+    await _pickIcsFile();
+  }
 
+  Future<void> _pickIcsFile() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['ics'],
       withData: true,
     );
-    if (!mounted) return;
-    if (result == null || result.files.isEmpty) return;
-
-    final targetId = await showDsSheet<int>(
-      context: context,
-      title: l.importTo,
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final calendar in calendars)
-            DsSettingRow(
-              label: calendar.name,
-              onTap: () => Navigator.of(context).pop(calendar.id),
-            ),
-        ],
-      ),
-    );
-    if (targetId == null || !mounted) return;
+    if (!mounted || result == null || result.files.isEmpty) return;
 
     final file = result.files.first;
-    final calendarName = calendars
-        .where((calendar) => calendar.id == targetId)
-        .map((calendar) => calendar.name)
-        .firstOrNull;
-    final String content;
+    String content;
     try {
       if (kIsWeb) {
         content = decodeWebIcsBytes(file.bytes!);
@@ -304,137 +346,68 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       }
     } catch (error) {
       debugPrint('ics: read failed: $error');
-      messenger.showSnackBar(SnackBar(content: Text(l.importFailed)));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.importFailed)),
+      );
       return;
     }
     if (!mounted) return;
+    setState(() {
+      _pickedFile = file;
+      _fileContent = content;
+    });
+    await _updatePreview();
+  }
 
+  Future<void> _updatePreview() async {
+    if (_fileContent == null || _targetCalendarId == null) return;
+    final db = ref.read(databaseProvider);
     setState(() => _importBusy = true);
-    final IcsImportPreview preview;
     try {
-      preview = await IcsService(db).previewIcs(content, targetId);
-    } catch (error) {
-      debugPrint('ics: preview failed: $error');
-      if (!mounted) return;
-      setState(() => _importBusy = false);
-      await _showImportFailure(file.name);
-      return;
+      final preview = await IcsService(db).previewIcs(_fileContent!, _targetCalendarId!);
+      if (mounted) {
+        setState(() {
+          _importPreview = preview;
+          _importBusy = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('ics: preview failed: $e');
+      if (mounted) {
+        setState(() => _importBusy = false);
+      }
     }
-    if (!mounted) return;
-    setState(() => _importBusy = false);
+  }
 
-    final confirmed = await _showPreview(
-      preview: preview,
-      fileName: file.name,
-      calendarName: calendarName ?? '',
-    );
-    if (confirmed != true || !mounted) return;
-
+  Future<void> _executeImport() async {
+    if (_fileContent == null || _targetCalendarId == null || _importBusy) return;
+    final l = AppLocalizations.of(context)!;
+    final db = ref.read(databaseProvider);
     setState(() => _importBusy = true);
     try {
-      final imported = await IcsService(
-        db,
-      ).importIcsDetailed(content, targetId);
+      final imported = await IcsService(db).importIcsDetailed(
+        _fileContent!,
+        _targetCalendarId!,
+      );
+      final created = imported.events + imported.todos - imported.updated;
+      final summary = l.importResultSummary(created, imported.updated, imported.failed);
       if (!mounted) return;
-      setState(() => _importBusy = false);
-      await _showImportResult(preview: preview, imported: imported);
+      setState(() {
+        _importBusy = false;
+        _importResultSummary = summary;
+      });
     } catch (error) {
       debugPrint('ics: import failed: $error');
       if (!mounted) return;
-      setState(() => _importBusy = false);
-      await _showImportFailure(file.name);
+      setState(() {
+        _importBusy = false;
+        _importResultSummary = l.importFailed;
+      });
     }
   }
 
-  Future<bool> _showPreview({
-    required IcsImportPreview preview,
-    required String fileName,
-    required String calendarName,
-  }) async {
-    final l = AppLocalizations.of(context)!;
-    final confirmed = await showDsSheet<bool>(
-      context: context,
-      title: l.importPreviewTitle,
-      body: _ImportPreviewBody(
-        preview: preview,
-        fileName: fileName,
-        calendarName: calendarName,
-      ),
-      actions: [
-        DsButton(
-          label: l.cancel,
-          tone: DsButtonTone.ghost,
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
-        DsButton(
-          label: l.startImport,
-          onPressed: () => Navigator.of(context).pop(true),
-        ),
-      ],
-    );
-    return confirmed ?? false;
-  }
 
-  Future<void> _showImportResult({
-    required IcsImportPreview preview,
-    required ({int events, int todos, int failed, int updated}) imported,
-  }) async {
-    final l = AppLocalizations.of(context)!;
-    final created = imported.events + imported.todos - imported.updated;
-    final skipped = <IcsPreviewItem>[
-      ...preview.skipped,
-      if (imported.failed > preview.skippedCount)
-        IcsPreviewItem(
-          kind: IcsPreviewKind.event,
-          status: IcsPreviewStatus.skipped,
-          summary: l.importFailedRows(imported.failed - preview.skippedCount),
-        ),
-    ];
-    final skippedLines = skipped
-        .map((item) => item.summary)
-        .where((summary) => summary.isNotEmpty)
-        .toList(growable: false);
-    await showDsSheet<void>(
-      context: context,
-      title: l.importResultTitle,
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            imported.events + imported.todos == 0 && imported.failed == 0
-                ? l.importNothing
-                : l.importResultSummary(
-                    created,
-                    imported.updated,
-                    imported.failed,
-                  ),
-          ),
-          if (skippedLines.isNotEmpty)
-            InlineAlert(message: skippedLines.join('\n'), isRed: true),
-        ],
-      ),
-      actions: [
-        DsButton(label: l.close, onPressed: () => Navigator.of(context).pop()),
-      ],
-    );
-  }
-
-  Future<void> _showImportFailure(String fileName) async {
-    final l = AppLocalizations.of(context)!;
-    await showDsSheet<void>(
-      context: context,
-      title: l.importResultTitle,
-      body: InlineAlert(
-        title: l.importFailed,
-        message: l.importFailureDetail(fileName),
-        isRed: true,
-      ),
-      actions: [
-        DsButton(label: l.close, onPressed: () => Navigator.of(context).pop()),
-      ],
-    );
-  }
 
   /// Export always writes every calendar: a partial export that silently
   /// skipped calendars would look complete and not be.
@@ -579,6 +552,152 @@ class _ImportPreviewBody extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BackupConflictDialog extends StatefulWidget {
+  const _BackupConflictDialog({required this.conflicts});
+
+  final List<BackupConflictItem> conflicts;
+
+  @override
+  State<_BackupConflictDialog> createState() => _BackupConflictDialogState();
+}
+
+class _BackupConflictDialogState extends State<_BackupConflictDialog> {
+  late final Map<String, BackupConflictResolution> _choices;
+
+  @override
+  void initState() {
+    super.initState();
+    _choices = {
+      for (final c in widget.conflicts)
+        c.key: BackupConflictResolution.keepLocal,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final ds = context.ds;
+
+    return AlertDialog(
+      title: Text(l.backupConflictTitle(widget.conflicts.length)),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.backupConflictDesc),
+            const SizedBox(height: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 320),
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final c in widget.conflicts) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border(bottom: BorderSide(color: ds.lineSoft)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    c.title,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: ds.surface2,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    c.table,
+                                    style: TextStyle(fontSize: 10, color: ds.ink3),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (c.localDescription.isNotEmpty ||
+                                c.remoteDescription.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '${l.localStatus}: ${c.localDescription}\n${l.daysparkBackup}: ${c.remoteDescription}',
+                                style: TextStyle(fontSize: 11, color: ds.ink3),
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                ChoiceChip(
+                                  label: Text(l.backupKeepLocal),
+                                  selected:
+                                      _choices[c.key] ==
+                                      BackupConflictResolution.keepLocal,
+                                  onSelected: (val) {
+                                    if (val) {
+                                      setState(
+                                        () =>
+                                            _choices[c.key] =
+                                                BackupConflictResolution.keepLocal,
+                                      );
+                                    }
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                ChoiceChip(
+                                  label: Text(l.backupKeepRemote),
+                                  selected:
+                                      _choices[c.key] ==
+                                      BackupConflictResolution.keepRemote,
+                                  onSelected: (val) {
+                                    if (val) {
+                                      setState(
+                                        () =>
+                                            _choices[c.key] =
+                                                BackupConflictResolution.keepRemote,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: Text(l.cancel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _choices),
+          child: Text(l.backupApplyResolutions),
+        ),
+      ],
     );
   }
 }

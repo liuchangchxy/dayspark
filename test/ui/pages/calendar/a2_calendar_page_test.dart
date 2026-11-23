@@ -840,7 +840,7 @@ void main() {
     await tester.tap(find.text('Month'));
     await _settle(tester);
 
-    expect(find.text('Deadline'), findsOneWidget);
+    expect(find.textContaining('Deadline'), findsOneWidget);
     expect(find.textContaining('00:00'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
