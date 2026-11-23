@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -199,10 +199,6 @@ class AppDatabase extends _$AppDatabase {
         // EXDATE on the event row: "delete this occurrence" needs to leave the
         // series intact, and a nullable column costs no rewrite.
         await m.addColumn(events, events.exdates);
-      }
-      if (from < 17) {
-        // v17: calendars.color default updated to #8a8a82.
-        // Changing a column default in SQLite does not alter existing rows.
       }
       // Ensure default calendar exists for existing installs
       if (from >= 1) {

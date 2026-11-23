@@ -39,7 +39,7 @@ class $CalendarsTable extends Calendars
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('#8a8a82'),
+    defaultValue: const Constant('#2563EB'),
   );
   static const VerificationMeta _timezoneMeta = const VerificationMeta(
     'timezone',
