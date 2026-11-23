@@ -5944,6 +5944,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'It will move to the trash and can be restored.'**
   String get deleteTrashNotice;
+
+  /// No description provided for @backupConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Conflicts ({count})'**
+  String backupConflictTitle(int count);
+
+  /// No description provided for @backupConflictDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Some records in the backup conflict with existing records on this device. Select a resolution for each item:'**
+  String get backupConflictDesc;
+
+  /// No description provided for @backupKeepLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep local'**
+  String get backupKeepLocal;
+
+  /// No description provided for @backupKeepRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite with backup'**
+  String get backupKeepRemote;
+
+  /// No description provided for @backupApplyResolutions.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply resolutions'**
+  String get backupApplyResolutions;
+
+  /// No description provided for @importStepFile.
+  ///
+  /// In en, this message translates to:
+  /// **'1 · Choose File'**
+  String get importStepFile;
+
+  /// No description provided for @importStepCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'2 · Target Calendar'**
+  String get importStepCalendar;
+
+  /// No description provided for @importStepPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'3 · Preview & Import'**
+  String get importStepPreview;
+
+  /// No description provided for @importFileHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Supports .ics files. Events with matching UIDs will not be duplicated.'**
+  String get importFileHelp;
+
+  /// No description provided for @importCalendarHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Target calendar · currently {count} items'**
+  String importCalendarHelp(int count);
+
+  /// No description provided for @importPreviewHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Review events and tasks that will be added or skipped.'**
+  String get importPreviewHelp;
+
+  /// No description provided for @importNextStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Next step'**
+  String get importNextStep;
+
+  /// No description provided for @importChangeFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Change file'**
+  String get importChangeFile;
+
+  /// No description provided for @importChangeCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Change calendar'**
+  String get importChangeCalendar;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

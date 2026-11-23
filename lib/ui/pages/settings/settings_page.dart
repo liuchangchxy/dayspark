@@ -184,17 +184,65 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     return null;
   }
 
-  List<_SettingsSectionItem> _desktopSections(AppLocalizations l) => [
-    _SettingsSectionItem(
-      key: 'general',
-      label: l.general,
-      subtitle: l.generalDesc,
-      widget: AppearanceSection(
-        onOpenDefaultCalendar: () {
-          setState(() => _showingDefaultCalendar = true);
-        },
+  List<_SettingsSectionItem> _desktopSections(AppLocalizations l) {
+    final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
+    return [
+      _SettingsSectionItem(
+        key: 'home',
+        label: l.settings,
+        subtitle: l.settingsSubtitle,
+        widget: SettingsRows(
+          children: [
+            SettingsRow(
+              label: l.general,
+              subtitle: l.mobileGeneralDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('general'),
+            ),
+            SettingsRow(
+              label: l.manageCalendars,
+              subtitle: l.mobileCalendarsDesc(calCount),
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('calendars'),
+            ),
+            SettingsRow(
+              label: l.data,
+              subtitle: l.mobileDataDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('data'),
+            ),
+            if (hasNotificationSettings)
+              SettingsRow(
+                label: l.notify,
+                subtitle: l.mobileNotifyDesc,
+                chevron: SettingsChevron.right,
+                onTap: () => _goToSectionKey('notify'),
+              ),
+            SettingsRow(
+              label: l.sync,
+              subtitle: l.mobileSyncDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('sync'),
+            ),
+            SettingsRow(
+              label: l.about,
+              subtitle: l.mobileAboutDesc,
+              chevron: SettingsChevron.right,
+              onTap: () => _goToSectionKey('about'),
+            ),
+          ],
+        ),
       ),
-    ),
+      _SettingsSectionItem(
+        key: 'general',
+        label: l.general,
+        subtitle: l.generalDesc,
+        widget: AppearanceSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
+      ),
     _SettingsSectionItem(
       key: 'calendars',
       label: l.manageCalendars,
@@ -249,6 +297,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       widget: AboutSection(version: _cachedVersion ?? ''),
     ),
   ];
+  }
 
   String _mobileTitle(AppLocalizations l, String section) => switch (section) {
     'general' => l.general,

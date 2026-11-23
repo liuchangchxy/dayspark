@@ -614,3 +614,62 @@ class _CalDashedPainter extends CustomPainter {
   bool shouldRepaint(covariant _CalDashedPainter oldDelegate) =>
       oldDelegate.color != color;
 }
+
+class FrozenCalendarPalette {
+  const FrozenCalendarPalette({
+    required this.color,
+    required this.bg,
+    required this.ink,
+  });
+
+  final Color color;
+  final Color bg;
+  final Color ink;
+}
+
+const Map<String, FrozenCalendarPalette> kFrozenPalettes = {
+  '#8a8a82': FrozenCalendarPalette(
+    color: Color(0xFF8A8A82),
+    bg: Color(0xFFEFEFEA),
+    ink: Color(0xFF3B3B33),
+  ),
+  '#4f7bbf': FrozenCalendarPalette(
+    color: Color(0xFF4F7BBF),
+    bg: Color(0xFFDCE7F7),
+    ink: Color(0xFF1E3557),
+  ),
+  '#a98b4f': FrozenCalendarPalette(
+    color: Color(0xFFA98B4F),
+    bg: Color(0xFFF2EBDD),
+    ink: Color(0xFF4A3C22),
+  ),
+  '#c4794a': FrozenCalendarPalette(
+    color: Color(0xFFC4794A),
+    bg: Color(0xFFF7DCC8),
+    ink: Color(0xFF5E2F13),
+  ),
+  '#6a9464': FrozenCalendarPalette(
+    color: Color(0xFF6A9464),
+    bg: Color(0xFFDCEAD8),
+    ink: Color(0xFF2A4029),
+  ),
+  '#6c6fa8': FrozenCalendarPalette(
+    color: Color(0xFF6C6FA8),
+    bg: Color(0xFFE5E5F4),
+    ink: Color(0xFF33345A),
+  ),
+};
+
+FrozenCalendarPalette frozenPaletteFor(Color color) {
+  for (final p in kFrozenPalettes.values) {
+    if (p.color.toARGB32() == color.toARGB32()) {
+      return p;
+    }
+  }
+  return FrozenCalendarPalette(
+    color: color,
+    bg: color.withValues(alpha: 0.12),
+    ink: const Color(0xFF191918),
+  );
+}
+

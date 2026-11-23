@@ -234,6 +234,45 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     }
   }
 
+  Future<void> _resize(CalBlockItem item, int deltaMinutes) async {
+    if (deltaMinutes == 0) return;
+    final shift = Duration(minutes: deltaMinutes);
+    final l = AppLocalizations.of(context)!;
+    try {
+      final event = item.event;
+      if (event != null) {
+        final handler = widget.onEventChanged;
+        if (handler == null) return;
+        final newEnd = event.end.add(shift);
+        if (newEnd.isAfter(event.start)) {
+          await handler(event.copyWithData(end: newEnd));
+        }
+        return;
+      }
+      final allocation = item.allocation;
+      if (allocation == null) return;
+      final handler = widget.onAllocationChanged;
+      if (handler == null) return;
+      final original = _allocationById(allocation.id);
+      if (original == null) return;
+      final newEnd = original.allocation.endAt.add(shift);
+      if (newEnd.isAfter(original.allocation.startAt)) {
+        await handler(
+          TaskAllocationCalendarItem(
+            allocation: original.allocation.copyWith(endAt: newEnd),
+            todo: original.todo,
+          ),
+        );
+      }
+    } on Object catch (error) {
+      debugPrint('a2 calendar: resize failed: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+    }
+  }
+
   String _yearMonth(AppLocalizations l, DateTime date) {
     return l.yearMonthTitle('${date.year}', '${date.month}');
   }
@@ -561,7 +600,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
           child: SizedBox(
-            width: 44,
+            width: 48,
             height: 48,
             child: Center(
               child: Icon(
@@ -844,6 +883,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       onDeadline: widget.onDeadlineTapped,
       onSlot: widget.onTimeSlotTapped,
       onReschedule: _reschedule,
+      onResize: _resize,
     );
   }
 }

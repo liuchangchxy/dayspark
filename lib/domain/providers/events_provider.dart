@@ -172,7 +172,7 @@ final createCalendarProvider =
         return db.calendarsDao.insertCalendar(
           CalendarsCompanion.insert(
             name: name,
-            color: color != null ? Value(color) : const Value('#2563EB'),
+            color: color != null ? Value(color) : const Value('#8a8a82'),
           ),
         );
       };
