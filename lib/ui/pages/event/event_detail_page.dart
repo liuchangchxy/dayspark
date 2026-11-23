@@ -227,13 +227,14 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         EventsCompanion(
           startDt: Value(newStart),
           endDt: Value(newEnd),
+          isAllDay: const Value(false),
           updatedAt: Value(DateTime.now()),
         ),
       );
       if (!mounted) return;
       setState(() {
-        _draft = _withDraft(start: newStart, end: newEnd);
-        _snapshot = _withDraft(start: newStart, end: newEnd);
+        _draft = _withDraft(start: newStart, end: newEnd, allDay: false);
+        _snapshot = _withDraft(start: newStart, end: newEnd, allDay: false);
       });
     } catch (e) {
       debugPrint('event_detail: schedule failed: $e');

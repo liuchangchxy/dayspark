@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -194,6 +195,53 @@ void main() {
     // One calendar is still a calendar question; creating another is offered.
     expect(find.text('Personal'), findsWidgets);
     expect(find.text('+ New calendar'), findsOneWidget);
+    await _unmount(tester);
+  });
+
+  testWidgets('scheduling a time turns an all-day event into a timed event', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final calendarId = (await db.select(db.calendars).get()).single.id;
+    final allDayId = await db
+        .into(db.events)
+        .insert(
+          EventsCompanion.insert(
+            calendarId: calendarId,
+            summary: 'Holiday',
+            startDt: DateTime(2026, 11, 15),
+            endDt: DateTime(2026, 11, 16),
+            isAllDay: const Value(true),
+          ),
+        );
+    final allDay = CalendaEventAdapter.fromDrift(
+      await (db.select(db.events)..where((row) => row.id.equals(allDayId)))
+          .getSingle(),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        EventDetailPane(event: allDay, inlineSummary: true),
+        overrides: [databaseProvider.overrideWithValue(db)],
+      ),
+    );
+    await _settle(tester);
+    await tester.tap(find.byKey(const ValueKey('event-detail-schedule')));
+    await _settle(tester);
+    await tester.tap(find.text('Schedule'));
+    await _settle(tester);
+
+    final saved = await (db.select(
+      db.events,
+    )..where((row) => row.id.equals(allDayId))).getSingle();
+    expect(
+      saved.isAllDay,
+      isFalse,
+      reason: 'giving an all-day event a time makes it a timed event',
+    );
     await _unmount(tester);
   });
 }

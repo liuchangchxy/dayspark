@@ -250,7 +250,9 @@ class _HomePageState extends ConsumerState<HomePage>
     if (!mounted ||
         calendars.length != 1 ||
         calendars.single.name != 'Personal' ||
-        !const {'#2563EB', '#5F7183'}.contains(calendars.single.color) ||
+        !const {'#2563EB', '#5F7183', '#8a8a82'}.contains(
+          calendars.single.color,
+        ) ||
         calendars.single.name == l.defaultCalendarName) {
       return;
     }

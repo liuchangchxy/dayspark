@@ -262,12 +262,48 @@ class BackupService {
       if (localById != null) {
         final isSame = localById.name == remoteName && localById.syncId == remoteSync;
         if (!isSame) {
-          final associatedCount = (data['events'] as List<dynamic>? ?? [])
-                  .where((e) => e is Map && e['calendarId'] == remoteId)
-                  .length +
-              (data['todos'] as List<dynamic>? ?? [])
-                  .where((t) => t is Map && t['calendarId'] == remoteId)
-                  .length;
+          final calendarEventIds = (data['events'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where((e) => e['calendarId'] == remoteId)
+              .map((e) => e['id'])
+              .whereType<int>()
+              .toSet();
+          final calendarTodoIds = (data['todos'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where((t) => t['calendarId'] == remoteId)
+              .map((t) => t['id'])
+              .whereType<int>()
+              .toSet();
+          var associatedCount =
+              calendarEventIds.length + calendarTodoIds.length;
+          associatedCount += (data['reminders'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where(
+                (r) =>
+                    (r['parentType'] == 'event' &&
+                        calendarEventIds.contains(r['parentId'])) ||
+                    (r['parentType'] == 'todo' &&
+                        calendarTodoIds.contains(r['parentId'])),
+              )
+              .length;
+          associatedCount += (data['attachments'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where(
+                (a) =>
+                    (a['parentType'] == 'event' &&
+                        calendarEventIds.contains(a['parentId'])) ||
+                    (a['parentType'] == 'todo' &&
+                        calendarTodoIds.contains(a['parentId'])),
+              )
+              .length;
+          associatedCount += (data['eventTags'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where((et) => calendarEventIds.contains(et['eventId']))
+              .length;
+          associatedCount += (data['todoTags'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where((tt) => calendarTodoIds.contains(tt['todoId']))
+              .length;
           conflicts.add(
             BackupConflictItem(
               table: 'calendars',
@@ -528,10 +564,15 @@ class BackupService {
         final oldId = c['id'] as int;
         final syncId = c['syncId'] as String?;
         final name = c['name'] as String;
+        final color = c['color'] as String;
+        final timezone = c['timezone'] as String? ?? 'UTC';
+        final isActive = c['isActive'] as bool? ?? true;
+        final sortOrder = c['sortOrder'] as int? ?? 0;
         final conflictKey = 'calendars:$oldId';
+        final hasSyncId = syncId != null && syncId.isNotEmpty;
 
         Calendar? match;
-        if (syncId != null && syncId.isNotEmpty) {
+        if (hasSyncId) {
           match = (await (_db.select(_db.calendars)
                 ..where((tbl) => tbl.syncId.equals(syncId)))
               .get()).firstOrNull;
@@ -540,13 +581,25 @@ class BackupService {
               ..where((tbl) => tbl.id.equals(oldId)))
             .get()).firstOrNull;
 
-        final isIdentical = (localById != null &&
-                localById.name == name &&
-                localById.syncId == syncId) ||
-            (match != null &&
-                match.name == name &&
-                match.syncId == syncId);
-        if (isIdentical) {
+        // Only a non-empty syncId identifies the same calendar. An exact
+        // duplicate under the same integer id is a no-op; any other integer-id
+        // collision is a different calendar and must never be updated in place.
+        final matchesByIdentity = match != null &&
+            match.name == name &&
+            match.color == color &&
+            match.timezone == timezone &&
+            match.isActive == isActive &&
+            match.sortOrder == sortOrder &&
+            match.syncId == syncId;
+        final isExactLocalDuplicate = !hasSyncId &&
+            localById != null &&
+            localById.name == name &&
+            localById.color == color &&
+            localById.timezone == timezone &&
+            localById.isActive == isActive &&
+            localById.sortOrder == sortOrder &&
+            localById.syncId == syncId;
+        if (matchesByIdentity || isExactLocalDuplicate) {
           calendarIdMap[oldId] = match?.id ?? localById!.id;
           continue;
         }
@@ -565,10 +618,10 @@ class BackupService {
 
         final companion = CalendarsCompanion(
           name: Value(name),
-          color: Value(c['color'] as String),
-          timezone: Value(c['timezone'] as String? ?? 'UTC'),
-          isActive: Value(c['isActive'] as bool? ?? true),
-          sortOrder: Value(c['sortOrder'] as int? ?? 0),
+          color: Value(color),
+          timezone: Value(timezone),
+          isActive: Value(isActive),
+          sortOrder: Value(sortOrder),
           syncId: Value(syncId),
         );
 
@@ -581,9 +634,10 @@ class BackupService {
             ),
           );
         } else if (localById != null) {
-          calendarIdMap[oldId] = localById.id;
-          await (_db.update(_db.calendars)..where((tbl) => tbl.id.equals(localById.id)))
-              .write(companion);
+          // Id collision without a shared syncId: the local row is another
+          // calendar. Import the remote as a new row instead of overwriting it.
+          final newId = await _db.into(_db.calendars).insert(companion);
+          calendarIdMap[oldId] = newId;
         } else {
           final newId = await _db.into(_db.calendars).insert(companion.copyWith(id: Value(oldId)));
           calendarIdMap[oldId] = newId;
@@ -598,10 +652,12 @@ class BackupService {
         final oldId = tg['id'] as int;
         final syncId = tg['syncId'] as String?;
         final name = tg['name'] as String;
+        final color = tg['color'] as String;
         final conflictKey = 'tags:$oldId';
+        final hasSyncId = syncId != null && syncId.isNotEmpty;
 
         Tag? match;
-        if (syncId != null && syncId.isNotEmpty) {
+        if (hasSyncId) {
           match = (await (_db.select(_db.tags)
                 ..where((tbl) => tbl.syncId.equals(syncId)))
               .get()).firstOrNull;
@@ -610,13 +666,19 @@ class BackupService {
               ..where((tbl) => tbl.id.equals(oldId)))
             .get()).firstOrNull;
 
-        final isIdentical = (localById != null &&
-                localById.name == name &&
-                localById.syncId == syncId) ||
-            (match != null &&
-                match.name == name &&
-                match.syncId == syncId);
-        if (isIdentical) {
+        // Only a non-empty syncId identifies the same tag. An exact duplicate
+        // under the same integer id is a no-op; any other integer-id collision
+        // is a different tag and must never be updated in place.
+        final matchesByIdentity = match != null &&
+            match.name == name &&
+            match.color == color &&
+            match.syncId == syncId;
+        final isExactLocalDuplicate = !hasSyncId &&
+            localById != null &&
+            localById.name == name &&
+            localById.color == color &&
+            localById.syncId == syncId;
+        if (matchesByIdentity || isExactLocalDuplicate) {
           tagIdMap[oldId] = match?.id ?? localById!.id;
           continue;
         }
@@ -635,7 +697,7 @@ class BackupService {
 
         final companion = TagsCompanion(
           name: Value(name),
-          color: Value(tg['color'] as String),
+          color: Value(color),
           syncId: Value(syncId),
         );
 
@@ -648,9 +710,10 @@ class BackupService {
             ),
           );
         } else if (localById != null) {
-          tagIdMap[oldId] = localById.id;
-          await (_db.update(_db.tags)..where((tbl) => tbl.id.equals(localById.id)))
-              .write(companion);
+          // Id collision without a shared syncId: the local row is another
+          // tag. Import the remote as a new row instead of overwriting it.
+          final newId = await _db.into(_db.tags).insert(companion);
+          tagIdMap[oldId] = newId;
         } else {
           final newId = await _db.into(_db.tags).insert(companion.copyWith(id: Value(oldId)));
           tagIdMap[oldId] = newId;
@@ -973,20 +1036,11 @@ class BackupService {
         if (skippedEventIds.contains(rawEventId) || skippedTagIds.contains(rawTagId)) {
           continue;
         }
+        // Conflict keys are the backup ids (`events:<backupId>`). Effective
+        // ids must not be consulted: a different conflict that happens to sit
+        // on the same effective integer id cannot suppress this join.
         if (resolutions?['events:$rawEventId'] == BackupConflictResolution.keepLocal ||
-            resolutions?['events:$eventId'] == BackupConflictResolution.keepLocal) {
-          continue;
-        }
-        if (resolutions?['tags:$rawTagId'] == BackupConflictResolution.keepLocal ||
-            resolutions?['tags:$tagId'] == BackupConflictResolution.keepLocal) {
-          continue;
-        }
-        if (resolutions?['eventTags:$rawEventId'] == BackupConflictResolution.keepLocal ||
-            resolutions?['eventTags:$eventId'] == BackupConflictResolution.keepLocal) {
-          continue;
-        }
-        if (resolutions?['eventTags:$rawEventId-$rawTagId'] == BackupConflictResolution.keepLocal ||
-            resolutions?['eventTags:$eventId-$tagId'] == BackupConflictResolution.keepLocal) {
+            resolutions?['tags:$rawTagId'] == BackupConflictResolution.keepLocal) {
           continue;
         }
         final syncId = et['syncId'] as String?;
@@ -1015,20 +1069,11 @@ class BackupService {
         if (skippedTodoIds.contains(rawTodoId) || skippedTagIds.contains(rawTagId)) {
           continue;
         }
+        // Conflict keys are the backup ids (`todos:<backupId>`). Effective ids
+        // must not be consulted: a different conflict that happens to sit on
+        // the same effective integer id cannot suppress this join.
         if (resolutions?['todos:$rawTodoId'] == BackupConflictResolution.keepLocal ||
-            resolutions?['todos:$todoId'] == BackupConflictResolution.keepLocal) {
-          continue;
-        }
-        if (resolutions?['tags:$rawTagId'] == BackupConflictResolution.keepLocal ||
-            resolutions?['tags:$tagId'] == BackupConflictResolution.keepLocal) {
-          continue;
-        }
-        if (resolutions?['todoTags:$rawTodoId'] == BackupConflictResolution.keepLocal ||
-            resolutions?['todoTags:$todoId'] == BackupConflictResolution.keepLocal) {
-          continue;
-        }
-        if (resolutions?['todoTags:$rawTodoId-$rawTagId'] == BackupConflictResolution.keepLocal ||
-            resolutions?['todoTags:$todoId-$tagId'] == BackupConflictResolution.keepLocal) {
+            resolutions?['tags:$rawTagId'] == BackupConflictResolution.keepLocal) {
           continue;
         }
         final syncId = tt['syncId'] as String?;

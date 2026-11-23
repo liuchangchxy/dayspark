@@ -95,13 +95,23 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   final Map<String, Timer> _undoTimers = {};
   final Map<String, int> _undoGenerations = {};
 
+  final LayerLink _filterToolLink = LayerLink();
+  OverlayEntry? _filterOverlay;
+
   @override
   void dispose() {
+    _closeFilterOverlay();
     for (final timer in _undoTimers.values) {
       timer.cancel();
     }
     _desktopCaptureController.dispose();
     super.dispose();
+  }
+
+  void _closeFilterOverlay() {
+    final overlay = _filterOverlay;
+    _filterOverlay = null;
+    overlay?.remove();
   }
 
   String get _locale => Localizations.localeOf(context).toString();
@@ -784,49 +794,53 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   }
 
   Widget _filterTool(AppLocalizations l, bool active) {
-    return Tooltip(
-      message: l.filter,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          key: const ValueKey('todos-filter-tool'),
-          behavior: HitTestBehavior.opaque,
-          onTap: () => _showFilterSheet(context),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            child: Align(
-              widthFactor: 1,
-              heightFactor: 1,
-              child: Container(
-                key: const ValueKey('todos-filter-tool-visual'),
-                height: 29,
-                padding: const EdgeInsets.symmetric(horizontal: 9),
-                decoration: BoxDecoration(
-                  color: active ? SpecTokens.wash : Colors.white,
-                  border: Border.all(
-                    color: active ? SpecTokens.ink2 : SpecTokens.hair2,
+    return CompositedTransformTarget(
+      link: _filterToolLink,
+      child: Tooltip(
+        message: l.filter,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            key: const ValueKey('todos-filter-tool'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _showFilterSheet(context),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              child: Align(
+                widthFactor: 1,
+                heightFactor: 1,
+                child: Container(
+                  key: const ValueKey('todos-filter-tool-visual'),
+                  height: 29,
+                  padding: const EdgeInsets.symmetric(horizontal: 9),
+                  decoration: BoxDecoration(
+                    color: active ? SpecTokens.wash : Colors.white,
+                    border: Border.all(
+                      color: active ? SpecTokens.ink2 : SpecTokens.hair2,
+                    ),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      CupertinoIcons.slider_horizontal_3,
-                      size: 12,
-                      color: SpecTokens.muted,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      l.filter,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                        color: active ? SpecTokens.ink : SpecTokens.ink2,
-                        fontFamilyFallback: AppTypography.fallback,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        CupertinoIcons.slider_horizontal_3,
+                        size: 12,
+                        color: SpecTokens.muted,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 5),
+                      Text(
+                        l.filter,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight:
+                              active ? FontWeight.w600 : FontWeight.w400,
+                          color: active ? SpecTokens.ink : SpecTokens.ink2,
+                          fontFamilyFallback: AppTypography.fallback,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -883,10 +897,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     }
 
     if (isWorkspaceLayout(context)) {
-      return showDialog<void>(
-        context: context,
-        barrierColor: Colors.transparent,
-        builder: (dialogContext) {
+      _closeFilterOverlay();
+      final entry = OverlayEntry(
+        builder: (overlayContext) {
           return StatefulBuilder(
             builder: (ctx, setPopState) {
               final matched = computeMatchCount(draftCalendar, draftTags, draftPriority, draftOverdue);
@@ -895,14 +908,21 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                   Positioned.fill(
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
-                      onTap: () => Navigator.of(dialogContext).pop(),
+                      onTap: _closeFilterOverlay,
                     ),
                   ),
                   Positioned(
-                    top: 126,
-                    right: 28,
-                    width: 310,
-                    child: Material(
+                    left: 0,
+                    top: 0,
+                    child: CompositedTransformFollower(
+                      link: _filterToolLink,
+                      showWhenUnlinked: false,
+                      targetAnchor: Alignment.bottomRight,
+                      followerAnchor: Alignment.topRight,
+                      offset: const Offset(0, 6),
+                      child: SizedBox(
+                        width: 260,
+                        child: Material(
                       color: Colors.white,
                       elevation: 16,
                       shape: RoundedRectangleBorder(
@@ -928,7 +948,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                   ),
                                 ),
                                 GestureDetector(
-                                  onTap: () => Navigator.of(dialogContext).pop(),
+                                  onTap: () => _closeFilterOverlay(),
                                   child: const Icon(CupertinoIcons.xmark, size: 12, color: SpecTokens.muted),
                                 ),
                               ],
@@ -1156,7 +1176,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                   onPressed: () {
                                     clearDraft();
                                     applyDraft();
-                                    Navigator.of(dialogContext).pop();
+                                    _closeFilterOverlay();
                                   },
                                   child: Text(
                                     l.filterReset,
@@ -1171,7 +1191,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 ElevatedButton(
                                   onPressed: () {
                                     applyDraft();
-                                    Navigator.of(dialogContext).pop();
+                                    _closeFilterOverlay();
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: SpecTokens.ink,
@@ -1195,13 +1215,18 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                       ),
                     ),
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+            ],
           );
         },
       );
-    }
+    },
+  );
+  _filterOverlay = entry;
+  Overlay.of(context).insert(entry);
+  return Future<void>.value();
+}
 
     return showDsSheet<void>(
       context: context,

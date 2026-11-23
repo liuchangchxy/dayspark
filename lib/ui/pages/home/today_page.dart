@@ -24,6 +24,7 @@ import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
+import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
@@ -2200,7 +2201,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     ];
 
     final sel = ref.watch(workspaceSelectionProvider);
-    final isShifted = sel != null && isMasterDetailLayout(context);
+    final isShifted = sel != null && canShowDesktopDrawer(context);
 
     final desktopContent = Stack(
       children: [

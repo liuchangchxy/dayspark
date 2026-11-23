@@ -797,7 +797,7 @@ void main() {
       expect(tag.name, 'Local Tag');
     });
 
-    test('Calendar & Tag ID collision: keepRemote overwrites in-place, keepLocal skips', () async {
+    test('Calendar & Tag ID collision: keepRemote imports a new row instead of overwriting the unrelated local row', () async {
       await db.delete(db.calendars).go();
       await db.delete(db.tags).go();
       final calId = await db.into(db.calendars).insert(
@@ -820,7 +820,8 @@ void main() {
         'attachments': <Map<String, dynamic>>[],
       };
 
-      // Path A: keepRemote overwrites localById in-place
+      // Path A: keepRemote must not touch the unrelated local row; it imports
+      // the remote calendar/tag as separate rows.
       await service.restoreData(
         data,
         resolutions: {
@@ -830,18 +831,26 @@ void main() {
       );
 
       final cals = await db.select(db.calendars).get();
-      expect(cals, hasLength(1));
-      expect(cals.first.id, calId);
-      expect(cals.first.name, 'Remote Cal');
-      expect(cals.first.color, '#333333');
+      expect(cals, hasLength(2));
+      final keptCal = cals.firstWhere((c) => c.id == calId);
+      expect(keptCal.name, 'Local Cal');
+      expect(keptCal.color, '#111111');
+      final importedCal = cals.firstWhere((c) => c.id != calId);
+      expect(importedCal.name, 'Remote Cal');
+      expect(importedCal.color, '#333333');
+      expect(importedCal.syncId, 'diff-cal-sync');
 
       final tags = await db.select(db.tags).get();
-      expect(tags, hasLength(1));
-      expect(tags.first.id, tagId);
-      expect(tags.first.name, 'Remote Tag');
-      expect(tags.first.color, '#444444');
+      expect(tags, hasLength(2));
+      final keptTag = tags.firstWhere((t) => t.id == tagId);
+      expect(keptTag.name, 'Local Tag');
+      expect(keptTag.color, '#222222');
+      final importedTag = tags.firstWhere((t) => t.id != tagId);
+      expect(importedTag.name, 'Remote Tag');
+      expect(importedTag.color, '#444444');
+      expect(importedTag.syncId, 'diff-tag-sync');
 
-      // Path B: keepLocal skips remote
+      // Path B: keepLocal skips the remote row and leaves everything intact.
       final data2 = {
         'calendars': [
           {'id': calId, 'name': 'Another Cal', 'color': '#555555', 'syncId': 'yet-another-sync'}
@@ -864,12 +873,12 @@ void main() {
       );
 
       final cals2 = await db.select(db.calendars).get();
-      expect(cals2, hasLength(1));
-      expect(cals2.first.name, 'Remote Cal');
+      expect(cals2, hasLength(2));
+      expect(cals2.firstWhere((c) => c.id == calId).name, 'Local Cal');
 
       final tags2 = await db.select(db.tags).get();
-      expect(tags2, hasLength(1));
-      expect(tags2.first.name, 'Remote Tag');
+      expect(tags2, hasLength(2));
+      expect(tags2.firstWhere((t) => t.id == tagId).name, 'Local Tag');
     });
 
     test('inspectConflicts correctly populates associatedSkippedCount', () async {
@@ -905,13 +914,56 @@ void main() {
           },
         ],
         'tags': <Map<String, dynamic>>[],
-        'reminders': <Map<String, dynamic>>[],
-        'attachments': <Map<String, dynamic>>[],
+        'eventTags': [
+          {'eventId': 101, 'tagId': 301, 'syncId': 'et-1'},
+        ],
+        'todoTags': [
+          {'todoId': 201, 'tagId': 301, 'syncId': 'tt-1'},
+        ],
+        'reminders': [
+          {
+            'id': 401,
+            'parentType': 'event',
+            'parentId': 102,
+            'triggerTime': '2026-11-20T08:00:00.000Z',
+            'isTriggered': false,
+            'syncId': 'rem-1',
+            'parentSyncId': null,
+          },
+          {
+            'id': 402,
+            'parentType': 'todo',
+            'parentId': 201,
+            'triggerTime': '2026-11-20T08:00:00.000Z',
+            'isTriggered': false,
+            'syncId': 'rem-2',
+            'parentSyncId': null,
+          },
+        ],
+        'attachments': [
+          {
+            'id': 501,
+            'parentType': 'event',
+            'parentId': 101,
+            'filePath': '',
+            'fileName': 'a.pdf',
+            'fileSize': 1,
+            'mimeType': 'application/pdf',
+            'syncId': 'att-1',
+            'parentSyncId': null,
+            'serverFileRef': null,
+          },
+        ],
       };
 
       final conflicts = await service.inspectConflicts(data);
       final calConflict = conflicts.firstWhere((c) => c.table == 'calendars' && c.id == calId);
-      expect(calConflict.associatedSkippedCount, 3, reason: '2 events + 1 todo associated with this calendar');
+      expect(
+        calConflict.associatedSkippedCount,
+        8,
+        reason:
+            '2 events + 1 todo + 1 eventTag + 1 todoTag + 2 reminders + 1 attachment',
+      );
     });
 
     test('Attachment inserted as new row writes file matching the newly generated row id', () async {
@@ -1066,6 +1118,297 @@ void main() {
           reason: 'eventTags must be written when event resolution is keepRemote');
       expect(await db.select(db.todoTags).get(), hasLength(1),
           reason: 'todoTags must be written when todo resolution is keepRemote');
+    });
+
+    test('join rows follow the effective parent id on keepRemote and drop on keepLocal', () async {
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Cal', syncId: const Value('cal-sync')),
+      );
+      final tagId = await db.into(db.tags).insert(
+        TagsCompanion.insert(
+          name: 'Tag 1',
+          color: const Value('#111111'),
+          syncId: const Value('tag-sync-1'),
+        ),
+      );
+      final eventId = await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: calId,
+          summary: 'Local Event',
+          startDt: DateTime.utc(2026, 11, 20, 9),
+          endDt: DateTime.utc(2026, 11, 20, 10),
+          syncId: const Value('event-shared'),
+        ),
+      );
+      final todoId = await db.into(db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: calId,
+          summary: 'Local Todo',
+          syncId: const Value('todo-shared'),
+        ),
+      );
+
+      // keepRemote: backup rows match by syncId under different backup ids, so
+      // the effective parent id is the existing local row, not the backup id.
+      await service.restoreData(
+        {
+          'calendars': <Map<String, dynamic>>[],
+          'tags': <Map<String, dynamic>>[],
+          'events': [
+            {
+              'id': 900,
+              'calendarId': calId,
+              'summary': 'Remote Event',
+              'startDt': '2026-11-20T09:00:00.000Z',
+              'endDt': '2026-11-20T10:00:00.000Z',
+              'syncId': 'event-shared',
+            }
+          ],
+          'todos': [
+            {
+              'id': 901,
+              'calendarId': calId,
+              'summary': 'Remote Todo',
+              'syncId': 'todo-shared',
+            }
+          ],
+          'eventTags': [
+            {'eventId': 900, 'tagId': tagId, 'syncId': 'et-1'}
+          ],
+          'todoTags': [
+            {'todoId': 901, 'tagId': tagId, 'syncId': 'tt-1'}
+          ],
+          'reminders': <Map<String, dynamic>>[],
+          'attachments': <Map<String, dynamic>>[],
+        },
+        resolutions: {
+          'events:900': BackupConflictResolution.keepRemote,
+          'todos:901': BackupConflictResolution.keepRemote,
+        },
+      );
+
+      final eventTags = await db.select(db.eventTags).get();
+      expect(eventTags, hasLength(1));
+      expect(eventTags.single.eventId, eventId,
+          reason: 'join must point at the kept local event, not backup id 900');
+      expect(eventTags.single.tagId, tagId);
+      final todoTags = await db.select(db.todoTags).get();
+      expect(todoTags, hasLength(1));
+      expect(todoTags.single.todoId, todoId,
+          reason: 'join must point at the kept local todo, not backup id 901');
+      expect(todoTags.single.tagId, tagId);
+
+      // keepLocal: the parent is skipped, so its joins must not be written.
+      final tag2Id = await db.into(db.tags).insert(
+        TagsCompanion.insert(
+          name: 'Tag 2',
+          color: const Value('#222222'),
+          syncId: const Value('tag-sync-2'),
+        ),
+      );
+      await service.restoreData(
+        {
+          'calendars': <Map<String, dynamic>>[],
+          'tags': <Map<String, dynamic>>[],
+          'events': [
+            {
+              'id': eventId,
+              'calendarId': calId,
+              'summary': 'Clashing Event',
+              'startDt': '2026-11-20T11:00:00.000Z',
+              'endDt': '2026-11-20T12:00:00.000Z',
+              'syncId': 'event-clash',
+            }
+          ],
+          'todos': [
+            {
+              'id': todoId,
+              'calendarId': calId,
+              'summary': 'Clashing Todo',
+              'syncId': 'todo-clash',
+            }
+          ],
+          'eventTags': [
+            {'eventId': eventId, 'tagId': tag2Id, 'syncId': 'et-clash'}
+          ],
+          'todoTags': [
+            {'todoId': todoId, 'tagId': tag2Id, 'syncId': 'tt-clash'}
+          ],
+          'reminders': <Map<String, dynamic>>[],
+          'attachments': <Map<String, dynamic>>[],
+        },
+        resolutions: {
+          'events:$eventId': BackupConflictResolution.keepLocal,
+          'todos:$todoId': BackupConflictResolution.keepLocal,
+        },
+      );
+
+      expect(await db.select(db.eventTags).get(), hasLength(1),
+          reason: 'keepLocal parent must drop its eventTags join rows');
+      expect(await db.select(db.todoTags).get(), hasLength(1),
+          reason: 'keepLocal parent must drop its todoTags join rows');
+      expect(
+        (await db.select(db.eventTags).get()).any((et) => et.tagId == tag2Id),
+        isFalse,
+      );
+      expect(
+        (await db.select(db.todoTags).get()).any((tt) => tt.tagId == tag2Id),
+        isFalse,
+      );
+    });
+
+    test('a keepLocal conflict on the effective id does not suppress a keepRemote join', () async {
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Cal', syncId: const Value('cal-sync')),
+      );
+      final tagId = await db.into(db.tags).insert(
+        TagsCompanion.insert(
+          name: 'Tag',
+          color: const Value('#111111'),
+          syncId: const Value('tag-sync'),
+        ),
+      );
+      final eventPId = await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: calId,
+          summary: 'P local',
+          startDt: DateTime.utc(2026, 11, 20, 9),
+          endDt: DateTime.utc(2026, 11, 20, 10),
+          syncId: const Value('p-local'),
+        ),
+      );
+      final eventQId = await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: calId,
+          summary: 'Q local',
+          startDt: DateTime.utc(2026, 11, 20, 11),
+          endDt: DateTime.utc(2026, 11, 20, 12),
+          syncId: const Value('shared'),
+        ),
+      );
+
+      // The first backup row collides on P's integer id but matches Q by
+      // syncId, so its effective parent is Q. The second row collides on Q's
+      // integer id and is kept local. That keepLocal decision must not gate
+      // the first row's join.
+      await service.restoreData(
+        {
+          'calendars': <Map<String, dynamic>>[],
+          'tags': <Map<String, dynamic>>[],
+          'events': [
+            {
+              'id': eventPId,
+              'calendarId': calId,
+              'summary': 'Q remote',
+              'startDt': '2026-11-20T11:00:00.000Z',
+              'endDt': '2026-11-20T12:00:00.000Z',
+              'syncId': 'shared',
+            },
+            {
+              'id': eventQId,
+              'calendarId': calId,
+              'summary': 'Other remote',
+              'startDt': '2026-11-20T13:00:00.000Z',
+              'endDt': '2026-11-20T14:00:00.000Z',
+              'syncId': 'q-other',
+            },
+          ],
+          'todos': <Map<String, dynamic>>[],
+          'eventTags': [
+            {'eventId': eventPId, 'tagId': tagId, 'syncId': 'et-1'}
+          ],
+          'todoTags': <Map<String, dynamic>>[],
+          'reminders': <Map<String, dynamic>>[],
+          'attachments': <Map<String, dynamic>>[],
+        },
+        resolutions: {
+          'events:$eventPId': BackupConflictResolution.keepRemote,
+          'events:$eventQId': BackupConflictResolution.keepLocal,
+        },
+      );
+
+      final eventTags = await db.select(db.eventTags).get();
+      expect(eventTags, hasLength(1));
+      expect(eventTags.single.eventId, eventQId,
+          reason: 'join follows keepRemote to the effective parent id');
+      expect(eventTags.single.tagId, tagId);
+    });
+
+    test('attachment matched by syncId writes bytes under the existing row id, not the backup id', () async {
+      final tempDir = Directory.systemTemp.createTempSync('dayspark_test_att_key');
+      final attService = BackupService(
+        db,
+        files: AttachmentFileStore(root: () async => tempDir),
+      );
+      try {
+        final calId = await db.into(db.calendars).insert(
+          CalendarsCompanion.insert(name: 'Cal'),
+        );
+        final todoId = await db.into(db.todos).insert(
+          TodosCompanion.insert(calendarId: calId, summary: 'Task A'),
+        );
+        final localAttId = await db.into(db.attachments).insert(
+          AttachmentsCompanion.insert(
+            parentType: 'todo',
+            parentId: todoId,
+            filePath: '',
+            fileName: 'old.txt',
+            syncId: const Value('att-shared'),
+          ),
+        );
+
+        final archive = Archive();
+        final content = utf8.encode('body');
+        archive.addFile(ArchiveFile(
+          BackupService.attachmentEntryName(
+            id: 80,
+            syncId: 'att-shared',
+            fileName: 'new.txt',
+          ),
+          content.length,
+          content,
+        ));
+
+        await attService.restoreData(
+          {
+            'calendars': <Map<String, dynamic>>[],
+            'tags': <Map<String, dynamic>>[],
+            'events': <Map<String, dynamic>>[],
+            'todos': <Map<String, dynamic>>[],
+            'reminders': <Map<String, dynamic>>[],
+            'attachments': [
+              {
+                'id': 80,
+                'parentType': 'todo',
+                'parentId': todoId,
+                'filePath': '/remote/new.txt',
+                'fileName': 'new.txt',
+                'fileSize': content.length,
+                'mimeType': 'text/plain',
+                'syncId': 'att-shared',
+                'parentSyncId': null,
+                'serverFileRef': null,
+              }
+            ],
+          },
+          archive: archive,
+        );
+
+        final restored = await (db.select(db.attachments)
+              ..where((a) => a.id.equals(localAttId)))
+            .getSingle();
+        expect(restored.id, localAttId);
+        expect(restored.filePath, contains(attachmentFileKey(localAttId)));
+        expect(File(restored.filePath).existsSync(), isTrue);
+        expect(await File(restored.filePath).readAsBytes(), content);
+        expect(
+          File('${tempDir.path}/a80_new.txt').existsSync(),
+          isFalse,
+          reason: 'no orphan file keyed by the backup id',
+        );
+      } finally {
+        if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+      }
     });
   });
 }

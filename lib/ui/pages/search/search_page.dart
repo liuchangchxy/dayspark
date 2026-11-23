@@ -93,6 +93,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   SearchResults? _shown;
   List<_CmdHit> _currentHits = const [];
 
+  /// While non-null, the capture surface renders inside this overlay instead of
+  /// closing the command palette and opening a separate modal route.
+  ({String? title, bool event})? _capture;
+
   @override
   void initState() {
     super.initState();
@@ -236,12 +240,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         switch (hit.action!) {
           case _CmdActionKind.captureTodo:
             if (widget.isOverlay) {
-              _close();
-              showA2Composer(
-                context,
-                contextDate: DateTime.now(),
-                initialTitle: summary.isNotEmpty ? summary : null,
-                startAsEvent: false,
+              _searchFocus.unfocus();
+              setState(
+                () => _capture = (
+                  title: summary.isNotEmpty ? summary : null,
+                  event: false,
+                ),
               );
             } else {
               final path = summary.isNotEmpty
@@ -251,12 +255,12 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             }
           case _CmdActionKind.captureEvent:
             if (widget.isOverlay) {
-              _close();
-              showA2Composer(
-                context,
-                contextDate: DateTime.now(),
-                initialTitle: summary.isNotEmpty ? summary : null,
-                startAsEvent: true,
+              _searchFocus.unfocus();
+              setState(
+                () => _capture = (
+                  title: summary.isNotEmpty ? summary : null,
+                  event: true,
+                ),
               );
             } else {
               final path = summary.isNotEmpty
@@ -609,6 +613,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               ),
             ),
           ),
+          if (_capture != null)
+            Positioned.fill(
+              child: A2ComposerSheet(
+                contextDate: DateTime.now(),
+                initialTitle: _capture!.title,
+                startAsEvent: _capture!.event,
+              ),
+            ),
         ],
       );
     }

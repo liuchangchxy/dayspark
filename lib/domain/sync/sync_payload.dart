@@ -245,6 +245,7 @@ Future<int> resolveCalendarId(
       .insert(
         CalendarsCompanion.insert(
           name: 'Personal',
+          color: const Value('#8a8a82'),
           syncId: calendarSyncId != null
               ? Value(calendarSyncId)
               : const Value.absent(),

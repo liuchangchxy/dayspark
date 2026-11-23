@@ -22,6 +22,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
+import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 
 void main() {
   testWidgets('inbox suggestions are read-only and open the todo', (
@@ -1323,6 +1324,59 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 20));
+    router.dispose();
+  });
+
+  testWidgets('create actions stay inside the command overlay', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final router = GoRouter(
+      initialLocation: '/search',
+      routes: [
+        GoRoute(
+          path: '/search',
+          builder: (_, __) => const SearchPage(isOverlay: true),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
+          recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
+          calendarsProvider.overrideWith((ref) => Stream.value([])),
+        ],
+        child: MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SearchPage), findsOneWidget);
+
+    await tester.tap(find.text('New Task'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byType(SearchPage),
+      findsOneWidget,
+      reason: 'the command overlay stays while the capture surface is open',
+    );
+    expect(find.byType(A2ComposerSheet), findsOneWidget);
+
     router.dispose();
   });
 }
