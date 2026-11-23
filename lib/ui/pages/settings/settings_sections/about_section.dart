@@ -18,7 +18,7 @@ class _AboutSectionState extends State<AboutSection> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final displayVersion = widget.version.isEmpty ? '0.34.0' : widget.version;
+    final displayVersion = widget.version.isEmpty ? null : widget.version;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
