@@ -24,6 +24,20 @@
 | N | Keyboard / focus | **FAIL → P1 修复中** | 日历全部可点面与部分 Today/Todo/顶栏控件为裸 `GestureDetector`，Tab 不可达 |
 | O | Overdue 按日期 | PASS | 全部逾期判定改为日历日比较，无 `DateTime.now()` 残留 |
 
+### 规格面覆盖（穷举口径）
+
+从 `dayspark-spec.html` 的全部渲染函数逐条对拍（含移动变体），共 **127 条渲染项**：
+- 4 条为规格外壳（`renderNav`/`renderVariants`/`render`/`fitFrame`），4 条为规格画廊（`statesPage`/`specSheet`/`mobileStates`/`mobileSpec`），均非产品界面；
+- **产品面 119 条：MATCH 113 / PARTIAL 4 / NOT FOUND 2**；**未检查 = 0**。
+
+PARTIAL / NOT FOUND 明细（均为 P2，已记入待办）：
+- `slotCapture`（PARTIAL）：时间槽 sheet 是三动作启动器，规格的「就地预填新建」面板未内联。
+- `settings-import`（PARTIAL）：有文件/目标日历/行级预览，失败时只给一条 `importFailed`，无「跳过坏行继续」报告。
+- `settings-backup`（PARTIAL）：进行中只有不确定进度条，无百分比；完成后才显示文件名与内容。
+- `settings-sync-conflict`（PARTIAL）：只有冲突计数行，无逐项 local/server/merge 选择。
+- `overdueToolbar`（NOT FOUND）：逾期已分组并排序，但缺「N 项逾期 · 最早 / 按截止排序」工具条。
+- `mobileOverlapBand`（NOT FOUND）：手机日视图只排序，无重叠计数带。
+
 ## 二、本轮修复
 
 1. **P1 — Capture 展开面板字段不落值**（A）：截止/计划执行/日历/提醒的选择原本只切回展开态。已补 `A2CaptureDraft` + `writeCapturedTodo`（`lib/domain/records/capture_submit.dart`），提交时经一个 `RecordScope` 写 todo / allocation / reminder；子态「选了才落、取消回滚」，提醒无截止按 `reminderNeedsAnchor` 拒绝；Todo 路径失败返回 false，面板保持 save-error 且草稿不丢；手机采集条与桌面草稿隔离。二轮复验 5 项全部 VERIFIED。
@@ -46,9 +60,10 @@
 ## 四、门禁
 
 - `dart analyze .`：**No issues found**（0）
-- `flutter test`：**1039 通过 / 1 失败**；唯一失败为 `test/integration/recurring_action_loop_vertical_test.dart` 的既有时间边界（本地 23:27 时 `now + 2h` 跨天），`TZ=UTC` 下 **全部通过**；CI 以 UTC 运行
+- `flutter test`：**1039 通过 / 1 失败**；唯一失败为 `test/integration/recurring_action_loop_vertical_test.dart` 的既有时间边界（本地 23:27 时 `now + 2h` 跨天），`TZ=UTC` 下 **+1040 全绿**（CI 以 UTC 运行）
 - `flutter build macos --release`：**成功，63.8 MB**
 - CI：PR #113，`build-macos` native UI 集成流已修（`f969890` 绿；集成测试对齐新的 shell/行控件/默认视图）
+- 肉眼检查：Today / Todo / Calendar 周视图 / Settings / About / Todo 详情 / 快速添加对话框（上一构建，真实窗口）；Capture 展开面板的行为由写入级 widget 测试与复验探针覆盖（面板的展开态截图受限于本机无辅助功能权限、无法合成点击，未做窗口截图）；手机 Sheet 属 P2 保真度项，仅代码与测试覆盖
 
 ## 五、待办（P2/P3，不阻塞）
 
@@ -60,4 +75,5 @@
 - 调色板常量三处合并；隐藏日历计数纳入无日期待办；月内条目按时间排序
 - capture 失败态：「先记到未安排」应写裸待办而不是带同一草稿重试；采集条开关在 saveError 态丢已选字段前应确认；带时间标题的「重试」不应跳回解析态
 - 键盘细节：焦点行吞掉 Space（不能空格翻页）；手机行 Tab 顺序为「行→勾选→安排」；月格 Enter 切日视图后焦点不回新视图；桌面采集展开按钮的焦点环被实心圆遮住（34×34 亦小于 48 目标）
-- 已知环境噪声：`test/integration/recurring_action_loop_vertical_test.dart` 在 23:00 后会因 `now + 2h` 跨天失败，`TZ=UTC` 下通过，属既有测试的时间边界，与本轮改动无关
+- 已知环境噪声：`test/integration/recurring_action_loop_vertical_test.dart` 在 23:00 后会因 `now + 2h` 跨天失败，`TZ=UTC` 下通过（`+1040`），属既有测试的时间边界，与本轮改动无关
+- 规格面 PARTIAL/NOT FOUND 6 条（`slotCapture` 内联预填新建、`settings-import` 失败报告/跳过坏行、`settings-backup` 百分比与先显文件名、`settings-sync-conflict` 逐项选择、`overdueToolbar`、`mobileOverlapBand`）
