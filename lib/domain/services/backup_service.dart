@@ -247,33 +247,102 @@ class BackupService {
   ) async {
     final conflicts = <BackupConflictItem>[];
 
-    // Check events
+    // 1. Calendars
+    final calendars =
+        (data['calendars'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final c in calendars) {
+      final remoteId = c['id'] as int?;
+      if (remoteId == null) continue;
+      final remoteSync = c['syncId'] as String?;
+      final remoteName = c['name'] as String? ?? '';
+      Calendar? local;
+      if (remoteSync != null && remoteSync.isNotEmpty) {
+        local = (await (_db.select(_db.calendars)
+              ..where((tbl) => tbl.syncId.equals(remoteSync)))
+            .get()).firstOrNull;
+      }
+      final localById = (await (_db.select(_db.calendars)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .get()).firstOrNull;
+      if (localById != null) {
+        final syncDiffers = remoteSync != null &&
+            localById.syncId != null &&
+            remoteSync != localById.syncId;
+        final nameDiffers = localById.name != remoteName;
+        final hasIdCollision = (local == null || local.id != localById.id);
+        if (syncDiffers || nameDiffers || hasIdCollision) {
+          conflicts.add(
+            BackupConflictItem(
+              table: 'calendars',
+              id: remoteId,
+              title: remoteName.isNotEmpty ? remoteName : 'Calendar #$remoteId',
+              localDescription: '${localById.name} (${localById.color})',
+              remoteDescription: '$remoteName (${c['color']})',
+            ),
+          );
+        }
+      }
+    }
+
+    // 2. Tags
+    final tags =
+        (data['tags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final tg in tags) {
+      final remoteId = tg['id'] as int?;
+      if (remoteId == null) continue;
+      final remoteSync = tg['syncId'] as String?;
+      final remoteName = tg['name'] as String? ?? '';
+      Tag? local;
+      if (remoteSync != null && remoteSync.isNotEmpty) {
+        local = (await (_db.select(_db.tags)
+              ..where((tbl) => tbl.syncId.equals(remoteSync)))
+            .get()).firstOrNull;
+      }
+      final localById = (await (_db.select(_db.tags)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .get()).firstOrNull;
+      if (localById != null) {
+        final syncDiffers = remoteSync != null &&
+            localById.syncId != null &&
+            remoteSync != localById.syncId;
+        final nameDiffers = localById.name != remoteName;
+        final hasIdCollision = (local == null || local.id != localById.id);
+        if (syncDiffers || nameDiffers || hasIdCollision) {
+          conflicts.add(
+            BackupConflictItem(
+              table: 'tags',
+              id: remoteId,
+              title: remoteName.isNotEmpty ? remoteName : 'Tag #$remoteId',
+              localDescription: localById.name,
+              remoteDescription: remoteName,
+            ),
+          );
+        }
+      }
+    }
+
+    // 3. Events
     final events =
         (data['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
     for (final e in events) {
       final remoteId = e['id'] as int?;
       if (remoteId == null) continue;
-      final local = await (_db.select(_db.events)
+      final localById = await (_db.select(_db.events)
             ..where((t) => t.id.equals(remoteId)))
           .getSingleOrNull();
-      if (local != null) {
+      if (localById != null) {
         final remoteSync = e['syncId'] as String?;
         final remoteIcs = e['icsUid'] as String?;
-        final syncDiffers =
-            remoteSync != null &&
-            local.syncId != null &&
-            remoteSync != local.syncId;
-        final icsDiffers =
-            remoteIcs != null &&
-            local.icsUid != null &&
-            remoteIcs != local.icsUid;
-        if (syncDiffers || icsDiffers || (local.syncId == null && remoteSync != null)) {
+        final isIdentical = localById.summary == e['summary'] &&
+            localById.syncId == remoteSync &&
+            localById.icsUid == remoteIcs;
+        if (!isIdentical) {
           conflicts.add(
             BackupConflictItem(
               table: 'events',
               id: remoteId,
               title: e['summary'] as String? ?? 'Event #$remoteId',
-              localDescription: local.summary,
+              localDescription: localById.summary,
               remoteDescription: e['summary'] as String? ?? '',
             ),
           );
@@ -281,34 +350,97 @@ class BackupService {
       }
     }
 
-    // Check todos
+    // 4. Todos
     final todos =
         (data['todos'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
     for (final t in todos) {
       final remoteId = t['id'] as int?;
       if (remoteId == null) continue;
-      final local = await (_db.select(_db.todos)
+      final localById = await (_db.select(_db.todos)
             ..where((tbl) => tbl.id.equals(remoteId)))
           .getSingleOrNull();
-      if (local != null) {
+      if (localById != null) {
         final remoteSync = t['syncId'] as String?;
         final remoteIcs = t['icsUid'] as String?;
-        final syncDiffers =
-            remoteSync != null &&
-            local.syncId != null &&
-            remoteSync != local.syncId;
-        final icsDiffers =
-            remoteIcs != null &&
-            local.icsUid != null &&
-            remoteIcs != local.icsUid;
-        if (syncDiffers || icsDiffers || (local.syncId == null && remoteSync != null)) {
+        final isIdentical = localById.summary == t['summary'] &&
+            localById.syncId == remoteSync &&
+            localById.icsUid == remoteIcs;
+        if (!isIdentical) {
           conflicts.add(
             BackupConflictItem(
               table: 'todos',
               id: remoteId,
               title: t['summary'] as String? ?? 'Task #$remoteId',
-              localDescription: local.summary,
+              localDescription: localById.summary,
               remoteDescription: t['summary'] as String? ?? '',
+            ),
+          );
+        }
+      }
+    }
+
+    // 5. Reminders
+    final reminders =
+        (data['reminders'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final r in reminders) {
+      final remoteId = r['id'] as int?;
+      if (remoteId == null) continue;
+      final localById = await (_db.select(_db.reminders)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .getSingleOrNull();
+      if (localById != null) {
+        final remoteSync = r['syncId'] as String?;
+        final syncDiffers = remoteSync != null &&
+            localById.syncId != null &&
+            remoteSync != localById.syncId;
+        final triggerDiffers = localById.triggerTime.toUtc() !=
+            DateTime.parse(r['triggerTime'] as String).toUtc();
+        final hasIdCollision = (remoteSync == null && localById.syncId != null) ||
+            (remoteSync != null && localById.syncId == null) ||
+            (remoteSync == null && localById.syncId == null) ||
+            syncDiffers;
+        if (hasIdCollision || triggerDiffers) {
+          conflicts.add(
+            BackupConflictItem(
+              table: 'reminders',
+              id: remoteId,
+              title: 'Reminder #$remoteId',
+              localDescription: '${localById.parentType} @ ${localById.triggerTime}',
+              remoteDescription: '${r['parentType']} @ ${r['triggerTime']}',
+            ),
+          );
+        }
+      }
+    }
+
+    // 6. Attachments
+    final attachments =
+        (data['attachments'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final a in attachments) {
+      final remoteId = a['id'] as int?;
+      if (remoteId == null) continue;
+      final localById = await (_db.select(_db.attachments)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .getSingleOrNull();
+      if (localById != null) {
+        final remoteSync = a['syncId'] as String?;
+        final remoteFileName = a['fileName'] as String? ?? '';
+        final syncDiffers = remoteSync != null &&
+            localById.syncId != null &&
+            remoteSync != localById.syncId;
+        final nameDiffers = localById.fileName != remoteFileName;
+        final hasIdCollision = (remoteSync == null && localById.syncId != null) ||
+            (remoteSync != null && localById.syncId == null) ||
+            (remoteSync == null && localById.syncId == null) ||
+            syncDiffers;
+        if (hasIdCollision || nameDiffers) {
+          conflicts.add(
+            BackupConflictItem(
+              table: 'attachments',
+              id: remoteId,
+              title: remoteFileName.isNotEmpty ? remoteFileName : 'Attachment #$remoteId',
+              localDescription: '${localById.fileName} (${localById.fileSize} B)',
+              remoteDescription: '$remoteFileName (${a['fileSize']} B)',
             ),
           );
         }
@@ -352,7 +484,12 @@ class BackupService {
     Map<String, BackupConflictResolution>? resolutions,
   }) async {
     await RecordScope.run(_db, (tx) async {
-      // 1. Calendars: match by syncId, id, or name
+      final skippedCalendarIds = <int>{};
+      final skippedTagIds = <int>{};
+      final skippedEventIds = <int>{};
+      final skippedTodoIds = <int>{};
+
+      // 1. Calendars: match by syncId or name
       final calendars =
           (data['calendars'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       final calendarIdMap = <int, int>{}; // oldId -> newId
@@ -361,6 +498,7 @@ class BackupService {
         final oldId = c['id'] as int;
         final syncId = c['syncId'] as String?;
         final name = c['name'] as String;
+        final conflictKey = 'calendars:$oldId';
 
         Calendar? match;
         if (syncId != null && syncId.isNotEmpty) {
@@ -371,15 +509,27 @@ class BackupService {
         final localById = (await (_db.select(_db.calendars)
               ..where((tbl) => tbl.id.equals(oldId)))
             .get()).firstOrNull;
-        if (match == null && localById != null && (localById.syncId == null || localById.syncId == syncId)) {
+        if (match == null && localById != null && localById.name == name && (localById.syncId == null || localById.syncId == syncId)) {
           match = localById;
         }
         if (match == null) {
           final matchesByName = await (_db.select(_db.calendars)
                 ..where((tbl) => tbl.name.equals(name)))
               .get();
-          if (matchesByName.length == 1 && matchesByName.first.syncId == null) {
+          if (matchesByName.isNotEmpty && matchesByName.first.syncId == null && syncId == null) {
             match = matchesByName.first;
+          }
+        }
+
+        final isConflict = localById != null &&
+            ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
+                (localById.name != name));
+
+        if (isConflict) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            skippedCalendarIds.add(oldId);
+            continue;
           }
         }
 
@@ -417,6 +567,7 @@ class BackupService {
         final oldId = tg['id'] as int;
         final syncId = tg['syncId'] as String?;
         final name = tg['name'] as String;
+        final conflictKey = 'tags:$oldId';
 
         Tag? match;
         if (syncId != null && syncId.isNotEmpty) {
@@ -427,12 +578,29 @@ class BackupService {
         final localById = (await (_db.select(_db.tags)
               ..where((tbl) => tbl.id.equals(oldId)))
             .get()).firstOrNull;
-        if (match == null && localById != null && (localById.syncId == null || localById.syncId == syncId)) {
+        if (match == null && localById != null && localById.name == name && (localById.syncId == null || localById.syncId == syncId)) {
           match = localById;
         }
-        match ??= (await (_db.select(_db.tags)
-              ..where((tbl) => tbl.name.equals(name)))
-            .get()).firstOrNull;
+        if (match == null) {
+          final matchesByName = await (_db.select(_db.tags)
+                ..where((tbl) => tbl.name.equals(name)))
+              .get();
+          if (matchesByName.isNotEmpty && matchesByName.first.syncId == null && syncId == null) {
+            match = matchesByName.first;
+          }
+        }
+
+        final isConflict = localById != null &&
+            ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
+                (localById.name != name));
+
+        if (isConflict) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            skippedTagIds.add(oldId);
+            continue;
+          }
+        }
 
         final companion = TagsCompanion(
           name: Value(name),
@@ -457,7 +625,7 @@ class BackupService {
         }
       }
 
-      // 3. Events: match by syncId, then icsUid
+      // 3. Events: ONLY match by syncId / icsUid non-empty and matching (Rule 19)
       final events =
           (data['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       final eventIdMap = <int, int>{};
@@ -468,24 +636,15 @@ class BackupService {
         final icsUid = e['icsUid'] as String?;
         final conflictKey = 'events:$oldId';
 
-        // Check if there's an id collision with different syncId/icsUid
+        final rawCalId = e['calendarId'] as int;
+        if (skippedCalendarIds.contains(rawCalId)) {
+          skippedEventIds.add(oldId);
+          continue;
+        }
+
         final localById = (await (_db.select(_db.events)
               ..where((tbl) => tbl.id.equals(oldId)))
             .get()).firstOrNull;
-        final isConflict = localById != null &&
-            ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
-                (icsUid != null && localById.icsUid != null && icsUid != localById.icsUid) ||
-                (localById.syncId == null && syncId != null));
-
-        if (isConflict) {
-          final res = resolutions?[conflictKey];
-          if (res == null || res == BackupConflictResolution.keepLocal) {
-            // Keep local: do not overwrite
-            eventIdMap[oldId] = localById.id;
-            continue;
-          }
-          // keepRemote or merge: proceed to write
-        }
 
         Event? match;
         if (syncId != null && syncId.isNotEmpty) {
@@ -498,12 +657,35 @@ class BackupService {
                 ..where((tbl) => tbl.icsUid.equals(icsUid)))
               .get()).firstOrNull;
         }
-        if (match == null && localById != null) {
-          match = localById;
+        // Rule 19: NEVER match by localById!
+
+        final isIdentical = localById != null &&
+            localById.summary == e['summary'] &&
+            localById.syncId == syncId &&
+            localById.icsUid == icsUid;
+        if (isIdentical) {
+          eventIdMap[oldId] = localById.id;
+          continue;
         }
 
-        final targetCalId = calendarIdMap[e['calendarId'] as int] ??
-            (e['calendarId'] as int);
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isConflict = hasIdCollision ||
+            (localById != null &&
+                ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
+                    (icsUid != null && localById.icsUid != null && icsUid != localById.icsUid) ||
+                    (localById.syncId == null && syncId != null) ||
+                    (localById.syncId != null && syncId == null))) ||
+            (match != null && match.summary != e['summary']);
+
+        if (isConflict) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            skippedEventIds.add(oldId);
+            continue;
+          }
+        }
+
+        final targetCalId = calendarIdMap[rawCalId] ?? rawCalId;
 
         final companion = EventsCompanion(
           calendarId: Value(targetCalId),
@@ -530,7 +712,6 @@ class BackupService {
               .write(companion);
           tx.applied(RecordType.event, match.id);
         } else {
-          // If no local match but oldId is free, keep oldId; otherwise let db generate
           final companionToInsert = (localById == null)
               ? companion.copyWith(id: Value(oldId))
               : companion;
@@ -540,10 +721,12 @@ class BackupService {
         }
       }
 
-      // 4. Todos: match by syncId, then icsUid
+      // 4. Todos: ONLY match by syncId / icsUid non-empty and matching (Rule 19)
+      // Two-pass parentId restoration (Rule 23)
       final todos =
           (data['todos'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       final todoIdMap = <int, int>{};
+      final pendingParentUpdates = <int, int>{}; // newTodoId -> backupParentId
 
       for (final t in todos) {
         final oldId = t['id'] as int;
@@ -551,21 +734,15 @@ class BackupService {
         final icsUid = t['icsUid'] as String?;
         final conflictKey = 'todos:$oldId';
 
+        final rawCalId = t['calendarId'] as int;
+        if (skippedCalendarIds.contains(rawCalId)) {
+          skippedTodoIds.add(oldId);
+          continue;
+        }
+
         final localById = (await (_db.select(_db.todos)
               ..where((tbl) => tbl.id.equals(oldId)))
             .get()).firstOrNull;
-        final isConflict = localById != null &&
-            ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
-                (icsUid != null && localById.icsUid != null && icsUid != localById.icsUid) ||
-                (localById.syncId == null && syncId != null));
-
-        if (isConflict) {
-          final res = resolutions?[conflictKey];
-          if (res == null || res == BackupConflictResolution.keepLocal) {
-            todoIdMap[oldId] = localById.id;
-            continue;
-          }
-        }
 
         Todo? match;
         if (syncId != null && syncId.isNotEmpty) {
@@ -578,12 +755,35 @@ class BackupService {
                 ..where((tbl) => tbl.icsUid.equals(icsUid)))
               .get()).firstOrNull;
         }
-        if (match == null && localById != null) {
-          match = localById;
+        // Rule 19: NEVER match by localById!
+
+        final isIdentical = localById != null &&
+            localById.summary == t['summary'] &&
+            localById.syncId == syncId &&
+            localById.icsUid == icsUid;
+        if (isIdentical) {
+          todoIdMap[oldId] = localById.id;
+          continue;
         }
 
-        final targetCalId = calendarIdMap[t['calendarId'] as int] ??
-            (t['calendarId'] as int);
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isConflict = hasIdCollision ||
+            (localById != null &&
+                ((syncId != null && localById.syncId != null && syncId != localById.syncId) ||
+                    (icsUid != null && localById.icsUid != null && icsUid != localById.icsUid) ||
+                    (localById.syncId == null && syncId != null) ||
+                    (localById.syncId != null && syncId == null))) ||
+            (match != null && match.summary != t['summary']);
+
+        if (isConflict) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            skippedTodoIds.add(oldId);
+            continue;
+          }
+        }
+
+        final targetCalId = calendarIdMap[rawCalId] ?? rawCalId;
 
         final companion = TodosCompanion(
           calendarId: Value(targetCalId),
@@ -606,9 +806,7 @@ class BackupService {
                 : DateTime.parse(t['completedAt'] as String).toUtc(),
           ),
           priority: Value(t['priority'] as int? ?? 0),
-          parentId: Value(
-            t['parentId'] != null ? todoIdMap[t['parentId'] as int] : null,
-          ),
+          parentId: const Value(null), // Filled in Pass 2
           rrule: Value(t['rrule'] as String?),
           recurrenceAnchorSource: Value(t['recurrenceAnchorSource'] as String?),
           recurrenceValueType: Value(t['recurrenceValueType'] as String?),
@@ -629,8 +827,10 @@ class BackupService {
           icsUid: Value(icsUid),
         );
 
+        final int targetTodoId;
         if (match != null) {
           todoIdMap[oldId] = match.id;
+          targetTodoId = match.id;
           await (_db.update(_db.todos)..where((tbl) => tbl.id.equals(match!.id)))
               .write(companion);
           tx.applied(RecordType.todo, match.id);
@@ -640,28 +840,64 @@ class BackupService {
               : companion;
           final newId = await _db.into(_db.todos).insert(companionToInsert);
           todoIdMap[oldId] = newId;
+          targetTodoId = newId;
           tx.applied(RecordType.todo, newId);
+        }
+
+        if (t['parentId'] != null) {
+          pendingParentUpdates[targetTodoId] = t['parentId'] as int;
         }
       }
 
-      // 5. Reminders
+      // Pass 2: Backfill parentId (Item 23)
+      for (final entry in pendingParentUpdates.entries) {
+        final childId = entry.key;
+        final rawParentId = entry.value;
+        if (skippedTodoIds.contains(rawParentId)) continue;
+        final resolvedParentId = todoIdMap[rawParentId];
+        if (resolvedParentId != null) {
+          await (_db.update(_db.todos)..where((tbl) => tbl.id.equals(childId)))
+              .write(TodosCompanion(parentId: Value(resolvedParentId)));
+        }
+      }
+
+      // 5. Reminders (Item 21: skip if parent was skipped)
       final reminders =
           (data['reminders'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final r in reminders) {
         final parentType = r['parentType'] as String;
         final rawParentId = r['parentId'] as int;
+        if (parentType == 'event' && (skippedEventIds.contains(rawParentId) || !eventIdMap.containsKey(rawParentId))) {
+          continue;
+        }
+        if (parentType == 'todo' && (skippedTodoIds.contains(rawParentId) || !todoIdMap.containsKey(rawParentId))) {
+          continue;
+        }
+
         final parentId = parentType == 'event'
-            ? (eventIdMap[rawParentId] ?? rawParentId)
-            : (todoIdMap[rawParentId] ?? rawParentId);
+            ? eventIdMap[rawParentId]!
+            : todoIdMap[rawParentId]!;
 
         final oldId = r['id'] as int;
         final syncId = r['syncId'] as String?;
+        final conflictKey = 'reminders:$oldId';
 
         Reminder? match;
         if (syncId != null && syncId.isNotEmpty) {
           match = await (_db.select(_db.reminders)
                 ..where((tbl) => tbl.syncId.equals(syncId)))
               .getSingleOrNull();
+        }
+
+        final localById = await (_db.select(_db.reminders)
+              ..where((tbl) => tbl.id.equals(oldId)))
+            .getSingleOrNull();
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        if (hasIdCollision) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            continue;
+          }
         }
 
         final companion = RemindersCompanion(
@@ -678,9 +914,6 @@ class BackupService {
                 ..where((tbl) => tbl.id.equals(match!.id)))
               .write(companion);
         } else {
-          final localById = await (_db.select(_db.reminders)
-                ..where((tbl) => tbl.id.equals(oldId)))
-              .getSingleOrNull();
           final companionToInsert = (localById == null)
               ? companion.copyWith(id: Value(oldId))
               : companion;
@@ -688,14 +921,16 @@ class BackupService {
         }
       }
 
-      // 6. EventTags & TodoTags
+      // 6. EventTags & TodoTags (Item 21: skip if parent was skipped)
       final eventTags =
           (data['eventTags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final et in eventTags) {
         final rawEventId = et['eventId'] as int;
         final rawTagId = et['tagId'] as int;
-        final eventId = eventIdMap[rawEventId] ?? rawEventId;
-        final tagId = tagIdMap[rawTagId] ?? rawTagId;
+        if (skippedEventIds.contains(rawEventId) || !eventIdMap.containsKey(rawEventId)) continue;
+        if (skippedTagIds.contains(rawTagId) || !tagIdMap.containsKey(rawTagId)) continue;
+        final eventId = eventIdMap[rawEventId]!;
+        final tagId = tagIdMap[rawTagId]!;
         final syncId = et['syncId'] as String?;
 
         await _db.into(_db.eventTags).insertOnConflictUpdate(
@@ -712,8 +947,10 @@ class BackupService {
       for (final tt in todoTags) {
         final rawTodoId = tt['todoId'] as int;
         final rawTagId = tt['tagId'] as int;
-        final todoId = todoIdMap[rawTodoId] ?? rawTodoId;
-        final tagId = tagIdMap[rawTagId] ?? rawTagId;
+        if (skippedTodoIds.contains(rawTodoId) || !todoIdMap.containsKey(rawTodoId)) continue;
+        if (skippedTagIds.contains(rawTagId) || !tagIdMap.containsKey(rawTagId)) continue;
+        final todoId = todoIdMap[rawTodoId]!;
+        final tagId = tagIdMap[rawTagId]!;
         final syncId = tt['syncId'] as String?;
 
         await _db.into(_db.todoTags).insertOnConflictUpdate(
@@ -725,51 +962,90 @@ class BackupService {
         );
       }
 
-      // 7. Attachments
+      // 7. Attachments (Item 20 & 21: match by syncId/parentSyncId, preserve local valid path, skip if parent skipped)
       final attachments =
           (data['attachments'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final a in attachments) {
         final id = a['id'] as int;
         final parentType = a['parentType'] as String;
         final rawParentId = a['parentId'] as int;
+        if (parentType == 'event' && (skippedEventIds.contains(rawParentId) || !eventIdMap.containsKey(rawParentId))) {
+          continue;
+        }
+        if (parentType == 'todo' && (skippedTodoIds.contains(rawParentId) || !todoIdMap.containsKey(rawParentId))) {
+          continue;
+        }
+
         final parentId = parentType == 'event'
-            ? (eventIdMap[rawParentId] ?? rawParentId)
-            : (todoIdMap[rawParentId] ?? rawParentId);
-        final fileName = a['fileName'] as String;
-        final restored = await _restoreAttachmentFile(
-          archive: archive,
-          id: id,
-          syncId: a['syncId'] as String?,
-          fileName: fileName,
-          recordedPath: a['filePath'] as String? ?? '',
-        );
+            ? eventIdMap[rawParentId]!
+            : todoIdMap[rawParentId]!;
 
         final syncId = a['syncId'] as String?;
-        final companion = AttachmentsCompanion(
-          parentType: Value(parentType),
-          parentId: Value(parentId),
-          filePath: Value(restored?.path ?? ''),
-          fileName: Value(fileName),
-          fileSize: Value(
-            restored?.size ?? (a['fileSize'] as int? ?? 0),
-          ),
-          mimeType: Value(a['mimeType'] as String?),
-          syncId: Value(syncId),
-          parentSyncId: Value(a['parentSyncId'] as String?),
-          serverFileRef: Value(a['serverFileRef'] as String?),
-        );
+        final parentSyncId = a['parentSyncId'] as String?;
+        final fileName = a['fileName'] as String;
+        final conflictKey = 'attachments:$id';
+
+        Attachment? match;
+        if (syncId != null && syncId.isNotEmpty) {
+          match = await (_db.select(_db.attachments)
+                ..where((tbl) => tbl.syncId.equals(syncId)))
+              .getSingleOrNull();
+        }
+        if (match == null && parentSyncId != null && parentSyncId.isNotEmpty) {
+          match = await (_db.select(_db.attachments)
+                ..where((tbl) => tbl.parentSyncId.equals(parentSyncId) & tbl.fileName.equals(fileName)))
+              .getSingleOrNull();
+        }
 
         final localById = await (_db.select(_db.attachments)
               ..where((tbl) => tbl.id.equals(id)))
             .getSingleOrNull();
-        if (localById != null) {
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        if (hasIdCollision) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            continue;
+          }
+        }
+
+        final restored = await _restoreAttachmentFile(
+          archive: archive,
+          id: id,
+          syncId: syncId,
+          fileName: fileName,
+          recordedPath: a['filePath'] as String? ?? '',
+          localTargetKey: match != null ? attachmentFileKey(match.id) : null,
+        );
+
+        // Preserve local valid path if no body in backup (Item 20)
+        final targetPath = restored?.path ??
+            (match != null && match.filePath.isNotEmpty ? match.filePath : '');
+        final targetSize = restored?.size ??
+            (match != null && match.fileSize > 0
+                ? match.fileSize
+                : (a['fileSize'] as int? ?? 0));
+
+        final companion = AttachmentsCompanion(
+          parentType: Value(parentType),
+          parentId: Value(parentId),
+          filePath: Value(targetPath),
+          fileName: Value(fileName),
+          fileSize: Value(targetSize),
+          mimeType: Value(a['mimeType'] as String?),
+          syncId: Value(syncId),
+          parentSyncId: Value(parentSyncId),
+          serverFileRef: Value(a['serverFileRef'] as String?),
+        );
+
+        if (match != null) {
           await (_db.update(_db.attachments)
-                ..where((tbl) => tbl.id.equals(localById.id)))
+                ..where((tbl) => tbl.id.equals(match!.id)))
               .write(companion);
         } else {
-          await _db.into(_db.attachments).insert(
-            companion.copyWith(id: Value(id)),
-          );
+          final companionToInsert = (localById == null)
+              ? companion.copyWith(id: Value(id))
+              : companion;
+          await _db.into(_db.attachments).insert(companionToInsert);
         }
       }
     });
@@ -781,6 +1057,7 @@ class BackupService {
     required String? syncId,
     required String fileName,
     required String recordedPath,
+    String? localTargetKey,
   }) async {
     final entry = archive?.findFile(
       attachmentEntryName(id: id, syncId: syncId, fileName: fileName),
@@ -788,8 +1065,9 @@ class BackupService {
     final bytes = entry?.readBytes();
     if (bytes != null) {
       if (!localFiles) return null;
+      final key = localTargetKey ?? attachmentFileKey(id);
       final path = await _files.write(
-        key: attachmentFileKey(id),
+        key: key,
         fileName: fileName,
         bytes: bytes,
       );
