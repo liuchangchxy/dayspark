@@ -1224,7 +1224,7 @@ void main() {
   );
 
   testWidgets(
-    'mobile capture bar send button: visual 32x32, hit target >= 48dp, tapping 8px outside visual submits; desktop visual 34x34',
+    'mobile capture bar send button: visual 32x32, hit target >= 48dp, tapping send button does not write to DB and only expands; desktop visual 34x34',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -1265,7 +1265,7 @@ void main() {
       expect(hitSize.width, greaterThanOrEqualTo(48.0));
       expect(hitSize.height, greaterThanOrEqualTo(48.0));
 
-      // Tapping 8px outside the visual circle (left edge - 8px) submits
+      // Tapping 8px outside the visual circle (left edge - 8px) does NOT write to DB, only expands
       final visualCenter = tester.getCenter(visualSend);
       final captureField = find.descendant(
         of: find.byType(A2CaptureBar),
@@ -1281,22 +1281,10 @@ void main() {
       final todosAfterOutsideTap = await db.select(db.todos).get();
       expect(
         todosAfterOutsideTap.any((t) => t.summary == 'Tap outside 8px item'),
-        isTrue,
-        reason: 'Tapping 8px outside send button visual edge must submit',
+        isFalse,
+        reason: 'Tapping 8px outside send button visual edge must not submit directly',
       );
-
-      // Tapping visual center also submits
-      await tester.enterText(captureField, 'Tap center item');
-      await tester.pump();
-      await tester.tapAt(visualCenter);
-      await _settle(tester);
-
-      final todosAfterCenterTap = await db.select(db.todos).get();
-      expect(
-        todosAfterCenterTap.any((t) => t.summary == 'Tap center item'),
-        isTrue,
-        reason: 'Tapping center of send button must submit',
-      );
+      expect(find.byType(A2ComposerSheet), findsOneWidget);
 
       await _unmount(tester);
 

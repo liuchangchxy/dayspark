@@ -920,6 +920,10 @@ void main() {
       expect(groupHeadTextFinder, findsOneWidget);
       final groupHeadRect = tester.getRect(groupHeadTextFinder);
 
+      // Earlier today is collapsed by default on mobile; expand it to test time row alignment
+      await tester.tap(groupHeadTextFinder);
+      await _settle(tester);
+
       // Mobile time row has horizontal padding 16 inside ListView -> row starts at x = 16
       final timeLabelFinder = find.text('09:00');
       expect(timeLabelFinder, findsOneWidget);

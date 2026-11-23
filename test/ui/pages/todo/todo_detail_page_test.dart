@@ -142,6 +142,9 @@ void main() {
     await _settle(tester);
 
     expect(find.text('First step'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('todo-detail-save')));
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
     final subtasks = await (db.select(
       db.todos,
     )..where((row) => row.parentId.equals(todo.id))).get();

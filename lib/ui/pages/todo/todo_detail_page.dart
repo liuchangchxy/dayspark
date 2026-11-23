@@ -10,6 +10,7 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/attachments_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
@@ -20,6 +21,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/ui/design/a2.dart' show FocusableTap;
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
@@ -91,6 +93,23 @@ class TodoDetailPane extends ConsumerStatefulWidget {
   ConsumerState<TodoDetailPane> createState() => _TodoDetailPaneState();
 }
 
+class _DraftSubtaskItem {
+  final int? id;
+  final String summary;
+  final bool isCompleted;
+  const _DraftSubtaskItem({this.id, required this.summary, this.isCompleted = false});
+
+  @override
+  bool operator ==(Object other) =>
+      other is _DraftSubtaskItem &&
+      other.id == id &&
+      other.summary == summary &&
+      other.isCompleted == isCompleted;
+
+  @override
+  int get hashCode => Object.hash(id, summary, isCompleted);
+}
+
 class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   final _summary = TextEditingController();
   final _description = TextEditingController();
@@ -108,6 +127,10 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   bool _editing = false;
   Set<int> _tagDraft = const {};
   List<DraftReminder> _reminderDraft = const [];
+  List<_DraftSubtaskItem> _subtaskDraft = const [];
+  Set<int> _deletedSubtaskIds = const {};
+  List<DraftAttachment>? _attachmentDraft;
+  List<DraftAttachment> _initialAttachments = const [];
 
   String get _todoId => '${widget.todo.id}';
 
@@ -118,7 +141,39 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     _draft = _snapshot;
     _summary.text = _draft.summary;
     _description.text = _draft.description;
-    _editing = !widget.inlineSummary;
+    _editing = !(widget.inlineSummary || widget.embedded);
+    if (_editing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _initDraftItems(widget.todo);
+      });
+    }
+  }
+
+  void _initDraftItems(Todo live) {
+    final currentSubtasks =
+        ref.read(subtasksProvider(live.id)).valueOrNull ?? const <Todo>[];
+    final currentAttachments =
+        ref.read(todoAttachmentsProvider(live.id)).valueOrNull ??
+        const <Attachment>[];
+    final attachmentDraftList = [
+      for (final a in currentAttachments) DraftAttachment.fromRow(a),
+    ];
+    if (mounted) {
+      setState(() {
+        _subtaskDraft = [
+          for (final s in currentSubtasks)
+            _DraftSubtaskItem(
+              id: s.id,
+              summary: s.summary,
+              isCompleted: s.status == 'COMPLETED',
+            ),
+        ];
+        _deletedSubtaskIds = const {};
+        _initialAttachments = attachmentDraftList;
+        _attachmentDraft = List.of(attachmentDraftList);
+      });
+    }
   }
 
   @override
@@ -266,17 +321,18 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final leftDate = startLabel ?? dueLabel;
     final rightDate = startLabel == null ? null : dueLabel;
     final recurring = live.rrule != null || live.recurrenceRule != null;
-    final summaryTags = widget.inlineSummary
+    final isSummary = (widget.inlineSummary || widget.embedded) && !_editing;
+    final summaryTags = isSummary
         ? ref.watch(todoTagsProvider(live.id)).valueOrNull
         : null;
-    final summaryReminders = widget.inlineSummary
+    final summaryReminders = isSummary
         ? ref.watch(todoRemindersProvider(live.id)).valueOrNull
         : null;
-    final allocations = widget.inlineSummary
+    final allocations = isSummary
         ? ref.watch(taskAllocationsForTodoProvider(live.id)).valueOrNull
         : null;
 
-    if (widget.inlineSummary && !_editing) {
+    if (isSummary) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -434,12 +490,19 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
               ),
               _notes(context, l),
               const SizedBox(height: 16),
-              _subtasks(context, l, live, readOnly: widget.inlineSummary),
+              _subtasks(context, l, live, readOnly: false),
               const SizedBox(height: 12),
               AttachmentList(
                 parentType: 'todo',
                 parentId: live.id,
-                enabled: !widget.inlineSummary,
+                draft: _attachmentDraft,
+                onDraftChanged: (items) {
+                  setState(() {
+                    _attachmentDraft = items;
+                    _dirty = true;
+                  });
+                },
+                enabled: true,
               ),
               const SizedBox(height: 8),
             ],
@@ -798,6 +861,14 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final reminders =
         ref.read(todoRemindersProvider(live.id)).valueOrNull ??
         const <Reminder>[];
+    final currentSubtasks =
+        ref.read(subtasksProvider(live.id)).valueOrNull ?? const <Todo>[];
+    final currentAttachments =
+        ref.read(todoAttachmentsProvider(live.id)).valueOrNull ??
+        const <Attachment>[];
+    final attachmentDraftList = [
+      for (final a in currentAttachments) DraftAttachment.fromRow(a),
+    ];
     final snapshot = _TodoDraft.fromTodo(live);
     setState(() {
       _snapshot = snapshot;
@@ -813,6 +884,17 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ),
           )
           .toList();
+      _subtaskDraft = [
+        for (final s in currentSubtasks)
+          _DraftSubtaskItem(
+            id: s.id,
+            summary: s.summary,
+            isCompleted: s.status == 'COMPLETED',
+          ),
+      ];
+      _deletedSubtaskIds = const {};
+      _initialAttachments = attachmentDraftList;
+      _attachmentDraft = List.of(attachmentDraftList);
       _dirty = false;
       _saving = false;
       _deleting = false;
@@ -1300,9 +1382,23 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     Todo live, {
     bool readOnly = false,
   }) {
-    final subtasks =
-        ref.watch(subtasksProvider(live.id)).valueOrNull ?? const [];
     final ds = context.ds;
+    final List<_DraftSubtaskItem> items;
+    if (readOnly) {
+      final liveSubtasks =
+          ref.watch(subtasksProvider(live.id)).valueOrNull ?? const [];
+      items = [
+        for (final s in liveSubtasks)
+          _DraftSubtaskItem(
+            id: s.id,
+            summary: s.summary,
+            isCompleted: s.status == 'COMPLETED',
+          ),
+      ];
+    } else {
+      items = _subtaskDraft;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1333,7 +1429,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ],
           ],
         ),
-        if (subtasks.isEmpty)
+        if (items.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
@@ -1342,21 +1438,18 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ),
           )
         else
-          for (final sub in subtasks)
+          for (final sub in items)
             SizedBox(
               height: 40,
               child: Row(
                 children: [
                   DsCheck(
-                    checked: sub.status == 'COMPLETED',
+                    checked: sub.isCompleted,
                     size: 17,
                     compact: true,
                     onChanged: readOnly
                         ? null
-                        : (_) => ref.read(toggleTodoProvider)(
-                            id: sub.id,
-                            isCompleted: sub.status != 'COMPLETED',
-                          ),
+                        : (_) => _toggleSubtaskDraft(sub),
                   ),
                   const SizedBox(width: AppSpacing.s2),
                   Expanded(
@@ -1364,10 +1457,10 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                       sub.summary,
                       style: AppTypography.body.copyWith(
                         fontSize: 14,
-                        decoration: sub.status == 'COMPLETED'
+                        decoration: sub.isCompleted
                             ? TextDecoration.lineThrough
                             : null,
-                        color: sub.status == 'COMPLETED' ? ds.ink3 : ds.ink,
+                        color: sub.isCompleted ? ds.ink3 : ds.ink,
                       ),
                     ),
                   ),
@@ -1377,13 +1470,40 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                       size: 14,
                       compact: true,
                       tooltip: l.removeSubtask,
-                      onPressed: () => ref.read(deleteTodoProvider)(sub.id),
+                      onPressed: () => _removeSubtask(sub),
                     ),
                 ],
               ),
             ),
       ],
     );
+  }
+
+  void _toggleSubtaskDraft(_DraftSubtaskItem sub) {
+    setState(() {
+      _subtaskDraft = [
+        for (final item in _subtaskDraft)
+          if (item == sub)
+            _DraftSubtaskItem(
+              id: item.id,
+              summary: item.summary,
+              isCompleted: !item.isCompleted,
+            )
+          else
+            item,
+      ];
+      _dirty = true;
+    });
+  }
+
+  void _removeSubtask(_DraftSubtaskItem sub) {
+    setState(() {
+      _subtaskDraft = _subtaskDraft.where((item) => item != sub).toList();
+      if (sub.id != null) {
+        _deletedSubtaskIds = {..._deletedSubtaskIds, sub.id!};
+      }
+      _dirty = true;
+    });
   }
 
   Future<void> _addSubtask(
@@ -1422,13 +1542,13 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     controller.dispose();
     final title = text?.trim();
     if (title == null || title.isEmpty) return;
-    await ref.read(createTodoProvider)(
-      calendarId: live.calendarId,
-      summary: title,
-      priority: 0,
-      status: 'NEEDS-ACTION',
-      parentId: live.id,
-    );
+    setState(() {
+      _subtaskDraft = [
+        ..._subtaskDraft,
+        _DraftSubtaskItem(summary: title),
+      ];
+      _dirty = true;
+    });
   }
 
   Widget _tags(BuildContext context, Todo live) {
@@ -1522,9 +1642,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         recurrenceSpec: spec,
         replaceRecurrence: !legacy,
       );
-      if (widget.inlineSummary) {
-        await _saveAssociations(current.id);
-      }
+      await _saveAssociations(current.id, _draft.calendarId);
     } catch (error) {
       debugPrint('todo_detail: save failed: $error');
       if (!mounted) return;
@@ -1550,11 +1668,15 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       _dirty = false;
       _saving = false;
       _summary.text = title;
-      if (widget.inlineSummary) _editing = false;
+      _subtaskDraft = const [];
+      _deletedSubtaskIds = const {};
+      _attachmentDraft = null;
+      _initialAttachments = const [];
+      if (widget.inlineSummary || widget.embedded) _editing = false;
     });
   }
 
-  Future<void> _saveAssociations(int todoId) async {
+  Future<void> _saveAssociations(int todoId, int calendarId) async {
     final assigned =
         ref.read(todoTagsProvider(todoId)).valueOrNull ?? const <Tag>[];
     final assignedIds = assigned.map((tag) => tag.id).toSet();
@@ -1593,6 +1715,49 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         await ref.read(deleteReminderProvider)(row.id);
       }
     }
+
+    // Commit subtask changes
+    for (final id in _deletedSubtaskIds) {
+      await ref.read(deleteTodoProvider)(id);
+    }
+    for (final item in _subtaskDraft.where((s) => s.id == null)) {
+      await ref.read(createTodoProvider)(
+        calendarId: calendarId,
+        summary: item.summary,
+        priority: 0,
+        status: item.isCompleted ? 'COMPLETED' : 'NEEDS-ACTION',
+        parentId: todoId,
+      );
+    }
+    for (final item in _subtaskDraft.where((s) => s.id != null)) {
+      await ref.read(toggleTodoProvider)(
+        id: item.id!,
+        isCompleted: item.isCompleted,
+      );
+    }
+
+    // Commit attachment changes
+    if (_attachmentDraft != null) {
+      final keptAttachmentIds = _attachmentDraft!
+          .map((a) => a.id)
+          .whereType<int>()
+          .toSet();
+      for (final a in _initialAttachments) {
+        if (a.id != null && !keptAttachmentIds.contains(a.id)) {
+          await ref.read(deleteAttachmentProvider)(a.id!);
+        }
+      }
+      for (final a in _attachmentDraft!.where((item) => item.id == null)) {
+        await ref.read(createAttachmentProvider)(
+          parentType: 'todo',
+          parentId: todoId,
+          fileName: a.fileName,
+          mimeType: a.mimeType,
+          bytes: a.bytes,
+          sourcePath: a.sourcePath,
+        );
+      }
+    }
   }
 
   void _cancel() {
@@ -1607,11 +1772,15 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       _description.text = _snapshot.description;
       _tagDraft = const {};
       _reminderDraft = const [];
-      if (widget.inlineSummary) _editing = false;
+      _subtaskDraft = const [];
+      _deletedSubtaskIds = const {};
+      _attachmentDraft = null;
+      _initialAttachments = const [];
+      if (widget.inlineSummary || widget.embedded) _editing = false;
     });
     _summaryFocus.unfocus();
     _descriptionFocus.unfocus();
-    if (widget.inlineSummary) return;
+    if (widget.inlineSummary || (widget.embedded && !_editing)) return;
     if (widget.embedded) {
       widget.onClose?.call();
       return;
@@ -2067,25 +2236,15 @@ class _PaneButton extends StatelessWidget {
         ),
       ),
     );
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      child: MouseRegion(
-        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        child: Opacity(
-          opacity: enabled ? 1 : 0.45,
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-            child: InkWell(
-              onTap: onPressed,
-              borderRadius: BorderRadius.circular(6),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                child: Center(child: visual),
-              ),
-            ),
-          ),
+    return FocusableTap(
+      onTap: onPressed,
+      semanticsLabel: label,
+      borderRadius: BorderRadius.circular(6),
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          child: Center(child: visual),
         ),
       ),
     );

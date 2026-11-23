@@ -125,7 +125,7 @@ void main() {
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
 
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-summary-title')), findsOneWidget);
     expect(find.byKey(const ValueKey('stub-todo-detail')), findsNothing);
     expect(container.read(workspaceSelectionProvider), isA<TodoSelection>());
     expect(tester.getSize(find.byKey(const ValueKey('spec-drawer-overlay'))).width, equals(360.0));
@@ -166,7 +166,7 @@ void main() {
     await _settle(tester);
 
     // Desktop Today: opens 380 overlay drawer without squeezing content
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-detail-summary-title')), findsOneWidget);
     expect(find.byKey(const ValueKey('stub-todo-detail')), findsNothing);
     expect(container.read(workspaceSelectionProvider), isA<TodoSelection>());
     final drawerRect = tester.getRect(find.byKey(const ValueKey('spec-drawer-overlay')));
@@ -179,7 +179,7 @@ void main() {
     await tester.tapAt(const Offset(200, 300));
     await tester.pump();
     await _settle(tester);
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+    expect(find.byKey(const ValueKey('todo-detail-summary-title')), findsNothing);
     expect(container.read(workspaceSelectionProvider), isNull);
 
     // Mobile: navigates
@@ -427,17 +427,7 @@ void main() {
     );
     await tester.tap(find.descendant(of: row, matching: find.byType(DsCheck)));
     await _settle(tester);
-    expect(find.text('Select occurrence'), findsOneWidget);
-
-    await tester.tap(
-      find
-          .descendant(
-            of: find.byType(DsDialog),
-            matching: find.byType(DsSettingRow),
-          )
-          .first,
-    );
-    await _settle(tester);
+    expect(find.text('Select occurrence'), findsNothing);
 
     final completed = (await db.select(db.taskInstanceStates).get())
         .where((state) => state.status == 'completed')

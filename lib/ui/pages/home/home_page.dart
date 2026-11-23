@@ -32,6 +32,7 @@ import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
@@ -45,7 +46,9 @@ import 'package:dayspark/ui/shell/spark_top_bar.dart';
 import 'package:dayspark/ui/shell/sync_status_banner.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 
@@ -628,6 +631,13 @@ class _HomePageState extends ConsumerState<HomePage>
   /// and the pane is a selection rather than a route, so this is its only
   /// keyboard exit.
   KeyEventResult _handleEscape(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyK &&
+        (HardwareKeyboard.instance.isMetaPressed ||
+            HardwareKeyboard.instance.isControlPressed)) {
+      _openSearch();
+      return KeyEventResult.handled;
+    }
     if (event is! KeyDownEvent ||
         event.logicalKey != LogicalKeyboardKey.escape) {
       return KeyEventResult.ignored;
@@ -652,7 +662,7 @@ class _HomePageState extends ConsumerState<HomePage>
       onOpenEvent: _openEvent,
       onToggleTodo: _toggleTodo,
       onOpenUnplanned: _openInboxNoDate,
-      onScheduleTodo: (todo) => _openComposer(todo: todo),
+      onScheduleTodo: (todo) => _scheduleTodoWithPlanPicker(todo),
     );
   }
 
@@ -695,8 +705,8 @@ class _HomePageState extends ConsumerState<HomePage>
       onToggleTodo: _toggleTodo,
       onCapture: (text) => _captureOnTodoPage(text),
       onPlanDay: (day) => _openComposer(contextDate: day),
-      onScheduleTodo: (todo) => _openComposer(
-        todo: todo,
+      onScheduleTodo: (todo) => _scheduleTodoWithPlanPicker(
+        todo,
         contextDate: dayView ? browseDate : null,
       ),
       onOpenEvent: _openEvent,
@@ -705,6 +715,78 @@ class _HomePageState extends ConsumerState<HomePage>
         ref.read(todosViewProvider.notifier).state = const TodosInboxView();
       },
     );
+  }
+
+  Future<void> _scheduleTodoWithPlanPicker(
+    Todo todo, {
+    DateTime? contextDate,
+  }) async {
+    final now = _now();
+    final today = DateTime(now.year, now.month, now.day);
+    final anchor = contextDate != null
+        ? DateTime(contextDate.year, contextDate.month, contextDate.day)
+        : today;
+    final initialStart =
+        DateTime(anchor.year, anchor.month, anchor.day, 15, 15);
+    final initialEnd = initialStart.add(const Duration(minutes: 45));
+
+    final picked = await SpecPlanPickerDialog.show(
+      context,
+      title: todo.summary,
+      initialStart: initialStart,
+      initialEnd: initialEnd,
+      existingBlocks: (day) async {
+        final start = DateTime(day.year, day.month, day.day);
+        final end = start.add(const Duration(days: 1));
+        final db = ref.read(databaseProvider);
+        final events = await db.eventsDao.getEventCandidates(start, end);
+        final allocations =
+            await fetchTaskAllocationsInDateRange(db, start, end);
+        final blocks = calDayBlocks(
+          day: start,
+          events: [
+            for (final event in events) CalendaEventAdapter.fromDrift(event),
+          ],
+          allocations: [
+            for (final item in allocations)
+              if (item.todo.id != todo.id)
+                TaskAllocationCalendarAdapter.fromItem(item),
+          ],
+        );
+        return [
+          for (final b in blocks)
+            SpecPlanBlock(start: b.start, end: b.end, title: b.title),
+        ];
+      },
+    );
+
+    if (picked == null || !mounted) return;
+    try {
+      await ref.read(createTaskAllocationProvider)(
+        todoId: todo.id,
+        startAt: picked.$1,
+        endAt: picked.$2,
+      );
+      ref.invalidate(allActiveTaskAllocationsProvider);
+      ref.invalidate(allTodosProvider);
+      final rangeKey = _rangeKey(_calendarRange());
+      ref.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.scheduledTodoSuccess(todo.summary))),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l.schedulingFailed)),
+        );
+      }
+    }
   }
 
   Widget _calendarPage() {

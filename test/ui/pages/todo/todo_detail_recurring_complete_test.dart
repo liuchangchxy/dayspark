@@ -117,24 +117,8 @@ void main() {
     await tester.tap(find.byType(DsCheck).first);
     await _settle(tester);
 
-    expect(
-      find.text('Select occurrence'),
-      findsOneWidget,
-      reason: 'a recurring series has no single row-level completion',
-    );
-
-    await tester.tap(
-      find
-          .descendant(
-            of: find.byType(DsDialog),
-            matching: find.byType(DsSettingRow),
-          )
-          .first,
-    );
-    await _settle(tester);
-
     final states = await db.select(db.taskInstanceStates).get();
-    expect(states, hasLength(1), reason: 'the chosen occurrence is recorded');
+    expect(states, hasLength(1), reason: 'the current occurrence is recorded');
     expect(states.single.status, 'completed');
     expect(states.single.todoSyncId, series.syncId);
 

@@ -15,7 +15,11 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/search_provider.dart';
+import 'package:dayspark/domain/providers/todos_provider.dart';
+import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
@@ -60,14 +64,16 @@ Future<void> showCommandOverlay(BuildContext context) {
       context: context,
       barrierColor: Colors.transparent,
       useSafeArea: false,
-      builder: (_) => const SearchPage(),
+      builder: (_) => const SearchPage(isOverlay: true),
     );
   }
   return context.push('/search');
 }
 
 class SearchPage extends ConsumerStatefulWidget {
-  const SearchPage({super.key});
+  const SearchPage({super.key, this.isOverlay = false});
+
+  final bool isOverlay;
 
   @override
   ConsumerState<SearchPage> createState() => _SearchPageState();
@@ -83,6 +89,47 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   Timer? _debounceTimer;
 
   SearchResults? _shown;
+  List<_CmdHit> _currentHits = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocus.onKeyEvent = (node, event) {
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        _moveSelection(1, _currentHits.length);
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        _moveSelection(-1, _currentHits.length);
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.enter) {
+        final text = _searchController.text.trim();
+        if (_selected >= 0 && _selected < _currentHits.length) {
+          _openHit(_currentHits[_selected]);
+          return KeyEventResult.handled;
+        } else if (_query == text && _currentHits.isNotEmpty) {
+          _openHit(_currentHits.first);
+          return KeyEventResult.handled;
+        }
+      }
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _close();
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.keyK &&
+          (HardwareKeyboard.instance.isMetaPressed ||
+              HardwareKeyboard.instance.isControlPressed)) {
+        _searchController.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _searchController.text.length,
+        );
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+  }
 
   @override
   void dispose() {
@@ -119,11 +166,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   void _handleSubmitted(String value, List<_CmdHit> hits) {
     final text = value.trim();
     if (text.isEmpty && hits.isNotEmpty) {
-      _openSelected(hits);
+      if (_selected >= 0 && _selected < hits.length) {
+        _openHit(hits[_selected]);
+      } else {
+        _openHit(hits.first);
+      }
       return;
     }
     if (_query == text && hits.isNotEmpty) {
-      _openSelected(hits);
+      if (_selected >= 0 && _selected < hits.length) {
+        _openHit(hits[_selected]);
+      } else {
+        _openHit(hits.first);
+      }
       return;
     }
     _submitSearch(text);
@@ -153,7 +208,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     });
   }
 
-  void _openHit(_CmdHit hit) {
+  Future<void> _openHit(_CmdHit hit) async {
     switch (hit.kind) {
       case _CmdHitKind.todo:
         _openTarget('/todo/detail', hit.todo!);
@@ -164,21 +219,102 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         );
       case _CmdHitKind.action:
         final summary = _titleFromQuery(_query);
+        final isOverlay = widget.isOverlay;
         switch (hit.action!) {
           case _CmdActionKind.captureTodo:
-            final path = summary.isNotEmpty
-                ? '/todo/new?summary=${Uri.encodeComponent(summary)}'
-                : '/todo/new';
-            _openTarget(path, null);
+            if (isOverlay) {
+              await _createTodoInline(summary);
+            } else {
+              final path = summary.isNotEmpty
+                  ? '/todo/new?summary=${Uri.encodeComponent(summary)}'
+                  : '/todo/new';
+              _openTarget(path, null);
+            }
           case _CmdActionKind.captureEvent:
-            final path = summary.isNotEmpty
-                ? '/event/new?summary=${Uri.encodeComponent(summary)}'
-                : '/event/new';
-            _openTarget(path, null);
+            if (isOverlay) {
+              await _createEventInline(summary);
+            } else {
+              final path = summary.isNotEmpty
+                  ? '/event/new?summary=${Uri.encodeComponent(summary)}'
+                  : '/event/new';
+              _openTarget(path, null);
+            }
           case _CmdActionKind.goSettings:
             _openTarget('/settings', null);
         }
     }
+  }
+
+  Future<void> _createTodoInline(String summary) async {
+    final l = AppLocalizations.of(context)!;
+    final text = summary.trim();
+    if (text.isEmpty) {
+      _close();
+      return;
+    }
+    final calendars = await ref.read(calendarsProvider.future);
+    if (calendars.isEmpty) {
+      _close();
+      return;
+    }
+    final calId = resolveNewEntryCalendarId(
+      calendars: calendars,
+      preferredId: ref.read(defaultCalendarIdProvider),
+    ) ?? calendars.first.id;
+    final parsed = parseCapture(text, DateTime.now());
+    await ref.read(createTodoProvider)(
+      calendarId: calId,
+      summary: parsed.title.isNotEmpty ? parsed.title : text,
+      dueDate: parsed.date,
+      priority: 0,
+      status: 'NEEDS-ACTION',
+    );
+    if (!mounted) return;
+    _close();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(l.captureAddedToast),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _createEventInline(String summary) async {
+    final l = AppLocalizations.of(context)!;
+    final text = summary.trim();
+    if (text.isEmpty) {
+      _close();
+      return;
+    }
+    final calendars = await ref.read(calendarsProvider.future);
+    if (calendars.isEmpty) {
+      _close();
+      return;
+    }
+    final calId = resolveNewEntryCalendarId(
+      calendars: calendars,
+      preferredId: ref.read(defaultCalendarIdProvider),
+    ) ?? calendars.first.id;
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day, now.hour + 1);
+    final end = start.add(const Duration(hours: 1));
+    await ref.read(createEventProvider)(
+      calendarId: calId,
+      summary: text,
+      startDt: start,
+      endDt: end,
+      isAllDay: false,
+    );
+    if (!mounted) return;
+    _close();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(l.eventCreated),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _openSelected(List<_CmdHit> hits) {
@@ -408,6 +544,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       recentTodos: recentTodos,
       recentEvents: recentEvents,
     );
+    _currentHits = hits;
 
     final selected = hits.isEmpty || _selected < 0
         ? -1
@@ -957,16 +1094,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     required int selected,
     required bool desktop,
   }) {
-    return CmdRow(
-      icon: hit.icon,
-      title: hit.title,
-      meta: hit.meta,
-      side: hit.side,
-      query: _query,
+    return _CmdRowWrapper(
       selected: selected == index,
-      mobile: !desktop,
-      onTap: () => _openHit(hit),
-      onHover: () {},
+      child: CmdRow(
+        icon: hit.icon,
+        title: hit.title,
+        meta: hit.meta,
+        side: hit.side,
+        query: _query,
+        selected: selected == index,
+        mobile: !desktop,
+        onTap: () => _openHit(hit),
+        onHover: () => setState(() => _selected = index),
+      ),
     );
   }
 
@@ -1321,4 +1461,35 @@ class CmdEmpty extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CmdRowWrapper extends StatefulWidget {
+  final Widget child;
+  final bool selected;
+
+  const _CmdRowWrapper({required this.child, required this.selected});
+
+  @override
+  State<_CmdRowWrapper> createState() => _CmdRowWrapperState();
+}
+
+class _CmdRowWrapperState extends State<_CmdRowWrapper> {
+  @override
+  void didUpdateWidget(covariant _CmdRowWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected && !oldWidget.selected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Scrollable.ensureVisible(
+            context,
+            alignment: 0.5,
+            duration: const Duration(milliseconds: 80),
+          );
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

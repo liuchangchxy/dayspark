@@ -226,7 +226,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('ticking a recurring series row asks which occurrence', (
+  testWidgets('ticking a recurring series row completes current occurrence directly', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -242,7 +242,7 @@ void main() {
       timeZone: 'Asia/Shanghai',
       rrule: 'FREQ=DAILY;COUNT=40',
     );
-    final seriesId = await RecordScope.run(
+    await RecordScope.run(
       db,
       (tx) => TodoWriter.create(
         db,
@@ -267,14 +267,11 @@ void main() {
     await tester.tap(find.byType(DsCheck).first);
     await _settle(tester);
 
-    // The writer refuses a series completion without an occurrence, so the
-    // page asks for one instead of surfacing an error.
-    expect(find.byType(Dialog), findsOneWidget);
-    final series = await (db.select(db.todos)
-          ..where((row) => row.id.equals(seriesId)))
-        .getSingle();
-    expect(series.status, 'NEEDS-ACTION');
-    expect(await db.select(db.taskInstanceStates).get(), isEmpty);
+    // Per requirement 3: completes current occurrence directly without dialog
+    expect(find.byType(Dialog), findsNothing);
+    final completedStates = await db.select(db.taskInstanceStates).get();
+    expect(completedStates, isNotEmpty);
+    expect(completedStates.first.status, 'completed');
 
     await _unmount(tester);
   });
