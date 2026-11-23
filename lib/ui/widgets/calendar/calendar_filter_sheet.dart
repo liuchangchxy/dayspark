@@ -14,14 +14,18 @@ class CalendarFilterSheet extends ConsumerWidget {
   const CalendarFilterSheet({super.key});
 
   static Future<void> show(BuildContext context) {
+    final isDesktop = MediaQuery.sizeOf(context).width >= 720;
     return showDialog<void>(
       context: context,
-      barrierColor: Colors.black26,
-      builder: (_) => const Dialog(
+      barrierColor: isDesktop ? Colors.transparent : Colors.black26,
+      builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        insetPadding: EdgeInsets.all(24),
-        child: CalendarFilterSheet(),
+        alignment: isDesktop ? Alignment.topRight : Alignment.center,
+        insetPadding: isDesktop
+            ? const EdgeInsets.only(top: 60, right: 28)
+            : const EdgeInsets.all(24),
+        child: const CalendarFilterSheet(),
       ),
     );
   }
@@ -33,10 +37,15 @@ class CalendarFilterSheet extends ConsumerWidget {
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? <Calendar>[];
     final hiddenIds = ref.watch(calendarHiddenFilterProvider);
 
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 320),
-        child: Container(
+    return Semantics(
+      scopesRoute: true,
+      explicitChildNodes: true,
+      namesRoute: true,
+      label: l.showCalendars,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Container(
           decoration: BoxDecoration(
             color: ds.surface,
             borderRadius: BorderRadius.circular(12),
@@ -170,7 +179,8 @@ class CalendarFilterSheet extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 
@@ -191,19 +201,24 @@ class _CalendarRow extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final color = ColorUtils.parseHex(calendar.color);
 
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: onToggle,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: hidden ? Colors.transparent : ds.primary,
+    return Semantics(
+      checked: !hidden,
+      label: '${calendar.name}${hidden ? " ${l.hiddenBadge}" : ""}',
+      button: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: InkWell(
+          onTap: onToggle,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: hidden ? Colors.transparent : ds.primary,
                   borderRadius: BorderRadius.circular(4),
                   border: Border.all(
                     color: hidden ? ds.line : ds.primary,
@@ -250,6 +265,7 @@ class _CalendarRow extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }

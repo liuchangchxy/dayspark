@@ -561,8 +561,8 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
           child: SizedBox(
-            width: 30,
-            height: 30,
+            width: 44,
+            height: 48,
             child: Center(
               child: Icon(
                 icon,
@@ -597,6 +597,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
   ) {
     final body = switch (mode) {
       CalendarViewMode.month => A2DesktopMonthGrid(
+        key: const ValueKey('desktop-month-grid'),
         anchor: browse,
         selected: browse,
         today: calDayOf(now),
@@ -610,6 +611,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         onDeadline: widget.onDeadlineTapped,
       ),
       CalendarViewMode.week => _timeGrid(
+        key: const ValueKey('desktop-week-grid'),
         days: days,
         selected: browse,
         now: now,
@@ -623,6 +625,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         emptyHint: weekEmpty ? l.calendarWeekEmptyHint : null,
       ),
       CalendarViewMode.day => _timeGrid(
+        key: const ValueKey('desktop-day-grid'),
         days: [calDayOf(browse)],
         selected: browse,
         now: now,
@@ -809,6 +812,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
   }
 
   Widget _timeGrid({
+    Key? key,
     required List<DateTime> days,
     required DateTime selected,
     required DateTime now,
@@ -822,6 +826,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     String? emptyHint,
   }) {
     return A2TimeGridView(
+      key: key,
       days: days,
       selected: selected,
       now: now,

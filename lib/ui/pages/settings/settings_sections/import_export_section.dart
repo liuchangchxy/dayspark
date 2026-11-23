@@ -87,6 +87,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
           description: l.ioCardBackupDesc,
           actions: [
             DsButton(
+              key: const ValueKey('full-backup-btn'),
               label: l.fullBackup,
               tone: DsButtonTone.primary,
               loading: _backupBusy,

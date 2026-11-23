@@ -184,8 +184,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('DaySpark full backup'));
-      await tester.tap(find.text('DaySpark full backup'));
+      await tester.tap(find.byKey(const ValueKey('full-backup-btn')));
+      await tester.tap(find.byKey(const ValueKey('full-backup-btn')));
       await tester.pumpAndSettle();
 
       expect(downloads.length, 1);
