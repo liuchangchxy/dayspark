@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -17,6 +18,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -1301,24 +1303,28 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final text = await showDialog<String>(
       animationStyle: AnimationStyle.noAnimation,
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.addSubtask),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(hintText: l.subtaskHint),
-          onSubmitted: (value) => Navigator.of(ctx).pop(value),
-        ),
+      builder: (ctx) => DsDialog(
+        title: l.addSubtask,
+        width: 380,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
           ),
-          FilledButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.add,
             onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: Text(l.add),
           ),
         ],
+        child: DsTextField(
+          controller: controller,
+          autofocus: true,
+          hint: l.subtaskHint,
+          onSubmitted: (value) => Navigator.of(ctx).pop(value),
+        ),
       ),
     );
     controller.dispose();
@@ -1594,26 +1600,12 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         ? live.summary
         : _summary.text.trim();
     final series = live.rrule != null || live.recurrenceRule != null;
-    final confirmed = await showDialog<bool>(
-      animationStyle: AnimationStyle.noAnimation,
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.deleteTodoConfirm(title)),
-        content: Text(series ? l.deleteSeriesTrashNotice : l.deleteTrashNotice),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.moveToTrash),
-          ),
-        ],
-      ),
+    final confirmed = await SpecDeleteConfirmDialog.show(
+      context,
+      title: l.deleteTodoConfirm(title),
+      message: series ? l.deleteSeriesTrashNotice : l.deleteTrashNotice,
+      cancelLabel: l.cancel,
+      confirmLabel: l.moveToTrash,
     );
     if (confirmed != true || !mounted) return;
     final id = live.id;
@@ -1957,8 +1949,8 @@ class _PaneButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final bg = primary ? ds.primary : ds.surface;
-    final fg = primary ? ds.onPrimary : (danger ? ds.danger : ds.ink2);
+    final bg = primary ? SpecTokens.ink : ds.surface;
+    final fg = primary ? Colors.white : (danger ? ds.danger : ds.ink2);
     final enabled = onPressed != null;
     final visual = Ink(
       height: height,

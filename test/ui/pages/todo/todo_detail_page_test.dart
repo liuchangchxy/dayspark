@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
@@ -132,12 +133,12 @@ void main() {
     await _settle(tester);
     await tester.enterText(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(DsDialog),
         matching: find.byType(TextField),
       ),
       'First step',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.tap(find.widgetWithText(DsButton, 'Add'));
     await _settle(tester);
 
     expect(find.text('First step'), findsOneWidget);

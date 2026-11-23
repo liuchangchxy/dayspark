@@ -19,6 +19,7 @@ import 'package:dayspark/domain/records/writers/task_allocation_writer.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 
@@ -666,14 +667,14 @@ void main() {
     await _settle(tester);
     await tester.enterText(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(DsDialog),
         matching: find.byType(TextField),
       ),
       'Work',
     );
     await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(DsDialog), findsNothing);
 
     expect(find.text('Work'), findsWidgets);
     await tester.tap(find.text('Work').last);

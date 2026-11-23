@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
 import 'package:go_router/go_router.dart';
@@ -164,7 +165,10 @@ void main() {
     await tester.tap(find.text('Add execution time'));
     await _settle(tester);
 
-    final sheetSave = find.widgetWithText(FilledButton, 'Save');
+    final sheetSave = find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.widgetWithText(DsButton, 'Save'),
+    );
     expect(sheetSave, findsOneWidget);
     await tester.tap(sheetSave);
     await _settle(tester);

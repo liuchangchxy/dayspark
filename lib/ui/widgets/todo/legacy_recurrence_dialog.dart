@@ -7,6 +7,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
@@ -156,95 +157,20 @@ Future<bool> confirmLegacyRecurrence(
           return results.take(5).map((item) => item.nominal.canonical).toList();
         }
 
-        return AlertDialog(
-          title: Text(l.confirmLegacyRecurrenceTitle),
-          content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l.confirmLegacyRecurrenceBody,
-                    style: AppTypography.caption.copyWith(
-                      color: context.semantic.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    children: [
-                      ChoiceChip(
-                        label: Text(l.dateOnly),
-                        selected: asDate,
-                        onSelected: (_) {
-                          anchor = DateTime(
-                            anchor.year,
-                            anchor.month,
-                            anchor.day,
-                          );
-                          asDate = true;
-                          invalidate();
-                        },
-                      ),
-                      ChoiceChip(
-                        label: Text(l.dateAndTime),
-                        selected: !asDate,
-                        onSelected: (_) {
-                          asDate = false;
-                          invalidate();
-                        },
-                      ),
-                    ],
-                  ),
-                  ScheduleRow(
-                    label: l.legacyRepeatFrom,
-                    value: formatDeadline(context, anchor),
-                    onTap: () async {
-                      final picked = await pickDeadline(
-                        context,
-                        initial: anchor,
-                        withTime: asDate ? false : true,
-                      );
-                      if (picked == null) return;
-                      anchor = picked;
-                      invalidate();
-                    },
-                  ),
-                  if (previewError != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      previewError!,
-                      style: AppTypography.caption.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  if (previewLabels.isNotEmpty) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      l.legacyRecurrencePreview,
-                      style: AppTypography.caption.copyWith(
-                        color: context.semantic.textSecondary,
-                      ),
-                    ),
-                    for (final label in previewLabels)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.xs),
-                        child: Text(label, style: AppTypography.body),
-                      ),
-                  ],
-                ],
-              ),
-            ),
-          ),
+        return DsDialog(
+          title: l.confirmLegacyRecurrenceTitle,
+          width: 460,
           actions: [
-            TextButton(
+            const Spacer(),
+            DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.ghost,
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(l.cancel),
             ),
-            TextButton(
+            const SizedBox(width: AppSpacing.s2),
+            DsButton(
+              label: l.preview,
+              tone: DsButtonTone.ghost,
               onPressed: () {
                 try {
                   final labels = preview();
@@ -261,15 +187,91 @@ Future<bool> confirmLegacyRecurrence(
                   });
                 }
               },
-              child: Text(l.preview),
             ),
-            FilledButton(
+            const SizedBox(width: AppSpacing.s2),
+            DsButton(
+              label: l.save,
               onPressed: previewed
                   ? () => Navigator.of(dialogContext).pop(true)
                   : null,
-              child: Text(l.save),
             ),
           ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l.confirmLegacyRecurrenceBody,
+                style: AppTypography.caption.copyWith(
+                  color: context.semantic.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              Wrap(
+                spacing: AppSpacing.sm,
+                children: [
+                  DsChip(
+                    label: l.dateOnly,
+                    selected: asDate,
+                    onTap: () {
+                      anchor = DateTime(
+                        anchor.year,
+                        anchor.month,
+                        anchor.day,
+                      );
+                      asDate = true;
+                      invalidate();
+                    },
+                  ),
+                  DsChip(
+                    label: l.dateAndTime,
+                    selected: !asDate,
+                    onTap: () {
+                      asDate = false;
+                      invalidate();
+                    },
+                  ),
+                ],
+              ),
+              ScheduleRow(
+                label: l.legacyRepeatFrom,
+                value: formatDeadline(context, anchor),
+                onTap: () async {
+                  final picked = await pickDeadline(
+                    context,
+                    initial: anchor,
+                    withTime: asDate ? false : true,
+                  );
+                  if (picked == null) return;
+                  anchor = picked;
+                  invalidate();
+                },
+              ),
+              if (previewError != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  previewError!,
+                  style: AppTypography.caption.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              if (previewLabels.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  l.legacyRecurrencePreview,
+                  style: AppTypography.caption.copyWith(
+                    color: context.semantic.textSecondary,
+                  ),
+                ),
+                for (final label in previewLabels)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
+                    child: Text(label, style: AppTypography.body),
+                  ),
+              ],
+            ],
+          ),
         );
       },
     ),

@@ -126,8 +126,8 @@ void main() {
     await tester.tap(
       find
           .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
+            of: find.byType(DsDialog),
+            matching: find.byType(DsSettingRow),
           )
           .first,
     );
@@ -164,14 +164,14 @@ void main() {
     await tester.tap(
       find
           .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
+            of: find.byType(DsDialog),
+            matching: find.byType(DsSettingRow),
           )
           .first,
     );
     await _settle(tester);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.tap(find.widgetWithText(DsButton, 'Save'));
     await _settle(tester);
 
     final allocations = await db.select(db.taskAllocations).get();

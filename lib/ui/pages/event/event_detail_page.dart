@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
@@ -1314,8 +1315,8 @@ class _PaneButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final bg = primary ? ds.primary : ds.surface;
-    final fg = primary ? ds.onPrimary : (danger ? ds.danger : ds.ink2);
+    final bg = primary ? SpecTokens.ink : ds.surface;
+    final fg = primary ? Colors.white : (danger ? ds.danger : ds.ink2);
     final enabled = onPressed != null;
     final visual = Ink(
       height: height,

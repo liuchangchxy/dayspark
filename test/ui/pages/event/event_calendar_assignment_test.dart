@@ -315,7 +315,7 @@ void main() {
       find.widgetWithText(TextField, 'Calendar Name'),
       'Work',
     );
-    await tester.tap(find.widgetWithText(TextButton, 'Create'));
+    await tester.tap(find.widgetWithText(DsButton, 'Create'));
     await _settle(tester);
 
     // The picker returns with the new calendar ready to choose.

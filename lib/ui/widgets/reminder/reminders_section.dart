@@ -7,6 +7,7 @@ import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 
@@ -194,10 +195,11 @@ class RemindersSection extends ConsumerWidget {
     int id,
     DateTime triggerTime,
   ) async {
-    final picked = await showModalBottomSheet<DateTime>(
+    final l = AppLocalizations.of(context)!;
+    final picked = await showDsSheet<DateTime>(
       context: context,
-      builder: (ctx) =>
-          _ReminderSheet(anchor: anchorTime, fallback: triggerTime),
+      title: l.addReminder,
+      body: _ReminderSheet(anchor: anchorTime, fallback: triggerTime),
     );
     if (picked == null || !context.mounted || picked == triggerTime) return;
     await ref.read(updateReminderProvider)(id, picked);
@@ -205,10 +207,11 @@ class RemindersSection extends ConsumerWidget {
 
   Future<void> _add(BuildContext context, WidgetRef ref) async {
     final anchor = anchorTime;
-    final picked = await showModalBottomSheet<DateTime>(
+    final l = AppLocalizations.of(context)!;
+    final picked = await showDsSheet<DateTime>(
       context: context,
-      builder: (ctx) =>
-          _ReminderSheet(anchor: anchor, fallback: defaultTriggerTime),
+      title: l.addReminder,
+      body: _ReminderSheet(anchor: anchor, fallback: defaultTriggerTime),
     );
     if (picked == null || !context.mounted) return;
     if (_isDraft) {
@@ -286,84 +289,56 @@ class _ReminderSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final anchor = this.anchor;
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (anchor == null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.md,
-              AppSpacing.sm,
-              0,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(l.addReminder, style: AppTypography.title),
-                ),
-                IconButton(
-                  icon: const Icon(CupertinoIcons.xmark, size: 18),
-                  tooltip: l.close,
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
+            padding: const EdgeInsets.only(bottom: AppSpacing.s2),
+            child: Text(
+              l.reminderNeedsAnchor,
+              style: AppTypography.caption.copyWith(color: context.ds.ink3),
             ),
           ),
-          if (anchor == null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Text(
-                l.reminderNeedsAnchor,
-                style: AppTypography.caption.copyWith(
-                  color: context.semantic.textTertiary,
-                ),
-              ),
-            ),
           if (anchor != null) ...[
-            _Option(
-              label: l.remindOnTime,
+            DsRow(
+              title: l.remindOnTime,
               onTap: () => Navigator.of(context).pop(anchor),
             ),
-            _Option(
-              label: l.remindMinutesBefore(5),
+            DsRow(
+              title: l.remindMinutesBefore(5),
               onTap: () => Navigator.of(
                 context,
               ).pop(anchor.subtract(const Duration(minutes: 5))),
             ),
-            _Option(
-              label: l.remindMinutesBefore(15),
+            DsRow(
+              title: l.remindMinutesBefore(15),
               onTap: () => Navigator.of(
                 context,
               ).pop(anchor.subtract(const Duration(minutes: 15))),
             ),
-            _Option(
-              label: l.remindMinutesBefore(30),
+            DsRow(
+              title: l.remindMinutesBefore(30),
               onTap: () => Navigator.of(
                 context,
               ).pop(anchor.subtract(const Duration(minutes: 30))),
             ),
-            _Option(
-              label: l.remindHoursBefore(1),
+            DsRow(
+              title: l.remindHoursBefore(1),
               onTap: () => Navigator.of(
                 context,
               ).pop(anchor.subtract(const Duration(hours: 1))),
             ),
-            _Option(
-              label: l.remindDaysBefore(1),
+            DsRow(
+              title: l.remindDaysBefore(1),
               onTap: () => Navigator.of(
                 context,
               ).pop(anchor.subtract(const Duration(days: 1))),
             ),
           ],
-          _Option(
-            label: l.remindCustom,
+          DsRow(
+            title: l.remindCustom,
             onTap: () async {
               final initial =
                   anchor ??
@@ -374,39 +349,7 @@ class _ReminderSheet extends StatelessWidget {
               Navigator.of(context).pop(picked);
             },
           ),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-      ),
-    );
-  }
-}
-
-class _Option extends StatelessWidget {
-  const _Option({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.lg,
-              vertical: AppSpacing.sm,
-            ),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(label, style: AppTypography.body),
-            ),
-          ),
-        ),
-      ),
+      ],
     );
   }
 }

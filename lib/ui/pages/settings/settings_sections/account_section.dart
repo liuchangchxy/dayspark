@@ -116,12 +116,10 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
                         ),
                       ),
                     ),
-                    TextButton(
+                    DsButton(
+                      label: l.retry,
+                      tone: DsButtonTone.secondary,
                       onPressed: () => ref.invalidate(accountAuthProvider),
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(0, 48),
-                      ),
-                      child: Text(l.retry),
                     ),
                   ],
                 ),

@@ -214,8 +214,8 @@ void main() {
           .inDays;
       final occurrenceTile = find
           .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
+            of: find.byType(DsDialog),
+            matching: find.byType(DsSettingRow),
           )
           .at(occurrenceOffset);
       expect(occurrenceTile, findsOneWidget);

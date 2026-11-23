@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
@@ -30,6 +31,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
@@ -410,15 +412,21 @@ class _HomePageState extends ConsumerState<HomePage>
         await showDialog<void>(
           animationStyle: AnimationStyle.noAnimation,
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(l.whatsNew),
-            content: SingleChildScrollView(child: Text('v$current')),
+          builder: (ctx) => DsDialog(
+            title: l.whatsNew,
+            width: 420,
             actions: [
-              TextButton(
+              const Spacer(),
+              DsButton(
+                label: l.changelogDismiss,
+                tone: DsButtonTone.ghost,
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(l.changelogDismiss),
               ),
             ],
+            child: Text(
+              'v$current',
+              style: AppTypography.body.copyWith(color: context.ds.ink2),
+            ),
           ),
         );
       }

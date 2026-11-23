@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 
@@ -121,8 +122,8 @@ void main() {
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
     // The dialog title and the destructive button share a label; the button is
-    // the last one. Both surfaces build a Dialog (AlertDialog on the todo pane,
-    // DsDialog on the event pane).
+    // the last one. Both surfaces build a Dialog (SpecDeleteConfirmDialog on the
+    // todo pane, DsDialog on the event pane).
     await tester.tap(
       find
           .descendant(
@@ -152,7 +153,7 @@ void main() {
     await tester.tap(
       find
           .descendant(
-            of: find.byType(AlertDialog),
+            of: find.byType(SpecDeleteConfirmDialog),
             matching: find.text('Move to Trash'),
           )
           .last,
@@ -222,7 +223,7 @@ void main() {
     await tester.tap(
       find
           .descendant(
-            of: find.byType(AlertDialog),
+            of: find.byType(SpecDeleteConfirmDialog),
             matching: find.text('Cancel'),
           )
           .last,
@@ -233,7 +234,7 @@ void main() {
           ..where((row) => row.id.equals(todo.id)))
         .getSingle();
     expect(row.deletedAt, isNull);
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.byType(SpecDeleteConfirmDialog), findsNothing);
     await _unmount(tester);
   });
 }

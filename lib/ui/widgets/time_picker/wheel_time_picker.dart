@@ -2,7 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 /// Shows a bottom sheet with a Cupertino-style scroll wheel time picker
 /// plus an optional text input field.
@@ -16,6 +19,9 @@ Future<TimeOfDay?> showWheelTimePicker(
   }
   return showModalBottomSheet<TimeOfDay>(
     context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: context.ds.scrim,
     builder: (ctx) => _WheelTimePickerSheet(initialTime: initialTime),
   );
 }
@@ -68,87 +74,121 @@ class _WheelTimePickerSheetState extends State<_WheelTimePickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final ds = context.ds;
     final l = AppLocalizations.of(context)!;
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l.cancel),
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+        ),
+        decoration: BoxDecoration(
+          color: ds.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          border: Border(top: BorderSide(color: ds.line)),
+          boxShadow: AppShadows.sheet(ds.brightness),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DsSheetChrome(title: l.dueTime),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  0,
+                  AppSpacing.s4,
+                  AppSpacing.s3,
                 ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(_selectedTime),
-                  child: Text(
-                    l.ok,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: 200,
+                      child: CupertinoDatePicker(
+                        mode: CupertinoDatePickerMode.time,
+                        initialDateTime: DateTime(
+                          DateTime.now().year,
+                          1,
+                          1,
+                          widget.initialTime.hour,
+                          widget.initialTime.minute,
+                        ),
+                        onDateTimeChanged: _onChanged,
+                      ),
                     ),
-                  ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.s2,
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            l.keyboardInput,
+                            style: AppTypography.body.copyWith(color: ds.ink3),
+                          ),
+                          const Spacer(),
+                          DsIconButton(
+                            icon: _showTextInput
+                                ? CupertinoIcons
+                                      .keyboard_chevron_compact_down
+                                : CupertinoIcons.keyboard,
+                            selected: _showTextInput,
+                            onPressed: () => setState(
+                              () => _showTextInput = !_showTextInput,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_showTextInput)
+                      DsTextField(
+                        controller: _textController,
+                        hint: l.timeHint,
+                        keyboardType: TextInputType.datetime,
+                        onSubmitted: (_) => _applyTextInput(),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          // Wheel picker
-          SizedBox(
-            height: 200,
-            child: CupertinoDatePicker(
-              mode: CupertinoDatePickerMode.time,
-              initialDateTime: DateTime(
-                DateTime.now().year,
-                1,
-                1,
-                widget.initialTime.hour,
-                widget.initialTime.minute,
               ),
-              onDateTimeChanged: _onChanged,
-            ),
-          ),
-          // Keyboard input toggle
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                Text(
-                  l.keyboardInput,
-                  style: AppTypography.body.copyWith(color: theme.hintColor),
+              Container(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  AppSpacing.s2,
+                  AppSpacing.s4,
+                  AppSpacing.s2,
                 ),
-                const Spacer(),
-                IconButton(
-                  icon: Icon(
-                    _showTextInput
-                        ? CupertinoIcons.keyboard_chevron_compact_down
-                        : CupertinoIcons.keyboard,
-                    size: 20,
-                  ),
-                  onPressed: () =>
-                      setState(() => _showTextInput = !_showTextInput),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: ds.lineSoft)),
                 ),
-              ],
-            ),
-          ),
-          if (_showTextInput)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: TextField(
-                controller: _textController,
-                decoration: InputDecoration(
-                  hintText: l.timeHint,
-                  isDense: true,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DsButton(
+                        label: l.cancel,
+                        tone: DsButtonTone.secondary,
+                        expand: true,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.s2),
+                    Expanded(
+                      child: DsButton(
+                        label: l.ok,
+                        expand: true,
+                        onPressed: () =>
+                            Navigator.of(context).pop(_selectedTime),
+                      ),
+                    ),
+                  ],
                 ),
-                keyboardType: TextInputType.datetime,
-                onSubmitted: (_) => _applyTextInput(),
               ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

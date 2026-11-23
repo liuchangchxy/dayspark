@@ -8,6 +8,7 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 
 class CalendarSlotSheet extends ConsumerStatefulWidget {
@@ -48,6 +49,7 @@ class CalendarSlotSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: context.ds.scrim,
       elevation: 0,
       builder: (ctx) => CalendarSlotSheet(
         range: range,
@@ -165,9 +167,12 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
     final l = AppLocalizations.of(context)!;
     final ds = context.ds;
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+      ),
       decoration: BoxDecoration(
         color: ds.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
         border: Border(top: BorderSide(color: ds.line)),
         boxShadow: const [
           BoxShadow(
@@ -180,81 +185,55 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
       ),
       child: SafeArea(
         top: false,
-        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: ds.surface3,
-                  borderRadius: BorderRadius.circular(2),
+            DsSheetChrome(
+              title: _showingTodoPicker
+                  ? l.selectTodoToSchedule
+                  : _dateLabel(context),
+              headerAction: _showingTodoPicker
+                  ? DsIconButton(
+                      icon: CupertinoIcons.back,
+                      tooltip: MaterialLocalizations.of(
+                        context,
+                      ).backButtonTooltip,
+                      onPressed: () =>
+                          setState(() => _showingTodoPicker = false),
+                    )
+                  : null,
+            ),
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        _rangeDetail(l),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _slotText(
+                          12,
+                          FontWeight.w500,
+                          ds.ink3,
+                          height: 1.35,
+                          tabular: true,
+                        ),
+                      ),
+                    ),
+                    if (!_showingTodoPicker) ..._actions(context, l),
+                    if (_showingTodoPicker) ..._todoPicker(context, l),
+                  ],
                 ),
               ),
             ),
-            if (!_showingTodoPicker) ..._actions(context, l),
-            if (_showingTodoPicker) ..._todoPicker(context, l),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _head(BuildContext context) {
-    final ds = context.ds;
-    return Padding(
-      padding: const EdgeInsets.only(top: 2, bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: ds.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  _dateLabel(context),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _slotText(
-                    20,
-                    FontWeight.w600,
-                    ds.ink,
-                    height: 1.3,
-                    tabular: true,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Padding(
-            padding: const EdgeInsets.only(left: 11),
-            child: Text(
-              _rangeDetail(AppLocalizations.of(context)!),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _slotText(
-                12,
-                FontWeight.w500,
-                ds.ink3,
-                height: 1.35,
-                tabular: true,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -262,7 +241,6 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
   List<Widget> _actions(BuildContext context, AppLocalizations l) {
     final ds = context.ds;
     return [
-      _head(context),
       _SolidActionRow(
         key: const ValueKey('slot-action-event'),
         icon: CupertinoIcons.calendar_badge_plus,
@@ -310,21 +288,14 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
             padding: const EdgeInsets.only(left: 32),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: TextButton(
+              child: DsButton(
                 key: const ValueKey('slot-empty-create-schedule'),
+                label: l.createTodoAndSchedule,
+                tone: DsButtonTone.ghost,
                 onPressed: () {
                   Navigator.of(context).pop();
                   widget.onCreateTodoHere!();
                 },
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 40),
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(
-                  '→ ${l.createTodoAndSchedule}',
-                  style: _slotText(13, FontWeight.w600, ds.primary),
-                ),
               ),
             ),
           ),
@@ -335,58 +306,6 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
   List<Widget> _todoPicker(BuildContext context, AppLocalizations l) {
     final ds = context.ds;
     return [
-      Row(
-        children: [
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: Center(
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: InkWell(
-                  onTap: () => setState(() => _showingTodoPicker = false),
-                  borderRadius: BorderRadius.circular(6),
-                  splashFactory: NoSplash.splashFactory,
-                  overlayColor: const WidgetStatePropertyAll(
-                    Colors.transparent,
-                  ),
-                  child: Icon(CupertinoIcons.back, size: 18, color: ds.ink2),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              l.selectTodoToSchedule,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: _slotText(
-                20,
-                FontWeight.w600,
-                ds.ink,
-                height: 1.3,
-                tabular: true,
-              ),
-            ),
-          ),
-        ],
-      ),
-      Padding(
-        padding: const EdgeInsets.only(left: 44, bottom: 6),
-        child: Text(
-          _rangeDetail(l),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: _slotText(
-            12,
-            FontWeight.w500,
-            ds.ink3,
-            height: 1.35,
-            tabular: true,
-          ),
-        ),
-      ),
       Container(height: 1, color: ds.lineSoft),
       if (_candidatesState == _CandidatesState.loading)
         const Padding(
@@ -405,12 +324,10 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
                 style: _slotText(15, FontWeight.w400, ds.ink2, height: 1.4),
               ),
               const SizedBox(height: 6),
-              TextButton(
+              DsButton(
+                label: l.retry,
+                tone: DsButtonTone.ghost,
                 onPressed: _retryCandidates,
-                child: Text(
-                  l.retry,
-                  style: _slotText(15, FontWeight.w600, ds.primary),
-                ),
               ),
             ],
           ),
@@ -434,45 +351,36 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
               ),
               if (widget.onCreateTodoHere != null) ...[
                 const SizedBox(height: 8),
-                TextButton(
+                DsButton(
                   key: const ValueKey('slot-empty-create-schedule'),
+                  label: l.createTodoAndSchedule,
+                  tone: DsButtonTone.ghost,
                   onPressed: () {
                     Navigator.of(context).pop();
                     widget.onCreateTodoHere!();
                   },
-                  child: Text(
-                    l.createTodoAndSchedule,
-                    style: _slotText(15, FontWeight.w600, ds.primary),
-                  ),
                 ),
               ],
             ],
           ),
         )
       else
-        ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.45,
-          ),
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _candidates.length,
-            itemBuilder: (ctx, i) {
-              final todo = _candidates[i];
-              final isRecurring = todo.rrule != null && todo.rrule!.isNotEmpty;
-              return _SlotRow(
-                icon: isRecurring
+        Column(
+          children: [
+            for (final todo in _candidates)
+              _SlotRow(
+                icon: todo.rrule != null && todo.rrule!.isNotEmpty
                     ? CupertinoIcons.repeat
                     : CupertinoIcons.circle,
                 title: todo.summary,
-                subtitle: isRecurring
+                subtitle: todo.rrule != null && todo.rrule!.isNotEmpty
                     ? l.recurringTask
                     : (todo.dueDate != null
                           ? '${l.dueDate}: ${DateFormatters.formatShortDate(todo.dueDate!)}'
                           : l.noDueDate),
                 onTap: () async {
                   final navigator = Navigator.of(context);
-                  if (isRecurring) {
+                  if (todo.rrule != null && todo.rrule!.isNotEmpty) {
                     final selected = await TodoOccurrencePickerSheet.show(
                       context,
                       ref: ref,
@@ -487,9 +395,8 @@ class _CalendarSlotSheetState extends ConsumerState<CalendarSlotSheet> {
                     await _invokeScheduleTodo(todo);
                   }
                 },
-              );
-            },
-          ),
+              ),
+          ],
         ),
     ];
   }

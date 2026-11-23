@@ -10,6 +10,7 @@ import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'settings_ui.dart';
 
 class DefaultCalendarView extends ConsumerStatefulWidget {
@@ -90,31 +91,16 @@ class _DefaultCalendarViewState extends ConsumerState<DefaultCalendarView> {
           ),
         ),
         const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: SpecTokens.paper,
-            borderRadius: BorderRadius.circular(SpecTokens.r8),
-            border: Border.all(color: SpecTokens.hair),
-          ),
-          child: Column(
-            children: [
-              for (var i = 0; i < calendars.length; i++) ...[
-                if (i > 0)
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: SpecTokens.hair,
-                  ),
-                _CalendarOptionRow(
-                  calendar: calendars[i],
-                  isSelected: activeId == calendars[i].id,
-                  onTap: () {
-                    setState(() => _selectedCalId = calendars[i].id);
-                  },
-                ),
-              ],
-            ],
-          ),
+        DsGroup(
+          margin: EdgeInsets.zero,
+          children: [
+            for (final calendar in calendars)
+              _CalendarOptionRow(
+                calendar: calendar,
+                isSelected: activeId == calendar.id,
+                onTap: () => setState(() => _selectedCalId = calendar.id),
+              ),
+          ],
         ),
         InlineAlert(
           message: l.defaultCalendarAlert,
@@ -122,40 +108,21 @@ class _DefaultCalendarViewState extends ConsumerState<DefaultCalendarView> {
         const SizedBox(height: 16),
         Align(
           alignment: Alignment.centerLeft,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () async {
-                if (activeId != null) {
-                  await ref
-                      .read(defaultCalendarIdProvider.notifier)
-                      .setDefaultCalendarId(activeId);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(l.defaultCalendarSaved)),
-                    );
-                    widget.onBack?.call();
-                  }
+          child: DsButton(
+            label: l.saveDefaultCalendar,
+            onPressed: () async {
+              if (activeId != null) {
+                await ref
+                    .read(defaultCalendarIdProvider.notifier)
+                    .setDefaultCalendarId(activeId);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(l.defaultCalendarSaved)),
+                  );
+                  widget.onBack?.call();
                 }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: SpecTokens.ink,
-                  borderRadius: BorderRadius.circular(SpecTokens.r6),
-                ),
-                child: Text(
-                  l.saveDefaultCalendar,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: SpecTokens.paper,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-              ),
-            ),
+              }
+            },
           ),
         ),
       ],
@@ -182,70 +149,52 @@ class _CalendarOptionRow extends StatelessWidget {
         final count = todos.where((t) => t.calendarId == calendar.id).length;
         final color = ColorUtils.parseHex(calendar.color);
 
-        return MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 48),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: Row(
-                children: [
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isSelected ? SpecTokens.ink : SpecTokens.paper,
-                      border: Border.all(
-                        color: isSelected
-                            ? SpecTokens.ink
-                            : const Color(0xFFCFCFC7),
-                        width: 1.4,
-                      ),
-                    ),
-                    child: isSelected
-                        ? const Icon(
-                            CupertinoIcons.checkmark,
-                            size: 9.5,
-                            color: SpecTokens.paper,
-                          )
-                        : null,
+        return DsSettingRow(
+          label: calendar.name,
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected ? SpecTokens.ink : SpecTokens.paper,
+                  border: Border.all(
+                    color: isSelected
+                        ? SpecTokens.ink
+                        : const Color(0xFFCFCFC7),
+                    width: 1.4,
                   ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      calendar.name,
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: SpecTokens.ink,
-                        fontFamilyFallback: AppTypography.fallback,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    AppLocalizations.of(context)!.dayItemCount(count),
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      color: SpecTokens.faint,
-                      fontFamilyFallback: AppTypography.fallback,
-                    ),
-                  ),
-                ],
+                ),
+                child: isSelected
+                    ? const Icon(
+                        CupertinoIcons.checkmark,
+                        size: 9.5,
+                        color: SpecTokens.paper,
+                      )
+                    : null,
               ),
+              const SizedBox(width: 10),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ),
+          trailing: Text(
+            AppLocalizations.of(context)!.dayItemCount(count),
+            style: const TextStyle(
+              fontSize: 10.5,
+              color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
             ),
           ),
+          onTap: onTap,
         );
       },
     );

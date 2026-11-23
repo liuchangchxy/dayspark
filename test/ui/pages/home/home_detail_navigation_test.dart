@@ -432,8 +432,8 @@ void main() {
     await tester.tap(
       find
           .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
+            of: find.byType(DsDialog),
+            matching: find.byType(DsSettingRow),
           )
           .first,
     );

@@ -8,6 +8,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
@@ -296,86 +297,52 @@ Future<DraftExecution?> showExecutionSheet(
   var start = initial;
   var length = kExecutionLengths[1];
   final l = AppLocalizations.of(context)!;
-  return showModalBottomSheet<DraftExecution>(
+  return showDsSheet<DraftExecution>(
     context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setSheetState) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    title: l.executionSchedule,
+    body: StatefulBuilder(
+      builder: (sheetContext, setSheetState) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ScheduleRow(
+            label: l.executionWhen,
+            value: formatMoment(sheetContext, start),
+            onTap: () async {
+              final picked = await pickDateTime(sheetContext, initial: start);
+              if (picked != null) setSheetState(() => start = picked);
+            },
+          ),
+          const SizedBox(height: AppSpacing.s1),
+          const DsHairline(),
+          const SizedBox(height: AppSpacing.s2),
+          Wrap(
+            spacing: AppSpacing.s2,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.sm,
-                  AppSpacing.xs,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l.executionSchedule,
-                        style: AppTypography.title,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.xmark, size: 18),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      tooltip: l.close,
-                    ),
-                  ],
+              Text(
+                l.lengthLabel,
+                style: AppTypography.caption.copyWith(
+                  color: sheetContext.semantic.textSecondary,
                 ),
               ),
-              ScheduleRow(
-                label: l.executionWhen,
-                value: formatMoment(ctx, start),
-                onTap: () async {
-                  final picked = await pickDateTime(ctx, initial: start);
-                  if (picked != null) setSheetState(() => start = picked);
-                },
-              ),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.sm,
+              for (final option in kExecutionLengths)
+                DsChip(
+                  label: formatExecutionLength(sheetContext, option),
+                  selected: length == option,
+                  onTap: () => setSheetState(() => length = option),
                 ),
-                child: Wrap(
-                  spacing: AppSpacing.sm,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      l.lengthLabel,
-                      style: AppTypography.caption.copyWith(
-                        color: context.semantic.textSecondary,
-                      ),
-                    ),
-                    for (final option in kExecutionLengths)
-                      ChoiceChip(
-                        label: Text(formatExecutionLength(ctx, option)),
-                        selected: length == option,
-                        onSelected: (_) => setSheetState(() => length = option),
-                      ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: FilledButton(
-                  onPressed: () => Navigator.of(
-                    ctx,
-                  ).pop(DraftExecution(start: start, end: start.add(length))),
-                  child: Text(l.save),
-                ),
-              ),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.s3),
+          DsButton(
+            label: l.save,
+            expand: true,
+            onPressed: () => Navigator.of(
+              sheetContext,
+            ).pop(DraftExecution(start: start, end: start.add(length))),
+          ),
+        ],
       ),
     ),
   );

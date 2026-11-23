@@ -9,6 +9,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
@@ -258,7 +259,12 @@ void main() {
 
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
-    await tester.tap(find.widgetWithText(TextButton, 'Move to Trash'));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(SpecDeleteConfirmDialog),
+        matching: find.text('Move to Trash'),
+      ),
+    );
     await _settle(tester);
 
     expect(attempts, 1);
@@ -270,7 +276,7 @@ void main() {
     await _settle(tester);
     await tester.tap(find.text('Move to Trash'));
     await _settle(tester);
-    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byType(SpecDeleteConfirmDialog), findsOneWidget);
     expect(attempts, 1, reason: 'the first attempt failed before a second tap');
     await _unmount(tester);
   });

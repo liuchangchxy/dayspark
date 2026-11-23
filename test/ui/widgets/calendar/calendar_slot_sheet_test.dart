@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
@@ -191,8 +192,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('New & schedule'), findsOneWidget);
-    await tester.tap(find.text('New & schedule'));
+    final createRow = find.byKey(
+      const ValueKey('slot-action-create-schedule'),
+    );
+    expect(createRow, findsOneWidget);
+    await tester.tap(createRow);
     await tester.pumpAndSettle();
     expect(created, isTrue);
   });
@@ -421,8 +425,8 @@ void main() {
       expect(find.text('Select occurrence'), findsOneWidget);
       final occurrenceTile = find
           .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
+            of: find.byType(DsDialog),
+            matching: find.byType(DsSettingRow),
           )
           .first;
       expect(occurrenceTile, findsOneWidget);

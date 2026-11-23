@@ -1,18 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/design/ds.dart';
 
 enum SettingsChevron { none, right, down }
 
-/// Frozen spec settings row:
-/// min-height 55px, border-top hairline, label 12px ink, subtitle 10px faint,
-/// value 10.5px ink2, chevron 11px faint.
-/// Zero horizontal padding on desktop to align with page head; 16px on mobile.
-class SettingsRow extends StatefulWidget {
+/// Frozen spec settings row. Delegates to [DsSettingRow] so settings and the
+/// rest of the app render the same row.
+class SettingsRow extends StatelessWidget {
   const SettingsRow({
     super.key,
     required this.label,
@@ -35,109 +34,32 @@ class SettingsRow extends StatefulWidget {
   final EdgeInsetsGeometry? padding;
 
   @override
-  State<SettingsRow> createState() => _SettingsRowState();
-}
-
-class _SettingsRowState extends State<SettingsRow> {
-  bool _hovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    final chevronIcon = switch (widget.chevron) {
-      SettingsChevron.none => null,
-      SettingsChevron.right => CupertinoIcons.chevron_right,
-      SettingsChevron.down => CupertinoIcons.chevron_down,
-    };
-
-    final desktop = isWorkspaceLayout(context);
-    final effectivePadding =
-        widget.padding ??
-        (desktop
-            ? const EdgeInsets.symmetric(vertical: 8)
-            : const EdgeInsets.symmetric(horizontal: 16, vertical: 8));
-
-    final body = Container(
-      constraints: const BoxConstraints(minHeight: 55),
-      padding: effectivePadding,
-      decoration: BoxDecoration(
-        color: _hovered && widget.onTap != null
-            ? SpecTokens.wash
-            : Colors.transparent,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: widget.danger ? SpecTokens.red : SpecTokens.ink,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-                if (widget.subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.subtitle!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      height: 1.45,
-                      color: SpecTokens.faint,
-                      fontFamilyFallback: AppTypography.fallback,
-                    ),
-                  ),
-                ],
+    final effectiveTrailing = chevron == SettingsChevron.down
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (trailing != null) ...[
+                trailing!,
+                const SizedBox(width: 6),
               ],
-            ),
-          ),
-          if (widget.value != null)
-            Expanded(
-              flex: 2,
-              child: Text(
-                widget.value!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  color: SpecTokens.ink2,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
+              const Icon(
+                CupertinoIcons.chevron_down,
+                size: 11,
+                color: SpecTokens.faint,
               ),
-            ),
-          if (widget.trailing != null) ...[
-            const SizedBox(width: 8),
-            widget.trailing!,
-          ],
-          if (chevronIcon != null) ...[
-            const SizedBox(width: 6),
-            Icon(chevronIcon, size: 11, color: SpecTokens.faint),
-          ],
-        ],
-      ),
-    );
-
-    if (widget.onTap == null) return body;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onTap,
-        child: body,
-      ),
+            ],
+          )
+        : trailing;
+    return DsSettingRow(
+      label: label,
+      subtitle: subtitle,
+      value: value,
+      trailing: effectiveTrailing,
+      onTap: onTap,
+      danger: danger,
+      padding: padding,
+      chevron: chevron == SettingsChevron.right,
     );
   }
 }
@@ -154,7 +76,7 @@ class SettingsRows extends StatelessWidget {
     for (var i = 0; i < children.length; i++) {
       if (i > 0) {
         rows.add(
-          const Divider(height: 1, thickness: 1, color: SpecTokens.hair),
+          Divider(height: 1, thickness: 1, color: context.ds.line),
         );
       }
       rows.add(children[i]);
@@ -230,11 +152,11 @@ class SettingsGroupBlock extends StatelessWidget {
         ],
         Container(
           clipBehavior: Clip.antiAlias,
-          decoration: const BoxDecoration(
-            color: SpecTokens.paper,
+          decoration: BoxDecoration(
+            color: context.ds.surface,
             border: Border(
-              top: BorderSide(color: SpecTokens.hair, width: 1),
-              bottom: BorderSide(color: SpecTokens.hair, width: 1),
+              top: BorderSide(color: context.ds.line, width: 1),
+              bottom: BorderSide(color: context.ds.line, width: 1),
             ),
           ),
           child: child,
@@ -437,27 +359,17 @@ Future<void> showSettingsChoice<T>({
       ),
       children: [
         for (final option in options)
-          SimpleDialogOption(
-            padding: EdgeInsets.zero,
-            onPressed: () => Navigator.of(ctx).pop(option.$1),
-            child: ListTile(
-              title: Text(
-                option.$2,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: SpecTokens.ink,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
-              ),
-              trailing: option.$1 == current
-                  ? const Icon(
-                      CupertinoIcons.checkmark,
-                      size: 16,
-                      color: SpecTokens.ink,
-                    )
-                  : null,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-            ),
+          DsSettingRow(
+            label: option.$2,
+            trailing: option.$1 == current
+                ? const Icon(
+                    CupertinoIcons.checkmark,
+                    size: 16,
+                    color: SpecTokens.ink,
+                  )
+                : const SizedBox.shrink(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            onTap: () => Navigator.of(ctx).pop(option.$1),
           ),
       ],
     ),

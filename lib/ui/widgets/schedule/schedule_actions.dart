@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 
 /// "Plan when I'll do it": a start moment and a length, nothing else.
@@ -28,34 +27,17 @@ Future<bool> scheduleTodoBlock(
   final start = await pickDateTime(context, initial: initial);
   if (start == null || !context.mounted) return false;
 
-  final length = await showModalBottomSheet<Duration>(
+  final length = await showDsSheet<Duration>(
     context: context,
-    backgroundColor: context.ds.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-    ),
-    builder: (ctx) => SafeArea(
-      child: Column(
+    title: l.duration,
+    body: Builder(
+      builder: (sheetContext) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.s4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                l.duration,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: ctx.ds.ink,
-                ),
-              ),
-            ),
-          ),
           for (final option in kExecutionLengths)
-            ListTile(
-              title: Text(formatExecutionLength(ctx, option)),
-              onTap: () => Navigator.of(ctx).pop(option),
+            DsSettingRow(
+              label: formatExecutionLength(sheetContext, option),
+              onTap: () => Navigator.of(sheetContext).pop(option),
             ),
         ],
       ),

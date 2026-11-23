@@ -217,8 +217,8 @@ class _Swatch extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
           child: SizedBox(
-            width: 38,
-            height: 38,
+            width: 44,
+            height: 44,
             child: Center(
               child: Container(
                 width: 20,

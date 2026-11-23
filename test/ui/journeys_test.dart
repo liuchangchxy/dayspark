@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
@@ -166,8 +167,8 @@ void main() {
     // The confirm button carries the same words as the row that opened it.
     await tester.tap(
       find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(TextButton, 'Move to Trash'),
+        of: find.byType(SpecDeleteConfirmDialog),
+        matching: find.text('Move to Trash'),
       ),
     );
     await _settle(tester);

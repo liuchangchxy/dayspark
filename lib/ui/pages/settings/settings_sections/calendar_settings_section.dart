@@ -11,6 +11,7 @@ import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import '../settings_ui.dart';
 
 const List<String> kFrozenCalendarColors = [
@@ -49,59 +50,31 @@ class _CalendarSettingsSectionState
         (calendars.isNotEmpty ? calendars.first.id : null);
     final todos = ref.watch(allTodosProvider).valueOrNull ?? const [];
 
-    final listContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final cal in calendars) ...[
-          _CalendarRow(
-            calendar: cal,
-            isDefault: cal.id == defaultId,
-            itemCount: todos.where((t) => t.calendarId == cal.id).length,
-            onTap: () => _showEditCalendarDialog(context, cal),
-          ),
-        ],
-        // + 新建日历
-        MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _showNewCalendarDialog(context),
-            child: Container(
-              height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              alignment: Alignment.centerLeft,
-              child: Row(
-                children: [
-                  const Icon(CupertinoIcons.add, size: 12, color: SpecTokens.ink),
-                  const SizedBox(width: 8),
-                  Text(
-                    l.newCalendar,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: SpecTokens.ink,
-                      fontFamilyFallback: AppTypography.fallback,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+    final calendarRows = <Widget>[
+      for (final cal in calendars)
+        _CalendarRow(
+          calendar: cal,
+          isDefault: cal.id == defaultId,
+          itemCount: todos.where((t) => t.calendarId == cal.id).length,
+          onTap: () => _showEditCalendarDialog(context, cal),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-          child: Text(
-            l.deleteCalendarNotice,
-            style: const TextStyle(
-              fontSize: 10.5,
-              color: SpecTokens.faint,
-              height: 1.45,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
-          ),
+      _AddCalendarRow(
+        label: l.newCalendar,
+        onTap: () => _showNewCalendarDialog(context),
+      ),
+    ];
+
+    final notice = Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+      child: Text(
+        l.deleteCalendarNotice,
+        style: const TextStyle(
+          fontSize: 10.5,
+          color: SpecTokens.faint,
+          height: 1.45,
+          fontFamilyFallback: AppTypography.fallback,
         ),
-      ],
+      ),
     );
 
     if (widget.standalone) {
@@ -128,14 +101,8 @@ class _CalendarSettingsSectionState
             ),
           ),
           const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: SpecTokens.paper,
-              borderRadius: BorderRadius.circular(SpecTokens.r8),
-              border: Border.all(color: SpecTokens.hair),
-            ),
-            child: listContent,
-          ),
+          DsGroup(margin: EdgeInsets.zero, children: calendarRows),
+          notice,
         ],
       );
     }
@@ -151,7 +118,10 @@ class _CalendarSettingsSectionState
             setState(() => _expanded = !_expanded);
           },
         ),
-        if (_expanded) listContent,
+        if (_expanded) ...[
+          ...calendarRows,
+          notice,
+        ],
       ],
     );
   }
@@ -281,66 +251,28 @@ class _CalendarSettingsSectionState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(ctx).pop(),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: SpecTokens.wash,
-                            borderRadius: BorderRadius.circular(SpecTokens.r6),
-                          ),
-                          child: Text(
-                            l.cancel,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: SpecTokens.ink2,
-                            ),
-                          ),
-                        ),
-                      ),
+                    DsButton(
+                      label: l.cancel,
+                      tone: DsButtonTone.secondary,
+                      onPressed: () => Navigator.of(ctx).pop(),
                     ),
                     const SizedBox(width: 8),
-                    MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () async {
-                          final name = nameController.text.trim();
-                          if (name.isEmpty) {
-                            setDialogState(
-                              () => errorText = l.calendarNameRequired,
-                            );
-                            return;
-                          }
-                          await ref.read(createCalendarProvider)(
-                            name: name,
-                            color: selectedColor,
+                    DsButton(
+                      label: l.create,
+                      onPressed: () async {
+                        final name = nameController.text.trim();
+                        if (name.isEmpty) {
+                          setDialogState(
+                            () => errorText = l.calendarNameRequired,
                           );
-                          if (ctx.mounted) Navigator.of(ctx).pop();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: SpecTokens.ink,
-                            borderRadius: BorderRadius.circular(SpecTokens.r6),
-                          ),
-                          child: Text(
-                            l.create,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: SpecTokens.paper,
-                            ),
-                          ),
-                        ),
-                      ),
+                          return;
+                        }
+                        await ref.read(createCalendarProvider)(
+                          name: name,
+                          color: selectedColor,
+                        );
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                      },
                     ),
                   ],
                 ),
@@ -495,96 +427,36 @@ class _CalendarSettingsSectionState
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     if (calendars.length > 1)
-                      MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.of(ctx).pop();
-                            _showDeleteMigrationDialog(context, calendar);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 7,
-                            ),
-                            decoration: BoxDecoration(
-                              color: SpecTokens.redSoft,
-                              borderRadius:
-                                  BorderRadius.circular(SpecTokens.r6),
-                            ),
-                            child: Text(
-                              l.deleteCalendar,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: SpecTokens.red,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
+                      DsButton(
+                        label: l.deleteCalendar,
+                        tone: DsButtonTone.danger,
+                        onPressed: () {
+                          Navigator.of(ctx).pop();
+                          _showDeleteMigrationDialog(context, calendar);
+                        },
                       )
                     else
                       const SizedBox(),
                     Row(
                       children: [
-                        MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () => Navigator.of(ctx).pop(),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 7,
-                              ),
-                              decoration: BoxDecoration(
-                                color: SpecTokens.wash,
-                                borderRadius:
-                                    BorderRadius.circular(SpecTokens.r6),
-                              ),
-                              child: Text(
-                                l.cancel,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: SpecTokens.ink2,
-                                ),
-                              ),
-                            ),
-                          ),
+                        DsButton(
+                          label: l.cancel,
+                          tone: DsButtonTone.secondary,
+                          onPressed: () => Navigator.of(ctx).pop(),
                         ),
                         const SizedBox(width: 8),
-                        MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () async {
-                              final name = nameController.text.trim();
-                              if (name.isEmpty) return;
-                              await ref.read(updateCalendarProvider)(
-                                id: calendar.id,
-                                name: name,
-                                color: selectedColor,
-                              );
-                              if (ctx.mounted) Navigator.of(ctx).pop();
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 7,
-                              ),
-                              decoration: BoxDecoration(
-                                color: SpecTokens.ink,
-                                borderRadius:
-                                    BorderRadius.circular(SpecTokens.r6),
-                              ),
-                              child: Text(
-                                l.save,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: SpecTokens.paper,
-                                ),
-                              ),
-                            ),
-                          ),
+                        DsButton(
+                          label: l.save,
+                          onPressed: () async {
+                            final name = nameController.text.trim();
+                            if (name.isEmpty) return;
+                            await ref.read(updateCalendarProvider)(
+                              id: calendar.id,
+                              name: name,
+                              color: selectedColor,
+                            );
+                            if (ctx.mounted) Navigator.of(ctx).pop();
+                          },
                         ),
                       ],
                     ),
@@ -776,60 +648,25 @@ class _CalendarSettingsSectionState
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () => Navigator.of(ctx).pop(),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: SpecTokens.wash,
-                            borderRadius: BorderRadius.circular(SpecTokens.r6),
-                          ),
-                          child: Text(
-                            l.cancel,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: SpecTokens.ink2,
-                            ),
-                          ),
-                        ),
-                      ),
+                    DsButton(
+                      label: l.cancel,
+                      tone: DsButtonTone.secondary,
+                      onPressed: () => Navigator.of(ctx).pop(),
                     ),
                     const SizedBox(width: 8),
-                    MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
-                        onTap: () async {
-                          await ref.read(deleteCalendarProvider)(
-                            calendar.id,
-                            moveContentsTo: deleteAllTogether ? null : selectedTargetId,
-                            deleteContents: deleteAllTogether,
-                          );
-                          if (ctx.mounted) Navigator.of(ctx).pop();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: SpecTokens.red,
-                            borderRadius: BorderRadius.circular(SpecTokens.r6),
-                          ),
-                          child: Text(
-                            l.confirmMigrateAndDelete,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: SpecTokens.paper,
-                            ),
-                          ),
-                        ),
-                      ),
+                    DsButton(
+                      label: l.confirmMigrateAndDelete,
+                      tone: DsButtonTone.danger,
+                      onPressed: () async {
+                        await ref.read(deleteCalendarProvider)(
+                          calendar.id,
+                          moveContentsTo: deleteAllTogether
+                              ? null
+                              : selectedTargetId,
+                          deleteContents: deleteAllTogether,
+                        );
+                        if (ctx.mounted) Navigator.of(ctx).pop();
+                      },
                     ),
                   ],
                 ),
@@ -858,62 +695,58 @@ class _CalendarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = ColorUtils.parseHex(calendar.color);
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: SpecTokens.hair, width: 1),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                calendar.name,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w500,
-                  color: SpecTokens.ink,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
-              ),
-              if (isDefault) ...[
-                const SizedBox(width: 8),
-                const BadgeDefault(),
-              ],
-              const Spacer(),
-              Text(
-                AppLocalizations.of(context)!.dayItemCount(itemCount),
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  color: SpecTokens.faint,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Icon(
-                CupertinoIcons.chevron_right,
-                size: 11,
-                color: SpecTokens.faint,
-              ),
-            ],
-          ),
+    return DsSettingRow(
+      label: calendar.name,
+      leading: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
         ),
       ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isDefault) ...[
+            const BadgeDefault(),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            AppLocalizations.of(context)!.dayItemCount(itemCount),
+            style: const TextStyle(
+              fontSize: 10.5,
+              color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ],
+      ),
+      chevron: true,
+      onTap: onTap,
+    );
+  }
+}
+
+class _AddCalendarRow extends StatelessWidget {
+  const _AddCalendarRow({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return DsSettingRow(
+      label: label,
+      leading: const Icon(
+        CupertinoIcons.add,
+        size: 12,
+        color: SpecTokens.ink,
+      ),
+      // A zero trailing keeps the row from drawing a navigation chevron on a
+      // create action.
+      trailing: const SizedBox.shrink(),
+      onTap: onTap,
     );
   }
 }
