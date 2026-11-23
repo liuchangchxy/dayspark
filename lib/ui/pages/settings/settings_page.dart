@@ -408,12 +408,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         Scaffold(
           backgroundColor: SpecTokens.wash,
           appBar: DsTopBar(
-            title: _mobileTitle(l, _mobileSection!),
-            subtitle: _mobileSubtitle(l, _mobileSection!),
+            title: _showingDefaultCalendar
+                ? l.defaultCalendar
+                : _mobileTitle(l, _mobileSection!),
+            subtitle: _showingDefaultCalendar
+                ? l.defaultCalendarDesc
+                : _mobileSubtitle(l, _mobileSection!),
             leading: DsIconButton(
               icon: CupertinoIcons.back,
               tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-              onPressed: _mobileBack,
+              onPressed: _showingDefaultCalendar
+                  ? () => setState(() => _showingDefaultCalendar = false)
+                  : _mobileBack,
             ),
           ),
           body: _showingDefaultCalendar
@@ -486,10 +492,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             for (var i = 0; i < sections.length; i++)
                               SettingsNavItem(
                                 label: sections[i].label,
-                                selected:
-                                    _customSectionKey == null &&
-                                    !_showingDefaultCalendar &&
-                                    selected == i,
+                                selected: (_customSectionKey == null &&
+                                        !_showingDefaultCalendar &&
+                                        selected == i) ||
+                                    (_showingDefaultCalendar &&
+                                        sections[i].key == 'general'),
                                 onTap: () => _selectSection(i),
                               ),
                           ],

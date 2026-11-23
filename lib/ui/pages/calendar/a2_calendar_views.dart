@@ -899,8 +899,6 @@ class _A2MonthChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final l = AppLocalizations.of(context)!;
-    final trailing = entry.label(l);
     final event = entry.event;
     final allocation = entry.allocation;
     final deadline = entry.deadline;
@@ -917,76 +915,68 @@ class _A2MonthChip extends StatelessWidget {
       barColor = SpecTokens.work;
       textColor = SpecTokens.ink2;
     } else {
-      final isOverdue = deadline != null && deadline.due.isBefore(DateTime.now());
+      final isOverdue =
+          deadline != null && calDayOf(deadline.due).isBefore(calDayOf(DateTime.now()));
       background = isOverdue ? SpecTokens.redSoft : SpecTokens.amberSoft;
       barColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
       textColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
     }
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          if (event != null) onEvent?.call(event);
-          if (allocation != null) onAllocation?.call(allocation);
-          if (deadline != null) onDeadline?.call(deadline);
-        },
-        child: Container(
-          width: double.infinity,
-          height: 18,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(3),
+    final l = AppLocalizations.of(context)!;
+    final trailing = entry.label(l);
+    return Container(
+      width: double.infinity,
+      height: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 9,
+            decoration: BoxDecoration(
+              color: barColor,
+              borderRadius: BorderRadius.circular(1),
+            ),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 3,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: barColor,
-                  borderRadius: BorderRadius.circular(1),
-                ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: entry.title),
+                  if (event != null && calEventIsRecurring(event))
+                    calRepeatBadgeSpan(context),
+                ],
               ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: entry.title),
-                      if (event != null && calEventIsRecurring(event))
-                        calRepeatBadgeSpan(context),
-                    ],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 9.0,
-                    fontWeight: FontWeight.w400,
-                    color: textColor,
-                    height: 1.2,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.0,
+                fontWeight: FontWeight.w400,
+                color: textColor,
+                height: 1.2,
+                fontFamilyFallback: AppTypography.fallback,
               ),
-              if (trailing.isNotEmpty) ...[
-                const SizedBox(width: 2),
-                Text(
-                  trailing,
-                  maxLines: 1,
-                  style: const TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w400,
-                    color: SpecTokens.faint,
-                    fontFeatures: AppTypography.tabular,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
+          if (trailing.isNotEmpty) ...[
+            const SizedBox(width: 2),
+            Text(
+              trailing,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 8.5,
+                fontWeight: FontWeight.w400,
+                color: SpecTokens.faint,
+                fontFeatures: AppTypography.tabular,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -1016,14 +1006,16 @@ class _A2MonthEntry {
       event?.title ?? allocation?.todo.summary ?? deadline!.title;
 
   String label(AppLocalizations l) {
-    if (deadline != null && !calDeadlineHasTime(deadline!.due)) {
-      return l.deadline;
+    if (event != null || allocation != null) {
+      return '';
     }
-    final value =
-        event?.start ??
-        allocation?.allocation.startAt.toLocal() ??
-        deadline!.due;
-    return DateFormatters.formatTime(value);
+    if (deadline != null) {
+      if (!calDeadlineHasTime(deadline!.due)) {
+        return l.deadline;
+      }
+      return DateFormatters.formatTime(deadline!.due);
+    }
+    return '';
   }
 }
 

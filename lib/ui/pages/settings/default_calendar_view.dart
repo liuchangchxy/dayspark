@@ -146,7 +146,9 @@ class _CalendarOptionRow extends StatelessWidget {
     return Consumer(
       builder: (context, ref, _) {
         final todos = ref.watch(allTodosProvider).valueOrNull ?? const [];
-        final count = todos.where((t) => t.calendarId == calendar.id).length;
+        final events = ref.watch(allEventsProvider).valueOrNull ?? const [];
+        final count = todos.where((t) => t.calendarId == calendar.id).length +
+            events.where((e) => e.calendarId == calendar.id).length;
         final color = ColorUtils.parseHex(calendar.color);
 
         return DsSettingRow(

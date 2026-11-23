@@ -59,33 +59,44 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
             ),
             child: Text(l.data, style: AppTypography.title),
           ),
-        SettingsRows(
-          children: [
-            SettingsRow(
+        IoCard(
+          title: l.importIcs,
+          description: l.ioCardImportDesc,
+          actions: [
+            DsButton(
               label: l.importIcs,
-              subtitle: l.calendarData,
-              chevron: SettingsChevron.right,
-              trailing: _importBusy ? const _RowSpinner() : null,
-              onTap: _importBusy ? null : _importIcs,
+              tone: DsButtonTone.primary,
+              loading: _importBusy,
+              onPressed: _importBusy ? null : _importIcs,
             ),
-            SettingsRow(
-              label: l.exportIcs,
-              value: l.exportAllCalendars,
-              chevron: SettingsChevron.right,
-              onTap: () => _exportIcs(context, ref),
+          ],
+        ),
+        IoCard(
+          title: l.exportIcs,
+          description: l.ioCardExportDesc,
+          actions: [
+            DsButton(
+              label: l.exportAllCalendars,
+              tone: DsButtonTone.secondary,
+              onPressed: () => _exportIcs(context, ref),
             ),
-            SettingsRow(
+          ],
+        ),
+        IoCard(
+          title: l.fullBackup,
+          description: l.ioCardBackupDesc,
+          actions: [
+            DsButton(
               label: l.fullBackup,
-              subtitle: l.fullBackupDesc,
-              chevron: SettingsChevron.right,
-              trailing: _backupBusy ? const _RowSpinner() : null,
-              onTap: _backupBusy ? null : _exportBackup,
+              tone: DsButtonTone.primary,
+              loading: _backupBusy,
+              onPressed: _backupBusy ? null : _exportBackup,
             ),
-            SettingsRow(
+            const SizedBox(width: 8),
+            DsButton(
               label: l.mergeBackup,
-              subtitle: l.mergeBackupDesc,
-              chevron: SettingsChevron.right,
-              onTap: _backupBusy ? null : _mergeBackup,
+              tone: DsButtonTone.secondary,
+              onPressed: _backupBusy ? null : _mergeBackup,
             ),
           ],
         ),
@@ -169,7 +180,61 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
           picked.bytes ??
           (picked.path == null ? null : await File(picked.path!).readAsBytes());
       if (bytes == null) throw StateError('backup file has no content');
-      await BackupService(ref.read(databaseProvider)).restoreZip(bytes);
+      final backupService = BackupService(ref.read(databaseProvider));
+      final decoded = BackupService.decodeZip(bytes);
+      final conflicts = await backupService.inspectConflicts(decoded.data);
+      Map<String, BackupConflictResolution>? resolutions;
+      if (conflicts.isNotEmpty && mounted) {
+        final res = await showDialog<BackupConflictResolution>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('检测到 ${conflicts.length} 项数据冲突'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('备份中的部分记录与本机已有记录存在冲突。请选择合并策略：'),
+                const SizedBox(height: 12),
+                ...conflicts.take(3).map(
+                      (c) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          '• ${c.title} (${c.table})',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                if (conflicts.length > 3)
+                  Text(
+                    '...等共 ${conflicts.length} 项',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(ctx, BackupConflictResolution.keepLocal),
+                child: const Text('保留本机'),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(ctx, BackupConflictResolution.keepRemote),
+                child: const Text('覆盖为备份'),
+              ),
+            ],
+          ),
+        );
+        if (res == null) return;
+        resolutions = {
+          for (final c in conflicts) '${c.table}:${c.id}': res,
+        };
+      }
+      await backupService.restoreZip(bytes, resolutions: resolutions);
       if (!mounted) return;
       setState(() => _backupResult = l.backupRestored);
     } catch (e) {
@@ -403,19 +468,6 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       debugPrint('ics: export failed: $error');
       messenger.showSnackBar(SnackBar(content: Text(l.exportFailed)));
     }
-  }
-}
-
-class _RowSpinner extends StatelessWidget {
-  const _RowSpinner();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 14,
-      height: 14,
-      child: CircularProgressIndicator(strokeWidth: 2),
-    );
   }
 }
 

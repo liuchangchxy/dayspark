@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -17,7 +18,9 @@ class DataSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final tags = ref.watch(tagsProvider).valueOrNull ?? const [];
-    final trashed = ref.watch(deletedTodosProvider).valueOrNull ?? const [];
+    final trashedTodos = ref.watch(deletedTodosProvider).valueOrNull ?? const [];
+    final trashedEvents = ref.watch(deletedEventsProvider).valueOrNull ?? const [];
+    final totalTrashed = trashedTodos.length + trashedEvents.length;
 
     return SettingsRows(
       children: [
@@ -31,7 +34,7 @@ class DataSection extends ConsumerWidget {
         SettingsRow(
           label: l.trash,
           subtitle: l.trashDesc,
-          value: l.dayItemCount(trashed.length),
+          value: l.dayItemCount(totalTrashed),
           chevron: SettingsChevron.right,
           onTap: () => onSelectSection?.call('trash'),
         ),
