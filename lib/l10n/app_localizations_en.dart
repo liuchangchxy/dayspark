@@ -3330,4 +3330,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importChangeCalendar => 'Change calendar';
+
+  @override
+  String calendarHiddenSingleSummary(String name, int count) {
+    return 'Hidden \"$name\" · $count items';
+  }
+
+  @override
+  String calendarHiddenMultipleSummary(int calCount, int count) {
+    return 'Hidden $calCount calendars · $count items';
+  }
+
+  @override
+  String get multiDaySpanLabel => 'Span';
+
+  @override
+  String multiDayEventSpanSummary(String title, String start, String end, int days) {
+    return '$title · $start–$end · $days d';
+  }
 }

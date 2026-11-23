@@ -1786,5 +1786,45 @@
   "importPreviewHelp": "先看将新增 / 跳过 / 重复的条目。",
   "importNextStep": "下一步",
   "importChangeFile": "重新选择",
-  "importChangeCalendar": "更改日历"
+  "importChangeCalendar": "更改日历",
+  "calendarHiddenSingleSummary": "已隐藏『{name}』日历 · {count} 项",
+  "@calendarHiddenSingleSummary": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarHiddenMultipleSummary": "已隐藏 {calCount} 个日历 · {count} 项",
+  "@calendarHiddenMultipleSummary": {
+    "placeholders": {
+      "calCount": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "multiDaySpanLabel": "跨天",
+  "multiDayEventSpanSummary": "{title} · {start}–{end} · {days} 天",
+  "@multiDayEventSpanSummary": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  }
 }

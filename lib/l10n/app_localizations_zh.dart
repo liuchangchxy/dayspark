@@ -3276,4 +3276,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get importChangeCalendar => '更改日历';
+
+  @override
+  String calendarHiddenSingleSummary(String name, int count) {
+    return '已隐藏『$name』日历 · $count 项';
+  }
+
+  @override
+  String calendarHiddenMultipleSummary(int calCount, int count) {
+    return '已隐藏 $calCount 个日历 · $count 项';
+  }
+
+  @override
+  String get multiDaySpanLabel => '跨天';
+
+  @override
+  String multiDayEventSpanSummary(String title, String start, String end, int days) {
+    return '$title · $start–$end · $days 天';
+  }
 }

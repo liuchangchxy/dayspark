@@ -2108,5 +2108,45 @@
   "importPreviewHelp": "Review events and tasks that will be added or skipped.",
   "importNextStep": "Next step",
   "importChangeFile": "Change file",
-  "importChangeCalendar": "Change calendar"
+  "importChangeCalendar": "Change calendar",
+  "calendarHiddenSingleSummary": "Hidden \"{name}\" · {count} items",
+  "@calendarHiddenSingleSummary": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarHiddenMultipleSummary": "Hidden {calCount} calendars · {count} items",
+  "@calendarHiddenMultipleSummary": {
+    "placeholders": {
+      "calCount": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "multiDaySpanLabel": "Span",
+  "multiDayEventSpanSummary": "{title} · {start}–{end} · {days} d",
+  "@multiDayEventSpanSummary": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  }
 }

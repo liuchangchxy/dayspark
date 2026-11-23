@@ -609,8 +609,7 @@ class _A2SpanChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final locale = Localizations.localeOf(context).toString();
-    final isZh = locale.startsWith('zh');
+    final l = AppLocalizations.of(context)!;
     final accent = ds.eventAccent(event.color ?? ds.primary);
     final days = math.max(
       1,
@@ -618,9 +617,7 @@ class _A2SpanChip extends StatelessWidget {
     );
     final startFmt = '${event.start.month}/${event.start.day}';
     final endFmt = '${event.end.month}/${event.end.day}';
-    final label = isZh
-        ? '${event.title} · $startFmt–$endFmt · $days 天'
-        : '${event.title} · $startFmt–$endFmt · $days d';
+    final label = l.multiDayEventSpanSummary(event.title, startFmt, endFmt, days);
 
     final chip = Container(
       height: 22,
@@ -658,8 +655,7 @@ class _MonthSpanBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context).toString();
-    final isZh = locale.startsWith('zh');
+    final l = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       margin: const EdgeInsets.only(bottom: 6),
@@ -671,7 +667,7 @@ class _MonthSpanBand extends StatelessWidget {
       child: Row(
         children: [
           Text(
-            isZh ? '跨天' : 'Span',
+            l.multiDaySpanLabel,
             style: const TextStyle(
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
@@ -711,8 +707,7 @@ class _MobileSpanBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final locale = Localizations.localeOf(context).toString();
-    final isZh = locale.startsWith('zh');
+    final l = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -727,7 +722,7 @@ class _MobileSpanBand extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
-              isZh ? '跨天' : 'Span',
+              l.multiDaySpanLabel,
               style: const TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w700,
@@ -748,7 +743,18 @@ class _MobileSpanBand extends StatelessWidget {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Text(
-                        '${event.title} · ${event.start.month}/${event.start.day}–${event.end.month}/${event.end.day} · ${math.max(1, calDayOf(event.end).difference(calDayOf(event.start)).inDays + 1)} ${isZh ? "天" : "d"}',
+                        l.multiDayEventSpanSummary(
+                          event.title,
+                          '${event.start.month}/${event.start.day}',
+                          '${event.end.month}/${event.end.day}',
+                          math.max(
+                            1,
+                            calDayOf(event.end)
+                                    .difference(calDayOf(event.start))
+                                    .inDays +
+                                1,
+                          ),
+                        ),
                         style: _a2Text(10, FontWeight.w400, ds.ink),
                       ),
                     ),
