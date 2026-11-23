@@ -3348,4 +3348,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String multiDayEventSpanSummary(String title, String start, String end, int days) {
     return '$title · $start–$end · $days d';
   }
+
+  @override
+  String backupConflictSkipAssociated(int count) {
+    return 'Keeping local will skip $count associated items in backup';
+  }
 }

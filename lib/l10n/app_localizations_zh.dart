@@ -3294,4 +3294,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String multiDayEventSpanSummary(String title, String start, String end, int days) {
     return '$title · $start–$end · $days 天';
   }
+
+  @override
+  String backupConflictSkipAssociated(int count) {
+    return '保留本机将跳过 $count 个关联项';
+  }
 }

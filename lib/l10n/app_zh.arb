@@ -1826,5 +1826,13 @@
         "type": "int"
       }
     }
+  },
+  "backupConflictSkipAssociated": "保留本机将跳过 {count} 个关联项",
+  "@backupConflictSkipAssociated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

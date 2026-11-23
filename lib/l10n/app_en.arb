@@ -2148,5 +2148,13 @@
         "type": "int"
       }
     }
+  },
+  "backupConflictSkipAssociated": "Keeping local will skip {count} associated items in backup",
+  "@backupConflictSkipAssociated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

@@ -677,6 +677,19 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                                 ),
                               ],
                             ),
+                            if (c.associatedSkippedCount > 0 &&
+                                _choices[c.key] ==
+                                    BackupConflictResolution.keepLocal) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                l.backupConflictSkipAssociated(c.associatedSkippedCount),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: ds.danger,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
