@@ -27,7 +27,7 @@ void main() {
         db.calendars,
       )..where((t) => t.id.equals(id))).getSingle();
       expect(calendar.name, 'My Calendar');
-      expect(calendar.color, '#8a8a82'); // default color
+      expect(calendar.color, '#2563EB'); // default color
       expect(calendar.timezone, 'UTC'); // default timezone
     });
 

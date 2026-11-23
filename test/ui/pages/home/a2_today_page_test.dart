@@ -1302,11 +1302,11 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(A2CapturePanel), findsOneWidget);
-      expect(find.text('待办标题'), findsOneWidget);
-      expect(find.text('截止'), findsOneWidget);
-      expect(find.text('计划执行'), findsOneWidget);
-      expect(find.text('日历'), findsOneWidget);
-      expect(find.text('提醒'), findsOneWidget);
+      expect(find.text('Task Title'), findsOneWidget);
+      expect(find.text('Deadline'), findsOneWidget);
+      expect(find.text('Planned execution'), findsOneWidget);
+      expect(find.text('Calendar'), findsOneWidget);
+      expect(find.text('Reminder'), findsOneWidget);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await _settle(tester);
