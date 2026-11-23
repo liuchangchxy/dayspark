@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:dayspark/core/theme/app_typography.dart';
@@ -11,6 +10,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'settings_ui.dart';
 
 class DefaultCalendarView extends ConsumerStatefulWidget {
@@ -116,9 +116,7 @@ class _DefaultCalendarViewState extends ConsumerState<DefaultCalendarView> {
                     .read(defaultCalendarIdProvider.notifier)
                     .setDefaultCalendarId(activeId);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(l.defaultCalendarSaved)),
-                  );
+                  showSpecToast(context, l.defaultCalendarSaved);
                   widget.onBack?.call();
                 }
               }

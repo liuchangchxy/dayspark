@@ -22,6 +22,7 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 
 import '../settings_ui.dart';
 
@@ -217,7 +218,6 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   Future<void> _exportBackup() async {
     if (_backupBusy) return;
     final l = AppLocalizations.of(context)!;
-    final messenger = ScaffoldMessenger.of(context);
     setState(() {
       _backupBusy = true;
       _backupFailed = false;
@@ -240,14 +240,14 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
         try {
           await Share.shareXFiles([XFile(path)], subject: 'DaySpark Backup');
         } on UnimplementedError {
-          messenger.showSnackBar(SnackBar(content: Text(l.exportedTo(path))));
+          if (mounted) showSpecToast(context, l.exportedTo(path));
         }
       }
       if (!mounted) return;
       setState(() => _backupResult = l.backupComplete(filename));
     } catch (e) {
       debugPrint('backup: export failed: $e');
-      messenger.showSnackBar(SnackBar(content: Text(l.exportFailed)));
+      if (mounted) showSpecToast(context, l.exportFailed);
       if (!mounted) return;
       setState(() {
         _backupFailed = true;
@@ -263,7 +263,6 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   Future<void> _mergeBackup() async {
     if (_backupBusy) return;
     final l = AppLocalizations.of(context)!;
-    final messenger = ScaffoldMessenger.of(context);
     setState(() {
       _backupBusy = true;
       _backupFailed = false;
@@ -298,7 +297,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       setState(() => _backupResult = l.backupRestored);
     } catch (e) {
       debugPrint('backup: merge failed: $e');
-      messenger.showSnackBar(SnackBar(content: Text(l.restoreFailed)));
+      if (mounted) showSpecToast(context, l.restoreFailed);
       if (!mounted) return;
       setState(() {
         _backupFailed = true;
@@ -314,9 +313,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     final calendars = await (db.select(db.calendars)).get();
     if (!mounted) return;
     if (calendars.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.noCalendarToImport)),
-      );
+      showSpecToast(context, AppLocalizations.of(context)!.noCalendarToImport);
       return;
     }
     setState(() {
@@ -347,9 +344,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     } catch (error) {
       debugPrint('ics: read failed: $error');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.importFailed)),
-      );
+      showSpecToast(context, AppLocalizations.of(context)!.importFailed);
       return;
     }
     if (!mounted) return;
@@ -413,11 +408,11 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   /// skipped calendars would look complete and not be.
   Future<void> _exportIcs(BuildContext context, WidgetRef ref) async {
     final l = AppLocalizations.of(context)!;
-    final messenger = ScaffoldMessenger.of(context);
     final db = ref.read(databaseProvider);
     try {
       if ((await (db.select(db.calendars)).get()).isEmpty) {
-        messenger.showSnackBar(SnackBar(content: Text(l.nothingToExport)));
+        if (!context.mounted) return;
+        showSpecToast(context, l.nothingToExport);
         return;
       }
       final service = IcsService(db);
@@ -435,11 +430,11 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       try {
         await Share.shareXFiles([XFile(path)], subject: 'DaySpark Calendars');
       } on UnimplementedError {
-        messenger.showSnackBar(SnackBar(content: Text(l.exportedTo(path))));
+        if (context.mounted) showSpecToast(context, l.exportedTo(path));
       }
     } catch (error) {
       debugPrint('ics: export failed: $error');
-      messenger.showSnackBar(SnackBar(content: Text(l.exportFailed)));
+      if (context.mounted) showSpecToast(context, l.exportFailed);
     }
   }
 }
@@ -582,135 +577,136 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
     final l = AppLocalizations.of(context)!;
     final ds = context.ds;
 
-    return AlertDialog(
-      title: Text(l.backupConflictTitle(widget.conflicts.length)),
-      content: SizedBox(
-        width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(l.backupConflictDesc),
-            const SizedBox(height: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 320),
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    for (final c in widget.conflicts) ...[
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          border: Border(bottom: BorderSide(color: ds.lineSoft)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    c.title,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: ds.surface2,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    c.table,
-                                    style: TextStyle(fontSize: 10, color: ds.ink3),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (c.localDescription.isNotEmpty ||
-                                c.remoteDescription.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                '${l.localStatus}: ${c.localDescription}\n${l.daysparkBackup}: ${c.remoteDescription}',
-                                style: TextStyle(fontSize: 11, color: ds.ink3),
-                              ),
-                            ],
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                ChoiceChip(
-                                  label: Text(l.backupKeepLocal),
-                                  selected:
-                                      _choices[c.key] ==
-                                      BackupConflictResolution.keepLocal,
-                                  onSelected: (val) {
-                                    if (val) {
-                                      setState(
-                                        () =>
-                                            _choices[c.key] =
-                                                BackupConflictResolution.keepLocal,
-                                      );
-                                    }
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-                                ChoiceChip(
-                                  label: Text(l.backupKeepRemote),
-                                  selected:
-                                      _choices[c.key] ==
-                                      BackupConflictResolution.keepRemote,
-                                  onSelected: (val) {
-                                    if (val) {
-                                      setState(
-                                        () =>
-                                            _choices[c.key] =
-                                                BackupConflictResolution.keepRemote,
-                                      );
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                            if (c.associatedSkippedCount > 0 &&
-                                _choices[c.key] ==
-                                    BackupConflictResolution.keepLocal) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                l.backupConflictSkipAssociated(c.associatedSkippedCount),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: ds.danger,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return DsDialog(
+      title: l.backupConflictTitle(widget.conflicts.length),
+      width: 480,
       actions: [
-        TextButton(
+        const Spacer(),
+        DsButton(
+          label: l.cancel,
+          tone: DsButtonTone.ghost,
           onPressed: () => Navigator.pop(context, null),
-          child: Text(l.cancel),
         ),
-        FilledButton(
+        const SizedBox(width: AppSpacing.s2),
+        DsButton(
+          label: l.backupApplyResolutions,
           onPressed: () => Navigator.pop(context, _choices),
-          child: Text(l.backupApplyResolutions),
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l.backupConflictDesc),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 320),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  for (final c in widget.conflicts) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  c.title,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: ds.surface2,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  c.table,
+                                  style: TextStyle(fontSize: 10, color: ds.ink3),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (c.localDescription.isNotEmpty ||
+                              c.remoteDescription.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '${l.localStatus}: ${c.localDescription}\n${l.daysparkBackup}: ${c.remoteDescription}',
+                              style: TextStyle(fontSize: 11, color: ds.ink3),
+                            ),
+                          ],
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              ChoiceChip(
+                                label: Text(l.backupKeepLocal),
+                                selected:
+                                    _choices[c.key] ==
+                                    BackupConflictResolution.keepLocal,
+                                onSelected: (val) {
+                                  if (val) {
+                                    setState(
+                                      () =>
+                                          _choices[c.key] =
+                                              BackupConflictResolution.keepLocal,
+                                    );
+                                  }
+                                },
+                              ),
+                              const SizedBox(width: 8),
+                              ChoiceChip(
+                                label: Text(l.backupKeepRemote),
+                                selected:
+                                    _choices[c.key] ==
+                                    BackupConflictResolution.keepRemote,
+                                onSelected: (val) {
+                                  if (val) {
+                                    setState(
+                                      () =>
+                                          _choices[c.key] =
+                                              BackupConflictResolution.keepRemote,
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          if (c.associatedSkippedCount > 0 &&
+                              _choices[c.key] ==
+                                  BackupConflictResolution.keepLocal) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              l.backupConflictSkipAssociated(c.associatedSkippedCount),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: ds.danger,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

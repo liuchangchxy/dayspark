@@ -6,6 +6,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 
 /// Resolves the current uncompleted occurrence for a recurring series.
@@ -88,9 +89,7 @@ Future<({bool changed, String? occurrenceId})> toggleTodoCompletion(
     if (context.mounted) {
       final l = AppLocalizations.of(context);
       if (l != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.actionFailedRetry)),
-        );
+        showSpecToast(context, l.actionFailedRetry);
       }
     }
     return (changed: false, occurrenceId: null);
@@ -109,7 +108,5 @@ void showCompletionError(BuildContext context, Object error) {
   debugPrint('todo completion failed: $error');
   final l = AppLocalizations.of(context);
   if (l == null) return;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+  showSpecToast(context, l.actionFailedRetry);
 }

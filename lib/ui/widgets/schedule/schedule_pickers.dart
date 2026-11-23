@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_pickers.dart';
 import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
 
 /// Date/time vocabulary shared by every Todo and Event surface.
@@ -17,8 +18,8 @@ Future<DateTime?> pickDeadline(
   required DateTime initial,
   bool? withTime,
 }) async {
-  final date = await showDatePicker(
-    context: context,
+  final date = await showSpecDatePicker(
+    context,
     initialDate: initial,
     firstDate: DateTime(2000),
     lastDate: DateTime(2100),
@@ -40,8 +41,8 @@ Future<DateTime?> pickDateTime(
   BuildContext context, {
   required DateTime initial,
 }) async {
-  final date = await showDatePicker(
-    context: context,
+  final date = await showSpecDatePicker(
+    context,
     initialDate: initial,
     firstDate: DateTime(2000),
     lastDate: DateTime(2100),

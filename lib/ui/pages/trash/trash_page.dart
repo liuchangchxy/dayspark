@@ -9,6 +9,7 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/pages/settings/settings_ui.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
@@ -422,9 +423,7 @@ class _TrashPageState extends ConsumerState<TrashPage> {
               } catch (error) {
                 debugPrint('trash: empty error: $error');
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l.error)));
+                  showSpecToast(context, l.error);
                 }
               }
             },
@@ -468,9 +467,7 @@ class _TrashActionsState extends State<_TrashActions> {
     } catch (error) {
       debugPrint('trash: restore error: $error');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(widget.l.error)));
+        showSpecToast(context, widget.l.error);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -486,9 +483,7 @@ class _TrashActionsState extends State<_TrashActions> {
     } catch (error) {
       debugPrint('trash: delete error: $error');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(widget.l.error)));
+        showSpecToast(context, widget.l.error);
       }
     } finally {
       if (mounted) setState(() => _busy = false);

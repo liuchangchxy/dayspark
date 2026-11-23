@@ -26,6 +26,8 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
+import 'package:dayspark/ui/design/spec_pickers.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
@@ -414,9 +416,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     } else {
       _clearUndo();
       if (!isWorkspaceLayout(context)) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(l.openTask)),
-        );
+        showSpecToast(context, l.openTask);
       }
     }
   }
@@ -1545,8 +1545,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   Future<void> _pickCaptureDueDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showSpecDatePicker(
+      context,
       initialDate: _desktopCaptureDraft.dueDate ?? now,
       firstDate: DateTime(now.year - 5),
       lastDate: DateTime(now.year + 10),
@@ -1576,8 +1576,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Future<void> _pickCapturePlanDate() async {
     final start = _planDraftStart ?? DateTime.now();
     final end = _planDraftEnd;
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showSpecDatePicker(
+      context,
       initialDate: start,
       firstDate: DateTime(start.year - 5),
       lastDate: DateTime(start.year + 10),
@@ -1595,8 +1595,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
 
   Future<void> _pickCapturePlanStart() async {
     final current = _planDraftStart ?? DateTime.now();
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showSpecTimePicker(
+      context,
       initialTime: TimeOfDay.fromDateTime(current),
     );
     if (picked == null || !mounted) return;
@@ -1621,8 +1621,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     if (start == null) return;
     final current =
         _planDraftEnd ?? start.add(const Duration(minutes: 45));
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showSpecTimePicker(
+      context,
       initialTime: TimeOfDay.fromDateTime(current),
     );
     if (picked == null || !mounted) return;

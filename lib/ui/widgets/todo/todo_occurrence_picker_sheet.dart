@@ -11,6 +11,7 @@ import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 
@@ -51,9 +52,7 @@ class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
 
     if (TodoRecurrence.fromTodo(freshTodo).isUnknownLegacy) {
       if (!legacyRuleIsSupported(freshTodo.rrule ?? '')) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.unsupportedLegacyRecurrence)));
+        showSpecToast(context, l.unsupportedLegacyRecurrence);
         return null;
       }
       final confirmed = await confirmLegacyRecurrence(context, ref, freshTodo);

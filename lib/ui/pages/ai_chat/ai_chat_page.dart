@@ -17,6 +17,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
@@ -469,9 +470,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       if (!context.mounted) return;
       if (todos.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noSchedulableTodos)));
+        showSpecToast(context, l.noSchedulableTodos);
         return;
       }
 
@@ -550,9 +549,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       if (!context.mounted) return;
       if (suggestions.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noTimeSlots)));
+        showSpecToast(context, l.noTimeSlots);
         return;
       }
 
@@ -678,12 +675,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       if (!isStillFree) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l.timeSlotConflict),
-            backgroundColor: context.ds.danger,
-          ),
-        );
+        showSpecToast(context, l.timeSlotConflict, danger: true);
         return;
       }
 
@@ -696,15 +688,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       );
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.scheduledTodoSuccess(chosenTodo.summary))),
-      );
+      showSpecToast(context, l.scheduledTodoSuccess(chosenTodo.summary));
     } catch (e) {
       debugPrint('ai_chat: scheduleTask error: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
+        showSpecToast(context, l.schedulingFailed);
       }
     }
   }
@@ -719,9 +707,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       final subtasks = await ref.read(suggestTaskBreakdownProvider)(content);
       if (!context.mounted) return;
       if (subtasks.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noSubtaskSuggestions)));
+        showSpecToast(context, l.noSubtaskSuggestions);
         return;
       }
       showDsSheet<void>(
@@ -775,16 +761,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           final msg = reminderError != null
                               ? '${l.todoCreatedShort} (${l.failedAction})'
                               : l.todoCreatedShort;
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text(msg)));
+                          showSpecToast(context, msg);
                         }
                       } catch (e) {
                         debugPrint('ai_chat: createTodoFromAction error: $e');
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l.failedCreateTodo)),
-                          );
+                          showSpecToast(context, l.failedCreateTodo);
                         }
                       }
                     },
@@ -807,9 +789,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     } catch (e) {
       debugPrint('ai_chat: breakDownTask error: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.breakdownFailed)));
+        showSpecToast(context, l.breakdownFailed);
       }
     }
   }
@@ -932,9 +912,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     } catch (e) {
       debugPrint('ai_chat: createFromAI error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.failedAction)));
+        showSpecToast(context, l.failedAction);
       }
     } finally {
       if (mounted) setState(() => _writing = false);
@@ -1003,16 +981,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(success)));
+      showSpecToast(context, success);
     } catch (e) {
       debugPrint('ai_chat: write failed: $e');
       if (!mounted) return;
       final l = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.failedAction)));
+      showSpecToast(context, l.failedAction);
     } finally {
       if (mounted) setState(() => _writing = false);
     }

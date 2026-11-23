@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
-import 'package:dayspark/ui/pages/about/about_page.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
@@ -28,7 +27,6 @@ GoRouter _createRouter() => GoRouter(
       ),
     ),
     GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
-    GoRoute(path: '/about', builder: (_, __) => const AboutPage()),
     GoRoute(path: '/trash', builder: (_, __) => const TrashPage()),
     GoRoute(path: '/todo/new', builder: (_, __) => const TodoFormPage()),
   ],
@@ -175,17 +173,6 @@ void main() {
     await _settle(tester);
 
     expect(find.byType(TextField), findsWidgets);
-  });
-
-  testWidgets('about page renders', (tester) async {
-    await _pumpApp(tester);
-
-    final router = GoRouter.of(tester.element(find.byType(HomePage)));
-    router.go('/about');
-    await _settle(tester);
-
-    expect(find.byType(AboutPage), findsOneWidget);
-    expect(find.text('About'), findsOneWidget);
   });
 
   testWidgets('trash page renders', (tester) async {

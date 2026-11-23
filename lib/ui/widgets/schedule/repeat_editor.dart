@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:rrule_generator/rrule_generator.dart';
@@ -9,6 +8,7 @@ import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 
@@ -104,9 +104,7 @@ class RepeatRow extends ConsumerWidget {
   ) async {
     final anchor = anchorDate;
     if (anchor == null || needsDate) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.repeatNeedsDate)));
+      showSpecToast(context, l.repeatNeedsDate);
       return;
     }
     final result = await showDsSheet<RepeatChoice>(

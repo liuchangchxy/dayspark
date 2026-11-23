@@ -13,7 +13,11 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: Locale('en'),
-        home: Scaffold(body: AboutSection(version: '0.35.0')),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: AboutSection(version: '0.35.0'),
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();

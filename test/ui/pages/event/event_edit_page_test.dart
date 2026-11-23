@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_pickers.dart';
 import 'package:dayspark/ui/pages/event/event_form_page.dart';
 
 /// `/edit` is a child of `/` so `context.pop()` after saving has somewhere to
@@ -134,24 +135,30 @@ Future<void> _save(WidgetTester tester) async {
 }
 
 /// Picks [day] in the date picker, scoped to the dialog: the recurrence editor
-/// on the page behind it also renders bare numbers like "5".
+/// on the page behind it also renders bare numbers like "5", and a 42-cell
+/// month grid repeats them from the neighbouring months.
 Future<void> _pickDateOnly(
   WidgetTester tester,
   String label,
-  String day,
+  DateTime day,
 ) async {
   await tester.tap(find.text(label));
   await _settle(tester);
-  final dialog = find.byType(DatePickerDialog);
+  final dialog = find.byType(SpecDatePickerDialog);
   expect(dialog, findsOneWidget, reason: 'date picker did not open for $label');
-  await tester.tap(find.descendant(of: dialog, matching: find.text(day)));
+  await tester.tap(find.byKey(ValueKey(_specDayKey(day))));
   await tester.pump();
   await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
   await _settle(tester);
 }
 
+String _specDayKey(DateTime day) =>
+    'spec-day-${day.year.toString().padLeft(4, '0')}-'
+    '${day.month.toString().padLeft(2, '0')}-'
+    '${day.day.toString().padLeft(2, '0')}';
+
 /// Same, then accepts the wheel time picker that a timed event asks for next.
-Future<void> _pickDate(WidgetTester tester, String label, String day) async {
+Future<void> _pickDate(WidgetTester tester, String label, DateTime day) async {
   await _pickDateOnly(tester, label, day);
   final sheet = find.byType(BottomSheet);
   if (sheet.evaluate().isEmpty) return;
@@ -316,9 +323,9 @@ void main() {
       await _pump(tester, db, seeded.occurrence);
 
       // Start 2026-10-01 -> 2026-10-05, time kept (09:00).
-      await _pickDate(tester, 'Start', '5');
+      await _pickDate(tester, 'Start', DateTime(2026, 10, 5));
       // End 2026-10-01 -> 2026-10-07, time kept (09:30).
-      await _pickDate(tester, 'End', '7');
+      await _pickDate(tester, 'End', DateTime(2026, 10, 7));
 
       await _save(tester);
 
@@ -508,8 +515,8 @@ void main() {
       final row = await _row(db, id);
 
       await _pump(tester, db, CalendaEventAdapter.fromDrift(row));
-      await _pickDate(tester, 'Start', '9');
-      await _pickDate(tester, 'End', '9');
+      await _pickDate(tester, 'Start', DateTime(2026, 10, 9));
+      await _pickDate(tester, 'End', DateTime(2026, 10, 9));
       await _save(tester);
 
       final after = await _row(db, id);
@@ -537,7 +544,7 @@ void main() {
       await _pump(tester, db, CalendaEventAdapter.fromDrift(row));
       // Moving the end earlier than the start is the only way to produce an
       // inverted range now that moving the start preserves the duration.
-      await _pickDate(tester, 'End', '2');
+      await _pickDate(tester, 'End', DateTime(2026, 10, 2));
       await _save(tester);
 
       // An inverted range is stated where the duration would be, and Save is
@@ -568,7 +575,7 @@ void main() {
       final row = await _row(db, id);
 
       await _pump(tester, db, CalendaEventAdapter.fromDrift(row));
-      await _pickDateOnly(tester, 'End', '2');
+      await _pickDateOnly(tester, 'End', DateTime(2026, 10, 2));
       await _save(tester);
 
       expect(find.text('The end has to come after the start.'), findsOneWidget);
@@ -635,10 +642,10 @@ void main() {
 
       await tester.tap(find.text('Start'));
       await tester.pump();
-      expect(find.byType(DatePickerDialog), findsOneWidget);
+      expect(find.byType(SpecDatePickerDialog), findsOneWidget);
       await tester.tap(
         find.descendant(
-          of: find.byType(DatePickerDialog),
+          of: find.byType(SpecDatePickerDialog),
           matching: find.text('Cancel'),
         ),
       );

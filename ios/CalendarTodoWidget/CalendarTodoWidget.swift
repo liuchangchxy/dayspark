@@ -585,14 +585,14 @@ struct WidgetPalette {
         // carries; keep them in step with lib/core/theme/app_colors.dart.
         let dark = snapshot?.theme?.dark ?? false
         self.dark = dark
-        let fallbackBackground = Color(hex: dark ? "#131311" : "#FCFCFA")!
-        let fallbackSurface = Color(hex: dark ? "#1A1B18" : "#FFFFFF")!
-        let fallbackTextPrimary = Color(hex: dark ? "#ECECE6" : "#191A17")!
-        let fallbackTextSecondary = Color(hex: dark ? "#B9BAB1" : "#3F413A")!
-        let fallbackAccent = Color(hex: dark ? "#E0703C" : "#C2410C")!
-        let fallbackBorder = Color(hex: dark ? "#2C2D28" : "#E8E7E1")!
+        let fallbackBackground = Color(hex: dark ? "#131311" : "#FFFFFF")!
+        let fallbackSurface = Color(hex: dark ? "#1A1B18" : "#F7F7F4")!
+        let fallbackTextPrimary = Color(hex: dark ? "#ECECE6" : "#191918")!
+        let fallbackTextSecondary = Color(hex: dark ? "#B9BAB1" : "#45453F")!
+        let fallbackAccent = Color(hex: dark ? "#E0703C" : "#C92A1E")!
+        let fallbackBorder = Color(hex: dark ? "#2C2D28" : "#ECECE6")!
         let fallbackError = Color(hex: dark ? "#D97B52" : "#A8481E")!
-        let fallbackWarning = Color(hex: dark ? "#D6AD6A" : "#7D5416")!
+        let fallbackWarning = Color(hex: dark ? "#D6AD6A" : "#9A6A18")!
 
         background = Color(hex: colors?.background) ?? fallbackBackground
         surface = Color(hex: colors?.surface) ?? fallbackSurface

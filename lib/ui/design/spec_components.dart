@@ -8,6 +8,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart' show FocusableTap;
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'ds.dart';
+import 'spec_pickers.dart';
 
 /// Pure civil date comparison for overdue determination:
 /// True if due date is strictly before today's civil date (now).
@@ -1871,8 +1872,8 @@ class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
+    final picked = await showSpecDatePicker(
+      context,
       initialDate: _start,
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
@@ -1887,8 +1888,8 @@ class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
   }
 
   Future<void> _pickStartTime() async {
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showSpecTimePicker(
+      context,
       initialTime: TimeOfDay.fromDateTime(_start),
     );
     if (picked == null || !mounted) return;
@@ -1900,8 +1901,8 @@ class _SpecPlanPickerDialogState extends State<SpecPlanPickerDialog> {
   }
 
   Future<void> _pickEndTime() async {
-    final picked = await showTimePicker(
-      context: context,
+    final picked = await showSpecTimePicker(
+      context,
       initialTime: TimeOfDay.fromDateTime(_end),
     );
     if (picked == null || !mounted) return;

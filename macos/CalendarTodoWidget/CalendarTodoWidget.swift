@@ -577,23 +577,22 @@ struct WidgetPalette {
 
     init(_ snapshot: WidgetSnapshot?) {
         let colors = snapshot?.theme?.colors
-        #if os(iOS)
-        let fallbackBackground = Color(.systemBackground)
-        let fallbackSurface = Color(.secondarySystemBackground)
-        let fallbackError = Color.red
-        let fallbackWarning = Color.orange
-        #else
-        let fallbackBackground = Color(nsColor: .windowBackgroundColor)
-        let fallbackSurface = Color(nsColor: .controlBackgroundColor)
-        let fallbackError = Color.red
-        let fallbackWarning = Color.orange
-        #endif
+        let dark = snapshot?.theme?.dark ?? false
+        let fallbackBackground = Color(hex: dark ? "#131311" : "#FFFFFF")!
+        let fallbackSurface = Color(hex: dark ? "#1A1B18" : "#F7F7F4")!
+        let fallbackTextPrimary = Color(hex: dark ? "#ECECE6" : "#191918")!
+        let fallbackTextSecondary = Color(hex: dark ? "#B9BAB1" : "#45453F")!
+        let fallbackAccent = Color(hex: dark ? "#E0703C" : "#C92A1E")!
+        let fallbackBorder = Color(hex: dark ? "#2C2D28" : "#ECECE6")!
+        let fallbackError = Color(hex: dark ? "#D97B52" : "#A8481E")!
+        let fallbackWarning = Color(hex: dark ? "#D6AD6A" : "#9A6A18")!
+
         background = Color(hex: colors?.background) ?? fallbackBackground
         surface = Color(hex: colors?.surface) ?? fallbackSurface
-        textPrimary = Color(hex: colors?.textPrimary) ?? Color.primary
-        textSecondary = Color(hex: colors?.textSecondary) ?? Color.secondary
-        accent = Color(hex: colors?.accent) ?? Color.blue
-        border = Color(hex: colors?.border) ?? Color.gray.opacity(0.35)
+        textPrimary = Color(hex: colors?.textPrimary) ?? fallbackTextPrimary
+        textSecondary = Color(hex: colors?.textSecondary) ?? fallbackTextSecondary
+        accent = Color(hex: colors?.accent) ?? fallbackAccent
+        border = Color(hex: colors?.border) ?? fallbackBorder
         error = Color(hex: colors?.error) ?? fallbackError
         warning = Color(hex: colors?.warning) ?? fallbackWarning
     }

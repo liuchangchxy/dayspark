@@ -19,6 +19,7 @@ import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -235,15 +236,11 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
     final l = AppLocalizations.of(context)!;
     if (_saving) return;
     if (_titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
+      showSpecToast(context, l.enterTitle);
       return;
     }
     if (!_validRange) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.invalidTimeRange)));
+      showSpecToast(context, l.invalidTimeRange);
       return;
     }
     final start = _startDt;
@@ -254,18 +251,14 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
       final calendars = await ref.read(calendarsProvider.future);
       if (!mounted) return;
       if (calendars.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noCalendar)));
+        showSpecToast(context, l.noCalendar);
         return;
       }
       // The event keeps its calendar unless the user picked another one; a
       // calendar that has since been deleted has to be replaced explicitly.
       final chosen = _calendarId;
       if (chosen != null && !calendars.any((c) => c.id == chosen)) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.calendarUnavailable)));
+        showSpecToast(context, l.calendarUnavailable);
         return;
       }
       final calendarId =
@@ -353,9 +346,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
       context.pop();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+        showSpecToast(context, l.actionFailedRetry);
         debugPrint('event_form: save error: $error');
       }
     } finally {
@@ -495,9 +486,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
       debugPrint('event_form: delete error: $error');
       if (!mounted) return;
       setState(() => _deleting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+      showSpecToast(context, l.actionFailedRetry);
       return;
     }
     if (!mounted) return;
@@ -541,9 +530,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
     if (text.isEmpty) return;
     final config = ref.read(aiConfigProvider).value;
     if (config == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.aiNotConfiguredHint)));
+      showSpecToast(context, l.aiNotConfiguredHint);
       return;
     }
     setState(() => _aiLoading = true);
@@ -576,9 +563,7 @@ class _EventFormPageState extends ConsumerState<EventFormPage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.aiError)));
+        showSpecToast(context, l.aiError);
       }
     } finally {
       if (mounted) setState(() => _aiLoading = false);

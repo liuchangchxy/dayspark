@@ -18,6 +18,7 @@ import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
@@ -177,20 +178,28 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     if (!_dirty) return true;
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
+      animationStyle: AnimationStyle.noAnimation,
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.discardChanges),
-        content: Text(l.discardChangesBody),
+      builder: (ctx) => DsDialog(
+        title: l.discardChanges,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.discard,
+            tone: DsButtonTone.danger,
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l.discard),
           ),
         ],
+        child: Text(
+          l.discardChangesBody,
+          style: AppTypography.body.copyWith(color: context.ds.ink2),
+        ),
       ),
     );
     return confirmed ?? false;
@@ -1331,9 +1340,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         }
         if (!mounted) return;
         _leaveAfterDelete();
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.deleted)));
+        showSpecToast(context, l.deleted);
         return;
       }
     } else if (row.rrule != null) {
@@ -1472,9 +1479,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
 
   void _showError() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.actionFailedRetry)),
-    );
+    showSpecToast(context, AppLocalizations.of(context)!.actionFailedRetry);
   }
 }
 

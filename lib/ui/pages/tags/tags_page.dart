@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/pages/calendar/frozen_calendar_colors.dart';
 import 'package:dayspark/ui/pages/settings/settings_ui.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
@@ -177,9 +178,7 @@ class _TagsPageState extends ConsumerState<TagsPage> {
     } catch (error) {
       debugPrint('tags: delete error: $error');
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.error)));
+        showSpecToast(context, l.error);
       }
     }
   }

@@ -6,6 +6,7 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_pickers.dart';
 
 /// Shows a bottom sheet with a Cupertino-style scroll wheel time picker
 /// plus an optional text input field.
@@ -15,7 +16,7 @@ Future<TimeOfDay?> showWheelTimePicker(
 }) {
   if (defaultTargetPlatform != TargetPlatform.android &&
       defaultTargetPlatform != TargetPlatform.iOS) {
-    return showTimePicker(context: context, initialTime: initialTime);
+    return showSpecTimePicker(context, initialTime: initialTime);
   }
   return showModalBottomSheet<TimeOfDay>(
     context: context,

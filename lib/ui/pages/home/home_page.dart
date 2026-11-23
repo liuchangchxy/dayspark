@@ -35,6 +35,7 @@ import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
@@ -460,10 +461,9 @@ class _HomePageState extends ConsumerState<HomePage>
               .getSingleOrNull();
       if (!mounted || todo == null) return;
       if (todo.rrule != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.selectTodoOccurrence),
-          ),
+        showSpecToast(
+          context,
+          AppLocalizations.of(context)!.selectTodoOccurrence,
         );
         context.push('/todo/detail', extra: todo);
         return;
@@ -782,9 +782,7 @@ class _HomePageState extends ConsumerState<HomePage>
         if (!mounted) return;
         final l = AppLocalizations.of(context);
         if (l != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l.schedulingFailed)),
-          );
+          showSpecToast(context, l.schedulingFailed);
         }
         return;
       }
@@ -803,17 +801,13 @@ class _HomePageState extends ConsumerState<HomePage>
       if (!mounted) return;
       final l = AppLocalizations.of(context);
       if (l != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.scheduledTodoSuccess(todo.summary))),
-        );
+        showSpecToast(context, l.scheduledTodoSuccess(todo.summary));
       }
     } catch (e) {
       if (!mounted) return;
       final l = AppLocalizations.of(context);
       if (l != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.schedulingFailed)),
-        );
+        showSpecToast(context, l.schedulingFailed);
       }
     }
   }
@@ -945,16 +939,12 @@ class _HomePageState extends ConsumerState<HomePage>
           );
           ref.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l.scheduledTodoSuccess(todo.summary))),
-            );
+            showSpecToast(context, l.scheduledTodoSuccess(todo.summary));
           }
         } catch (e) {
           debugPrint('calendar: schedule todo failed: $e');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l.schedulingFailed)),
-            );
+            showSpecToast(context, l.schedulingFailed);
           }
         }
       },
@@ -1004,9 +994,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final calendars = await ref.read(calendarsProvider.future);
     if (calendars.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.noCalendar)),
-        );
+        showSpecToast(context, l.noCalendar);
       }
       return;
     }
@@ -1025,9 +1013,7 @@ class _HomePageState extends ConsumerState<HomePage>
     } catch (error) {
       debugPrint('todo: capture failed: $error');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.actionFailedRetry)),
-        );
+        showSpecToast(context, l.actionFailedRetry);
       }
     }
   }

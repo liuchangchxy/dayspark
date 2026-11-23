@@ -16,11 +16,9 @@ import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/ui/pages/todo/quick_add_page.dart';
-import 'package:dayspark/ui/pages/calendar/calendars_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
 import 'package:dayspark/ui/pages/ai_chat/ai_chat_page.dart';
-import 'package:dayspark/ui/pages/about/about_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 import 'package:dayspark/ui/pages/feedback/feedback_page.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
@@ -344,22 +342,6 @@ abstract final class AppRouter {
             },
           ),
           GoRoute(
-            path: '/event/edit',
-            name: 'eventEdit',
-            pageBuilder: (context, state) {
-              final event = state.extra;
-              if (event is! CalendaEventAdapter) {
-                return _pageTransition(
-                  _missingObjectPage(
-                    AppLocalizations.of(context)?.missingEventParam ??
-                        'This link did not carry an event.',
-                  ),
-                );
-              }
-              return _pageTransition(EventFormPage(event: event));
-            },
-          ),
-          GoRoute(
             path: '/todo/new',
             name: 'todoCreate',
             pageBuilder: (context, state) {
@@ -435,21 +417,10 @@ abstract final class AppRouter {
             pageBuilder: (context, state) => _pageTransition(const TagsPage()),
           ),
           GoRoute(
-            path: '/calendars',
-            name: 'calendars',
-            pageBuilder: (context, state) =>
-                _pageTransition(const CalendarsPage()),
-          ),
-          GoRoute(
             path: '/ai-chat',
             name: 'aiChat',
             pageBuilder: (context, state) =>
                 _pageTransition(const AiChatPage()),
-          ),
-          GoRoute(
-            path: '/about',
-            name: 'about',
-            pageBuilder: (context, state) => _pageTransition(const AboutPage()),
           ),
           GoRoute(
             path: '/trash',

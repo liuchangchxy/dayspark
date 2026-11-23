@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 
 class FeedbackPage extends StatefulWidget {
@@ -43,9 +43,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
     setState(() => _copied = true);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l.feedbackCopied)));
+    showSpecToast(context, l.feedbackCopied);
   }
 
   Future<void> _openOnGitHub() async {
@@ -60,9 +58,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
     } catch (error) {
       debugPrint('feedback: launch failed: $error');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.couldNotOpenLink)));
+      showSpecToast(context, l.couldNotOpenLink);
     }
   }
 

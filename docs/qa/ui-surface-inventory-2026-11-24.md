@@ -93,4 +93,39 @@
 1. `ui_reachability_guard_test`：`lib/ui` 下任何文件必须从 `main.dart` 可达，否则红。
 2. `ui_surface_registry_test`：路由表每条必须在 `SPEC.md` 表面清单里有映射，新增路由未登记则红。
 3. `ui_token_guard_test`：`lib/ui/pages`、`lib/ui/widgets`、`lib/ui/shell` 禁止裸 `Color(0x`、禁止越界 `circular()`。
-4. `ui_toast_guard_test`：除 `lib/ui/widgets/undo_bar.dart` 与 toast 实现文件外，禁止直接 `SnackBar(`。
+4. `ui_toast_guard_test`：除 toast 实现文件外，禁止直接 `SnackBar(`。
+
+## 六、子页家族定义（HTML 未覆盖的 6 条路由）
+
+这 6 条路由在冻结规格里没有独立渲染函数。裁定（S1/S2）：不新造语言，按**同一家族的显式定义**收敛。
+定义源是已有的共享原语，不引入任何新组件：
+
+**外壳（全部 6 条一致）**
+- `WorkspacePage`：54px 顶栏，返回 `CupertinoIcons.back`，标题 `DsText`，右侧主操作用 `PageSaveButton`（实心黑）或 `DsButton`。
+- 正文左右留白 24（窄）/ 32（宽），分节用 `DsSectionLabel`。
+
+**行与分组**
+- 设置类行一律 `DsGroup` + `DsSettingRow`（标签左、值/开关右、`DsHairline` 分隔）。
+- 列表类行一律 `DsRow`；空态 `DsEmpty`；错误态 `SpecErrorState`。
+- 禁止 `ListTile`、`Card`、`ElevatedButton`（现有 `a2.dart` 内的兼容封装除外）。
+
+**弹层**
+- 确认类 `SpecDeleteConfirmDialog`；表单类 `DsDialog`；底部 sheet `DsSheetChrome`；消息 `showSpecToast`（本轮新增，规格 `.toast`）。
+
+**逐条定义**
+
+| 路由 | 定义 |
+|---|---|
+| `/tags` | 标签列表 = `DsGroup` + `DsSettingRow`（色点 + 名称 + 计数）；新建/改名内联 `DsTextField` 行；删除 `SpecDeleteConfirmDialog`；空态 `DsEmpty` |
+| `/calendars` | 日历列表 = `DsGroup` + `DsSettingRow`（色点 + 名称 + 可见开关 + 删除）；新建内联 `DsTextField` 行；删除 `SpecDeleteConfirmDialog` |
+| `/ai-chat` | 消息区 `SpecTokens.paper/ink` 气泡 + 输入区 `DsTextField`；工具条 `DsIconButton`；模型配置走 `DsDialog`；消息反馈 `showSpecToast` |
+| `/about` | 信息行 = `DsGroup` + `DsSettingRow`；版本行只显示真实版本（不填默认值）；更新入口 `DsButton` |
+| `/feedback` | 表单 = `DsTextField` + `DsButton`；提交结果 `showSpecToast`；副本文案沿用 l10n |
+| `/event/new` `/event/edit` | 与 todo 表单同族：`DsSectionLabel` 分节 + `DsRow`/`DsSettingRow` 字段行 + `DsTextField`；保存 `PageSaveButton`；删除 `SpecDeleteConfirmDialog` |
+
+**不变量（每条都要过）**
+1. 无裸 `Color(0x` / `Colors.`（令牌文件除外）。
+2. 无硬编码 `fontSize:`（用 `SpecTokens.t*`）。
+3. 无直接 `SnackBar(`（用 `showSpecToast`）。
+4. 可交互元素用 `FocusableTap`，触摸目标 ≥ 48×48。
+5. 所有用户可见文案走 l10n，中英双语同步。

@@ -8,9 +8,15 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_pickers.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
 import 'package:go_router/go_router.dart';
+
+String _dayKey(DateTime day) =>
+    'spec-day-${day.year.toString().padLeft(4, '0')}-'
+    '${day.month.toString().padLeft(2, '0')}-'
+    '${day.day.toString().padLeft(2, '0')}';
 
 Widget _wrap(AppDatabase db) {
   final router = GoRouter(
@@ -118,7 +124,7 @@ void main() {
       await tester.tap(find.text('No deadline').last);
       await _settle(tester);
 
-      final dialog = find.byType(DatePickerDialog);
+      final dialog = find.byType(SpecDatePickerDialog);
       expect(dialog, findsOneWidget);
       final now = DateTime.now();
       final tomorrow = DateTime(
@@ -126,9 +132,7 @@ void main() {
         now.month,
         now.day,
       ).add(const Duration(days: 1));
-      await tester.tap(
-        find.descendant(of: dialog, matching: find.text('${tomorrow.day}')),
-      );
+      await tester.tap(find.byKey(ValueKey(_dayKey(tomorrow))));
       await tester.pump();
       await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
       await _settle(tester);
@@ -233,9 +237,9 @@ void main() {
     await tester.tap(find.textContaining('18:00').last);
     await _settle(tester);
 
-    final dialog = find.byType(DatePickerDialog);
+    final dialog = find.byType(SpecDatePickerDialog);
     expect(dialog, findsOneWidget);
-    await tester.tap(find.descendant(of: dialog, matching: find.text('31')));
+    await tester.tap(find.byKey(const ValueKey('spec-day-2026-10-31')));
     await tester.pump();
     await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
     await _settle(tester);

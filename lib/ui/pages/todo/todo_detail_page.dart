@@ -25,6 +25,7 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/ui/design/a2.dart' show FocusableTap;
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -270,19 +271,23 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.discardChanges),
-        content: Text(l.discardChangesBody),
+      builder: (ctx) => DsDialog(
+        title: l.discardChanges,
+        width: 380,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
           ),
-          TextButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.discard,
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l.discard),
           ),
         ],
+        child: Text(l.discardChangesBody),
       ),
     );
     return confirmed ?? false;
@@ -942,18 +947,14 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       if (!mounted) return;
       final l = AppLocalizations.of(context);
       if (l != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.scheduledTodoSuccess(live.summary))),
-        );
+        showSpecToast(context, l.scheduledTodoSuccess(live.summary));
       }
     } catch (e) {
       debugPrint('todo_detail: schedule allocation failed: $e');
       if (!mounted) return;
       final l = AppLocalizations.of(context);
       if (l != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.schedulingFailed)),
-        );
+        showSpecToast(context, l.schedulingFailed);
       }
     }
   }
@@ -2083,9 +2084,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
 
   void _showError() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.actionFailedRetry)),
-    );
+    showSpecToast(context, AppLocalizations.of(context)!.actionFailedRetry);
   }
 }
 

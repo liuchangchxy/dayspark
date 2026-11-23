@@ -22,6 +22,7 @@ import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -423,17 +424,13 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     final l = AppLocalizations.of(context)!;
     if (_saving) return;
     if (_summaryController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
+      showSpecToast(context, l.enterTitle);
       return;
     }
     if (_startDate != null &&
         _deadline != null &&
         _startDate!.isAfter(_deadline!)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.startAfterDeadline)));
+      showSpecToast(context, l.startAfterDeadline);
       return;
     }
 
@@ -441,9 +438,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     // writer would refuse it after the row exists. Say so before touching the
     // database instead of turning it into a generic failure.
     if (!_isEditing && _rrule != null && _executions.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${l.save} · ${l.scheduleTodoDesc}')),
-      );
+      showSpecToast(context, '${l.save} · ${l.scheduleTodoDesc}');
       return;
     }
 
@@ -462,9 +457,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       final calendars = await ref.read(calendarsProvider.future);
       if (!mounted) return;
       if (calendars.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noCalendar)));
+        showSpecToast(context, l.noCalendar);
         setState(() => _saving = false);
         return;
       }
@@ -582,9 +575,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       context.pop();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+        showSpecToast(context, l.actionFailedRetry);
         debugPrint('todo_form: save error: $error');
       }
     } finally {
@@ -694,16 +685,12 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     final l = AppLocalizations.of(context)!;
     final text = _summaryController.text.trim();
     if (text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
+      showSpecToast(context, l.enterTitle);
       return;
     }
     final config = ref.read(aiConfigProvider).value;
     if (config == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.notConfigured)));
+      showSpecToast(context, l.notConfigured);
       return;
     }
     setState(() => _aiLoading = true);
@@ -742,15 +729,11 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         }
       });
       if (filled.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.aiFilled(filled.join(', ')))));
+        showSpecToast(context, l.aiFilled(filled.join(', ')));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.aiError)));
+        showSpecToast(context, l.aiError);
       }
     } finally {
       if (mounted) setState(() => _aiLoading = false);
@@ -1463,9 +1446,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       debugPrint('todo_form: delete error: $error');
       if (!mounted) return;
       setState(() => _deleting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+      showSpecToast(context, l.actionFailedRetry);
       return;
     }
     if (!mounted) return;

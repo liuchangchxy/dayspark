@@ -9,6 +9,7 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
@@ -148,9 +149,7 @@ class ExecutionScheduleSection extends ConsumerWidget {
     String? occurrenceId;
     if (row != null && row.rrule != null && row.rrule!.isNotEmpty) {
       if (!_isConfirmableOccurrence(row)) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.unsupportedRecurrence)));
+        showSpecToast(context, l.unsupportedRecurrence);
         return;
       }
       final selected = await TodoOccurrencePickerSheet.show(
@@ -188,9 +187,7 @@ class ExecutionScheduleSection extends ConsumerWidget {
       );
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
+        showSpecToast(context, l.schedulingFailed);
       }
     }
   }
@@ -221,9 +218,7 @@ class ExecutionScheduleSection extends ConsumerWidget {
       );
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
+        showSpecToast(context, l.schedulingFailed);
       }
     }
   }

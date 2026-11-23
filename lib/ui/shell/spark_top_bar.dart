@@ -59,7 +59,6 @@ class _SparkTopBarState extends ConsumerState<SparkTopBar> {
     final router = GoRouter.maybeOf(context);
     final location = router?.routerDelegate.currentConfiguration.uri.path ?? '';
     final inSubpage = location.startsWith('/settings') ||
-        location.startsWith('/about') ||
         location.startsWith('/trash');
     final activeTab = inSubpage ? null : tab;
 

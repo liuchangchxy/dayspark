@@ -14,6 +14,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_views.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
@@ -228,9 +229,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     } on Object catch (error) {
       debugPrint('a2 calendar: reschedule failed: $error');
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+      showSpecToast(context, l.actionFailedRetry);
     }
   }
 
@@ -267,9 +266,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     } on Object catch (error) {
       debugPrint('a2 calendar: resize failed: $error');
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+      showSpecToast(context, l.actionFailedRetry);
     }
   }
 

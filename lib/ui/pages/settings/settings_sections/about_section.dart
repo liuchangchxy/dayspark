@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
 import '../settings_ui.dart';
@@ -34,6 +35,11 @@ class _AboutSectionState extends State<AboutSection> {
               label: l.dataLocation,
               subtitle: l.dataDesc,
               value: l.dataLocationDesc,
+            ),
+            SettingsRow(
+              label: l.reportIssue,
+              chevron: SettingsChevron.right,
+              onTap: () => context.push('/feedback'),
             ),
             SettingsRow(
               label: l.license,

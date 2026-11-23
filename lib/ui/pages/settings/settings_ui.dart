@@ -342,36 +342,28 @@ Future<void> showSettingsChoice<T>({
   final picked = await showDialog<T>(
     animationStyle: AnimationStyle.noAnimation,
     context: context,
-    builder: (ctx) => SimpleDialog(
-      backgroundColor: SpecTokens.paper,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(SpecTokens.r12),
-        side: const BorderSide(color: SpecTokens.hair),
+    builder: (ctx) => DsDialog(
+      title: title,
+      width: 420,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final option in options)
+            DsSettingRow(
+              label: option.$2,
+              trailing: option.$1 == current
+                  ? const Icon(
+                      CupertinoIcons.checkmark,
+                      size: 16,
+                      color: SpecTokens.ink,
+                    )
+                  : const SizedBox.shrink(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              onTap: () => Navigator.of(ctx).pop(option.$1),
+            ),
+        ],
       ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: SpecTokens.ink,
-          fontFamilyFallback: AppTypography.fallback,
-        ),
-      ),
-      children: [
-        for (final option in options)
-          DsSettingRow(
-            label: option.$2,
-            trailing: option.$1 == current
-                ? const Icon(
-                    CupertinoIcons.checkmark,
-                    size: 16,
-                    color: SpecTokens.ink,
-                  )
-                : const SizedBox.shrink(),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            onTap: () => Navigator.of(ctx).pop(option.$1),
-          ),
-      ],
     ),
   );
   if (picked != null) onSelected(picked);

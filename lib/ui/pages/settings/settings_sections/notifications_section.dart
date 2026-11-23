@@ -9,6 +9,7 @@ import 'package:dayspark/infrastructure/platform/alarm_service.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 
 import '../settings_ui.dart';
 
@@ -145,8 +146,6 @@ class NotificationsSection extends ConsumerWidget {
     await NotificationService().requestPermission();
     ref.invalidate(permissionStatusProvider);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l.notificationPermissionAsked)));
+    showSpecToast(context, l.notificationPermissionAsked);
   }
 }
