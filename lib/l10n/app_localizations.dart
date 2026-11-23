@@ -5944,6 +5944,354 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'It will move to the trash and can be restored.'**
   String get deleteTrashNotice;
+
+  /// No description provided for @filterOverdueOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue only'**
+  String get filterOverdueOnly;
+
+  /// No description provided for @filterMatchedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} matched'**
+  String filterMatchedCount(int count);
+
+  /// No description provided for @captureParsedDefaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit report at 3pm tomorrow'**
+  String get captureParsedDefaultTitle;
+
+  /// No description provided for @captureParsedDefaultSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Task · No date · Personal (default)'**
+  String get captureParsedDefaultSub;
+
+  /// No description provided for @captureSubExpanded.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand when needed; no date by default.'**
+  String get captureSubExpanded;
+
+  /// No description provided for @captureTitleEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'New Event'**
+  String get captureTitleEvent;
+
+  /// No description provided for @captureSubEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Event · Work'**
+  String get captureSubEvent;
+
+  /// No description provided for @captureSubDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Task · Personal (default)'**
+  String get captureSubDate;
+
+  /// No description provided for @captureSubPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets plan only, does not change deadline.'**
+  String get captureSubPlan;
+
+  /// No description provided for @captureSubReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders belong to the item, does not change deadline.'**
+  String get captureSubReminder;
+
+  /// No description provided for @captureSaveErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Failed'**
+  String get captureSaveErrorTitle;
+
+  /// No description provided for @captureSaveErrorSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft preserved, will not be lost'**
+  String get captureSaveErrorSub;
+
+  /// No description provided for @captureFieldTaskTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Title'**
+  String get captureFieldTaskTitle;
+
+  /// No description provided for @captureFieldDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline'**
+  String get captureFieldDeadline;
+
+  /// No description provided for @captureFieldPlanExecution.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned execution'**
+  String get captureFieldPlanExecution;
+
+  /// No description provided for @captureFieldCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get captureFieldCalendar;
+
+  /// No description provided for @captureFieldReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder'**
+  String get captureFieldReminder;
+
+  /// No description provided for @captureFieldPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get captureFieldPriority;
+
+  /// No description provided for @captureFieldEventTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get captureFieldEventTitle;
+
+  /// No description provided for @captureFieldEventTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get captureFieldEventTime;
+
+  /// No description provided for @captureFieldEventAllDay.
+  ///
+  /// In en, this message translates to:
+  /// **'All-day'**
+  String get captureFieldEventAllDay;
+
+  /// No description provided for @captureFieldEventRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get captureFieldEventRepeat;
+
+  /// No description provided for @captureFieldDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get captureFieldDuration;
+
+  /// No description provided for @captureFieldDayExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule on day'**
+  String get captureFieldDayExisting;
+
+  /// No description provided for @captureFieldNotFilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not filled'**
+  String get captureFieldNotFilled;
+
+  /// No description provided for @captureFieldNoDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'No deadline'**
+  String get captureFieldNoDeadline;
+
+  /// No description provided for @captureFieldNotScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not scheduled'**
+  String get captureFieldNotScheduled;
+
+  /// No description provided for @captureFieldNoReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminder'**
+  String get captureFieldNoReminder;
+
+  /// No description provided for @captureFieldNoRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Does not repeat'**
+  String get captureFieldNoRepeat;
+
+  /// No description provided for @captureFieldNoOverlap.
+  ///
+  /// In en, this message translates to:
+  /// **'No overlap'**
+  String get captureFieldNoOverlap;
+
+  /// No description provided for @captureFieldNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get captureFieldNone;
+
+  /// No description provided for @captureFieldYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get captureFieldYes;
+
+  /// No description provided for @captureFieldNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get captureFieldNo;
+
+  /// No description provided for @captureFieldHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get captureFieldHigh;
+
+  /// No description provided for @captureFieldMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get captureFieldMedium;
+
+  /// No description provided for @captureActionCreateEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Event'**
+  String get captureActionCreateEvent;
+
+  /// No description provided for @captureActionApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get captureActionApply;
+
+  /// No description provided for @captureActionEnterSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter to save'**
+  String get captureActionEnterSave;
+
+  /// No description provided for @captureActionKeepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get captureActionKeepEditing;
+
+  /// No description provided for @captureActionDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get captureActionDiscard;
+
+  /// No description provided for @captureActionRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get captureActionRetry;
+
+  /// No description provided for @captureCalPersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get captureCalPersonal;
+
+  /// No description provided for @captureCalPersonalDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal · Default'**
+  String get captureCalPersonalDefault;
+
+  /// No description provided for @captureCalDefaultSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Default · Selected'**
+  String get captureCalDefaultSelected;
+
+  /// No description provided for @captureCalWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get captureCalWork;
+
+  /// No description provided for @captureCalWorkCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Work calendar'**
+  String get captureCalWorkCalendar;
+
+  /// No description provided for @captureCalHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get captureCalHome;
+
+  /// No description provided for @captureCalHomeCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Home calendar'**
+  String get captureCalHomeCalendar;
+
+  /// No description provided for @captureCalHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get captureCalHealth;
+
+  /// No description provided for @captureCalHealthCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Health calendar'**
+  String get captureCalHealthCalendar;
+
+  /// No description provided for @captureReminderNoReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminder'**
+  String get captureReminderNoReminder;
+
+  /// No description provided for @captureReminder5mBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'5 minutes before'**
+  String get captureReminder5mBefore;
+
+  /// No description provided for @captureReminder15mBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'15 minutes before'**
+  String get captureReminder15mBefore;
+
+  /// No description provided for @captureReminder1hBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour before'**
+  String get captureReminder1hBefore;
+
+  /// No description provided for @captureReminder1dBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'1 day before'**
+  String get captureReminder1dBefore;
+
+  /// No description provided for @captureDateSelectedSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · Selected'**
+  String captureDateSelectedSuffix(String date);
+
+  /// No description provided for @captureDateNextWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Next week'**
+  String get captureDateNextWeek;
+
+  /// No description provided for @closeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeTooltip;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

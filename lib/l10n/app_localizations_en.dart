@@ -3284,4 +3284,182 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get deleteTrashNotice => 'It will move to the trash and can be restored.';
+
+  @override
+  String get filterOverdueOnly => 'Overdue only';
+
+  @override
+  String filterMatchedCount(int count) {
+    return '$count matched';
+  }
+
+  @override
+  String get captureParsedDefaultTitle => 'Submit report at 3pm tomorrow';
+
+  @override
+  String get captureParsedDefaultSub => 'Task · No date · Personal (default)';
+
+  @override
+  String get captureSubExpanded => 'Expand when needed; no date by default.';
+
+  @override
+  String get captureTitleEvent => 'New Event';
+
+  @override
+  String get captureSubEvent => 'Event · Work';
+
+  @override
+  String get captureSubDate => 'Task · Personal (default)';
+
+  @override
+  String get captureSubPlan => 'Sets plan only, does not change deadline.';
+
+  @override
+  String get captureSubReminder => 'Reminders belong to the item, does not change deadline.';
+
+  @override
+  String get captureSaveErrorTitle => 'Save Failed';
+
+  @override
+  String get captureSaveErrorSub => 'Draft preserved, will not be lost';
+
+  @override
+  String get captureFieldTaskTitle => 'Task Title';
+
+  @override
+  String get captureFieldDeadline => 'Deadline';
+
+  @override
+  String get captureFieldPlanExecution => 'Planned execution';
+
+  @override
+  String get captureFieldCalendar => 'Calendar';
+
+  @override
+  String get captureFieldReminder => 'Reminder';
+
+  @override
+  String get captureFieldPriority => 'Priority';
+
+  @override
+  String get captureFieldEventTitle => 'Title';
+
+  @override
+  String get captureFieldEventTime => 'Time';
+
+  @override
+  String get captureFieldEventAllDay => 'All-day';
+
+  @override
+  String get captureFieldEventRepeat => 'Repeat';
+
+  @override
+  String get captureFieldDuration => 'Duration';
+
+  @override
+  String get captureFieldDayExisting => 'Schedule on day';
+
+  @override
+  String get captureFieldNotFilled => 'Not filled';
+
+  @override
+  String get captureFieldNoDeadline => 'No deadline';
+
+  @override
+  String get captureFieldNotScheduled => 'Not scheduled';
+
+  @override
+  String get captureFieldNoReminder => 'No reminder';
+
+  @override
+  String get captureFieldNoRepeat => 'Does not repeat';
+
+  @override
+  String get captureFieldNoOverlap => 'No overlap';
+
+  @override
+  String get captureFieldNone => 'None';
+
+  @override
+  String get captureFieldYes => 'Yes';
+
+  @override
+  String get captureFieldNo => 'No';
+
+  @override
+  String get captureFieldHigh => 'High';
+
+  @override
+  String get captureFieldMedium => 'Medium';
+
+  @override
+  String get captureActionCreateEvent => 'Create Event';
+
+  @override
+  String get captureActionApply => 'Apply';
+
+  @override
+  String get captureActionEnterSave => 'Enter to save';
+
+  @override
+  String get captureActionKeepEditing => 'Keep editing';
+
+  @override
+  String get captureActionDiscard => 'Discard';
+
+  @override
+  String get captureActionRetry => 'Retry';
+
+  @override
+  String get captureCalPersonal => 'Personal';
+
+  @override
+  String get captureCalPersonalDefault => 'Personal · Default';
+
+  @override
+  String get captureCalDefaultSelected => 'Default · Selected';
+
+  @override
+  String get captureCalWork => 'Work';
+
+  @override
+  String get captureCalWorkCalendar => 'Work calendar';
+
+  @override
+  String get captureCalHome => 'Home';
+
+  @override
+  String get captureCalHomeCalendar => 'Home calendar';
+
+  @override
+  String get captureCalHealth => 'Health';
+
+  @override
+  String get captureCalHealthCalendar => 'Health calendar';
+
+  @override
+  String get captureReminderNoReminder => 'No reminder';
+
+  @override
+  String get captureReminder5mBefore => '5 minutes before';
+
+  @override
+  String get captureReminder15mBefore => '15 minutes before';
+
+  @override
+  String get captureReminder1hBefore => '1 hour before';
+
+  @override
+  String get captureReminder1dBefore => '1 day before';
+
+  @override
+  String captureDateSelectedSuffix(String date) {
+    return '$date · Selected';
+  }
+
+  @override
+  String get captureDateNextWeek => 'Next week';
+
+  @override
+  String get closeTooltip => 'Close';
 }

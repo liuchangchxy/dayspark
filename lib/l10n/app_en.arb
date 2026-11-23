@@ -2080,5 +2080,77 @@
     }
   },
   "deleteSeriesTrashNotice": "This is a repeating task. The whole series will move to the trash and can be restored.",
-  "deleteTrashNotice": "It will move to the trash and can be restored."
+  "deleteTrashNotice": "It will move to the trash and can be restored.",
+  "filterOverdueOnly": "Overdue only",
+  "filterMatchedCount": "{count} matched",
+  "@filterMatchedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "captureParsedDefaultTitle": "Submit report at 3pm tomorrow",
+  "captureParsedDefaultSub": "Task · No date · Personal (default)",
+  "captureSubExpanded": "Expand when needed; no date by default.",
+  "captureTitleEvent": "New Event",
+  "captureSubEvent": "Event · Work",
+  "captureSubDate": "Task · Personal (default)",
+  "captureSubPlan": "Sets plan only, does not change deadline.",
+  "captureSubReminder": "Reminders belong to the item, does not change deadline.",
+  "captureSaveErrorTitle": "Save Failed",
+  "captureSaveErrorSub": "Draft preserved, will not be lost",
+  "captureFieldTaskTitle": "Task Title",
+  "captureFieldDeadline": "Deadline",
+  "captureFieldPlanExecution": "Planned execution",
+  "captureFieldCalendar": "Calendar",
+  "captureFieldReminder": "Reminder",
+  "captureFieldPriority": "Priority",
+  "captureFieldEventTitle": "Title",
+  "captureFieldEventTime": "Time",
+  "captureFieldEventAllDay": "All-day",
+  "captureFieldEventRepeat": "Repeat",
+  "captureFieldDuration": "Duration",
+  "captureFieldDayExisting": "Schedule on day",
+  "captureFieldNotFilled": "Not filled",
+  "captureFieldNoDeadline": "No deadline",
+  "captureFieldNotScheduled": "Not scheduled",
+  "captureFieldNoReminder": "No reminder",
+  "captureFieldNoRepeat": "Does not repeat",
+  "captureFieldNoOverlap": "No overlap",
+  "captureFieldNone": "None",
+  "captureFieldYes": "Yes",
+  "captureFieldNo": "No",
+  "captureFieldHigh": "High",
+  "captureFieldMedium": "Medium",
+  "captureActionCreateEvent": "Create Event",
+  "captureActionApply": "Apply",
+  "captureActionEnterSave": "Enter to save",
+  "captureActionKeepEditing": "Keep editing",
+  "captureActionDiscard": "Discard",
+  "captureActionRetry": "Retry",
+  "captureCalPersonal": "Personal",
+  "captureCalPersonalDefault": "Personal · Default",
+  "captureCalDefaultSelected": "Default · Selected",
+  "captureCalWork": "Work",
+  "captureCalWorkCalendar": "Work calendar",
+  "captureCalHome": "Home",
+  "captureCalHomeCalendar": "Home calendar",
+  "captureCalHealth": "Health",
+  "captureCalHealthCalendar": "Health calendar",
+  "captureReminderNoReminder": "No reminder",
+  "captureReminder5mBefore": "5 minutes before",
+  "captureReminder15mBefore": "15 minutes before",
+  "captureReminder1hBefore": "1 hour before",
+  "captureReminder1dBefore": "1 day before",
+  "captureDateSelectedSuffix": "{date} · Selected",
+  "@captureDateSelectedSuffix": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDateNextWeek": "Next week",
+  "closeTooltip": "Close"
 }

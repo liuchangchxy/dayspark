@@ -1367,9 +1367,9 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
         ),
         if (_titleValidationError) ...[
           const SizedBox(height: 4),
-          const Text(
-            '标题不能为空。写一个能让你明天看懂的动作。',
-            style: TextStyle(
+          Text(
+            l.captureValidationEmptyTitle,
+            style: const TextStyle(
               fontSize: 11,
               color: SpecTokens.red,
               fontFamilyFallback: AppTypography.fallback,
@@ -1382,9 +1382,9 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
               color: SpecTokens.redSoft,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: const Text(
-              '保存前先补标题；其他字段已经保留。',
-              style: TextStyle(
+            child: Text(
+              l.captureValidationAlert,
+              style: const TextStyle(
                 fontSize: 11,
                 color: SpecTokens.red,
                 fontFamilyFallback: AppTypography.fallback,

@@ -213,6 +213,10 @@ void main() {
               ),
             );
         await _pumpDetail(tester, db, await _event(db, id), embedded: embedded);
+        if (embedded) {
+          await tester.tap(find.byKey(const ValueKey('event-detail-edit')));
+          await _settle(tester);
+        }
         await _chooseCalendar(tester, 'Work');
         await _saveDetail(tester);
         final saved = await _event(db, id);

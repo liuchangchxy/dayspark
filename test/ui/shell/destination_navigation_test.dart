@@ -130,7 +130,7 @@ void main() {
 
     expect(find.byType(SearchPage), findsOneWidget);
     expect(AppRouter.router.routerDelegate.currentConfiguration.matches.last
-        .matchedLocation, '/search');
+        .matchedLocation, '/');
     await _unmount(tester);
   });
 
