@@ -935,7 +935,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                             ),
                             const SizedBox(height: 7),
                             Text(
-                              '匹配 $matched 项',
+                              l.filterMatchedCount(matched),
                               style: const TextStyle(
                                 fontSize: 9,
                                 color: SpecTokens.faint,
@@ -1110,9 +1110,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                         : null,
                                   ),
                                   const SizedBox(width: 8),
-                                  const Text(
-                                    '只看已逾期',
-                                    style: TextStyle(
+                                  Text(
+                                    l.filterOverdueOnly,
+                                    style: const TextStyle(
                                       fontSize: 11,
                                       color: SpecTokens.ink2,
                                       fontFamilyFallback: AppTypography.fallback,
@@ -1244,7 +1244,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '匹配 $matched 项',
+                      l.filterMatchedCount(matched),
                       style: const TextStyle(
                         fontSize: 9,
                         color: SpecTokens.faint,
@@ -1352,9 +1352,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 : null,
                           ),
                           const SizedBox(width: 8),
-                          const Text(
-                            '只看已逾期',
-                            style: TextStyle(
+                          Text(
+                            l.filterOverdueOnly,
+                            style: const TextStyle(
                               fontSize: 12,
                               color: SpecTokens.ink,
                               fontFamilyFallback: AppTypography.fallback,

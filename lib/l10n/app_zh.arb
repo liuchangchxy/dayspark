@@ -1826,5 +1826,77 @@
         "type": "int"
       }
     }
-  }
+  },
+  "filterOverdueOnly": "只看已逾期",
+  "filterMatchedCount": "匹配 {count} 项",
+  "@filterMatchedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "captureParsedDefaultTitle": "明天下午三点交报告",
+  "captureParsedDefaultSub": "待办 · 无日期 · 个人（默认）",
+  "captureSubExpanded": "需要时再展开；默认不写日期。",
+  "captureTitleEvent": "新建日程",
+  "captureSubEvent": "日程 · 工作",
+  "captureSubDate": "待办 · 个人（默认）",
+  "captureSubPlan": "只写计划执行，不改截止。",
+  "captureSubReminder": "提醒是条目自身的事实，不影响截止。",
+  "captureSaveErrorTitle": "保存失败",
+  "captureSaveErrorSub": "草稿还在，不会丢",
+  "captureFieldTaskTitle": "待办标题",
+  "captureFieldDeadline": "截止",
+  "captureFieldPlanExecution": "计划执行",
+  "captureFieldCalendar": "日历",
+  "captureFieldReminder": "提醒",
+  "captureFieldPriority": "优先级",
+  "captureFieldEventTitle": "标题",
+  "captureFieldEventTime": "时间",
+  "captureFieldEventAllDay": "全天",
+  "captureFieldEventRepeat": "重复",
+  "captureFieldDuration": "时长",
+  "captureFieldDayExisting": "当天已有",
+  "captureFieldNotFilled": "未填写",
+  "captureFieldNoDeadline": "无截止",
+  "captureFieldNotScheduled": "未安排",
+  "captureFieldNoReminder": "无提醒",
+  "captureFieldNoRepeat": "不重复",
+  "captureFieldNoOverlap": "无重叠日程",
+  "captureFieldNone": "无",
+  "captureFieldYes": "是",
+  "captureFieldNo": "否",
+  "captureFieldHigh": "高",
+  "captureFieldMedium": "中",
+  "captureActionCreateEvent": "创建日程",
+  "captureActionApply": "应用",
+  "captureActionEnterSave": "Enter 保存",
+  "captureActionKeepEditing": "继续编辑",
+  "captureActionDiscard": "放弃",
+  "captureActionRetry": "重试",
+  "captureCalPersonal": "个人",
+  "captureCalPersonalDefault": "个人 · 默认",
+  "captureCalDefaultSelected": "默认 · 选中",
+  "captureCalWork": "工作",
+  "captureCalWorkCalendar": "工作日历",
+  "captureCalHome": "家事",
+  "captureCalHomeCalendar": "生活日历",
+  "captureCalHealth": "健康",
+  "captureCalHealthCalendar": "健康日历",
+  "captureReminderNoReminder": "不提醒",
+  "captureReminder5mBefore": "5 分钟前",
+  "captureReminder15mBefore": "15 分钟前",
+  "captureReminder1hBefore": "1 小时前",
+  "captureReminder1dBefore": "1 天前",
+  "captureDateSelectedSuffix": "{date} · 选中",
+  "@captureDateSelectedSuffix": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDateNextWeek": "下周",
+  "closeTooltip": "关闭"
 }

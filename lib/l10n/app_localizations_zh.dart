@@ -3294,4 +3294,182 @@ class AppLocalizationsZh extends AppLocalizations {
   String multiDayEventSpanSummary(String title, String start, String end, int days) {
     return '$title · $start–$end · $days 天';
   }
+
+  @override
+  String get filterOverdueOnly => '只看已逾期';
+
+  @override
+  String filterMatchedCount(int count) {
+    return '匹配 $count 项';
+  }
+
+  @override
+  String get captureParsedDefaultTitle => '明天下午三点交报告';
+
+  @override
+  String get captureParsedDefaultSub => '待办 · 无日期 · 个人（默认）';
+
+  @override
+  String get captureSubExpanded => '需要时再展开；默认不写日期。';
+
+  @override
+  String get captureTitleEvent => '新建日程';
+
+  @override
+  String get captureSubEvent => '日程 · 工作';
+
+  @override
+  String get captureSubDate => '待办 · 个人（默认）';
+
+  @override
+  String get captureSubPlan => '只写计划执行，不改截止。';
+
+  @override
+  String get captureSubReminder => '提醒是条目自身的事实，不影响截止。';
+
+  @override
+  String get captureSaveErrorTitle => '保存失败';
+
+  @override
+  String get captureSaveErrorSub => '草稿还在，不会丢';
+
+  @override
+  String get captureFieldTaskTitle => '待办标题';
+
+  @override
+  String get captureFieldDeadline => '截止';
+
+  @override
+  String get captureFieldPlanExecution => '计划执行';
+
+  @override
+  String get captureFieldCalendar => '日历';
+
+  @override
+  String get captureFieldReminder => '提醒';
+
+  @override
+  String get captureFieldPriority => '优先级';
+
+  @override
+  String get captureFieldEventTitle => '标题';
+
+  @override
+  String get captureFieldEventTime => '时间';
+
+  @override
+  String get captureFieldEventAllDay => '全天';
+
+  @override
+  String get captureFieldEventRepeat => '重复';
+
+  @override
+  String get captureFieldDuration => '时长';
+
+  @override
+  String get captureFieldDayExisting => '当天已有';
+
+  @override
+  String get captureFieldNotFilled => '未填写';
+
+  @override
+  String get captureFieldNoDeadline => '无截止';
+
+  @override
+  String get captureFieldNotScheduled => '未安排';
+
+  @override
+  String get captureFieldNoReminder => '无提醒';
+
+  @override
+  String get captureFieldNoRepeat => '不重复';
+
+  @override
+  String get captureFieldNoOverlap => '无重叠日程';
+
+  @override
+  String get captureFieldNone => '无';
+
+  @override
+  String get captureFieldYes => '是';
+
+  @override
+  String get captureFieldNo => '否';
+
+  @override
+  String get captureFieldHigh => '高';
+
+  @override
+  String get captureFieldMedium => '中';
+
+  @override
+  String get captureActionCreateEvent => '创建日程';
+
+  @override
+  String get captureActionApply => '应用';
+
+  @override
+  String get captureActionEnterSave => 'Enter 保存';
+
+  @override
+  String get captureActionKeepEditing => '继续编辑';
+
+  @override
+  String get captureActionDiscard => '放弃';
+
+  @override
+  String get captureActionRetry => '重试';
+
+  @override
+  String get captureCalPersonal => '个人';
+
+  @override
+  String get captureCalPersonalDefault => '个人 · 默认';
+
+  @override
+  String get captureCalDefaultSelected => '默认 · 选中';
+
+  @override
+  String get captureCalWork => '工作';
+
+  @override
+  String get captureCalWorkCalendar => '工作日历';
+
+  @override
+  String get captureCalHome => '家事';
+
+  @override
+  String get captureCalHomeCalendar => '生活日历';
+
+  @override
+  String get captureCalHealth => '健康';
+
+  @override
+  String get captureCalHealthCalendar => '健康日历';
+
+  @override
+  String get captureReminderNoReminder => '不提醒';
+
+  @override
+  String get captureReminder5mBefore => '5 分钟前';
+
+  @override
+  String get captureReminder15mBefore => '15 分钟前';
+
+  @override
+  String get captureReminder1hBefore => '1 小时前';
+
+  @override
+  String get captureReminder1dBefore => '1 天前';
+
+  @override
+  String captureDateSelectedSuffix(String date) {
+    return '$date · 选中';
+  }
+
+  @override
+  String get captureDateNextWeek => '下周';
+
+  @override
+  String get closeTooltip => '关闭';
 }
