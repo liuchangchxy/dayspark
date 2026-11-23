@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -237,6 +238,29 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     );
   }
 
+  Future<bool> _confirmDiscardIfNeeded() async {
+    if (!_dirty) return true;
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.discardChanges),
+        content: Text(l.discardChangesBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.discard),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -332,38 +356,36 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         ? ref.watch(taskAllocationsForTodoProvider(live.id)).valueOrNull
         : null;
 
-    if (isSummary) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _drawerHead(context, l),
-          Expanded(
-            child: _summaryBody(
-              context,
-              l,
-              live,
-              completed: completed,
-              recurring: recurring,
-              status: status,
-              statusColor: statusColor,
-              leftDate: leftDate,
-              rightDate: rightDate,
-              currentCalendar: currentCalendar,
-              calendarColor: calendarColor,
-              tags: summaryTags ?? const <Tag>[],
-              reminders: summaryReminders ?? const <Reminder>[],
-              allocations: allocations ?? const <TaskAllocation>[],
-            ),
-          ),
-          _summaryFooter(context, l, live),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.embedded) _drawerHead(context, l),
+    final pageContent = isSummary
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _drawerHead(context, l),
+              Expanded(
+                child: _summaryBody(
+                  context,
+                  l,
+                  live,
+                  completed: completed,
+                  recurring: recurring,
+                  status: status,
+                  statusColor: statusColor,
+                  leftDate: leftDate,
+                  rightDate: rightDate,
+                  currentCalendar: currentCalendar,
+                  calendarColor: calendarColor,
+                  tags: summaryTags ?? const <Tag>[],
+                  reminders: summaryReminders ?? const <Reminder>[],
+                  allocations: allocations ?? const <TaskAllocation>[],
+                ),
+              ),
+              _summaryFooter(context, l, live),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.embedded) _drawerHead(context, l),
         Expanded(
           child: ListView(
             key: PageStorageKey<String>('todo-detail-$_todoId'),
@@ -510,6 +532,47 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         ),
         _footer(context, l, live, completed, recurring, mobile, side),
       ],
+    );
+
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _confirmDiscardIfNeeded();
+        if (shouldPop && mounted) {
+          if (widget.embedded) {
+            widget.onClose?.call();
+          } else {
+            Navigator.of(this.context).pop();
+          }
+        }
+      },
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () async {
+            if (_dirty) {
+              final shouldPop = await _confirmDiscardIfNeeded();
+              if (shouldPop && mounted) {
+                if (widget.embedded) {
+                  widget.onClose?.call();
+                } else {
+                  Navigator.of(this.context).maybePop();
+                }
+              }
+            } else {
+              if (widget.embedded) {
+                widget.onClose?.call();
+              } else {
+                Navigator.of(this.context).maybePop();
+              }
+            }
+          },
+        },
+        child: Focus(
+          autofocus: true,
+          child: pageContent,
+        ),
+      ),
     );
   }
 

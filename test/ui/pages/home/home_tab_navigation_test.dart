@@ -380,10 +380,10 @@ void main() {
     final moreLeft = tester.getTopLeft(more).dx;
     expect((titleLeft - moreLeft).abs(), lessThanOrEqualTo(1));
 
-    // Nothing is left to expand, so the tap leaves for the bucket's view and
-    // the chevron must not promise a disclosure.
+    // Item 13: Group headers are static labels without disclosure chevrons;
+    // expand/view-all is handled by more-row.
     expect(find.byIcon(CupertinoIcons.chevron_down), findsNothing);
-    expect(find.byIcon(CupertinoIcons.chevron_up), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.chevron_up), findsNothing);
 
     // The capture row says what Enter will do once it has focus.
     expect(find.text('Add'), findsNothing);

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +14,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -55,6 +57,7 @@ class EventDetailPane extends ConsumerStatefulWidget {
     super.key,
     required this.event,
     this.embedded = false,
+    this.inlineSummary = false,
     this.onClose,
     this.onDeleted,
     this.clock,
@@ -62,6 +65,7 @@ class EventDetailPane extends ConsumerStatefulWidget {
 
   final CalendaEventAdapter event;
   final bool embedded;
+  final bool inlineSummary;
   final VoidCallback? onClose;
   final VoidCallback? onDeleted;
   final DateTime Function()? clock;
@@ -86,6 +90,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   bool _saveFailed = false;
   bool _deleting = false;
   bool _deletedNotified = false;
+  bool _editing = false;
 
   @override
   void initState() {
@@ -95,6 +100,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     _title.text = _draft.title;
     _description.text = _draft.description;
     _location.text = _draft.location;
+    _editing = !(widget.inlineSummary || widget.embedded);
   }
 
   @override
@@ -166,6 +172,41 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     );
   }
 
+  Future<bool> _confirmDiscardIfNeeded() async {
+    if (!_dirty) return true;
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.discardChanges),
+        content: Text(l.discardChangesBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.discard),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  void _beginEdit(CalendaEventAdapter live) {
+    setState(() {
+      _snapshot = _EventDraft.fromAdapter(live);
+      _draft = _snapshot;
+      _title.text = _draft.title;
+      _description.text = _draft.description;
+      _location.text = _draft.location;
+      _dirty = false;
+      _editing = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -228,76 +269,358 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               .toDouble()
         : 0.0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.embedded) _drawerHead(context, l),
-        Expanded(
-          child: ListView(
-            key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
-            padding: EdgeInsets.fromLTRB(
-              side,
-              widget.embedded ? 18 : 14,
-              side,
-              24,
-            ),
+    final isSummary = (widget.inlineSummary || widget.embedded) && !_editing;
+    final summaryTags = isSummary
+        ? ref.watch(eventTagsProvider(live.drifId)).valueOrNull
+        : null;
+    final summaryReminders = isSummary
+        ? ref.watch(eventRemindersProvider(live.drifId)).valueOrNull
+        : null;
+
+    final pageContent = isSummary
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_saveFailed) _saveErrorBanner(context, l),
-              _header(context, l, live, currentCalendar),
-              _status(context, status, statusColor, fraction, start, end),
-              _fields(
-                context,
-                l,
-                calendars,
-                currentCalendar,
-                validRange,
-                rowHeight,
-              ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: context.ds.lineSoft),
-                  ),
+              _drawerHead(context, l),
+              Expanded(
+                child: _summaryBody(
+                  context,
+                  l,
+                  live,
+                  status: status,
+                  statusColor: statusColor,
+                  fraction: fraction,
+                  start: start,
+                  end: end,
+                  validRange: validRange,
+                  currentCalendar: currentCalendar,
+                  calendarColor: currentCalendar == null
+                      ? context.ds.ink3
+                      : ColorUtils.parseHex(currentCalendar.color),
+                  tags: summaryTags ?? const <Tag>[],
+                  reminders: summaryReminders ?? const <Reminder>[],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+              ),
+              _summaryFooter(context, l, live),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.embedded) _drawerHead(context, l),
+              Expanded(
+                child: ListView(
+                  key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
+                  padding: EdgeInsets.fromLTRB(
+                    side,
+                    widget.embedded ? 18 : 14,
+                    side,
+                    24,
+                  ),
                   children: [
-                    RepeatRow(
-                      rrule: _draft.rrule,
-                      anchorDate: _draft.start,
-                      onChanged: (value) =>
-                          _setDraft(_withDraft(rrule: value)),
+                    if (_saveFailed) _saveErrorBanner(context, l),
+                    _header(context, l, live, currentCalendar),
+                    _status(context, status, statusColor, fraction, start, end),
+                    _fields(
+                      context,
+                      l,
+                      calendars,
+                      currentCalendar,
+                      validRange,
+                      rowHeight,
                     ),
-                    if (_draft.rrule != null)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 2, 0, 10),
-                        child: Text(
-                          l.recurringSeriesNoticeShort,
-                          style: AppTypography.small.copyWith(
-                            color: context.ds.ink3,
-                          ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: context.ds.lineSoft),
                         ),
                       ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          RepeatRow(
+                            rrule: _draft.rrule,
+                            anchorDate: _draft.start,
+                            onChanged: (value) =>
+                                _setDraft(_withDraft(rrule: value)),
+                          ),
+                          if (_draft.rrule != null)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(0, 2, 0, 10),
+                              child: Text(
+                                l.recurringSeriesNoticeShort,
+                                style: AppTypography.small.copyWith(
+                                  color: context.ds.ink3,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    RemindersSection(
+                      parentType: 'event',
+                      parentId: live.drifId,
+                      anchorTime: _draft.start,
+                    ),
+                    const SizedBox(height: 18),
+                    _notes(context, l),
+                    _tags(context, live),
+                    const SizedBox(height: 8),
+                    AttachmentList(parentType: 'event', parentId: live.drifId),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
-              RemindersSection(
-                parentType: 'event',
-                parentId: live.drifId,
-                anchorTime: _draft.start,
+              _footer(context, l, live, mobile, side),
+            ],
+          );
+
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _confirmDiscardIfNeeded();
+        if (shouldPop && mounted) {
+          if (widget.embedded) {
+            widget.onClose?.call();
+          } else {
+            Navigator.of(this.context).pop();
+          }
+        }
+      },
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () async {
+            if (_dirty) {
+              final shouldPop = await _confirmDiscardIfNeeded();
+              if (shouldPop && mounted) {
+                if (widget.embedded) {
+                  widget.onClose?.call();
+                } else {
+                  Navigator.of(this.context).maybePop();
+                }
+              }
+            } else {
+              if (widget.embedded) {
+                widget.onClose?.call();
+              } else {
+                Navigator.of(this.context).maybePop();
+              }
+            }
+          },
+        },
+        child: Focus(
+          autofocus: true,
+          child: pageContent,
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryBody(
+    BuildContext context,
+    AppLocalizations l,
+    CalendaEventAdapter live, {
+    required String status,
+    required Color statusColor,
+    required double fraction,
+    required DateTime start,
+    required DateTime end,
+    required bool validRange,
+    required Calendar? currentCalendar,
+    required Color calendarColor,
+    required List<Tag> tags,
+    required List<Reminder> reminders,
+  }) {
+    final ds = context.ds;
+    final locale = Localizations.localeOf(context).toString();
+    final date =
+        '${DateFormat.MMMd(locale).format(start)} ${DateFormat.E(locale).format(start)}';
+    final eyebrow = [
+      currentCalendar?.name ?? l.eventLabel,
+      date,
+    ].join(' · ');
+    final repeatLabel = _draft.rrule == null
+        ? '—'
+        : describeRepeat(context, _draft.rrule);
+    final reminderLabel = reminders.isEmpty
+        ? l.noReminders
+        : reminders
+            .map((item) => formatDeadline(context, item.triggerTime))
+            .join(' · ');
+    final tagLabel = tags.isEmpty
+        ? l.noTags
+        : tags.map((tag) => tag.name).join(' · ');
+    final note = _draft.description.trim();
+    final side = widget.embedded ? 18.0 : 24.0;
+    const rowHeight = 58.0;
+
+    return ListView(
+      key: PageStorageKey<String>('event-summary-${live.drifId}'),
+      padding: EdgeInsets.fromLTRB(side, 18, side, 24),
+      children: [
+        Row(
+          children: [
+            DsDot(color: calendarColor),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                eyebrow,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, height: 16 / 11, color: ds.ink3),
               ),
-              const SizedBox(height: 18),
-              _notes(context, l),
-              _tags(context, live),
-              const SizedBox(height: 8),
-              AttachmentList(parentType: 'event', parentId: live.drifId),
-              const SizedBox(height: 8),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          live.title,
+          key: const ValueKey('event-detail-summary-title'),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            height: 26 / 20,
+            letterSpacing: 0.2,
+            color: ds.ink,
+          ),
+        ),
+        _status(context, status, statusColor, fraction, start, end),
+        const SizedBox(height: 10),
+        _PaneFieldRow(
+          key: const ValueKey('event-summary-start'),
+          label: l.startTime,
+          height: rowHeight,
+          value: _draft.allDay
+              ? formatDeadline(context, _draft.start)
+              : formatMoment(context, _draft.start),
+          leading: Icon(CupertinoIcons.clock, size: 12, color: ds.ink3),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('event-summary-end'),
+          label: l.endTime,
+          height: rowHeight,
+          value: _draft.allDay
+              ? formatDeadline(context, _draft.end)
+              : formatMoment(context, _draft.end),
+          leading: Icon(CupertinoIcons.clock, size: 12, color: ds.ink3),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('event-summary-duration'),
+          label: l.duration,
+          height: rowHeight,
+          value: validRange
+              ? (_draft.allDay
+                  ? l.durationAllDay
+                  : formatExecutionLength(
+                      context,
+                      _draft.end.difference(_draft.start),
+                    ))
+              : l.invalidTimeRange,
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('event-summary-calendar'),
+          label: l.calendarField,
+          height: rowHeight,
+          value: currentCalendar?.name ?? l.calendarUnavailable,
+          leading: DsDot(color: calendarColor, size: 7),
+        ),
+        if (_draft.location.isNotEmpty)
+          _PaneFieldRow(
+            key: const ValueKey('event-summary-location'),
+            label: l.location,
+            height: rowHeight,
+            value: _draft.location,
+            leading: Icon(CupertinoIcons.location, size: 12, color: ds.ink3),
+          ),
+        _PaneFieldRow(
+          key: const ValueKey('event-summary-repeat'),
+          label: l.repeatField,
+          height: rowHeight,
+          value: repeatLabel,
+          leading: Icon(CupertinoIcons.repeat, size: 12, color: ds.ink3),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('event-summary-reminders'),
+          label: l.reminders,
+          height: rowHeight,
+          value: reminderLabel,
+          leading: Icon(CupertinoIcons.bell, size: 12, color: ds.ink3),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('event-summary-tags'),
+          label: l.tags,
+          height: rowHeight,
+          value: tagLabel,
+        ),
+        DsSectionLabel(
+          l.notes,
+          padding: const EdgeInsets.only(top: 16, bottom: 6),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: ds.bg,
+            border: Border.all(color: ds.lineSoft),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            note.isEmpty ? '—' : note,
+            key: const ValueKey('event-summary-notes'),
+            style: TextStyle(fontSize: 13, height: 22 / 13, color: ds.ink2),
+          ),
+        ),
+        const SizedBox(height: 12),
+        AttachmentList(parentType: 'event', parentId: live.drifId, enabled: false),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _summaryFooter(
+    BuildContext context,
+    AppLocalizations l,
+    CalendaEventAdapter live,
+  ) {
+    final ds = context.ds;
+    return Container(
+      decoration: BoxDecoration(
+        color: ds.surface,
+        border: Border(top: BorderSide(color: ds.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 16),
+        child: SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('event-detail-edit'),
+                  label: l.edit,
+                  height: 48,
+                  primary: true,
+                  onPressed: () => _beginEdit(live),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('event-detail-delete-summary'),
+                  label: l.deleteToTrashAction,
+                  height: 48,
+                  danger: true,
+                  onPressed: () => _delete(live),
+                ),
+              ),
             ],
           ),
         ),
-        _footer(context, l, live, mobile, side),
-      ],
+      ),
     );
   }
 
@@ -315,7 +638,9 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            l.eventLabel,
+            widget.inlineSummary && _editing
+                ? '${l.eventLabel} · ${l.edit}'
+                : l.eventLabel,
             style: TextStyle(
               fontSize: 9.5,
               fontWeight: FontWeight.w600,
@@ -829,6 +1154,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       _dirty = false;
       _saving = false;
       _title.text = title;
+      if (widget.inlineSummary || widget.embedded) _editing = false;
     });
   }
 
@@ -843,10 +1169,12 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       _title.text = _snapshot.title;
       _description.text = _snapshot.description;
       _location.text = _snapshot.location;
+      if (widget.inlineSummary || widget.embedded) _editing = false;
     });
     _titleFocus.unfocus();
     _descriptionFocus.unfocus();
     _locationFocus.unfocus();
+    if (widget.inlineSummary || (widget.embedded && !_editing)) return;
     if (widget.embedded) {
       widget.onClose?.call();
       return;

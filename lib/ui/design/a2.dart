@@ -790,19 +790,17 @@ class A2CaptureBarState extends State<A2CaptureBar> {
             ],
           ),
         ),
-        if (!isNarrow) ...[
-          const SizedBox(width: 6),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Text(
-              subText,
-              style: const TextStyle(
-                fontSize: 10,
-                color: SpecTokens.faint,
-              ),
+        const SizedBox(width: 6),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Text(
+            subText,
+            style: TextStyle(
+              fontSize: isNarrow ? 9 : 10,
+              color: SpecTokens.faint,
             ),
           ),
-        ],
+        ),
         const SizedBox(width: 8),
         Expanded(
           child: TextField(

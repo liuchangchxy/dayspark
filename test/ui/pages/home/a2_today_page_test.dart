@@ -29,6 +29,7 @@ Widget _app({
   ValueChanged<Todo>? onOpenTodo,
   ValueChanged<Todo>? onScheduleTodo,
   VoidCallback? onOpenUnplanned,
+  VoidCallback? onOpenAll,
   Future<bool> Function(Todo todo, String? occurrenceId, bool completed)?
   onToggleTodo,
 }) {
@@ -50,6 +51,7 @@ Widget _app({
           onOpenEvent: (_) {},
           onToggleTodo: onToggleTodo ?? (_, __, ___) async => true,
           onOpenUnplanned: onOpenUnplanned ?? () {},
+          onOpenAll: onOpenAll,
           onScheduleTodo: onScheduleTodo ?? (_) {},
         ),
       ),
@@ -876,12 +878,14 @@ void main() {
           );
     }
 
+    var openedAll = false;
     await tester.pumpWidget(
       _app(
         overrides: [
           databaseProvider.overrideWithValue(db),
           actionDateProvider.overrideWith((ref) => day),
         ],
+        onOpenAll: () => openedAll = true,
       ),
     );
     await _settle(tester);
@@ -896,9 +900,9 @@ void main() {
 
     await tester.tap(find.text('View all 5 items'));
     await _settle(tester);
-    expect(find.text('Old 4'), findsOneWidget);
-    expect(find.text('Old 5'), findsOneWidget);
-    expect(find.text('Show less'), findsOneWidget);
+    expect(openedAll, isTrue);
+    expect(find.text('Old 4'), findsNothing);
+    expect(find.text('Old 5'), findsNothing);
 
     await _unmount(tester);
   });
