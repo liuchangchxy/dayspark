@@ -767,11 +767,31 @@ class _HomePageState extends ConsumerState<HomePage>
     );
 
     if (picked == null || !mounted) return;
+    String? occurrenceId;
+    if (todo.rrule != null && todo.rrule!.isNotEmpty) {
+      try {
+        occurrenceId = await resolveCurrentOccurrenceId(ref, todo);
+      } catch (error) {
+        debugPrint('home: schedule occurrence resolve failed: $error');
+        occurrenceId = null;
+      }
+      if (occurrenceId == null) {
+        if (!mounted) return;
+        final l = AppLocalizations.of(context);
+        if (l != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l.schedulingFailed)),
+          );
+        }
+        return;
+      }
+    }
     try {
       await ref.read(createTaskAllocationProvider)(
         todoId: todo.id,
         startAt: picked.$1,
         endAt: picked.$2,
+        occurrenceId: occurrenceId,
       );
       ref.invalidate(allActiveTaskAllocationsProvider);
       ref.invalidate(allTodosProvider);

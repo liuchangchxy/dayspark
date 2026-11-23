@@ -429,7 +429,7 @@ void main() {
   });
 
   group('P0 Safety Requirements (Items 19-23)', () {
-    test('Item 19 & Point 1: overwrite with backup (keepRemote) replaces localById in place; keepLocal skips', () async {
+    test('Item 19 & Point 1: keepRemote imports collided rows as new rows; keepLocal skips', () async {
       final calId = await db.into(db.calendars).insert(
         CalendarsCompanion.insert(name: 'Personal'),
       );
@@ -486,7 +486,9 @@ void main() {
 }
 ''';
 
-      // Path A: keepRemote must write back to localById (same row id), not insert duplicate!
+      // Path A: keepRemote must not overwrite the unrelated local row. The
+      // remote event/todo shares only the integer id, so it is imported as a
+      // separate row with its own sync identity.
       await service.restoreFromJson(
         json,
         resolutions: {
@@ -496,14 +498,20 @@ void main() {
       );
 
       final eventsAfterRemote = await db.select(db.events).get();
-      expect(eventsAfterRemote, hasLength(1), reason: 'keepRemote must replace local row, not insert a second row');
-      expect(eventsAfterRemote.first.id, localEventId);
-      expect(eventsAfterRemote.first.summary, 'Remote Event 1');
+      expect(eventsAfterRemote, hasLength(2), reason: 'keepRemote imports the remote as a new row, keeping the local row');
+      final keptLocalEvent = eventsAfterRemote.firstWhere((e) => e.id == localEventId);
+      expect(keptLocalEvent.summary, 'Local Event 1');
+      final importedEvent = eventsAfterRemote.firstWhere((e) => e.id != localEventId);
+      expect(importedEvent.summary, 'Remote Event 1');
+      expect(importedEvent.syncId, 'remote-event-sync-1');
 
       final todosAfterRemote = await db.select(db.todos).get();
-      expect(todosAfterRemote, hasLength(1), reason: 'keepRemote must replace local row, not insert a second row');
-      expect(todosAfterRemote.first.id, localTodoId);
-      expect(todosAfterRemote.first.summary, 'Remote Todo 1');
+      expect(todosAfterRemote, hasLength(2), reason: 'keepRemote imports the remote as a new row, keeping the local row');
+      final keptLocalTodo = todosAfterRemote.firstWhere((t) => t.id == localTodoId);
+      expect(keptLocalTodo.summary, 'Local Todo 1');
+      final importedTodo = todosAfterRemote.firstWhere((t) => t.id != localTodoId);
+      expect(importedTodo.summary, 'Remote Todo 1');
+      expect(importedTodo.syncId, 'remote-todo-sync-1');
 
       // Path B: keepLocal skips remote and preserves local row intact
       final json2 = '''
@@ -553,14 +561,30 @@ void main() {
       );
 
       final eventsAfterLocal = await db.select(db.events).get();
-      expect(eventsAfterLocal, hasLength(1));
-      expect(eventsAfterLocal.first.id, localEventId);
-      expect(eventsAfterLocal.first.summary, 'Remote Event 1', reason: 'keepLocal keeps existing and skips remote');
+      expect(eventsAfterLocal, hasLength(2));
+      expect(
+        eventsAfterLocal.firstWhere((e) => e.id == localEventId).summary,
+        'Local Event 1',
+        reason: 'keepLocal keeps existing and skips remote',
+      );
+      expect(
+        eventsAfterLocal.where((e) => e.summary == 'Another Remote Event'),
+        isEmpty,
+        reason: 'keepLocal skips the remote event',
+      );
 
       final todosAfterLocal = await db.select(db.todos).get();
-      expect(todosAfterLocal, hasLength(1));
-      expect(todosAfterLocal.first.id, localTodoId);
-      expect(todosAfterLocal.first.summary, 'Remote Todo 1', reason: 'keepLocal keeps existing and skips remote');
+      expect(todosAfterLocal, hasLength(2));
+      expect(
+        todosAfterLocal.firstWhere((t) => t.id == localTodoId).summary,
+        'Local Todo 1',
+        reason: 'keepLocal keeps existing and skips remote',
+      );
+      expect(
+        todosAfterLocal.where((t) => t.summary == 'Another Remote Todo'),
+        isEmpty,
+        reason: 'keepLocal skips the remote todo',
+      );
     });
 
     test('Item 23: child todo appearing before parent todo in backup array restores parentId correctly', () async {
@@ -879,6 +903,233 @@ void main() {
       final tags2 = await db.select(db.tags).get();
       expect(tags2, hasLength(2));
       expect(tags2.firstWhere((t) => t.id == tagId).name, 'Local Tag');
+    });
+
+    test('Event & Todo ID collision: keepRemote imports new rows and keeps both local rows distinct', () async {
+      await db.delete(db.events).go();
+      await db.delete(db.todos).go();
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Cal'),
+      );
+      final localEventId = await db.into(db.events).insert(
+        EventsCompanion.insert(
+          id: const Value(10),
+          calendarId: calId,
+          summary: 'Local Event',
+          startDt: DateTime.utc(2026, 11, 20, 9),
+          endDt: DateTime.utc(2026, 11, 20, 10),
+          syncId: const Value('local-event-sync'),
+        ),
+      );
+      final localTodoId = await db.into(db.todos).insert(
+        TodosCompanion.insert(
+          id: const Value(20),
+          calendarId: calId,
+          summary: 'Local Todo',
+          syncId: const Value('local-todo-sync'),
+        ),
+      );
+
+      final data = {
+        'calendars': <Map<String, dynamic>>[],
+        'events': [
+          {
+            'id': 10,
+            'calendarId': calId,
+            'summary': 'Remote Event',
+            'startDt': '2026-11-20T09:00:00.000Z',
+            'endDt': '2026-11-20T10:00:00.000Z',
+            'syncId': 'remote-event-sync',
+            'icsUid': 'remote-event-uid',
+          }
+        ],
+        'todos': [
+          {
+            'id': 20,
+            'calendarId': calId,
+            'summary': 'Remote Todo',
+            'syncId': 'remote-todo-sync',
+            'icsUid': 'remote-todo-uid',
+          }
+        ],
+        'reminders': <Map<String, dynamic>>[],
+        'tags': <Map<String, dynamic>>[],
+        'attachments': <Map<String, dynamic>>[],
+      };
+
+      await service.restoreData(
+        data,
+        resolutions: {
+          'events:10': BackupConflictResolution.keepRemote,
+          'todos:20': BackupConflictResolution.keepRemote,
+        },
+      );
+
+      final events = await db.select(db.events).get();
+      expect(events, hasLength(2));
+      final keptEvent = events.firstWhere((e) => e.id == localEventId);
+      expect(keptEvent.summary, 'Local Event', reason: 'the collided local row keeps its own content');
+      expect(keptEvent.syncId, 'local-event-sync');
+      final importedEvent = events.firstWhere((e) => e.id != localEventId);
+      expect(importedEvent.summary, 'Remote Event');
+      expect(importedEvent.syncId, 'remote-event-sync');
+
+      final todos = await db.select(db.todos).get();
+      expect(todos, hasLength(2));
+      final keptTodo = todos.firstWhere((t) => t.id == localTodoId);
+      expect(keptTodo.summary, 'Local Todo', reason: 'the collided local row keeps its own content');
+      expect(keptTodo.syncId, 'local-todo-sync');
+      final importedTodo = todos.firstWhere((t) => t.id != localTodoId);
+      expect(importedTodo.summary, 'Remote Todo');
+      expect(importedTodo.syncId, 'remote-todo-sync');
+    });
+
+    test('Parent ID collision: keepRemote repoints its reminder and attachment to the imported parent', () async {
+      final tempDir = Directory.systemTemp.createTempSync('dayspark_test_parent_collision');
+      final attService = BackupService(
+        db,
+        files: AttachmentFileStore(root: () async => tempDir),
+      );
+      try {
+        await db.delete(db.attachments).go();
+        await db.delete(db.reminders).go();
+        await db.delete(db.events).go();
+        final calId = await db.into(db.calendars).insert(
+          CalendarsCompanion.insert(name: 'Cal'),
+        );
+        final localEventId = await db.into(db.events).insert(
+          EventsCompanion.insert(
+            id: const Value(30),
+            calendarId: calId,
+            summary: 'Local Parent',
+            startDt: DateTime.utc(2026, 11, 20, 9),
+            endDt: DateTime.utc(2026, 11, 20, 10),
+            syncId: const Value('local-parent-sync'),
+          ),
+        );
+        final localReminderId = await db.into(db.reminders).insert(
+          RemindersCompanion.insert(
+            id: const Value(40),
+            parentType: 'event',
+            parentId: localEventId,
+            triggerTime: DateTime.utc(2026, 11, 20, 8),
+            syncId: const Value('local-reminder-sync'),
+            parentSyncId: const Value('local-parent-sync'),
+          ),
+        );
+        final localAttId = await db.into(db.attachments).insert(
+          AttachmentsCompanion.insert(
+            id: const Value(50),
+            parentType: 'event',
+            parentId: localEventId,
+            filePath: '/local/local.txt',
+            fileName: 'local.txt',
+          ),
+        );
+
+        final archive = Archive();
+        final content = utf8.encode('remote-body');
+        archive.addFile(ArchiveFile(
+          BackupService.attachmentEntryName(id: 50, syncId: 'remote-att-sync', fileName: 'remote.txt'),
+          content.length,
+          content,
+        ));
+
+        final data = {
+          'calendars': <Map<String, dynamic>>[],
+          'events': [
+            {
+              'id': 30,
+              'calendarId': calId,
+              'summary': 'Remote Parent',
+              'startDt': '2026-11-20T09:00:00.000Z',
+              'endDt': '2026-11-20T10:00:00.000Z',
+              'syncId': 'remote-parent-sync',
+              'icsUid': 'remote-parent-uid',
+            }
+          ],
+          'todos': <Map<String, dynamic>>[],
+          'reminders': [
+            {
+              'id': 40,
+              'parentType': 'event',
+              'parentId': 30,
+              'triggerTime': '2026-11-20T07:00:00.000Z',
+              'isTriggered': false,
+              'syncId': 'remote-reminder-sync',
+              'parentSyncId': 'remote-parent-sync',
+            }
+          ],
+          'tags': <Map<String, dynamic>>[],
+          'attachments': [
+            {
+              'id': 50,
+              'parentType': 'event',
+              'parentId': 30,
+              'filePath': '/remote/remote.txt',
+              'fileName': 'remote.txt',
+              'fileSize': content.length,
+              'mimeType': 'text/plain',
+              'syncId': 'remote-att-sync',
+              'parentSyncId': 'remote-parent-sync',
+              'serverFileRef': null,
+            }
+          ],
+        };
+
+        await attService.restoreData(
+          data,
+          archive: archive,
+          resolutions: {
+            'events:30': BackupConflictResolution.keepRemote,
+            'reminders:40': BackupConflictResolution.keepRemote,
+            'attachments:50': BackupConflictResolution.keepRemote,
+          },
+        );
+
+        final events = await db.select(db.events).get();
+        expect(events, hasLength(2));
+        final keptEvent = events.firstWhere((e) => e.id == localEventId);
+        expect(keptEvent.summary, 'Local Parent');
+        final importedEvent = events.firstWhere((e) => e.id != localEventId);
+        expect(importedEvent.summary, 'Remote Parent');
+
+        final reminders = await db.select(db.reminders).get();
+        expect(reminders, hasLength(2));
+        final keptReminder = reminders.firstWhere((r) => r.id == localReminderId);
+        expect(keptReminder.parentId, localEventId);
+        final importedReminder = reminders.firstWhere((r) => r.id != localReminderId);
+        expect(importedReminder.syncId, 'remote-reminder-sync');
+        expect(
+          importedReminder.parentId,
+          importedEvent.id,
+          reason: 'a reminder follows the parent it was imported with, not the collided local parent',
+        );
+        expect(importedReminder.parentSyncId, 'remote-parent-sync');
+
+        final atts = await db.select(db.attachments).get();
+        expect(atts, hasLength(2));
+        final keptAtt = atts.firstWhere((a) => a.id == localAttId);
+        expect(keptAtt.fileName, 'local.txt');
+        expect(keptAtt.filePath, '/local/local.txt', reason: 'the collided local attachment is untouched');
+        final importedAtt = atts.firstWhere((a) => a.id != localAttId);
+        expect(importedAtt.fileName, 'remote.txt');
+        expect(
+          importedAtt.parentId,
+          importedEvent.id,
+          reason: 'an attachment follows the parent it was imported with, not the collided local parent',
+        );
+        expect(importedAtt.filePath, contains(attachmentFileKey(importedAtt.id)));
+        expect(File(importedAtt.filePath).existsSync(), isTrue);
+        expect(await File(importedAtt.filePath).readAsBytes(), content);
+        expect(
+          File('${tempDir.path}/a50_remote.txt').existsSync(),
+          isFalse,
+          reason: 'no orphan file keyed by the backup id',
+        );
+      } finally {
+        if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+      }
     });
 
     test('inspectConflicts correctly populates associatedSkippedCount', () async {

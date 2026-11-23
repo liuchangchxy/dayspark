@@ -90,6 +90,7 @@ void main() {
         TodosCompanion.insert(
           calendarId: calendarId,
           summary: 'Daily standup',
+          startDate: Value(DateTime(now.year, now.month, now.day)),
           rrule: Value(spec.rule.canonical),
         ),
         recurrenceSpec: spec,
@@ -157,7 +158,8 @@ void main() {
 
     await tester.tap(find.widgetWithText(DsButton, 'Save'));
     await _settle(tester);
-
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
     final allocations = await db.select(db.taskAllocations).get();
     expect(allocations, hasLength(1));
     expect(

@@ -129,6 +129,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   bool _editing = false;
   Set<int> _tagDraft = const {};
   List<DraftReminder> _reminderDraft = const [];
+  List<DraftExecution> _scheduleDraft = const [];
   List<_DraftSubtaskItem> _subtaskDraft = const [];
   Set<int> _deletedSubtaskIds = const {};
   List<DraftAttachment>? _attachmentDraft;
@@ -152,31 +153,56 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     }
   }
 
-  void _initDraftItems(Todo live) {
-    final currentSubtasks =
-        ref.read(subtasksProvider(live.id)).valueOrNull ?? const <Todo>[];
-    final currentAttachments =
-        ref.read(todoAttachmentsProvider(live.id)).valueOrNull ??
-        const <Attachment>[];
+  Future<void> _initDraftItems(Todo live) async {
+    final subtasksFuture = ref.read(subtasksProvider(live.id).future);
+    final attachmentsFuture = ref.read(todoAttachmentsProvider(live.id).future);
+    final tagsFuture = ref.read(todoTagsProvider(live.id).future);
+    final remindersFuture = ref.read(todoRemindersProvider(live.id).future);
+    final allocationsFuture = ref.read(
+      taskAllocationsForTodoProvider(live.id).future,
+    );
+    final currentSubtasks = await subtasksFuture;
+    final currentAttachments = await attachmentsFuture;
+    final assigned = await tagsFuture;
+    final reminders = await remindersFuture;
+    final allocations = await allocationsFuture;
+    if (!mounted || _dirty) return;
     final attachmentDraftList = [
       for (final a in currentAttachments) DraftAttachment.fromRow(a),
     ];
-    if (mounted) {
-      setState(() {
-        _subtaskDraft = [
-          for (final s in currentSubtasks)
-            _DraftSubtaskItem(
-              id: s.id,
-              summary: s.summary,
-              isCompleted: s.status == 'COMPLETED',
-            ),
-        ];
-        _deletedSubtaskIds = const {};
-        _initialAttachments = attachmentDraftList;
-        _attachmentDraft = List.of(attachmentDraftList);
-      });
-    }
+    setState(() {
+      _tagDraft = assigned.map((tag) => tag.id).toSet();
+      _reminderDraft = _reminderDraftsFrom(reminders);
+      _scheduleDraft = _scheduleDraftsFrom(allocations);
+      _subtaskDraft = [
+        for (final s in currentSubtasks)
+          _DraftSubtaskItem(
+            id: s.id,
+            summary: s.summary,
+            isCompleted: s.status == 'COMPLETED',
+          ),
+      ];
+      _deletedSubtaskIds = const {};
+      _initialAttachments = attachmentDraftList;
+      _attachmentDraft = List.of(attachmentDraftList);
+    });
   }
+
+  List<DraftReminder> _reminderDraftsFrom(List<Reminder> reminders) => [
+    for (final reminder in reminders)
+      DraftReminder(triggerTime: reminder.triggerTime, id: reminder.id),
+  ];
+
+  List<DraftExecution> _scheduleDraftsFrom(List<TaskAllocation> allocations) => [
+    for (final allocation in allocations)
+      if (allocation.state == 'active')
+        DraftExecution(
+          id: allocation.id,
+          start: allocation.startAt,
+          end: allocation.endAt,
+          occurrenceId: allocation.occurrenceId,
+        ),
+  ];
 
   @override
   void dispose() {
@@ -426,6 +452,14 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
               ] else ...[
                 ExecutionScheduleSection(
                   todo: live,
+                  draft: _scheduleDraft,
+                  onDraftChanged: (value) {
+                    setState(() {
+                      _scheduleDraft = value;
+                      _dirty = true;
+                      _saveFailed = false;
+                    });
+                  },
                   deadline: _draft.dueDate,
                   enabled: !widget.inlineSummary,
                 ),
@@ -456,26 +490,19 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                     ),
                   ),
               ],
-              if (widget.inlineSummary)
-                RemindersSection(
-                  parentType: 'todo',
-                  parentId: live.id,
-                  anchorTime: _draft.dueDate,
-                  draft: _reminderDraft,
-                  onDraftChanged: (value) {
-                    setState(() {
-                      _reminderDraft = value;
-                      _dirty = true;
-                      _saveFailed = false;
-                    });
-                  },
-                )
-              else
-                RemindersSection(
-                  parentType: 'todo',
-                  parentId: live.id,
-                  anchorTime: _draft.dueDate,
-                ),
+              RemindersSection(
+                parentType: 'todo',
+                parentId: live.id,
+                anchorTime: _draft.dueDate,
+                draft: _reminderDraft,
+                onDraftChanged: (value) {
+                  setState(() {
+                    _reminderDraft = value;
+                    _dirty = true;
+                    _saveFailed = false;
+                  });
+                },
+              ),
               DsSectionLabel(
                 l.sectionOrganize,
                 padding: const EdgeInsets.only(top: 16, bottom: 6),
@@ -491,22 +518,19 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                 ),
               _priorityRow(context, l, rowHeight),
               const SizedBox(height: 12),
-              if (widget.inlineSummary)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TagChips(
-                    selectedIds: _tagDraft,
-                    onSelectedIdsChanged: (value) {
-                      setState(() {
-                        _tagDraft = value;
-                        _dirty = true;
-                        _saveFailed = false;
-                      });
-                    },
-                  ),
-                )
-              else
-                _tags(context, live),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TagChips(
+                  selectedIds: _tagDraft,
+                  onSelectedIdsChanged: (value) {
+                    setState(() {
+                      _tagDraft = value;
+                      _dirty = true;
+                      _saveFailed = false;
+                    });
+                  },
+                ),
+              ),
               DsSectionLabel(
                 l.sectionContent,
                 padding: const EdgeInsets.only(top: 16, bottom: 6),
@@ -934,17 +958,20 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     }
   }
 
-  void _beginEdit(Todo live) {
-    final assigned =
-        ref.read(todoTagsProvider(live.id)).valueOrNull ?? const <Tag>[];
-    final reminders =
-        ref.read(todoRemindersProvider(live.id)).valueOrNull ??
-        const <Reminder>[];
-    final currentSubtasks =
-        ref.read(subtasksProvider(live.id)).valueOrNull ?? const <Todo>[];
-    final currentAttachments =
-        ref.read(todoAttachmentsProvider(live.id)).valueOrNull ??
-        const <Attachment>[];
+  Future<void> _beginEdit(Todo live) async {
+    final assignedFuture = ref.read(todoTagsProvider(live.id).future);
+    final remindersFuture = ref.read(todoRemindersProvider(live.id).future);
+    final subtasksFuture = ref.read(subtasksProvider(live.id).future);
+    final attachmentsFuture = ref.read(todoAttachmentsProvider(live.id).future);
+    final allocationsFuture = ref.read(
+      taskAllocationsForTodoProvider(live.id).future,
+    );
+    final assigned = await assignedFuture;
+    final reminders = await remindersFuture;
+    final currentSubtasks = await subtasksFuture;
+    final currentAttachments = await attachmentsFuture;
+    final allocations = await allocationsFuture;
+    if (!mounted) return;
     final attachmentDraftList = [
       for (final a in currentAttachments) DraftAttachment.fromRow(a),
     ];
@@ -955,14 +982,8 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       _summary.text = snapshot.summary;
       _description.text = snapshot.description;
       _tagDraft = assigned.map((tag) => tag.id).toSet();
-      _reminderDraft = reminders
-          .map(
-            (reminder) => DraftReminder(
-              triggerTime: reminder.triggerTime,
-              id: reminder.id,
-            ),
-          )
-          .toList();
+      _reminderDraft = _reminderDraftsFrom(reminders);
+      _scheduleDraft = _scheduleDraftsFrom(allocations);
       _subtaskDraft = [
         for (final s in currentSubtasks)
           _DraftSubtaskItem(
@@ -1630,19 +1651,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     });
   }
 
-  Widget _tags(BuildContext context, Todo live) {
-    final assigned =
-        ref.watch(todoTagsProvider(live.id)).valueOrNull ?? const [];
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TagChips(
-        parentType: 'todo',
-        parentId: live.id,
-        assignedTags: assigned,
-      ),
-    );
-  }
-
   Todo? get _currentRow {
     final rows = ref.read(allTodosProvider).valueOrNull;
     if (rows == null) return null;
@@ -1722,6 +1730,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         replaceRecurrence: !legacy,
       );
       await _saveAssociations(current.id, _draft.calendarId);
+      await _refreshAssociationDrafts(current.id);
     } catch (error) {
       debugPrint('todo_detail: save failed: $error');
       if (!mounted) return;
@@ -1760,8 +1769,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   }
 
   Future<void> _saveAssociations(int todoId, int calendarId) async {
-    final assigned =
-        ref.read(todoTagsProvider(todoId)).valueOrNull ?? const <Tag>[];
+    final assigned = await ref.read(todoTagsProvider(todoId).future);
     final assignedIds = assigned.map((tag) => tag.id).toSet();
     final addTag = ref.read(addTagToTodoProvider);
     final removeTag = ref.read(removeTagFromTodoProvider);
@@ -1772,9 +1780,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       await removeTag(todoId: todoId, tagId: tagId);
     }
 
-    final stored =
-        ref.read(todoRemindersProvider(todoId)).valueOrNull ??
-        const <Reminder>[];
+    final stored = await ref.read(todoRemindersProvider(todoId).future);
     final byId = {for (final reminder in stored) reminder.id: reminder};
     final kept = <int>{};
     for (final draft in _reminderDraft) {
@@ -1796,6 +1802,41 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     for (final row in stored) {
       if (!kept.contains(row.id)) {
         await ref.read(deleteReminderProvider)(row.id);
+      }
+    }
+
+    final storedAllocations = (await ref.read(
+      taskAllocationsForTodoProvider(todoId).future,
+    )).where((item) => item.state == 'active').toList();
+    final allocationsById = {
+      for (final item in storedAllocations) item.id: item,
+    };
+    final keptAllocationIds = <int>{};
+    for (final draft in _scheduleDraft) {
+      final id = draft.id;
+      if (id == null) {
+        await ref.read(createTaskAllocationProvider)(
+          todoId: todoId,
+          startAt: draft.start,
+          endAt: draft.end,
+          occurrenceId: draft.occurrenceId,
+        );
+        continue;
+      }
+      keptAllocationIds.add(id);
+      final row = allocationsById[id];
+      if (row != null &&
+          (row.startAt != draft.start || row.endAt != draft.end)) {
+        await ref.read(rescheduleTaskAllocationProvider)(
+          id: id,
+          startAt: draft.start,
+          endAt: draft.end,
+        );
+      }
+    }
+    for (final row in storedAllocations) {
+      if (!keptAllocationIds.contains(row.id)) {
+        await ref.read(cancelTaskAllocationProvider)(row.id);
       }
     }
 
@@ -1843,6 +1884,22 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     }
   }
 
+  Future<void> _refreshAssociationDrafts(int todoId) async {
+    final db = ref.read(databaseProvider);
+    final reminders = await (db.select(db.reminders)..where(
+          (row) => row.parentType.equals('todo') & row.parentId.equals(todoId),
+        ))
+        .get();
+    final allocations = await (db.select(
+      db.taskAllocations,
+    )..where((row) => row.todoId.equals(todoId))).get();
+    if (!mounted) return;
+    setState(() {
+      _reminderDraft = _reminderDraftsFrom(reminders);
+      _scheduleDraft = _scheduleDraftsFrom(allocations);
+    });
+  }
+
   void _cancel() {
     setState(() {
       _draft = _snapshot;
@@ -1855,6 +1912,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       _description.text = _snapshot.description;
       _tagDraft = const {};
       _reminderDraft = const [];
+      _scheduleDraft = const [];
       _subtaskDraft = const [];
       _deletedSubtaskIds = const {};
       _attachmentDraft = null;

@@ -83,9 +83,7 @@ void main() {
     await db.close();
   });
 
-  testWidgets('reminders can be added, edited and removed in detail', (
-    tester,
-  ) async {
+  testWidgets('reminders are a draft until save', (tester) async {
     tester.view.physicalSize = const Size(900, 1800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -97,18 +95,28 @@ void main() {
     await _settle(tester);
     await tester.tap(find.text('15 min before'));
     await _settle(tester);
-    var reminders = await db.select(db.reminders).get();
+    expect(
+      await db.select(db.reminders).get(),
+      isEmpty,
+      reason: 'a reminder chosen in edit mode waits for save',
+    );
+    expect(find.text('15 min before'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
+    final reminders = await db.select(db.reminders).get();
     expect(reminders.single.triggerTime, DateTime(2026, 10, 24, 17, 45));
 
-    await tester.tap(find.text('15 min before'));
-    await _settle(tester);
-    await tester.tap(find.text('1 h before'));
-    await _settle(tester);
-    reminders = await db.select(db.reminders).get();
-    expect(reminders.single.triggerTime, DateTime(2026, 10, 24, 17));
-    expect(find.text('1 h before'), findsOneWidget);
-
     await tester.tap(find.byTooltip('Remove reminder'));
+    await _settle(tester);
+    expect(
+      await db.select(db.reminders).get(),
+      hasLength(1),
+      reason: 'removal is also a draft',
+    );
+    expect(find.text('15 min before'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
     await _settle(tester);
     expect(await db.select(db.reminders).get(), isEmpty);
     await _unmount(tester);

@@ -805,10 +805,12 @@ class BackupService {
               .write(companion);
           tx.applied(RecordType.event, match.id);
         } else if (localById != null) {
-          eventIdMap[oldId] = localById.id;
-          await (_db.update(_db.events)..where((tbl) => tbl.id.equals(localById.id)))
-              .write(companion);
-          tx.applied(RecordType.event, localById.id);
+          // Id collision without a shared syncId/icsUid: the local row is a
+          // different event. Import the remote as a new row instead of
+          // overwriting it.
+          final newId = await _db.into(_db.events).insert(companion);
+          eventIdMap[oldId] = newId;
+          tx.applied(RecordType.event, newId);
         } else {
           final newId = await _db.into(_db.events).insert(companion.copyWith(id: Value(oldId)));
           eventIdMap[oldId] = newId;
@@ -928,11 +930,13 @@ class BackupService {
               .write(companion);
           tx.applied(RecordType.todo, match.id);
         } else if (localById != null) {
-          todoIdMap[oldId] = localById.id;
-          targetTodoId = localById.id;
-          await (_db.update(_db.todos)..where((tbl) => tbl.id.equals(localById.id)))
-              .write(companion);
-          tx.applied(RecordType.todo, localById.id);
+          // Id collision without a shared syncId/icsUid: the local row is a
+          // different todo. Import the remote as a new row instead of
+          // overwriting it.
+          final newId = await _db.into(_db.todos).insert(companion);
+          todoIdMap[oldId] = newId;
+          targetTodoId = newId;
+          tx.applied(RecordType.todo, newId);
         } else {
           final newId = await _db.into(_db.todos).insert(companion.copyWith(id: Value(oldId)));
           todoIdMap[oldId] = newId;
@@ -1012,9 +1016,10 @@ class BackupService {
                 ..where((tbl) => tbl.id.equals(match!.id)))
               .write(companion);
         } else if (localById != null) {
-          await (_db.update(_db.reminders)
-                ..where((tbl) => tbl.id.equals(localById.id)))
-              .write(companion);
+          // Id collision without a shared syncId: the local row is a
+          // different reminder. Import the remote as a new row instead of
+          // overwriting it.
+          await _db.into(_db.reminders).insert(companion);
         } else {
           await _db.into(_db.reminders).insert(companion.copyWith(id: Value(oldId)));
         }
@@ -1136,10 +1141,26 @@ class BackupService {
         }
 
         final int targetId;
+        final importAsNewRow = match == null && localById != null;
         if (match != null) {
           targetId = match.id;
-        } else if (localById != null) {
-          targetId = localById.id;
+        } else if (importAsNewRow) {
+          // Id collision without a shared syncId/parent identity: the local
+          // row is a different attachment. Import the remote as a new row
+          // instead of overwriting it; its bytes go under the new row's key.
+          targetId = await _db.into(_db.attachments).insert(
+            AttachmentsCompanion(
+              parentType: Value(parentType),
+              parentId: Value(parentId),
+              filePath: const Value(''),
+              fileName: Value(fileName),
+              fileSize: Value(a['fileSize'] as int? ?? 0),
+              mimeType: Value(a['mimeType'] as String?),
+              syncId: Value(syncId),
+              parentSyncId: Value(parentSyncId),
+              serverFileRef: Value(a['serverFileRef'] as String?),
+            ),
+          );
         } else {
           final placeholderCompanion = AttachmentsCompanion(
             parentType: Value(parentType),
@@ -1166,19 +1187,15 @@ class BackupService {
           localTargetKey: attachmentFileKey(targetId),
         );
 
-        // Preserve local valid path if no body in backup (Item 20)
+        // Preserve local valid path if no body in backup (Item 20). Only an
+        // attachment matched by sync identity may borrow an existing row's
+        // path; a collided local row belongs to a different attachment.
         final targetPath = restored?.path ??
-            (match != null && match.filePath.isNotEmpty
-                ? match.filePath
-                : (localById != null && localById.filePath.isNotEmpty
-                    ? localById.filePath
-                    : ''));
+            (match != null && match.filePath.isNotEmpty ? match.filePath : '');
         final targetSize = restored?.size ??
             (match != null && match.fileSize > 0
                 ? match.fileSize
-                : (localById != null && localById.fileSize > 0
-                    ? localById.fileSize
-                    : (a['fileSize'] as int? ?? 0)));
+                : (a['fileSize'] as int? ?? 0));
 
         final companion = AttachmentsCompanion(
           parentType: Value(parentType),
