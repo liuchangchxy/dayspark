@@ -25,6 +25,7 @@ import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
+import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
@@ -42,6 +43,7 @@ class A2TodayPage extends ConsumerStatefulWidget {
     required this.onOpenEvent,
     required this.onToggleTodo,
     required this.onOpenUnplanned,
+    this.onOpenAll,
     required this.onScheduleTodo,
     this.initialDraft = '',
   });
@@ -54,6 +56,7 @@ class A2TodayPage extends ConsumerStatefulWidget {
   final Future<bool> Function(Todo todo, String? occurrenceId, bool completed)
   onToggleTodo;
   final VoidCallback onOpenUnplanned;
+  final VoidCallback? onOpenAll;
   final ValueChanged<Todo> onScheduleTodo;
   final String initialDraft;
 
@@ -65,7 +68,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   final ScrollController _scroll = ScrollController();
   int? _recentId;
   Timer? _recentTimer;
-  bool _overdueExpanded = false;
   bool _unplannedExpanded = false;
   bool _upcomingExpanded = false;
   bool _completedExpanded = false;
@@ -104,7 +106,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   Timer? _undoTimer;
   final GlobalKey _undoButtonKey = GlobalKey();
   final GlobalKey _shelfKey = GlobalKey();
-  final GlobalKey _shelfBottomKey = GlobalKey();
 
   DateTime get _today =>
       DateTime(widget.now.year, widget.now.month, widget.now.day);
@@ -847,12 +848,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             danger: true,
           ),
         ),
-        for (var i = 0;
-            i <
-                (_overdueExpanded
-                    ? visibleOverdue.length
-                    : (visibleOverdue.length > 3 ? 3 : visibleOverdue.length));
-            i++)
+        for (var i = 0; i < visibleOverdue.length && i < 3; i++)
           _taskRow(
             key: ValueKey('overdue-${visibleOverdue[i].todo!.id}'),
             title: visibleOverdue[i].title,
@@ -868,7 +864,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             onTap: () => _openTodo(visibleOverdue[i].todo!),
             onSchedule: () => _scheduleTodo(visibleOverdue[i].todo!),
           ),
-        if (!_overdueExpanded && visibleOverdue.length > 3)
+        if (visibleOverdue.length > 3)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _moreRow(
@@ -876,19 +872,15 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               visibleOverdue.length,
               label: l.viewAllNItems(visibleOverdue.length),
               paddingLeft: 33,
-              expanded: false,
-              onTap: () => setState(() => _overdueExpanded = true),
-            ),
-          )
-        else if (_overdueExpanded && visibleOverdue.length > 3)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _moreRow(
-              l,
-              0,
-              paddingLeft: 33,
-              expanded: true,
-              onTap: () => setState(() => _overdueExpanded = false),
+              onTap: () {
+                if (widget.onOpenAll != null) {
+                  widget.onOpenAll!();
+                } else if (GoRouter.maybeOf(context) != null) {
+                  try {
+                    context.push('/todo?mode=all');
+                  } catch (_) {}
+                }
+              },
             ),
           ),
       ],
@@ -916,6 +908,25 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             onTap: () => _openTodo(visibleDue[i].todo!),
             onSchedule: () => _scheduleTodo(visibleDue[i].todo!),
           ),
+        if (visibleDue.length > 2)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _moreRow(
+              l,
+              visibleDue.length - 2,
+              label: l.expandRemaining(visibleDue.length - 2),
+              paddingLeft: 33,
+              onTap: () {
+                if (widget.onOpenAll != null) {
+                  widget.onOpenAll!();
+                } else if (GoRouter.maybeOf(context) != null) {
+                  try {
+                    context.push('/todo?mode=all');
+                  } catch (_) {}
+                }
+              },
+            ),
+          ),
       ],
       if (shelfSource.isNotEmpty) ...[
         Padding(
@@ -924,27 +935,21 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             key: _shelfKey,
             label: l.todayNoDateGroup,
             count: noDueCount,
-            trailing: const Icon(
-              CupertinoIcons.chevron_up,
-              size: 11,
-              color: SpecTokens.faint,
-            ),
-            onToggle: widget.onOpenUnplanned,
           ),
         ),
-        for (final todo in shownUnplanned)
+        for (var i = 0; i < shownUnplanned.length; i++)
           _taskRow(
-            key: ValueKey('unplanned-${todo.id}'),
-            title: todo.summary,
-            checked: todo.status == 'COMPLETED',
-            calendarName: _calendarName(todo),
-            calendarColor: _calendarColor(todo),
-            rrule: todo.rrule,
-            highlighted: todo.id == _recentId,
-            trailing: _undoFor(todo.id, null, _RecentSection.unplanned),
-            onToggle: (_) => _toggleUnplanned(todo, 0),
-            onTap: () => _openTodo(todo),
-            onSchedule: () => _scheduleTodo(todo),
+            key: ValueKey('unplanned-${shownUnplanned[i].id}'),
+            title: shownUnplanned[i].summary,
+            checked: shownUnplanned[i].status == 'COMPLETED',
+            calendarName: _calendarName(shownUnplanned[i]),
+            calendarColor: _calendarColor(shownUnplanned[i]),
+            rrule: shownUnplanned[i].rrule,
+            highlighted: shownUnplanned[i].id == _recentId,
+            trailing: _undoFor(shownUnplanned[i].id, null, _RecentSection.unplanned),
+            onToggle: (_) => _toggleUnplanned(shownUnplanned[i], i),
+            onTap: () => _openTodo(shownUnplanned[i]),
+            onSchedule: () => _scheduleTodo(shownUnplanned[i]),
           ),
         if (expandableUnplanned > 0)
           Padding(
@@ -954,25 +959,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               expandableUnplanned,
               label: l.expandRemaining(expandableUnplanned),
               paddingLeft: 12,
-              expanded: _unplannedExpanded,
-              onTap: () => setState(() => _unplannedExpanded = !_unplannedExpanded),
-            ),
-          )
-        else if (_unplannedExpanded && shelfSource.length > 3)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _moreRow(
-              l,
-              0,
-              paddingLeft: 12,
-              expanded: true,
-              onTap: () => setState(() => _unplannedExpanded = false),
+              onTap: widget.onOpenUnplanned,
             ),
           ),
-        KeyedSubtree(
-          key: _shelfBottomKey,
-          child: const SizedBox.shrink(),
-        ),
       ],
       if (completedCount > 0) ...[
         Padding(
@@ -1068,10 +1057,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         child: _groupHead(
           label: l.sectionUpcoming,
           count: upcomingItems.length,
-          expanded: _upcomingExpanded,
-          onToggle: upcomingItems.length > 3
-              ? () => setState(() => _upcomingExpanded = !_upcomingExpanded)
-              : null,
         ),
       ),
       for (var i = 0; i < shownUpcoming.length; i++)
@@ -1386,13 +1371,15 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     setState(() => _captureDraft = '');
   }
 
-  Widget _desktopCaptureBar(AppLocalizations l) {
+  Widget _desktopCaptureBar(AppLocalizations l, {bool isShifted = false}) {
     return Positioned(
       bottom: 18,
       left: 0,
       right: 0,
       child: Center(
-        child: Container(
+        child: Transform.translate(
+          offset: Offset(isShifted ? -190 : 0, 0),
+          child: Container(
           width: 560,
           height: 54,
           padding: const EdgeInsets.fromLTRB(15, 0, 8, 0),
@@ -1503,8 +1490,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _taskRow({
     Key? key,
@@ -1980,7 +1968,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
           count: visibleOverdue.length,
           danger: true,
         ),
-        for (var i = 0; i < visibleOverdue.length && i < 3; i++)
+        for (var i = 0; i < visibleOverdue.length; i++)
           _taskRow(
             key: ValueKey('overdue-${visibleOverdue[i].todo!.id}'),
             title: visibleOverdue[i].title,
@@ -1995,20 +1983,13 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             onTap: () => _openTodo(visibleOverdue[i].todo!),
             onSchedule: () => _scheduleTodo(visibleOverdue[i].todo!),
           ),
-        if (visibleOverdue.length > 3)
-          _moreRow(
-            l,
-            visibleOverdue.length,
-            label: l.viewAllNItems(visibleOverdue.length),
-            onTap: () => context.push('/todo?mode=all'),
-          ),
       ],
       if (visibleDue.isNotEmpty) ...[
         _groupHead(
           label: l.sectionDueToday,
           count: visibleDue.length,
         ),
-        for (var i = 0; i < visibleDue.length && i < 2; i++)
+        for (var i = 0; i < visibleDue.length; i++)
           _taskRow(
             key: ValueKey('due-${visibleDue[i].todo!.id}'),
             title: visibleDue[i].title,
@@ -2063,6 +2044,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               key: ValueKey('completed-${todo.id}'),
               title: todo.summary,
               checked: true,
+              calendarName: _calendarName(todo),
+              calendarColor: _calendarColor(todo),
               rrule: todo.rrule,
               onToggle: (_) => _setCompleted(todo, null, false),
               onTap: () => _openTodo(todo),
@@ -2073,6 +2056,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               key: ValueKey('completed-inst-${instance.occurrenceId}'),
               title: instance.todo.summary,
               checked: true,
+              calendarName: _calendarName(instance.todo),
+              calendarColor: _calendarColor(instance.todo),
               rrule: instance.todo.rrule,
               onToggle: (_) => _setCompleted(
                 instance.todo,
@@ -2170,6 +2155,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       const SizedBox(height: 16),
     ];
 
+    final sel = ref.watch(workspaceSelectionProvider);
+    final isShifted = sel != null && isMasterDetailLayout(context);
+
     final desktopContent = Stack(
       children: [
         Column(
@@ -2221,33 +2209,48 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             left: 0,
             right: 0,
             child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 620),
-                child: A2CapturePanel(
-                  state: _desktopCaptureState,
-                  titleController: _desktopCaptureController,
-                  onStateChanged: (s) => setState(() => _desktopCaptureState = s),
-                  onCancel: () => setState(() => _desktopCaptureState = A2CaptureState.compact),
-                  onDiscard: () {
-                    _desktopCaptureController.clear();
-                    setState(() {
-                      _captureDraft = '';
-                      _desktopCaptureState = A2CaptureState.compact;
-                    });
-                  },
-                  onSubmit: () async {
-                    await _submitDesktopCapture();
-                    setState(() => _desktopCaptureState = A2CaptureState.compact);
-                  },
-                  onSubmitLater: () async {
-                    await _submitDesktopCapture();
-                    setState(() => _desktopCaptureState = A2CaptureState.compact);
-                  },
+              child: Transform.translate(
+                offset: Offset(isShifted ? -190 : 0, 0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 620),
+                  child: A2CapturePanel(
+                    state: _desktopCaptureState,
+                    titleController: _desktopCaptureController,
+                    onStateChanged: (s) => setState(() => _desktopCaptureState = s),
+                    onCancel: () => setState(() => _desktopCaptureState = A2CaptureState.compact),
+                    onDiscard: () {
+                      _desktopCaptureController.clear();
+                      setState(() {
+                        _captureDraft = '';
+                        _desktopCaptureState = A2CaptureState.compact;
+                      });
+                    },
+                    onSubmit: () async {
+                      await _submitDesktopCapture();
+                      setState(() => _desktopCaptureState = A2CaptureState.compact);
+                    },
+                    onSubmitLater: () async {
+                      await _submitDesktopCapture();
+                      setState(() => _desktopCaptureState = A2CaptureState.compact);
+                    },
+                  ),
                 ),
               ),
             ),
           ),
-        _desktopCaptureBar(l),
+        if (_toastVisible && _lastToast.isNotEmpty)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 78,
+            child: Center(
+              child: Transform.translate(
+                offset: Offset(isShifted ? -190 : 0, 0),
+                child: _Toast(label: _lastToast),
+              ),
+            ),
+          ),
+        _desktopCaptureBar(l, isShifted: isShifted),
       ],
     );
 
@@ -2605,11 +2608,13 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     int count, {
     double paddingLeft = 42,
   }) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onOpenUnplanned,
+    final text = l.todayViewNoDate(count);
+    return FocusableTap(
+      onTap: widget.onOpenUnplanned,
+      semanticsLabel: text,
+      borderRadius: BorderRadius.circular(4),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         child: Container(
           constraints: const BoxConstraints(minHeight: 34),
           padding: EdgeInsets.fromLTRB(paddingLeft, 0, 3, 0),
@@ -2623,7 +2628,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  l.todayViewNoDate(count),
+                  text,
                   style: const TextStyle(
                     fontSize: 10.5,
                     color: SpecTokens.muted,
@@ -2646,11 +2651,14 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     VoidCallback? onTap,
     bool expanded = false,
   }) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap ?? () => setState(() => _unplannedExpanded = !_unplannedExpanded),
+    final action = onTap ?? () => setState(() => _unplannedExpanded = !_unplannedExpanded);
+    final text = label ?? (expanded ? l.collapseLabel : l.expandRemaining(more));
+    return FocusableTap(
+      onTap: action,
+      semanticsLabel: text,
+      borderRadius: BorderRadius.circular(4),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         child: Container(
           constraints: const BoxConstraints(minHeight: 34),
           padding: EdgeInsets.fromLTRB(paddingLeft, 0, 3, 0),
@@ -2664,7 +2672,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  label ?? (expanded ? l.collapseLabel : l.expandRemaining(more)),
+                  text,
                   style: const TextStyle(
                     fontSize: 10.5,
                     color: SpecTokens.muted,

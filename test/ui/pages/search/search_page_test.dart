@@ -12,7 +12,9 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/search_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
@@ -733,6 +735,10 @@ void main() {
           overrides: [
             recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
             recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
+            calendarsProvider.overrideWith((ref) => Stream.value([])),
+            actionProjectionProvider.overrideWith(
+              (ref) => const AsyncValue.data(ActionProjectionData()),
+            ),
             searchResultsProvider(
               'budget',
             ).overrideWith((ref) async => SearchResults([event], [todo])),
@@ -844,6 +850,10 @@ void main() {
           overrides: [
             recentCommandTodosProvider.overrideWith((ref) => Stream.value([])),
             recentCommandEventsProvider.overrideWith((ref) => Stream.value([])),
+            calendarsProvider.overrideWith((ref) => Stream.value([])),
+            actionProjectionProvider.overrideWith(
+              (ref) => const AsyncValue.data(ActionProjectionData()),
+            ),
             searchResultsProvider(
               'Bulk',
             ).overrideWith((ref) async => SearchResults([], todos)),

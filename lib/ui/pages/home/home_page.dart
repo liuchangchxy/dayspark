@@ -662,6 +662,10 @@ class _HomePageState extends ConsumerState<HomePage>
       onOpenEvent: _openEvent,
       onToggleTodo: _toggleTodo,
       onOpenUnplanned: _openInboxNoDate,
+      onOpenAll: () {
+        ref.read(todosViewProvider.notifier).state = const TodosAllView();
+        _setTab(1);
+      },
       onScheduleTodo: (todo) => _scheduleTodoWithPlanPicker(todo),
     );
   }
@@ -1064,7 +1068,7 @@ class _HomePageState extends ConsumerState<HomePage>
         key: ValueKey('pane-todo-${todo.id}'),
         todo: todo,
         embedded: true,
-        inlineSummary: inline,
+        inlineSummary: true,
         onClose: _clearSelection,
         onDeleted: _clearSelection,
       ),
@@ -1072,6 +1076,7 @@ class _HomePageState extends ConsumerState<HomePage>
         key: ValueKey('pane-event-${event.drifId}'),
         event: event,
         embedded: true,
+        inlineSummary: true,
         onClose: _clearSelection,
         onDeleted: _clearSelection,
       ),

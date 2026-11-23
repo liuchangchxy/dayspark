@@ -88,6 +88,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   A2CaptureState _desktopCaptureState = A2CaptureState.compact;
   final TextEditingController _desktopCaptureController = TextEditingController();
   Map<int, Calendar> _calendarMap = const {};
+  Map<int, int> _currentMissedCounts = const {};
 
   final Map<String, _UndoEntry> _undoEntries = {};
   final Map<String, _UndoSlot> _lastSlots = {};
@@ -316,9 +317,22 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
     final tagMap =
         ref.watch(todoTagIdsMapProvider).valueOrNull ?? const <int, Set<int>>{};
+    final projection = ref.watch(actionProjectionProvider).valueOrNull;
+    final missedCounts = <int, int>{};
+    if (projection != null) {
+      for (final inst in projection.missedTaskInstances) {
+        missedCounts[inst.todo.id] = (missedCounts[inst.todo.id] ?? 0) + 1;
+      }
+      for (final todo in projection.earlierMissedSeries) {
+        missedCounts[todo.id] = (missedCounts[todo.id] ?? 0) + 1;
+      }
+    }
+    _currentMissedCounts = missedCounts;
+
     final calendarFilter = ref.watch(todoCalendarFilterProvider);
     final tagFilter = ref.watch(todoTagFilterProvider);
     final priorityFilter = ref.watch(todoPriorityFilterProvider);
+    final overdueFilter = ref.watch(todoOverdueFilterProvider);
     final filtered = _hasFilter;
     final noDateOnly =
         view is TodosInboxView && ref.watch(todosInboxNoDateOnlyProvider);
@@ -327,6 +341,12 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     // to it: a control that changes nothing is worse than no control.
     bool visible(Todo todo) {
       if (hideCompleted && todo.status == 'COMPLETED') return false;
+      if (overdueFilter) {
+        final due = todo.dueDate?.toLocal();
+        final isOverdue = due != null && isOverdueByDate(due, widget.now);
+        final isMissed = (missedCounts[todo.id] ?? 0) > 0;
+        if (!isOverdue && !isMissed) return false;
+      }
       if (calendarFilter != null && todo.calendarId != calendarFilter) {
         return false;
       }
@@ -632,7 +652,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   bool get _hasFilter =>
       ref.watch(todoCalendarFilterProvider) != null ||
       ref.watch(todoTagFilterProvider).isNotEmpty ||
-      ref.watch(todoPriorityFilterProvider) != null;
+      ref.watch(todoPriorityFilterProvider) != null ||
+      ref.watch(todoOverdueFilterProvider);
 
   Widget _head(
     AppLocalizations l,
@@ -792,20 +813,366 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final calendars =
         ref.read(calendarsProvider).valueOrNull ?? const <Calendar>[];
     final tags = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
+    final allTodos = ref.read(allTodosProvider).valueOrNull ?? const <Todo>[];
+    final tagMap =
+        ref.read(todoTagIdsMapProvider).valueOrNull ?? const <int, Set<int>>{};
+
     var draftCalendar = ref.read(todoCalendarFilterProvider);
     var draftTags = ref.read(todoTagFilterProvider);
     var draftPriority = ref.read(todoPriorityFilterProvider);
+    var draftOverdue = ref.read(todoOverdueFilterProvider);
 
     void applyDraft() {
       ref.read(todoCalendarFilterProvider.notifier).state = draftCalendar;
       ref.read(todoTagFilterProvider.notifier).state = draftTags;
       ref.read(todoPriorityFilterProvider.notifier).state = draftPriority;
+      ref.read(todoOverdueFilterProvider.notifier).state = draftOverdue;
     }
 
     void clearDraft() {
       draftCalendar = null;
       draftTags = const <int>{};
       draftPriority = null;
+      draftOverdue = false;
+    }
+
+    int computeMatchCount(int? cal, Set<int> tgs, int? prio, bool overdue) {
+      return allTodos.where((t) {
+        if (overdue) {
+          final due = t.dueDate?.toLocal();
+          final isOverdue = due != null && isOverdueByDate(due, widget.now);
+          final isMissed = (_currentMissedCounts[t.id] ?? 0) > 0;
+          if (!isOverdue && !isMissed) return false;
+        }
+        if (cal != null && t.calendarId != cal) return false;
+        if (prio != null && t.priority != prio) return false;
+        if (tgs.isNotEmpty) {
+          final ids = tagMap[t.id];
+          if (ids == null || !tgs.any(ids.contains)) return false;
+        }
+        return true;
+      }).length;
+    }
+
+    if (isWorkspaceLayout(context)) {
+      return showDialog<void>(
+        context: context,
+        barrierColor: Colors.transparent,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (ctx, setPopState) {
+              final matched = computeMatchCount(draftCalendar, draftTags, draftPriority, draftOverdue);
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () => Navigator.of(dialogContext).pop(),
+                    ),
+                  ),
+                  Positioned(
+                    top: 126,
+                    right: 28,
+                    width: 310,
+                    child: Material(
+                      color: Colors.white,
+                      elevation: 16,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9),
+                        side: const BorderSide(color: SpecTokens.hair2),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(13),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  l.filter,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: SpecTokens.ink,
+                                    fontFamilyFallback: AppTypography.fallback,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => Navigator.of(dialogContext).pop(),
+                                  child: const Icon(CupertinoIcons.xmark, size: 12, color: SpecTokens.muted),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              '匹配 $matched 项',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: SpecTokens.faint,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Divider(height: 1, color: SpecTokens.hair),
+                            const SizedBox(height: 8),
+                            Text(
+                              l.calendar,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                letterSpacing: 0.9,
+                                fontWeight: FontWeight.w600,
+                                color: SpecTokens.faint,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                for (final c in calendars)
+                                  GestureDetector(
+                                    onTap: () => setPopState(() {
+                                      draftCalendar = draftCalendar == c.id ? null : c.id;
+                                    }),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: draftCalendar == c.id ? SpecTokens.ink : Colors.white,
+                                        border: Border.all(color: draftCalendar == c.id ? SpecTokens.ink : SpecTokens.hair2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 5,
+                                            height: 5,
+                                            decoration: BoxDecoration(
+                                              color: ColorUtils.parseHex(c.color),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            c.name,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: draftCalendar == c.id ? Colors.white : SpecTokens.ink2,
+                                              fontFamilyFallback: AppTypography.fallback,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            if (tags.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              const Divider(height: 1, color: SpecTokens.hair),
+                              const SizedBox(height: 8),
+                              Text(
+                                l.tags,
+                                style: const TextStyle(
+                                  fontSize: 9,
+                                  letterSpacing: 0.9,
+                                  fontWeight: FontWeight.w600,
+                                  color: SpecTokens.faint,
+                                  fontFamilyFallback: AppTypography.fallback,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  for (final t in tags)
+                                    GestureDetector(
+                                      onTap: () => setPopState(() {
+                                        final next = {...draftTags};
+                                        if (!next.remove(t.id)) next.add(t.id);
+                                        draftTags = next;
+                                      }),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: draftTags.contains(t.id) ? SpecTokens.ink : Colors.white,
+                                          border: Border.all(color: draftTags.contains(t.id) ? SpecTokens.ink : SpecTokens.hair2),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          t.name,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: draftTags.contains(t.id) ? Colors.white : SpecTokens.ink2,
+                                            fontFamilyFallback: AppTypography.fallback,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 8),
+                            const Divider(height: 1, color: SpecTokens.hair),
+                            const SizedBox(height: 8),
+                            Text(
+                              l.priority,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                letterSpacing: 0.9,
+                                fontWeight: FontWeight.w600,
+                                color: SpecTokens.faint,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: [
+                                for (final p in [
+                                  (null, l.priorityNone),
+                                  (1, l.priorityHigh),
+                                  (5, l.priorityMedium),
+                                  (9, l.priorityLow),
+                                ])
+                                  GestureDetector(
+                                    onTap: () => setPopState(() => draftPriority = p.$1),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: draftPriority == p.$1 ? SpecTokens.ink : Colors.white,
+                                        border: Border.all(color: draftPriority == p.$1 ? SpecTokens.ink : SpecTokens.hair2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        p.$2,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: draftPriority == p.$1 ? Colors.white : SpecTokens.ink2,
+                                          fontFamilyFallback: AppTypography.fallback,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Divider(height: 1, color: SpecTokens.hair),
+                            const SizedBox(height: 8),
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => setPopState(() => draftOverdue = !draftOverdue),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: draftOverdue ? SpecTokens.ink : Colors.white,
+                                      border: Border.all(color: draftOverdue ? SpecTokens.ink : const Color(0xFFCFCFC7)),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: draftOverdue
+                                        ? const Center(child: Icon(CupertinoIcons.check_mark, size: 8, color: Colors.white))
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    '只看已逾期',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: SpecTokens.ink2,
+                                      fontFamilyFallback: AppTypography.fallback,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Divider(height: 1, color: SpecTokens.hair),
+                            const SizedBox(height: 8),
+                            Consumer(
+                              builder: (ctx, r, _) {
+                                final hideCompleted =
+                                    r.watch(hideCompletedProvider).valueOrNull ?? false;
+                                return Row(
+                                  children: [
+                                    Text(
+                                      l.hideCompleted,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: SpecTokens.ink2,
+                                        fontFamilyFallback: AppTypography.fallback,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Switch(
+                                      value: hideCompleted,
+                                      onChanged: (value) =>
+                                          r.read(setHideCompletedProvider)(value),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () {
+                                    clearDraft();
+                                    applyDraft();
+                                    Navigator.of(dialogContext).pop();
+                                  },
+                                  child: Text(
+                                    l.filterReset,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: SpecTokens.ink2,
+                                      fontFamilyFallback: AppTypography.fallback,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    applyDraft();
+                                    Navigator.of(dialogContext).pop();
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: SpecTokens.ink,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                                  ),
+                                  child: Text(
+                                    l.filterApply,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontFamilyFallback: AppTypography.fallback,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
     }
 
     return showDsSheet<void>(
@@ -842,11 +1209,21 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
               r.watch(hideCompletedProvider).valueOrNull ?? false;
           return StatefulBuilder(
             builder: (sheetContext, setSheetState) {
+              final matched = computeMatchCount(draftCalendar, draftTags, draftPriority, draftOverdue);
               return SingleChildScrollView(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      '匹配 $matched 项',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: SpecTokens.faint,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     DsGroupLabel(l.calendar),
                     Wrap(
                       spacing: 8,
@@ -927,6 +1304,36 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                             }),
                           ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setSheetState(() => draftOverdue = !draftOverdue),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: draftOverdue ? SpecTokens.ink : Colors.white,
+                              border: Border.all(color: draftOverdue ? SpecTokens.ink : const Color(0xFFCFCFC7)),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: draftOverdue
+                                ? const Center(child: Icon(CupertinoIcons.check_mark, size: 9, color: Colors.white))
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            '只看已逾期',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: SpecTokens.ink,
+                              fontFamilyFallback: AppTypography.fallback,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Container(
@@ -1403,7 +1810,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           constraints: const BoxConstraints(maxWidth: 560),
           child: A2CaptureBar(
             placeholder: l.capturePlaceholder,
-            hint: _captureFocused ? l.captureHintSubmit : l.captureHintEnter,
+            hint: _captureFocused
+                ? l.captureHintSubmit
+                : (desktop ? l.captureHintEnter : ''),
             onSubmit: _capture,
             onExpand: () {
               if (desktop) {
@@ -1472,6 +1881,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     ref.read(todoCalendarFilterProvider.notifier).state = null;
     ref.read(todoTagFilterProvider.notifier).state = const <int>{};
     ref.read(todoPriorityFilterProvider.notifier).state = null;
+    ref.read(todoOverdueFilterProvider.notifier).state = false;
   }
 
   Widget _bannerShell({
@@ -1730,7 +2140,11 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       }
       final due = todo.dueDate?.toLocal();
       if (due == null) {
-        noDue.add(todo);
+        if ((_currentMissedCounts[todo.id] ?? 0) > 0) {
+          pastDue.add(todo);
+        } else {
+          noDue.add(todo);
+        }
         continue;
       }
       final day = _dayOf(due);
@@ -1743,7 +2157,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       }
     }
 
-    int byDueDate(Todo a, Todo b) => a.dueDate!.compareTo(b.dueDate!);
+    int byDueDate(Todo a, Todo b) =>
+        (a.dueDate ?? DateTime(0)).compareTo(b.dueDate ?? DateTime(0));
     dueToday.sort(byDueDate);
     pastDue.sort(byDueDate);
     later.sort(byDueDate);
@@ -1812,24 +2227,22 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           for (var index = 0; index < noDue.length; index++)
             row(noDue[index], _UndoSlot(_UndoGroup.allNoDue, index)),
         ],
-        if (done.isNotEmpty) ...[
-          _groupHead(
-            label: l.completed,
-            count: done.length,
-            countLabel: l.groupCountItems(done.length),
-            trailing: Icon(
-              _completedOpen
-                  ? CupertinoIcons.chevron_down
-                  : CupertinoIcons.chevron_right,
-              size: 11,
-              color: context.ds.faint,
-            ),
-            onTap: () => setState(() => _completedOpen = !_completedOpen),
+        _groupHead(
+          label: l.completed,
+          count: done.length,
+          countLabel: l.groupCountItems(done.length),
+          trailing: Icon(
+            _completedOpen
+                ? CupertinoIcons.chevron_down
+                : CupertinoIcons.chevron_right,
+            size: 11,
+            color: context.ds.faint,
           ),
-          if (_completedOpen)
-            for (var index = 0; index < done.length; index++)
-              row(done[index], _UndoSlot(_UndoGroup.allCompleted, index)),
-        ],
+          onTap: () => setState(() => _completedOpen = !_completedOpen),
+        ),
+        if (_completedOpen)
+          for (var index = 0; index < done.length; index++)
+            row(done[index], _UndoSlot(_UndoGroup.allCompleted, index)),
       ],
     );
     return _withBanners(banners: banners, child: list);
@@ -2195,6 +2608,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       calendarName: cal?.name ?? names[todo.calendarId],
       calendarColor: cal != null ? ColorUtils.parseHex(cal.color) : null,
       rrule: todo.rrule,
+      missedCount: _currentMissedCounts[todo.id],
     );
   }
 
@@ -2219,6 +2633,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       calendarName: cal?.name ?? names[todo.calendarId],
       calendarColor: cal != null ? ColorUtils.parseHex(cal.color) : null,
       rrule: todo.rrule,
+      missedCount: _currentMissedCounts[todo.id],
       planLabel: planLabel,
     );
   }
@@ -2236,6 +2651,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       calendarName: item.calendarName ?? cal?.name,
       calendarColor: item.calendarColor ?? (cal != null ? ColorUtils.parseHex(cal.color) : null),
       rrule: item.todo?.rrule,
+      missedCount: item.todo != null ? _currentMissedCounts[item.todo!.id] : null,
       planLabel: planLabel,
     );
   }
@@ -2247,6 +2663,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       calendarName: item.calendarName ?? cal?.name,
       calendarColor: item.calendarColor ?? (cal != null ? ColorUtils.parseHex(cal.color) : null),
       rrule: item.todo?.rrule,
+      missedCount: item.todo != null ? _currentMissedCounts[item.todo!.id] : null,
     );
   }
 

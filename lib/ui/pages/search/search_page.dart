@@ -14,6 +14,7 @@ import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
@@ -22,6 +23,7 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 
 const List<String> _chineseActionPrefixes = [
   '打开设置',
@@ -82,6 +84,8 @@ class SearchPage extends ConsumerStatefulWidget {
 class _SearchPageState extends ConsumerState<SearchPage> {
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
+  final _resultsScrollController = ScrollController();
+  final Map<int, GlobalKey> _itemKeys = {};
   String _query = '';
   int _eventPage = 1;
   int _todoPage = 1;
@@ -136,6 +140,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     _debounceTimer?.cancel();
     _searchFocus.dispose();
     _searchController.dispose();
+    _resultsScrollController.dispose();
     super.dispose();
   }
 
@@ -206,6 +211,17 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       }
       _selected = (_selected + delta).clamp(0, length - 1);
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final key = _itemKeys[_selected];
+      final targetContext = key?.currentContext;
+      if (targetContext != null) {
+        Scrollable.ensureVisible(
+          targetContext,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 100),
+        );
+      }
+    });
   }
 
   Future<void> _openHit(_CmdHit hit) async {
@@ -219,10 +235,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         );
       case _CmdHitKind.action:
         final summary = _titleFromQuery(_query);
-        final isOverlay = widget.isOverlay;
         switch (hit.action!) {
           case _CmdActionKind.captureTodo:
-            if (isOverlay) {
+            if (widget.isOverlay) {
               await _createTodoInline(summary);
             } else {
               final path = summary.isNotEmpty
@@ -231,7 +246,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               _openTarget(path, null);
             }
           case _CmdActionKind.captureEvent:
-            if (isOverlay) {
+            if (widget.isOverlay) {
               await _createEventInline(summary);
             } else {
               final path = summary.isNotEmpty
@@ -1034,6 +1049,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     var itemIndex = 0;
     return SingleChildScrollView(
       key: const PageStorageKey('search-results'),
+      controller: _resultsScrollController,
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1095,6 +1111,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     required bool desktop,
   }) {
     return _CmdRowWrapper(
+      key: _itemKeys.putIfAbsent(index, () => GlobalKey(debugLabel: 'cmd-row-$index')),
       selected: selected == index,
       child: CmdRow(
         icon: hit.icon,
@@ -1161,24 +1178,45 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   String _eventMeta(BuildContext context, AppLocalizations l, Event event) {
-    if (event.isAllDay) return l.allDay;
-    final start = event.startDt.toLocal();
-    final end = event.endDt.toLocal();
-    final today = _today();
-    final day = DateTime(start.year, start.month, start.day);
-    final clock =
-        '${DateFormatters.formatTime(start)}–${DateFormatters.formatTime(end)}';
-    if (day == today) return '${l.today} · $clock';
-    if (day == today.add(const Duration(days: 1))) {
-      return '${l.tomorrow} · $clock';
+    final parts = <String>[];
+    final calendars = ref.read(calendarsProvider).valueOrNull ?? const [];
+    final cal = calendars.where((c) => c.id == event.calendarId).firstOrNull;
+    if (cal != null && cal.name.isNotEmpty) {
+      parts.add(cal.name);
     }
-    final locale = Localizations.localeOf(context).toString();
-    return '${DateFormat.MMMd(locale).format(start)} '
-        '${DateFormat.E(locale).format(start)} · $clock';
+    if (event.isAllDay) {
+      parts.add(l.allDay);
+    } else {
+      final start = event.startDt.toLocal();
+      final end = event.endDt.toLocal();
+      final today = _today();
+      final day = DateTime(start.year, start.month, start.day);
+      final clock =
+          '${DateFormatters.formatTime(start)}–${DateFormatters.formatTime(end)}';
+      if (day == today) {
+        parts.add('${l.today} $clock');
+      } else if (day == today.add(const Duration(days: 1))) {
+        parts.add('${l.tomorrow} $clock');
+      } else {
+        final locale = Localizations.localeOf(context).toString();
+        parts.add(
+          '${DateFormat.MMMd(locale).format(start)} ${DateFormat.E(locale).format(start)} · $clock',
+        );
+      }
+    }
+    if (event.rrule != null && event.rrule!.isNotEmpty) {
+      parts.add(describeRepeat(context, event.rrule!));
+    }
+    return parts.join(' · ');
   }
 
   String _todoMeta(BuildContext context, AppLocalizations l, Todo todo) {
     final parts = <String>[];
+    final calendars = ref.read(calendarsProvider).valueOrNull ?? const [];
+    final cal = calendars.where((c) => c.id == todo.calendarId).firstOrNull;
+    if (cal != null && cal.name.isNotEmpty) {
+      parts.add(cal.name);
+    }
     if (todo.dueDate != null) {
       final due = todo.dueDate!.toLocal();
       final today = _today();
@@ -1196,6 +1234,21 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     if (todo.startDate != null) {
       final start = todo.startDate!.toLocal();
       parts.add('${l.scheduledLabel} ${DateFormatters.formatTime(start)}');
+    }
+    if (todo.rrule != null && todo.rrule!.isNotEmpty) {
+      parts.add(describeRepeat(context, todo.rrule!));
+    }
+    final projection = ref.read(actionProjectionProvider).valueOrNull;
+    if (projection != null) {
+      final missedCount = projection.missedTaskInstances
+              .where((inst) => inst.todo.id == todo.id)
+              .length +
+          projection.earlierMissedSeries
+              .where((t) => t.id == todo.id)
+              .length;
+      if (missedCount > 0) {
+        parts.add('${l.missed} $missedCount');
+      }
     }
     return parts.join(' · ');
   }
@@ -1467,7 +1520,7 @@ class _CmdRowWrapper extends StatefulWidget {
   final Widget child;
   final bool selected;
 
-  const _CmdRowWrapper({required this.child, required this.selected});
+  const _CmdRowWrapper({super.key, required this.child, required this.selected});
 
   @override
   State<_CmdRowWrapper> createState() => _CmdRowWrapperState();

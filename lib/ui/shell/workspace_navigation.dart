@@ -90,6 +90,7 @@ final workspaceSelectionProvider = StateProvider<WorkspaceSelection?>(
 final todoCalendarFilterProvider = StateProvider<int?>((ref) => null);
 final todoTagFilterProvider = StateProvider<Set<int>>((ref) => const {});
 final todoPriorityFilterProvider = StateProvider<int?>((ref) => null);
+final todoOverdueFilterProvider = StateProvider<bool>((ref) => false);
 
 /// The width at which a right-hand detail pane can sit beside a list without
 /// squeezing either. Narrower desktops keep single-column navigation.

@@ -92,7 +92,7 @@ List<Widget> buildSharedRowMeta(
   final parts = <Widget>[];
 
   // cal-dot + calendarName - only if real calendar is present!
-  if (calendarName != null && calendarName.isNotEmpty) {
+  if (calendarName != null && calendarName.isNotEmpty && calendarColor != null) {
     parts.add(
       Row(
         mainAxisSize: MainAxisSize.min,
@@ -102,7 +102,7 @@ List<Widget> buildSharedRowMeta(
             height: 5,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: calendarColor ?? SpecTokens.scheduleBlue,
+              color: calendarColor,
             ),
           ),
           const SizedBox(width: 4),
