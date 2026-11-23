@@ -381,12 +381,16 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
       onShowFocusHighlight: (v) => setState(() => _focused = v),
       onShowHoverHighlight: (v) => setState(() => _hovered = v),
       mouseCursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: FocusableTap(
-        onTap: enabled ? widget.onTap : null,
-        semanticsLabel: widget.title,
-        child: Opacity(
-          opacity: widget.disabled ? 0.45 : 1.0,
-          child: Container(
+      child: Semantics(
+        label: widget.title,
+        button: true,
+        enabled: enabled,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: enabled ? widget.onTap : null,
+          child: Opacity(
+            opacity: widget.disabled ? 0.45 : 1.0,
+            child: Container(
             constraints: const BoxConstraints(minHeight: 55),
             padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
             decoration: BoxDecoration(
@@ -520,6 +524,7 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
           ),
         ),
       ),
+    ),
     );
   }
 }

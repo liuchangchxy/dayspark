@@ -1747,11 +1747,15 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       _dirty = false;
       _saving = false;
       _summary.text = title;
-      _subtaskDraft = const [];
-      _deletedSubtaskIds = const {};
-      _attachmentDraft = null;
-      _initialAttachments = const [];
-      if (widget.inlineSummary || widget.embedded) _editing = false;
+      if (widget.inlineSummary || widget.embedded) {
+        _editing = false;
+        _subtaskDraft = const [];
+        _deletedSubtaskIds = const {};
+        _attachmentDraft = null;
+        _initialAttachments = const [];
+      } else {
+        _deletedSubtaskIds = const {};
+      }
     });
   }
 
