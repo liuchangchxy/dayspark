@@ -425,4 +425,321 @@ void main() {
       );
     });
   });
+
+  group('P0 Safety Requirements (Items 19-23)', () {
+    test('Item 19: integer ID collision without matching syncId creates a new row and does not overwrite local row', () async {
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Personal'),
+      );
+      final localEventId = await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: calId,
+          summary: 'Local Event 1',
+          startDt: DateTime.utc(2026, 11, 15, 9),
+          endDt: DateTime.utc(2026, 11, 15, 10),
+        ),
+      );
+      final localTodoId = await db.into(db.todos).insert(
+        TodosCompanion.insert(
+          calendarId: calId,
+          summary: 'Local Todo 1',
+        ),
+      );
+
+      final json = '''
+{
+  "version": 1,
+  "exportedAt": "2026-11-23T00:00:00.000Z",
+  "calendars": [{"id": $calId, "name": "Personal", "color": "#2563EB", "timezone": "UTC", "isActive": true, "sortOrder": 0, "syncId": null}],
+  "events": [{
+    "id": $localEventId,
+    "calendarId": $calId,
+    "summary": "Remote Event 1",
+    "description": null,
+    "startDt": "2026-11-20T09:00:00.000Z",
+    "endDt": "2026-11-20T10:00:00.000Z",
+    "isAllDay": false,
+    "location": null,
+    "rrule": null,
+    "exdates": null,
+    "deletedAt": null,
+    "syncId": "remote-event-sync-1",
+    "icsUid": "remote-event-uid-1"
+  }],
+  "todos": [{
+    "id": $localTodoId,
+    "calendarId": $calId,
+    "summary": "Remote Todo 1",
+    "description": null,
+    "dueDate": null,
+    "startDate": null,
+    "status": "NEEDS-ACTION",
+    "completedAt": null,
+    "priority": 0,
+    "parentId": null,
+    "deletedAt": null,
+    "syncId": "remote-todo-sync-1",
+    "icsUid": "remote-todo-uid-1"
+  }]
+}
+''';
+
+      // Resolutions explicitly choosing keepRemote for the collision
+      await service.restoreFromJson(
+        json,
+        resolutions: {
+          'events:$localEventId': BackupConflictResolution.keepRemote,
+          'todos:$localTodoId': BackupConflictResolution.keepRemote,
+        },
+      );
+
+      final allEvents = await db.select(db.events).get();
+      expect(allEvents, hasLength(2));
+      final localEvt = allEvents.firstWhere((e) => e.id == localEventId);
+      expect(localEvt.summary, 'Local Event 1', reason: 'Unrelated local event must NOT be overwritten');
+      final remoteEvt = allEvents.firstWhere((e) => e.id != localEventId);
+      expect(remoteEvt.summary, 'Remote Event 1');
+
+      final allTodos = await db.select(db.todos).get();
+      expect(allTodos, hasLength(2));
+      final localTd = allTodos.firstWhere((t) => t.id == localTodoId);
+      expect(localTd.summary, 'Local Todo 1', reason: 'Unrelated local todo must NOT be overwritten');
+      final remoteTd = allTodos.firstWhere((t) => t.id != localTodoId);
+      expect(remoteTd.summary, 'Remote Todo 1');
+    });
+
+    test('Item 23: child todo appearing before parent todo in backup array restores parentId correctly', () async {
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Personal'),
+      );
+
+      // Child (id=2, parentId=1) comes BEFORE Parent (id=1, parentId=null)
+      final json = '''
+{
+  "version": 1,
+  "exportedAt": "2026-11-23T00:00:00.000Z",
+  "calendars": [{"id": $calId, "name": "Personal", "color": "#2563EB", "timezone": "UTC", "isActive": true, "sortOrder": 0, "syncId": null}],
+  "todos": [
+    {
+      "id": 2,
+      "calendarId": $calId,
+      "summary": "Child Todo",
+      "description": null,
+      "dueDate": null,
+      "startDate": null,
+      "status": "NEEDS-ACTION",
+      "completedAt": null,
+      "priority": 0,
+      "parentId": 1,
+      "deletedAt": null,
+      "syncId": "child-sync",
+      "icsUid": "child-uid"
+    },
+    {
+      "id": 1,
+      "calendarId": $calId,
+      "summary": "Parent Todo",
+      "description": null,
+      "dueDate": null,
+      "startDate": null,
+      "status": "NEEDS-ACTION",
+      "completedAt": null,
+      "priority": 0,
+      "parentId": null,
+      "deletedAt": null,
+      "syncId": "parent-sync",
+      "icsUid": "parent-uid"
+    }
+  ]
+}
+''';
+
+      await service.restoreFromJson(json);
+
+      final todos = await db.select(db.todos).get();
+      expect(todos, hasLength(2));
+      final parent = todos.firstWhere((t) => t.summary == 'Parent Todo');
+      final child = todos.firstWhere((t) => t.summary == 'Child Todo');
+      expect(child.parentId, parent.id, reason: 'Child parentId must link to parent regardless of array ordering');
+    });
+
+    test('Item 21: keepLocal on parent event/todo skips dependent tags, reminders, attachments, and child todos', () async {
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Personal'),
+      );
+      final tagId = await db.into(db.tags).insert(
+        TagsCompanion.insert(name: 'Work', syncId: const Value('tag-1')),
+      );
+      final localEventId = await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: calId,
+          summary: 'Original Local Event',
+          startDt: DateTime.utc(2026, 11, 15, 9),
+          endDt: DateTime.utc(2026, 11, 15, 10),
+          syncId: const Value('event-sync-local'),
+        ),
+      );
+
+      final json = '''
+{
+  "version": 1,
+  "exportedAt": "2026-11-23T00:00:00.000Z",
+  "calendars": [{"id": $calId, "name": "Personal", "color": "#2563EB", "timezone": "UTC", "isActive": true, "sortOrder": 0, "syncId": null}],
+  "tags": [{"id": $tagId, "name": "Work", "color": "#2563EB", "syncId": "tag-1"}],
+  "events": [{
+    "id": $localEventId,
+    "calendarId": $calId,
+    "summary": "Backup Remote Event",
+    "description": null,
+    "startDt": "2026-11-15T09:00:00.000Z",
+    "endDt": "2026-11-15T10:00:00.000Z",
+    "isAllDay": false,
+    "location": null,
+    "rrule": null,
+    "exdates": null,
+    "deletedAt": null,
+    "syncId": "event-sync-remote",
+    "icsUid": "event-uid-remote"
+  }],
+  "eventTags": [{"eventId": $localEventId, "tagId": $tagId, "syncId": "assoc-1"}],
+  "reminders": [{
+    "id": 99,
+    "parentType": "event",
+    "parentId": $localEventId,
+    "triggerTime": "2026-11-15T08:30:00.000Z",
+    "isTriggered": false,
+    "syncId": "rem-1",
+    "parentSyncId": "event-sync-remote"
+  }],
+  "attachments": [{
+    "id": 99,
+    "parentType": "event",
+    "parentId": $localEventId,
+    "filePath": "/some/remote/path.pdf",
+    "fileName": "path.pdf",
+    "fileSize": 100,
+    "mimeType": "application/pdf",
+    "syncId": "att-1",
+    "parentSyncId": "event-sync-remote",
+    "serverFileRef": null
+  }]
+}
+''';
+
+      // Keep local for the event conflict
+      await service.restoreFromJson(
+        json,
+        resolutions: {
+          'events:$localEventId': BackupConflictResolution.keepLocal,
+        },
+      );
+
+      final event = await (db.select(db.events)..where((e) => e.id.equals(localEventId))).getSingle();
+      expect(event.summary, 'Original Local Event');
+
+      final rems = await db.select(db.reminders).get();
+      expect(rems, isEmpty, reason: 'Reminders for skipped event must not be written');
+
+      final evTags = await db.select(db.eventTags).get();
+      expect(evTags, isEmpty, reason: 'EventTags for skipped event must not be written');
+
+      final atts = await db.select(db.attachments).get();
+      expect(atts, isEmpty, reason: 'Attachments for skipped event must not be written');
+    });
+
+    test('Item 20: attachment with no body in backup preserves existing local valid filePath', () async {
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Personal'),
+      );
+      final todoId = await db.into(db.todos).insert(
+        TodosCompanion.insert(calendarId: calId, summary: 'Task with photo'),
+      );
+      final attId = await db.into(db.attachments).insert(
+        AttachmentsCompanion.insert(
+          parentType: 'todo',
+          parentId: todoId,
+          filePath: '/existing/valid/local/photo.jpg',
+          fileName: 'photo.jpg',
+          fileSize: const Value(5000),
+          syncId: const Value('att-sync-20'),
+        ),
+      );
+
+      final json = '''
+{
+  "version": 1,
+  "exportedAt": "2026-11-23T00:00:00.000Z",
+  "calendars": [{"id": $calId, "name": "Personal", "color": "#2563EB", "timezone": "UTC", "isActive": true, "sortOrder": 0, "syncId": null}],
+  "todos": [{
+    "id": $todoId,
+    "calendarId": $calId,
+    "summary": "Task with photo",
+    "description": null,
+    "dueDate": null,
+    "startDate": null,
+    "status": "NEEDS-ACTION",
+    "completedAt": null,
+    "priority": 0,
+    "parentId": null,
+    "deletedAt": null,
+    "syncId": null,
+    "icsUid": null
+  }],
+  "attachments": [{
+    "id": $attId,
+    "parentType": "todo",
+    "parentId": $todoId,
+    "filePath": "",
+    "fileName": "photo.jpg",
+    "fileSize": 5000,
+    "mimeType": "image/jpeg",
+    "syncId": "att-sync-20",
+    "parentSyncId": null,
+    "serverFileRef": null
+  }]
+}
+''';
+
+      // Restore without archive body
+      await service.restoreFromJson(json);
+
+      final att = await (db.select(db.attachments)..where((a) => a.id.equals(attId))).getSingle();
+      expect(att.filePath, '/existing/valid/local/photo.jpg', reason: 'Existing valid local filePath must NOT be cleared');
+    });
+
+    test('Item 22: inspectConflicts detects conflicts across all tables and resolutions gate writes', () async {
+      final calId = await db.into(db.calendars).insert(
+        CalendarsCompanion.insert(name: 'Local Calendar', syncId: const Value('cal-local')),
+      );
+      final tagId = await db.into(db.tags).insert(
+        TagsCompanion.insert(name: 'Local Tag', syncId: const Value('tag-local')),
+      );
+
+      final data = {
+        'calendars': [
+          {'id': calId, 'name': 'Conflicting Remote Calendar', 'color': '#FF0000', 'syncId': 'cal-remote'}
+        ],
+        'tags': [
+          {'id': tagId, 'name': 'Conflicting Remote Tag', 'color': '#00FF00', 'syncId': 'tag-remote'}
+        ],
+        'events': <Map<String, dynamic>>[],
+        'todos': <Map<String, dynamic>>[],
+        'reminders': <Map<String, dynamic>>[],
+        'attachments': <Map<String, dynamic>>[],
+      };
+
+      final conflicts = await service.inspectConflicts(data);
+      expect(conflicts.any((c) => c.table == 'calendars' && c.id == calId), isTrue);
+      expect(conflicts.any((c) => c.table == 'tags' && c.id == tagId), isTrue);
+
+      // Without resolution (unselected), neither conflicting calendar nor tag should overwrite local
+      await service.restoreData(data);
+
+      final cal = await (db.select(db.calendars)..where((c) => c.id.equals(calId))).getSingle();
+      expect(cal.name, 'Local Calendar');
+
+      final tag = await (db.select(db.tags)..where((t) => t.id.equals(tagId))).getSingle();
+      expect(tag.name, 'Local Tag');
+    });
+  });
 }

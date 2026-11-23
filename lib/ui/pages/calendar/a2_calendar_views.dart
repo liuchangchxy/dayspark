@@ -812,6 +812,7 @@ class A2DesktopMonthGrid extends StatelessWidget {
                       '${gridStart.add(Duration(days: row * 7 + col)).day}',
                     ),
                     date: gridStart.add(Duration(days: row * 7 + col)),
+                    today: today,
                     inMonth:
                         gridStart.add(Duration(days: row * 7 + col)).month ==
                         anchor.month,
@@ -913,6 +914,7 @@ class _A2DesktopMonthCell extends StatefulWidget {
   const _A2DesktopMonthCell({
     super.key,
     required this.date,
+    required this.today,
     required this.inMonth,
     required this.isToday,
     required this.isSelected,
@@ -925,6 +927,7 @@ class _A2DesktopMonthCell extends StatefulWidget {
   });
 
   final DateTime date;
+  final DateTime today;
   final bool inMonth;
   final bool isToday;
   final bool isSelected;
@@ -1037,6 +1040,7 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
                       padding: const EdgeInsets.only(bottom: 2),
                       child: _A2MonthChip(
                         entry: entry,
+                        today: widget.today,
                         onEvent: widget.onEvent,
                         onAllocation: widget.onAllocation,
                         onDeadline: widget.onDeadline,
@@ -1067,12 +1071,14 @@ class _A2DesktopMonthCellState extends State<_A2DesktopMonthCell> {
 class _A2MonthChip extends StatelessWidget {
   const _A2MonthChip({
     required this.entry,
+    required this.today,
     this.onEvent,
     this.onAllocation,
     this.onDeadline,
   });
 
   final _A2MonthEntry entry;
+  final DateTime today;
   final ValueChanged<CalendaEventAdapter>? onEvent;
   final ValueChanged<TaskAllocationCalendarItem>? onAllocation;
   final ValueChanged<CalendarDeadline>? onDeadline;
@@ -1096,7 +1102,7 @@ class _A2MonthChip extends StatelessWidget {
       textColor = const Color(0xFF3B3B33);
     } else {
       final isOverdue =
-          deadline != null && calDayOf(deadline.due).isBefore(calDayOf(DateTime.now()));
+          deadline != null && calDayOf(deadline.due).isBefore(calDayOf(today));
       background = isOverdue ? SpecTokens.redSoft : SpecTokens.amberSoft;
       barColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
       textColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
