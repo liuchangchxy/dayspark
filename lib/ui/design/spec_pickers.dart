@@ -8,6 +8,7 @@ import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'a2.dart' show FocusableTap;
 import 'ds.dart';
 
 /// The frozen spec's two pickers: a 320px month card and an inline clock card.
@@ -284,22 +285,12 @@ class _SpecDatePickerDialogState extends State<SpecDatePickerDialog> {
         ),
       ),
     );
-    return Semantics(
-      button: true,
+    return FocusableTap(
+      semanticsLabel: DateFormat.yMMMd(locale).format(day),
       selected: selected,
-      enabled: enabled,
-      excludeSemantics: true,
-      label: DateFormat.yMMMd(locale).format(day),
-      child: enabled
-          ? MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _select(day),
-                child: body,
-              ),
-            )
-          : body,
+      onTap: enabled ? () => _select(day) : null,
+      borderRadius: BorderRadius.zero,
+      child: body,
     );
   }
 }

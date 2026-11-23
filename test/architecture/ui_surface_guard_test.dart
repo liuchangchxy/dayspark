@@ -83,8 +83,7 @@ void main() {
     for (final dir in <String>[
       'ios/CalendarTodoWidget',
       'macos/CalendarTodoWidget',
-      'android/app/src/main/res/values',
-      'android/app/src/main/res/layout',
+      'android/app/src/main/res',
     ]) {
       final entity = Directory(dir);
       if (!entity.existsSync()) continue;
@@ -107,6 +106,64 @@ void main() {
       reason:
           'Widgets use SpecTokens values; see docs/qa/ui-surface-matrix.md '
           '4.2 P12. Offenders: $offenders',
+    );
+  });
+
+  test('no deleted legacy UI component is resurrected', () {
+    const retired = <String>[
+      'AboutPage',
+      'CalendarsPage',
+      'WorkspaceSidebar',
+      'SearchEntry',
+      'DayStrip',
+      'SettingsGroup',
+      'TodoListTile',
+      'TodosSection',
+      'scheduleTodoBlock',
+    ];
+    final offenders = <String>[];
+    for (final entity in Directory('lib').listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      final source = entity.readAsStringSync();
+      for (final name in retired) {
+        if (RegExp('\\b$name\\b').hasMatch(source)) {
+          offenders.add('${entity.path} -> $name');
+        }
+      }
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'Components deleted in the surface convergence must not come back; '
+          'see docs/qa/ui-surface-matrix.md 4.1. Offenders: $offenders',
+    );
+  });
+
+  test('modal bottom sheets only come from the inventoried hosts', () {
+    const allowed = <String>{
+      'lib/ui/design/ds.dart',
+      'lib/ui/design/spec_components.dart',
+      'lib/ui/pages/todo/a2_composer.dart',
+      'lib/ui/pages/todo/month_year_picker.dart',
+      'lib/ui/widgets/calendar/calendar_slot_sheet.dart',
+      'lib/ui/widgets/time_picker/wheel_time_picker.dart',
+    };
+    final offenders = <String>[];
+    for (final entity in Directory('lib').listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      if (allowed.contains(entity.path)) continue;
+      if (entity.readAsStringSync().contains('showModalBottomSheet(')) {
+        offenders.add(entity.path);
+      }
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'A new sheet host must first enter the inventory in '
+          'docs/qa/ui-surface-matrix.md and this allowlist. '
+          'Offenders: $offenders',
     );
   });
 }

@@ -329,7 +329,9 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 | Material 弹层 | `AlertDialog`/`SimpleDialog` 在 A2 范围清零（`event_detail`、`import_export`、`settings_ui`） |
 | 小组件色板 | iOS/macOS/Android 全部换到 `SpecTokens` 值；旧值 grep 仅剩 `ic_launcher_background`（品牌图标，P2）；两份 Swift diff 89→58 行 |
 | toast | 除 A1 三个文件与实现本身外，直连 `showSnackBar` 清零；红底场景用新增的 `showSpecToast(danger: true)` 恢复 |
-| 全量门禁（阶段性） | `dart analyze .` 0 issue；`TZ=UTC flutter test` **+1023 / 1 失败**（已知时间边界用例，与本轮无关） |
+| 日期/时间选择器 | Material 选择器清零；`spec_pickers.dart` 按 `datePickerPanel` / `planPicker` 重画；42 格日格用 `FocusableTap`（Enter/Space 可激活，不再退回鼠标专用） |
+| 机器守卫 | `test/architecture/ui_surface_guard_test.dart` 六条断言：孤儿路由与页面、legacy 组件复活、Material 对话框族、toast 出口、原生退役色（全 `res/` 递归）、modal sheet 出处白名单；每条均已注入违规验证可失败 |
+| 全量门禁（阶段性） | `dart analyze .` 0 issue；`flutter test` **+1033 全绿**（跨午夜时间边界用例已由 `fec5507` 修根因，非豁免） |
 
 ### 5.2 本轮裁定
 
@@ -346,4 +348,17 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 2. `页面模型` 列只允许出现在词表里的代号；写"专属"必须附带一行合同。
 3. 界面全集 = 16 条路由 ∪ 弹层调用点 ∪ 页面内状态分支 ∪ responsive 分支；任何新增界面必须补进本表。
 4. 修改只按"偏离"列驱动，不按"裸色值/字号数量"驱动。
-5. Guard 只守硬禁止项：直接 `AlertDialog`、直接 `showModalBottomSheet`（清单外的）、页面自建第二套顶栏/主按钮、legacy 组件复活。
+5. Guard 只守硬禁止项：直接 `AlertDialog`、直接 `showModalBottomSheet`（清单外的）、页面自建第二套顶栏/主按钮、legacy 组件复活。已落地为机器断言的：`AlertDialog`/`SimpleDialog`、`showModalBottomSheet` 出处白名单、legacy 组件/页面名复活、toast 出口、原生组件退役色（`res/` 全递归）。"页面自建第二套顶栏/主按钮"没有稳定机器判据，由审查者按本表逐页核对。
+
+### 5.4 独立审查记录（2026-11-24）
+
+审查者基于 `fec5507` 独立重跑门禁（`dart analyze .` 0 issue；子集 +290；全量 +1033；`skip:` 与 `--no-fatal` 均无）。裁定 **ACCEPT-WITH-FIXES**。
+
+| 级别 | 发现 | 处置 |
+|---|---|---|
+| P1 | 日期选择器 42 格原为 `Semantics+MouseRegion+GestureDetector`，键盘无法聚焦/激活，较被替换的 Material 选择器是退步 | 已改为 `FocusableTap`（Tab 可达、Enter/Space 激活、焦点环可见），`spec_pickers_test` 绿 |
+| P2 | 守卫只扫 `res/values`、`res/layout`，漏 `values-night` 等目录；§5.3 声称的 sheet/顶栏/legacy 三项未落地 | 色板扫描改为 `res/` 全递归；新增 legacy 复活与 sheet 白名单两条断言，均注入违规证伪；顶栏项按 §5.3.5 归人工审查 |
+| P3 | toast 默认 2.2s + 每次 `hideCurrentSnackBar`，与旧 SnackBar 的 4s 排队语义不同 | 属规格 `setToast` 的 2200ms，记录为有意变更；未加测试 |
+| P3 | 移动端时间选择仍走 Cupertino 滚轮 sheet（`wheel_time_picker.dart`），R8 的"内联方框"目前只覆盖桌面 | 记为 P2 待办：移动端时间入口尚未归入 `planPicker` 模型，下一轮收敛 |
+| P3 | 选择器文案由 Material 的 "Select date/Time" 换为 app 自有 `pickDateHint`/`dueTime` | 正是收敛目的（消除第三套语言），保留 |
+| P3 | `reportIssue` 行无测试；`event_detail` 的 discard 对话框多了 `AnimationStyle.noAnimation`，`todo_detail` 没有 | 记 P2/P3 待办，不阻断本轮 |
