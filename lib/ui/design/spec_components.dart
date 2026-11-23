@@ -5,8 +5,48 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/a2.dart' show FocusableTap;
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'ds.dart';
+
+/// Pure civil date comparison for overdue determination:
+/// True if due date is strictly before today's civil date (now).
+/// Today is never overdue, regardless of time.
+bool isOverdueByDate(DateTime? due, DateTime now) {
+  if (due == null) return false;
+  final dueDay = DateTime(due.year, due.month, due.day);
+  final today = DateTime(now.year, now.month, now.day);
+  return dueDay.isBefore(today);
+}
+
+/// Formats a due date label according to spec:
+/// today / tomorrow / yesterday / M/d, appending HH:mm only if time is non-zero.
+String formatDueLabel(AppLocalizations l, DateTime? dueDate, DateTime now) {
+  if (dueDate == null) return '';
+  final local = dueDate.toLocal();
+  final dueDay = DateTime(local.year, local.month, local.day);
+  final today = DateTime(now.year, now.month, now.day);
+  final tomorrow = today.add(const Duration(days: 1));
+  final yesterday = today.subtract(const Duration(days: 1));
+
+  final String datePart;
+  if (dueDay == today) {
+    datePart = l.today;
+  } else if (dueDay == tomorrow) {
+    datePart = l.tomorrow;
+  } else if (dueDay == yesterday) {
+    datePart = l.yesterday;
+  } else {
+    datePart = '${local.month}/${local.day}';
+  }
+
+  if (local.hour != 0 || local.minute != 0) {
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    return '$datePart $hh:$mm';
+  }
+  return datePart;
+}
 
 /// Frozen spec checkbox: 16x16 circle, 1.4px border.
 /// When checked: SpecTokens.ink fill and white checkmark icon.
@@ -38,10 +78,12 @@ class SpecCheck extends StatelessWidget {
 
 /// Shared metadata row builder: cal-dot + calendarName, real repeat description,
 /// missed count, and plan clock.
+///
+/// Only renders cal-dot and calendarName if a valid calendar is present.
 List<Widget> buildSharedRowMeta(
   BuildContext context, {
-  required String calendarName,
-  required Color calendarColor,
+  String? calendarName,
+  Color? calendarColor,
   String? rrule,
   int? missedCount,
   String? planLabel,
@@ -49,21 +91,29 @@ List<Widget> buildSharedRowMeta(
   final l = AppLocalizations.of(context)!;
   final parts = <Widget>[];
 
-  // cal-dot + calendarName
-  parts.add(
-    Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 5,
-          height: 5,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: calendarColor),
-        ),
-        const SizedBox(width: 4),
-        Text(calendarName, style: const TextStyle(fontSize: 11, color: SpecTokens.muted)),
-      ],
-    ),
-  );
+  // cal-dot + calendarName - only if real calendar is present!
+  if (calendarName != null && calendarName.isNotEmpty) {
+    parts.add(
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 5,
+            height: 5,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: calendarColor ?? SpecTokens.scheduleBlue,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            calendarName,
+            style: const TextStyle(fontSize: 11, color: SpecTokens.muted),
+          ),
+        ],
+      ),
+    );
+  }
 
   // Real repeat description
   if (rrule != null && rrule.isNotEmpty) {
@@ -276,9 +326,9 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
 
       return Stack(
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          FocusableTap(
             onTap: enabled ? widget.onTap : null,
+            semanticsLabel: widget.title,
             child: visualRow,
           ),
           if (widget.showCheck)
@@ -331,9 +381,9 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
       onShowFocusHighlight: (v) => setState(() => _focused = v),
       onShowHoverHighlight: (v) => setState(() => _hovered = v),
       mouseCursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: FocusableTap(
         onTap: enabled ? widget.onTap : null,
+        semanticsLabel: widget.title,
         child: Opacity(
           opacity: widget.disabled ? 0.45 : 1.0,
           child: Container(
@@ -675,11 +725,12 @@ class SpecTimeBlock extends StatelessWidget {
     );
 
     if (onTap == null) return block;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
+    return FocusableTap(
+      onTap: onTap,
+      semanticsLabel: title,
+      borderRadius: BorderRadius.circular(6),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         child: block,
       ),
     );

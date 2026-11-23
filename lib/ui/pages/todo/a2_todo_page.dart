@@ -118,8 +118,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   ).difference(DateTime.utc(b.year, b.month, b.day)).inDays;
 
   bool _isOverdue(DateTime due) {
-    final today = _dayOf(widget.now);
-    return _dayOf(due).isBefore(today);
+    return isOverdueByDate(due, widget.now);
   }
 
   Future<void> _toggle(
@@ -2193,8 +2192,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final cal = _calendarMap[todo.calendarId];
     return buildSharedRowMeta(
       context,
-      calendarName: cal?.name ?? names[todo.calendarId] ?? l.inbox,
-      calendarColor: cal != null ? ColorUtils.parseHex(cal.color) : SpecTokens.scheduleBlue,
+      calendarName: cal?.name ?? names[todo.calendarId],
+      calendarColor: cal != null ? ColorUtils.parseHex(cal.color) : null,
       rrule: todo.rrule,
     );
   }
@@ -2217,8 +2216,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     }
     return buildSharedRowMeta(
       context,
-      calendarName: cal?.name ?? names[todo.calendarId] ?? l.inbox,
-      calendarColor: cal != null ? ColorUtils.parseHex(cal.color) : SpecTokens.scheduleBlue,
+      calendarName: cal?.name ?? names[todo.calendarId],
+      calendarColor: cal != null ? ColorUtils.parseHex(cal.color) : null,
       rrule: todo.rrule,
       planLabel: planLabel,
     );
@@ -2234,8 +2233,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final cal = item.todo != null ? _calendarMap[item.todo!.calendarId] : null;
     return buildSharedRowMeta(
       context,
-      calendarName: item.calendarName ?? cal?.name ?? '个人',
-      calendarColor: item.calendarColor ?? (cal != null ? ColorUtils.parseHex(cal.color) : SpecTokens.scheduleBlue),
+      calendarName: item.calendarName ?? cal?.name,
+      calendarColor: item.calendarColor ?? (cal != null ? ColorUtils.parseHex(cal.color) : null),
       rrule: item.todo?.rrule,
       planLabel: planLabel,
     );
@@ -2245,8 +2244,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final cal = item.todo != null ? _calendarMap[item.todo!.calendarId] : null;
     return buildSharedRowMeta(
       context,
-      calendarName: item.calendarName ?? cal?.name ?? '个人',
-      calendarColor: item.calendarColor ?? (cal != null ? ColorUtils.parseHex(cal.color) : SpecTokens.scheduleBlue),
+      calendarName: item.calendarName ?? cal?.name,
+      calendarColor: item.calendarColor ?? (cal != null ? ColorUtils.parseHex(cal.color) : null),
       rrule: item.todo?.rrule,
     );
   }

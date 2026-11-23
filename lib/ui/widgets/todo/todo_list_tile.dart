@@ -11,7 +11,6 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
-import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 
 /// One todo row. A circle, a name, a quiet meta line, nothing else.
 ///
@@ -231,13 +230,8 @@ class TodoListTile extends ConsumerWidget {
         await toggle(null, false);
         return;
       }
-      final selected = await TodoOccurrencePickerSheet.show(
-        context,
-        ref: ref,
-        todo: row,
-      );
-      if (!context.mounted || selected == null) return;
-      await toggle(selected.occurrenceId, !selected.isCompleted);
+      final occId = await resolveCurrentOccurrenceId(ref, row);
+      await toggle(occId, !isCompleted);
     } on Object catch (error) {
       if (context.mounted) showCompletionError(context, error);
     }

@@ -12,6 +12,7 @@ import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
@@ -311,14 +312,14 @@ void main() {
     await tester.tap(find.byKey(ValueKey('todo-schedule-$id-series')));
     await _settle(tester);
 
-    final composer = tester.widget<A2ComposerSheet>(
-      find.byType(A2ComposerSheet),
+    final picker = tester.widget<SpecPlanPickerDialog>(
+      find.byType(SpecPlanPickerDialog),
     );
     expect(
       DateTime(
-        composer.contextDate.year,
-        composer.contextDate.month,
-        composer.contextDate.day,
+        picker.initialStart.year,
+        picker.initialStart.month,
+        picker.initialStart.day,
       ),
       today,
     );
@@ -353,14 +354,14 @@ void main() {
     await tester.tap(find.byKey(ValueKey('todo-schedule-$id-series')));
     await _settle(tester);
 
-    final composer = tester.widget<A2ComposerSheet>(
-      find.byType(A2ComposerSheet),
+    final picker = tester.widget<SpecPlanPickerDialog>(
+      find.byType(SpecPlanPickerDialog),
     );
     expect(
       DateTime(
-        composer.contextDate.year,
-        composer.contextDate.month,
-        composer.contextDate.day,
+        picker.initialStart.year,
+        picker.initialStart.month,
+        picker.initialStart.day,
       ),
       browseDay,
     );

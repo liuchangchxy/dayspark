@@ -892,9 +892,9 @@ void main() {
     expect(find.text('Old 3'), findsOneWidget);
     expect(find.text('Old 4'), findsNothing);
     expect(find.text('Old 5'), findsNothing);
-    expect(find.text('2 more · Show all'), findsOneWidget);
+    expect(find.text('View all 5 items'), findsOneWidget);
 
-    await tester.tap(find.text('2 more · Show all'));
+    await tester.tap(find.text('View all 5 items'));
     await _settle(tester);
     expect(find.text('Old 4'), findsOneWidget);
     expect(find.text('Old 5'), findsOneWidget);
@@ -942,29 +942,13 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Weekly notes'), findsOneWidget);
-      final check = find.byWidgetPredicate(
-        (widget) => widget is DsCheck && widget.label == 'Weekly notes',
+      // Per requirement 7: mobile time block has no checkbox
+      final check = find.descendant(
+        of: find.byType(SpecTimeBlock),
+        matching: find.byType(DsCheck),
       );
-      expect(check, findsOneWidget);
-      await tester.tap(check);
-      await _settle(tester);
+      expect(check, findsNothing);
 
-      // T3: one tick, one completion fact: the allocation and the deadline both
-      // close, and the block records that together with the deadline it closed.
-      final row = await (db.select(
-        db.todos,
-      )..where((table) => table.id.equals(id))).getSingle();
-      expect(row.status, 'COMPLETED');
-      expect(find.text('Weekly notes'), findsOneWidget);
-      expect(find.text('Undo'), findsNWidgets(2));
-      // T3 also keeps the moment it was completed, not just the fact.
-      expect(
-        find.descendant(
-          of: find.byType(SpecTimeBlock),
-          matching: find.textContaining('Completed '),
-        ),
-        findsOneWidget,
-      );
       expect(
         find.descendant(
           of: find.byType(SpecTimeBlock),
@@ -1052,7 +1036,7 @@ void main() {
         timeZone: 'Asia/Shanghai',
         rrule: 'FREQ=DAILY;COUNT=3',
       );
-      final seriesId = await _createSeries(
+      await _createSeries(
         db,
         calendarId: calendarId,
         summary: 'Daily Review',
@@ -1075,22 +1059,19 @@ void main() {
       await _settle(tester);
 
       // Target the timeline block bound to the concrete occurrence.
+      // Mobile time block has no checkbox per requirement 7
       final instanceCheck = find.descendant(
         of: find.byType(SpecTimeBlock),
-        matching: find.byWidgetPredicate(
-          (widget) => widget is DsCheck && widget.label == 'Daily Review',
-        ),
+        matching: find.byType(DsCheck),
       );
-      expect(instanceCheck, findsOneWidget);
-      await tester.tap(instanceCheck);
-      await _settle(tester);
-
-      expect(calls, [(seriesId, 'v2:DATE:2026-10-06', true)]);
-      expect(find.text('Undo · 2026-10-06'), findsOneWidget);
-
-      await tester.tap(find.text('Undo · 2026-10-06'));
-      await _settle(tester);
-      expect(calls.last, (seriesId, 'v2:DATE:2026-10-06', false));
+      expect(instanceCheck, findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(SpecTimeBlock),
+          matching: find.text('Daily Review'),
+        ),
+        findsOneWidget,
+      );
 
       await _unmount(tester);
     },
@@ -1189,24 +1170,20 @@ void main() {
     await _settle(tester);
 
     expect(find.text('Earlier today'), findsOneWidget);
-    final check = find.byWidgetPredicate(
-      (widget) => widget is DsCheck && widget.label == 'Morning review',
-    );
-    expect(check, findsOneWidget);
+    // Earlier today is collapsed by default on mobile
+    expect(find.text('Morning review'), findsNothing);
 
-    await tester.tap(check);
+    // Expand Earlier today
+    await tester.tap(find.text('Earlier today'));
     await _settle(tester);
 
-    // The row belongs to "Earlier today"; the undo window must keep it there
-    // instead of cloning it into Upcoming (which would also reuse the undo
-    // key twice and throw in debug builds).
     expect(find.text('Morning review'), findsOneWidget);
-    expect(find.text('Upcoming'), findsOneWidget);
-    expect(find.text('Undo'), findsNWidgets(2));
-
-    await tester.pump(const Duration(seconds: 5));
-    await _settle(tester);
-    expect(find.text('Undo'), findsNothing);
+    // Per requirement 7: mobile time block has no checkbox
+    final check = find.descendant(
+      of: find.byType(SpecTimeBlock),
+      matching: find.byType(DsCheck),
+    );
+    expect(check, findsNothing);
 
     await _unmount(tester);
   });

@@ -277,11 +277,12 @@ class A2GroupHead extends StatelessWidget {
       ),
     );
     if (onTap == null) return row;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
+    return FocusableTap(
+      onTap: onTap,
+      semanticsLabel: label,
+      borderRadius: BorderRadius.circular(4),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         child: row,
       ),
     );
@@ -557,11 +558,12 @@ class A2Row extends StatelessWidget {
       ),
     );
     if (onTap == null) return row;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
+    return FocusableTap(
+      onTap: onTap,
+      semanticsLabel: title,
+      borderRadius: BorderRadius.circular(4),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         child: row,
       ),
     );
@@ -865,7 +867,7 @@ class A2CaptureBarState extends State<A2CaptureBar> {
             ? sendButton
             : GestureDetector(
                 key: const ValueKey('capture-send-target'),
-                onTap: _submit,
+                onTap: () => widget.onExpand?.call(),
                 behavior: HitTestBehavior.opaque,
                 child: sendButton,
               ),
@@ -920,7 +922,7 @@ class A2CaptureBarState extends State<A2CaptureBar> {
                   child: GestureDetector(
                     key: const ValueKey('capture-send-target'),
                     behavior: HitTestBehavior.opaque,
-                    onTap: _submit,
+                    onTap: () => widget.onExpand?.call(),
                   ),
                 ),
               ],
@@ -1213,11 +1215,12 @@ class A2Block extends StatelessWidget {
       ),
     );
     if (onTap == null) return card;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
+    return FocusableTap(
+      onTap: onTap,
+      semanticsLabel: title,
+      borderRadius: BorderRadius.circular(kA2BlockRadius),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
         child: card,
       ),
     );

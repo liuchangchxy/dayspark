@@ -65,11 +65,11 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
   final ScrollController _scroll = ScrollController();
   int? _recentId;
   Timer? _recentTimer;
+  bool _overdueExpanded = false;
   bool _unplannedExpanded = false;
   bool _upcomingExpanded = false;
-  bool _overdueExpanded = false;
   bool _completedExpanded = false;
-  bool _endedExpanded = true;
+  bool _endedExpanded = false;
   bool _desktopEndedExpanded = false;
   bool _toastVisible = false;
   Timer? _toastTimer;
@@ -82,15 +82,19 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       TextEditingController(text: widget.initialDraft);
   final FocusNode _desktopCaptureFocusNode = FocusNode();
 
-  String _formatDueLabel(AppLocalizations l, DateTime? dueDate) {
-    if (dueDate == null) return l.today;
-    final local = dueDate.toLocal();
-    if (local.hour != 0 || local.minute != 0) {
-      final hh = local.hour.toString().padLeft(2, '0');
-      final mm = local.minute.toString().padLeft(2, '0');
-      return '${l.today} $hh:$mm';
+  String _formatDueLabel(
+    AppLocalizations l,
+    DateTime? dueDate, {
+    bool isOverdue = false,
+  }) {
+    if (dueDate == null) return isOverdue ? l.sectionOverdueLabel : '';
+    if (isOverdue) {
+      final dDue = DateTime(dueDate.year, dueDate.month, dueDate.day);
+      final dNow = DateTime(widget.now.year, widget.now.month, widget.now.day);
+      final days = dNow.difference(dDue).inDays;
+      if (days > 0) return l.overdueDays(days);
     }
-    return l.today;
+    return formatDueLabel(l, dueDate, widget.now);
   }
 
   /// The one row that was just completed and can still be undone. It is kept
@@ -719,10 +723,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       for (final item in overdueItems)
         if (item.todo != null && !plannedTodoIds.contains(item.todo!.id)) item,
     ];
-    final shownOverdue = _overdueExpanded
-        ? visibleOverdue
-        : visibleOverdue.take(3).toList();
-    final expandableOverdue = visibleOverdue.length - shownOverdue.length;
 
     final dueItems = _injectRecentDayItems(
       agenda.dueTodos,
@@ -845,45 +845,39 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             label: l.sectionOverdueLabel,
             count: visibleOverdue.length,
             danger: true,
-            expanded: _overdueExpanded,
-            onToggle: visibleOverdue.length > 3
-                ? () => setState(() => _overdueExpanded = !_overdueExpanded)
-                : null,
           ),
         ),
-        for (var i = 0; i < shownOverdue.length; i++)
+        for (var i = 0;
+            i <
+                (_overdueExpanded
+                    ? visibleOverdue.length
+                    : (visibleOverdue.length > 3 ? 3 : visibleOverdue.length));
+            i++)
           _taskRow(
-            key: ValueKey('overdue-${shownOverdue[i].todo!.id}'),
-            title: shownOverdue[i].title,
-            checked: shownOverdue[i].completed,
+            key: ValueKey('overdue-${visibleOverdue[i].todo!.id}'),
+            title: visibleOverdue[i].title,
+            checked: visibleOverdue[i].completed,
             isOverdue: true,
-            dueLabel: () {
-              final due = shownOverdue[i].todo?.dueDate?.toLocal();
-              if (due == null) return l.sectionOverdueLabel;
-              final days = _today
-                  .difference(DateTime(due.year, due.month, due.day))
-                  .inDays;
-              if (days > 0) return l.overdueDays(days);
-              return DateFormat.Md(_locale).format(due);
-            }(),
-            calendarName: shownOverdue[i].calendarName,
-            calendarColor: shownOverdue[i].calendarColor,
-            rrule: shownOverdue[i].todo?.rrule,
-            highlighted: shownOverdue[i].todo?.id == _recentId,
-            trailing: _undoFor(shownOverdue[i].todo?.id, shownOverdue[i].occurrenceId, _RecentSection.overdue),
-            onToggle: (_) => _toggleItem(shownOverdue[i], _RecentSection.overdue, i),
-            onTap: () => _openTodo(shownOverdue[i].todo!),
-            onSchedule: () => _scheduleTodo(shownOverdue[i].todo!),
+            dueLabel: _formatDueLabel(l, visibleOverdue[i].todo?.dueDate, isOverdue: true),
+            calendarName: visibleOverdue[i].calendarName,
+            calendarColor: visibleOverdue[i].calendarColor,
+            rrule: visibleOverdue[i].todo?.rrule,
+            highlighted: visibleOverdue[i].todo?.id == _recentId,
+            trailing: _undoFor(visibleOverdue[i].todo?.id, visibleOverdue[i].occurrenceId, _RecentSection.overdue),
+            onToggle: (_) => _toggleItem(visibleOverdue[i], _RecentSection.overdue, i),
+            onTap: () => _openTodo(visibleOverdue[i].todo!),
+            onSchedule: () => _scheduleTodo(visibleOverdue[i].todo!),
           ),
-        if (expandableOverdue > 0)
+        if (!_overdueExpanded && visibleOverdue.length > 3)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _moreRow(
               l,
-              expandableOverdue,
+              visibleOverdue.length,
+              label: l.viewAllNItems(visibleOverdue.length),
               paddingLeft: 33,
-              expanded: _overdueExpanded,
-              onTap: () => setState(() => _overdueExpanded = !_overdueExpanded),
+              expanded: false,
+              onTap: () => setState(() => _overdueExpanded = true),
             ),
           )
         else if (_overdueExpanded && visibleOverdue.length > 3)
@@ -906,7 +900,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             count: visibleDue.length,
           ),
         ),
-        for (var i = 0; i < visibleDue.length; i++)
+        for (var i = 0; i < visibleDue.length && i < 2; i++)
           _taskRow(
             key: ValueKey('due-${visibleDue[i].todo!.id}'),
             title: visibleDue[i].title,
@@ -958,7 +952,21 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             child: _moreRow(
               l,
               expandableUnplanned,
+              label: l.expandRemaining(expandableUnplanned),
               paddingLeft: 12,
+              expanded: _unplannedExpanded,
+              onTap: () => setState(() => _unplannedExpanded = !_unplannedExpanded),
+            ),
+          )
+        else if (_unplannedExpanded && shelfSource.length > 3)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _moreRow(
+              l,
+              0,
+              paddingLeft: 12,
+              expanded: true,
+              onTap: () => setState(() => _unplannedExpanded = false),
             ),
           ),
         KeyedSubtree(
@@ -1273,8 +1281,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
       ),
     );
     if (onToggle != null) {
-      return InkWell(
+      return FocusableTap(
         onTap: onToggle,
+        semanticsLabel: label,
         borderRadius: BorderRadius.circular(4),
         child: content,
       );
@@ -1518,8 +1527,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     final l = AppLocalizations.of(context)!;
     final meta = buildSharedRowMeta(
       context,
-      calendarName: calendarName ?? '个人',
-      calendarColor: calendarColor ?? SpecTokens.scheduleBlue,
+      calendarName: calendarName,
+      calendarColor: calendarColor,
       rrule: rrule,
       missedCount: missedCount,
       planLabel: planLabel,
@@ -1685,9 +1694,9 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     return Stack(
       key: key,
       children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        FocusableTap(
           onTap: onTap,
+          semanticsLabel: title,
           child: visualRow,
         ),
         if (showCheck)
@@ -1770,7 +1779,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     }
     final metaText = metaParts.join(' · ');
 
-    final checkable = item.kind != DayItemKind.event;
     final recentState = _recent;
     final undo = recent && recentState != null ? _undoAction(recentState) : null;
 
@@ -1805,7 +1813,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
               done: done,
               checked: done,
               trailing: undo,
-              onToggle: checkable ? (_) => _toggleItem(item, section, index) : null,
+              onToggle: null,
               onTap: () {
                 if (item.event != null) {
                   _openEvent(item.event!);
@@ -1977,10 +1985,8 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
             key: ValueKey('overdue-${visibleOverdue[i].todo!.id}'),
             title: visibleOverdue[i].title,
             checked: visibleOverdue[i].completed,
-            isOverdue: true,
-            dueLabel: visibleOverdue[i].todo?.dueDate != null
-                ? DateFormat.Md(_locale).format(visibleOverdue[i].todo!.dueDate!.toLocal())
-                : l.sectionOverdueLabel,
+            isOverdue: isOverdueByDate(visibleOverdue[i].todo?.dueDate, widget.now),
+            dueLabel: _formatDueLabel(l, visibleOverdue[i].todo?.dueDate, isOverdue: true),
             calendarName: visibleOverdue[i].calendarName,
             calendarColor: visibleOverdue[i].calendarColor,
             rrule: visibleOverdue[i].todo?.rrule,
@@ -2563,34 +2569,22 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
     );
   }
 
-  String _calendarName(Todo todo) {
+  String? _calendarName(Todo todo) {
     final calendars = ref.read(calendarsProvider).valueOrNull ?? const [];
     for (final calendar in calendars) {
       if (calendar.id == todo.calendarId) return calendar.name;
     }
-    final defaultId = ref.read(defaultCalendarIdProvider);
-    if (defaultId != null) {
-      for (final calendar in calendars) {
-        if (calendar.id == defaultId) return calendar.name;
-      }
-    }
-    return calendars.isNotEmpty ? calendars.first.name : '个人';
+    return null;
   }
 
-  Color _calendarColor(Todo todo) {
+  Color? _calendarColor(Todo todo) {
     final calendars = ref.read(calendarsProvider).valueOrNull ?? const [];
     for (final calendar in calendars) {
       if (calendar.id == todo.calendarId) {
         return ColorUtils.parseHex(calendar.color);
       }
     }
-    final defaultId = ref.read(defaultCalendarIdProvider);
-    if (defaultId != null) {
-      for (final calendar in calendars) {
-        if (calendar.id == defaultId) return ColorUtils.parseHex(calendar.color);
-      }
-    }
-    return calendars.isNotEmpty ? ColorUtils.parseHex(calendars.first.color) : SpecTokens.scheduleBlue;
+    return null;
   }
 
   Widget? _undoFor(int? todoId, String? occurrenceId, _RecentSection section) {

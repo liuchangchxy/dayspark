@@ -221,21 +221,6 @@ void main() {
     await tester.tap(find.text('Save'));
     await _settle(tester);
 
-    expect(
-      find.text('Select occurrence'),
-      findsOneWidget,
-      reason: 'a series has no single row-level completion',
-    );
-    await tester.tap(
-      find
-          .descendant(
-            of: find.byType(DsDialog),
-            matching: find.byType(DsSettingRow),
-          )
-          .first,
-    );
-    await _settle(tester);
-
     final states = await db.select(db.taskInstanceStates).get();
     expect(states, hasLength(1));
     expect(states.single.status, 'completed');

@@ -34,7 +34,6 @@ import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
-import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
 import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -455,13 +454,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         _completed &&
         widget.todo!.rrule != null &&
         widget.todo!.status != 'COMPLETED') {
-      final selected = await TodoOccurrencePickerSheet.show(
-        context,
-        ref: ref,
-        todo: widget.todo!,
-      );
-      if (selected == null || !mounted) return;
-      occurrenceId = selected.occurrenceId;
+      occurrenceId = await resolveCurrentOccurrenceId(ref, widget.todo!);
     }
 
     setState(() => _saving = true);
