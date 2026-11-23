@@ -397,10 +397,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         crossAxisAlignment: CrossAxisAlignment.baseline,
         textBaseline: TextBaseline.alphabetic,
         children: [
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
+          Semantics(
+            button: true,
+            label: l.settings,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(4),
               onTap: () => _goToSectionKey('home'),
               child: Text(
                 l.settings,
