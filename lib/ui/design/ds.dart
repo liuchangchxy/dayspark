@@ -851,10 +851,18 @@ class DsCheck extends StatelessWidget {
     return Semantics(
       checked: checked,
       label: label,
-      child: MouseRegion(
-        cursor: onChanged == null
+      button: true,
+      enabled: onChanged != null,
+      child: FocusableActionDetector(
+        enabled: onChanged != null,
+        mouseCursor: onChanged == null
             ? SystemMouseCursors.basic
             : SystemMouseCursors.click,
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) => onChanged?.call(!checked),
+          ),
+        },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onChanged == null ? null : () => onChanged!(!checked),

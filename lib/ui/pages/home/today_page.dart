@@ -2059,12 +2059,6 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
         _groupHead(
           label: l.todayNoDateGroup,
           count: noDueCount,
-          trailing: const Icon(
-            CupertinoIcons.chevron_up,
-            size: 11,
-            color: SpecTokens.faint,
-          ),
-          onToggle: widget.onOpenUnplanned,
         ),
         for (var i = 0; i < preview.length; i++)
           _taskRow(

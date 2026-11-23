@@ -18,6 +18,7 @@ import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -205,6 +206,38 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       _dirty = false;
       _editing = true;
     });
+  }
+
+  Future<void> _scheduleWithPlanPicker(CalendaEventAdapter live) async {
+    final initialStart = _draft.start;
+    final initialEnd = _draft.end;
+
+    final picked = await SpecPlanPickerDialog.show(
+      context,
+      title: live.title,
+      initialStart: initialStart,
+      initialEnd: initialEnd,
+    );
+    if (picked == null || !mounted) return;
+    final newStart = picked.$1;
+    final newEnd = picked.$2;
+    try {
+      await ref.read(updateEventProvider)(
+        widget.event.drifId,
+        EventsCompanion(
+          startDt: Value(newStart),
+          endDt: Value(newEnd),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _draft = _withDraft(start: newStart, end: newEnd);
+        _snapshot = _withDraft(start: newStart, end: newEnd);
+      });
+    } catch (e) {
+      debugPrint('event_detail: schedule failed: $e');
+    }
   }
 
   @override
@@ -605,6 +638,15 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                   height: 48,
                   primary: true,
                   onPressed: () => _beginEdit(live),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('event-detail-schedule'),
+                  label: l.addTaskAllocation,
+                  height: 48,
+                  onPressed: () => _scheduleWithPlanPicker(live),
                 ),
               ),
               const SizedBox(width: 8),

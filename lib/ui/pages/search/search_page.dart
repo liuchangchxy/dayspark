@@ -16,12 +16,10 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
-import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/search_provider.dart';
-import 'package:dayspark/domain/providers/todos_provider.dart';
-import 'package:dayspark/domain/utils/capture_parser.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 
@@ -238,7 +236,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         switch (hit.action!) {
           case _CmdActionKind.captureTodo:
             if (widget.isOverlay) {
-              await _createTodoInline(summary);
+              _close();
+              showA2Composer(
+                context,
+                contextDate: DateTime.now(),
+                initialTitle: summary.isNotEmpty ? summary : null,
+                startAsEvent: false,
+              );
             } else {
               final path = summary.isNotEmpty
                   ? '/todo/new?summary=${Uri.encodeComponent(summary)}'
@@ -247,7 +251,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             }
           case _CmdActionKind.captureEvent:
             if (widget.isOverlay) {
-              await _createEventInline(summary);
+              _close();
+              showA2Composer(
+                context,
+                contextDate: DateTime.now(),
+                initialTitle: summary.isNotEmpty ? summary : null,
+                startAsEvent: true,
+              );
             } else {
               final path = summary.isNotEmpty
                   ? '/event/new?summary=${Uri.encodeComponent(summary)}'
@@ -258,78 +268,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             _openTarget('/settings', null);
         }
     }
-  }
-
-  Future<void> _createTodoInline(String summary) async {
-    final l = AppLocalizations.of(context)!;
-    final text = summary.trim();
-    if (text.isEmpty) {
-      _close();
-      return;
-    }
-    final calendars = await ref.read(calendarsProvider.future);
-    if (calendars.isEmpty) {
-      _close();
-      return;
-    }
-    final calId = resolveNewEntryCalendarId(
-      calendars: calendars,
-      preferredId: ref.read(defaultCalendarIdProvider),
-    ) ?? calendars.first.id;
-    final parsed = parseCapture(text, DateTime.now());
-    await ref.read(createTodoProvider)(
-      calendarId: calId,
-      summary: parsed.title.isNotEmpty ? parsed.title : text,
-      dueDate: parsed.date,
-      priority: 0,
-      status: 'NEEDS-ACTION',
-    );
-    if (!mounted) return;
-    _close();
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(
-      SnackBar(
-        content: Text(l.captureAddedToast),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Future<void> _createEventInline(String summary) async {
-    final l = AppLocalizations.of(context)!;
-    final text = summary.trim();
-    if (text.isEmpty) {
-      _close();
-      return;
-    }
-    final calendars = await ref.read(calendarsProvider.future);
-    if (calendars.isEmpty) {
-      _close();
-      return;
-    }
-    final calId = resolveNewEntryCalendarId(
-      calendars: calendars,
-      preferredId: ref.read(defaultCalendarIdProvider),
-    ) ?? calendars.first.id;
-    final now = DateTime.now();
-    final start = DateTime(now.year, now.month, now.day, now.hour + 1);
-    final end = start.add(const Duration(hours: 1));
-    await ref.read(createEventProvider)(
-      calendarId: calId,
-      summary: text,
-      startDt: start,
-      endDt: end,
-      isAllDay: false,
-    );
-    if (!mounted) return;
-    _close();
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(
-      SnackBar(
-        content: Text(l.eventCreated),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   void _openSelected(List<_CmdHit> hits) {
@@ -1223,22 +1161,28 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       final day = DateTime(due.year, due.month, due.day);
       final timeStr = DateFormatters.formatTime(due);
       if (day == today) {
-        parts.add('${l.today} $timeStr ${l.dueTodaySection}');
+        parts.add('${l.today} $timeStr ${l.deadline}');
       } else if (day == today.add(const Duration(days: 1))) {
-        parts.add('${l.tomorrow} $timeStr');
+        parts.add('${l.tomorrow} $timeStr ${l.deadline}');
       } else {
         final locale = Localizations.localeOf(context).toString();
-        parts.add('${DateFormat.MMMd(locale).format(due)} $timeStr');
+        parts.add('${DateFormat.MMMd(locale).format(due)} $timeStr ${l.deadline}');
       }
     }
+    final projection = ref.read(actionProjectionProvider).valueOrNull;
     if (todo.startDate != null) {
       final start = todo.startDate!.toLocal();
-      parts.add('${l.scheduledLabel} ${DateFormatters.formatTime(start)}');
+      parts.add('${l.plannedShort} ${DateFormatters.formatTime(start)}');
+    } else if (projection != null) {
+      final alloc = projection.allocations.where((a) => a.todo.id == todo.id).firstOrNull;
+      if (alloc != null) {
+        final start = alloc.allocation.startAt.toLocal();
+        parts.add('${l.plannedShort} ${DateFormatters.formatTime(start)}');
+      }
     }
     if (todo.rrule != null && todo.rrule!.isNotEmpty) {
       parts.add(describeRepeat(context, todo.rrule!));
     }
-    final projection = ref.read(actionProjectionProvider).valueOrNull;
     if (projection != null) {
       final missedCount = projection.missedTaskInstances
               .where((inst) => inst.todo.id == todo.id)
