@@ -111,21 +111,6 @@ input:focus {
 }
 .btn:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
 .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 40px;
-  padding: 0.6rem 1.2rem;
-  font: inherit;
-  font-weight: 500;
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--hair);
-  border-radius: 8px;
-  cursor: pointer;
-}
-.btn-secondary:hover { border-color: var(--ink2); }
 .error {
   margin: 0 0 16px;
   padding: 10px 12px;
