@@ -10,12 +10,17 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/todo/new_item_page.dart';
 
-Widget _routerApp(AppDatabase db, GoRouter router) {
+Widget _routerApp(
+  AppDatabase db,
+  GoRouter router, {
+  List<Override> overrides = const [],
+}) {
   return ProviderScope(
-    overrides: [databaseProvider.overrideWithValue(db)],
+    overrides: [databaseProvider.overrideWithValue(db), ...overrides],
     child: MaterialApp.router(
       routerConfig: router,
       localizationsDelegates: const [
@@ -65,7 +70,11 @@ void main() {
     await db.close();
   });
 
-  Future<GoRouter> pumpPage(WidgetTester tester, Widget page) async {
+  Future<GoRouter> pumpPage(
+    WidgetTester tester,
+    Widget page, {
+    List<Override> overrides = const [],
+  }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -76,7 +85,7 @@ void main() {
         GoRoute(path: '/new', builder: (_, __) => page),
       ],
     );
-    await tester.pumpWidget(_routerApp(db, router));
+    await tester.pumpWidget(_routerApp(db, router, overrides: overrides));
     await _settle(tester);
     return router;
   }
@@ -121,9 +130,50 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('switching to event writes an event, not a todo', (
+  testWidgets('a failed write keeps the page and the typed title', (
     tester,
   ) async {
+    final start = DateTime(2026, 11, 20, 11);
+    await pumpPage(
+      tester,
+      NewItemPage(
+        initialStart: start,
+        initialEnd: start.add(const Duration(hours: 1)),
+      ),
+      overrides: [
+        createEventProvider.overrideWithValue(
+          ({
+            required int calendarId,
+            required String summary,
+            required DateTime startDt,
+            required DateTime endDt,
+            required bool isAllDay,
+            String? description,
+            String? location,
+            String? rrule,
+          }) async => throw StateError('write failed'),
+        ),
+      ],
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('new-item-title')),
+      'Design review',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('new-item-type-event')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('new-item-primary')));
+    await _settle(tester);
+
+    expect(await db.select(db.events).get(), isEmpty);
+    expect(find.byKey(const ValueKey('new-item-primary')), findsOneWidget);
+    expect(find.text('Design review'), findsOneWidget);
+    expect(find.textContaining('Save failed'), findsWidgets);
+
+    await _unmount(tester);
+  });
+  testWidgets('switching to event writes an event, not a todo', (tester) async {
     final start = DateTime(2026, 11, 20, 11);
     await pumpPage(
       tester,

@@ -1557,6 +1557,7 @@ class DsDialog extends StatelessWidget {
     required this.child,
     this.actions = const [],
     this.width = 560,
+    this.sheetOnMobile = false,
   });
 
   final String title;
@@ -1564,18 +1565,29 @@ class DsDialog extends StatelessWidget {
   final List<Widget> actions;
   final double width;
 
+  /// Forms that would be cramped in a centred card take the design's mobile
+  /// shape instead: a full-width sheet docked to the bottom edge.
+  final bool sheetOnMobile;
+
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
+    final size = MediaQuery.sizeOf(context);
+    final sheet = sheetOnMobile && size.width < 720;
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(AppSpacing.s6),
+      alignment: sheet ? Alignment.bottomCenter : Alignment.center,
+      insetPadding: sheet
+          ? const EdgeInsets.fromLTRB(10, 0, 10, 10)
+          : const EdgeInsets.all(AppSpacing.s6),
       child: Container(
-        width: width,
-        constraints: const BoxConstraints(maxHeight: 620),
+        width: sheet ? double.infinity : width,
+        constraints: BoxConstraints(
+          maxHeight: sheet ? size.height * 0.9 : 620,
+        ),
         decoration: BoxDecoration(
           color: ds.surface,
-          borderRadius: AppRadii.dialog,
+          borderRadius: sheet ? BorderRadius.circular(12) : AppRadii.dialog,
           border: Border.all(color: ds.line),
           boxShadow: AppShadows.two(ds.brightness),
         ),

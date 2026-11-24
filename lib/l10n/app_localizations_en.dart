@@ -3579,4 +3579,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get newItemRepeatLabel => 'Repeat';
+
+  @override
+  String get timePickerHint => 'Type the numbers; press Enter to confirm. No dial.';
+
+  @override
+  String get timePickerInvalid => 'Hour must be 00–23 and minute 00–59; fix it before confirming.';
 }

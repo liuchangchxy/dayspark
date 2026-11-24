@@ -1922,5 +1922,7 @@
   "itemTypeEvent": "日程",
   "eventLocationUnset": "未填写",
   "newItemSaveFailedNote": "这一页的内容还在；检查网络后重试。",
-  "newItemRepeatLabel": "重复"
+  "newItemRepeatLabel": "重复",
+  "timePickerHint": "直接输入数字；回车确定。不使用表盘。",
+  "timePickerInvalid": "小时需在 00–23、分钟需在 00–59；修正后才能确定。"
 }

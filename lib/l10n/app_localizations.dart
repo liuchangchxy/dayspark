@@ -6502,6 +6502,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Repeat'**
   String get newItemRepeatLabel;
+
+  /// No description provided for @timePickerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the numbers; press Enter to confirm. No dial.'**
+  String get timePickerHint;
+
+  /// No description provided for @timePickerInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Hour must be 00–23 and minute 00–59; fix it before confirming.'**
+  String get timePickerInvalid;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

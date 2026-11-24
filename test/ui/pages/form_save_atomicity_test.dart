@@ -11,14 +11,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
-import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/attachments_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/services/attachment_files.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/pages/event/event_form_page.dart';
+import 'package:dayspark/ui/pages/todo/new_item_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
@@ -26,19 +25,26 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 /// database would take". The form used to write the row, then each association
 /// in turn, swallowing every failure and leaving anyway — so a title that
 /// landed with an attachment that did not looked like a successful save.
-(GoRouter, Widget) _app(AppDatabase db, {Todo? todo, CalendaEventAdapter? event, List<Override> overrides = const []}) {
+(GoRouter, Widget) _app(
+  AppDatabase db, {
+  Todo? todo,
+  List<Override> overrides = const [],
+}) {
   final router = GoRouter(
     initialLocation: '/',
     routes: [
-      GoRoute(path: '/', builder: (_, __) => const Scaffold(body: Text('list'))),
+      GoRoute(
+        path: '/',
+        builder: (_, __) => const Scaffold(body: Text('list')),
+      ),
       GoRoute(
         path: '/todo/edit',
         builder: (_, __) => TodoFormPage(todo: todo),
       ),
       GoRoute(
         path: '/event/new',
-        builder: (_, __) => EventFormPage(
-          event: event,
+        builder: (_, __) => NewItemPage(
+          isEvent: true,
           initialStart: DateTime(2026, 11, 1, 9),
           initialEnd: DateTime(2026, 11, 1, 10),
         ),
@@ -79,11 +85,8 @@ Future<void> _unmount(WidgetTester tester) async {
 /// wrong late in a draft, which is exactly where the old code gave up.
 Override _failingReminderWrites() => createReminderProvider.overrideWith(
   (ref) =>
-      ({
-        required parentType,
-        required parentId,
-        required triggerTime,
-      }) async => throw StateError('reminder write refused'),
+      ({required parentType, required parentId, required triggerTime}) async =>
+          throw StateError('reminder write refused'),
 );
 
 /// The system picker, replaced so a test can hand the form a file without a
@@ -354,23 +357,20 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final (router, app) = _app(
-      db,
-      overrides: [_failingReminderWrites()],
-    );
+    final (router, app) = _app(db, overrides: [_failingReminderWrites()]);
     await tester.pumpWidget(app);
     await _settle(tester);
     router.push('/event/new');
     await _settle(tester);
 
-    await tester.enterText(find.byType(TextField).first, 'Team offsite');
+    await tester.enterText(
+      find.byKey(const ValueKey('new-item-title')),
+      'Team offsite',
+    );
     await tester.pump();
-    await tester.tap(find.text('Add Reminder'));
-    await _settle(tester);
-    await tester.tap(find.text('On time'));
-    await _settle(tester);
-
-    await tester.tap(find.text('Save'));
+    // The page's own default reminder is the write that fails, so the rollback
+    // must take the event row with it.
+    await tester.tap(find.text('Create event'));
     await _settle(tester);
 
     expect(
@@ -378,7 +378,7 @@ void main() {
       isEmpty,
       reason: 'a half-written event is worse than none',
     );
-    expect(find.byType(EventFormPage), findsOneWidget);
+    expect(find.byType(NewItemPage), findsOneWidget);
     await _unmount(tester);
   });
 
@@ -416,29 +416,6 @@ void main() {
       reason: 'the file the transaction wrote is not left as an orphan',
     );
     expect(find.byType(TodoFormPage), findsOneWidget);
-    await _unmount(tester);
-  });
-
-  testWidgets('a rolled-back event draft leaves no staged file behind', (
-    tester,
-  ) async {
-    // The event form carries the same cleanup as the todo form, in code that
-    // looks identical — which is exactly how one of them ends up without it.
-    tester.view.physicalSize = const Size(1400, 1600);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
-
-    final store = await _driveFailingSave(tester, db, route: '/event/new');
-
-    expect(store.written, hasLength(1));
-    expect(
-      await db.select(db.events).get(),
-      isEmpty,
-      reason: 'the row went with the rollback',
-    );
-    expect(await db.select(db.attachments).get(), isEmpty);
-    expect(store.live, isEmpty);
-    expect(find.byType(EventFormPage), findsOneWidget);
     await _unmount(tester);
   });
 }

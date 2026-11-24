@@ -9,7 +9,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
-import 'package:dayspark/ui/pages/event/event_form_page.dart';
+import 'package:dayspark/ui/pages/todo/new_item_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
@@ -21,7 +21,8 @@ GoRouter _createRouter() => GoRouter(
     GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
     GoRoute(
       path: '/event/new',
-      builder: (_, __) => EventFormPage(
+      builder: (_, __) => NewItemPage(
+        isEvent: true,
         initialStart: DateTime(2026, 5, 1),
         initialEnd: DateTime(2026, 5, 1).add(const Duration(hours: 1)),
       ),
@@ -111,9 +112,9 @@ void main() {
     // The calendar's create is an event (SPEC 规则 19): "+ 日程" opens event
     // create in the browsed day's context, never a task and never an
     // allocation.
-    expect(find.byType(EventFormPage), findsOneWidget);
+    expect(find.byType(NewItemPage), findsOneWidget);
     final uri = GoRouter.of(
-      tester.element(find.byType(EventFormPage)),
+      tester.element(find.byType(NewItemPage)),
     ).state.uri;
     expect(uri.path, '/event/new');
     final start = DateTime.fromMillisecondsSinceEpoch(
@@ -139,11 +140,11 @@ void main() {
     router.go('/event/new');
     await _settle(tester);
 
-    expect(find.text('Start'), findsOneWidget);
-    expect(find.text('End'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Description'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Location'), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Time'), findsOneWidget);
+    expect(find.text('All day'), findsOneWidget);
+    expect(find.text('Location'), findsOneWidget);
+    expect(find.text('Reminder'), findsOneWidget);
+    expect(find.text('Create event'), findsOneWidget);
   });
 
   testWidgets('settings page renders core sections', (tester) async {

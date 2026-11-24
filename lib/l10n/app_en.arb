@@ -2244,5 +2244,7 @@
   "itemTypeEvent": "Event",
   "eventLocationUnset": "Not set",
   "newItemSaveFailedNote": "This page still has your input. Check the connection and retry.",
-  "newItemRepeatLabel": "Repeat"
+  "newItemRepeatLabel": "Repeat",
+  "timePickerHint": "Type the numbers; press Enter to confirm. No dial.",
+  "timePickerInvalid": "Hour must be 00–23 and minute 00–59; fix it before confirming."
 }

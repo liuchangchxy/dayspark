@@ -220,12 +220,7 @@ class _SpecDatePickerDialogState extends State<SpecDatePickerDialog> {
                 for (var col = 0; col < 7; col++)
                   Expanded(
                     key: ValueKey('spec-day-${_iso(cells[row * 7 + col])}'),
-                    child: _dayCell(
-                      context,
-                      ds,
-                      locale,
-                      cells[row * 7 + col],
-                    ),
+                    child: _dayCell(context, ds, locale, cells[row * 7 + col]),
                   ),
               ],
             ),
@@ -326,19 +321,23 @@ class _SpecTimePickerDialogState extends State<SpecTimePickerDialog> {
     super.dispose();
   }
 
+  bool _invalid = false;
+
   void _confirm() {
-    final hour = int.tryParse(_hourController.text);
-    final minute = int.tryParse(_minuteController.text);
-    Navigator.of(context).pop(
-      TimeOfDay(
-        hour: hour != null && hour >= 0 && hour < 24
-            ? hour
-            : widget.initialTime.hour,
-        minute: minute != null && minute >= 0 && minute < 60
-            ? minute
-            : widget.initialTime.minute,
-      ),
-    );
+    final hour = int.tryParse(_hourController.text.trim());
+    final minute = int.tryParse(_minuteController.text.trim());
+    // Silently forgiving bad input would confirm a time the user never asked
+    // for; the design says the field must be fixed first.
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      setState(() => _invalid = true);
+      return;
+    }
+    Navigator.of(context).pop(TimeOfDay(hour: hour, minute: minute));
   }
 
   @override
@@ -367,37 +366,55 @@ class _SpecTimePickerDialogState extends State<SpecTimePickerDialog> {
           child: DsButton(label: l.ok, expand: true, onPressed: _confirm),
         ),
       ],
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 72,
-            child: DsTextField(
-              controller: _hourController,
-              autofocus: true,
-              style: fieldStyle,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.next,
-              onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 72,
+                child: DsTextField(
+                  controller: _hourController,
+                  autofocus: true,
+                  style: fieldStyle,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s2),
+                child: Text(
+                  ':',
+                  style: SpecTokens.t15.copyWith(fontSize: 18, color: ds.ink2),
+                ),
+              ),
+              SizedBox(
+                width: 72,
+                child: DsTextField(
+                  controller: _minuteController,
+                  style: fieldStyle,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _confirm(),
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s2),
-            child: Text(
-              ':',
-              style: SpecTokens.t15.copyWith(fontSize: 18, color: ds.ink2),
+          const SizedBox(height: 10),
+          if (_invalid)
+            Text(
+              l.timePickerInvalid,
+              textAlign: TextAlign.center,
+              style: SpecTokens.t11.copyWith(color: SpecTokens.red),
+            )
+          else
+            Text(
+              l.timePickerHint,
+              textAlign: TextAlign.center,
+              style: SpecTokens.t11.copyWith(color: SpecTokens.faint),
             ),
-          ),
-          SizedBox(
-            width: 72,
-            child: DsTextField(
-              controller: _minuteController,
-              style: fieldStyle,
-              keyboardType: TextInputType.number,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _confirm(),
-            ),
-          ),
         ],
       ),
     );

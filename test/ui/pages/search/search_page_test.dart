@@ -20,7 +20,7 @@ import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/pages/event/event_form_page.dart';
+import 'package:dayspark/ui/pages/todo/new_item_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 
@@ -1283,7 +1283,8 @@ void main() {
           routes: [
             GoRoute(
               path: 'new',
-              builder: (_, __) => EventFormPage(
+              builder: (_, __) => NewItemPage(
+                isEvent: true,
                 initialStart: DateTime(2026, 11, 22, 10),
                 initialEnd: DateTime(2026, 11, 22, 11),
                 initialSummary: '周报整理',

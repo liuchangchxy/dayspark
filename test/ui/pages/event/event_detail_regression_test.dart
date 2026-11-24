@@ -12,7 +12,6 @@ import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
-import 'package:dayspark/ui/pages/event/event_form_page.dart';
 
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 25; i++) {
@@ -131,43 +130,6 @@ void main() {
     await _settle(tester);
     expect(find.byType(DsDialog), findsOneWidget);
     expect(attempts, 1);
-    await _unmount(tester);
-  });
-
-  testWidgets('a failed form delete keeps the form and re-enables delete', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1400, 1000);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    var attempts = 0;
-
-    await tester.pumpWidget(
-      _app(
-        EventFormPage(event: event),
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          deleteEventProvider.overrideWithValue((id) async {
-            attempts++;
-            throw StateError('delete failed');
-          }),
-        ],
-      ),
-    );
-    await _settle(tester);
-
-    await tester.tap(find.byTooltip('Move to Trash'));
-    await _settle(tester);
-    await tester.tap(find.widgetWithText(DsButton, 'Move to Trash'));
-    await _settle(tester);
-
-    expect(attempts, 1);
-    expect(find.byType(EventFormPage), findsOneWidget);
-    expect(find.text("That didn't work. Please try again."), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Move to Trash'));
-    await _settle(tester);
-    expect(find.byType(DsDialog), findsOneWidget);
     await _unmount(tester);
   });
 

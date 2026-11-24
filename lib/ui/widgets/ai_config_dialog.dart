@@ -233,6 +233,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
     return DsDialog(
       title: l.aiConfig,
       width: 520,
+      sheetOnMobile: true,
       actions: [
         if (config != null)
           DsButton(

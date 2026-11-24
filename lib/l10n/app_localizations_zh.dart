@@ -3525,4 +3525,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get newItemRepeatLabel => '重复';
+
+  @override
+  String get timePickerHint => '直接输入数字；回车确定。不使用表盘。';
+
+  @override
+  String get timePickerInvalid => '小时需在 00–23、分钟需在 00–59；修正后才能确定。';
 }
