@@ -362,3 +362,38 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 | P3 | 移动端时间选择仍走 Cupertino 滚轮 sheet（`wheel_time_picker.dart`），R8 的"内联方框"目前只覆盖桌面 | 记为 P2 待办：移动端时间入口尚未归入 `planPicker` 模型，下一轮收敛 |
 | P3 | 选择器文案由 Material 的 "Select date/Time" 换为 app 自有 `pickDateHint`/`dueTime` | 正是收敛目的（消除第三套语言），保留 |
 | P3 | `reportIssue` 行无测试；`event_detail` 的 discard 对话框多了 `AnimationStyle.noAnimation`，`todo_detail` 没有 | 记 P2/P3 待办，不阻断本轮 |
+
+### 5.5 真机目检记录（2026-11-24 会话末，macOS release 构建 f045492）
+
+在真实启动的 release 包上逐屏截图（非测试、非 golden），复用 App 自身 deep link 与 VM Service 导航；带 `screencapture` 存证。
+
+| Surface | 结果 | 备注 |
+|---|---|---|
+| Today（桌面） | PASS | 顶栏 今天/待办/日历、过期/无日期分组、右侧时间轴红 now 线、浮动捕获条 |
+| Todo（桌面） | PASS | 2026年11月 月条、按日期、无日期分组、筛选/捕获条 |
+| Calendar 周（桌面） | PASS | 全天/截止泳道、红色今日头、空态文案、红 now 线 |
+| Capture（快速添加 Dialog） | PASS | 纸面卡片、标题输入、保存/添加待办/取消 + esc 提示 |
+| Detail（Todo 详情） | PASS | 只读摘要、已完成行、截止/计划/重复/提醒、取消/移到回收站 |
+| Settings | PASS | 左侧 9 分区 + 右侧概览 6 行（与规格 `settingsPage('home')` 一致） |
+| Search 命令浮层 | PASS | 最近结果 + 动作，类型标签右对齐，底部键位提示 |
+| Tags / Trash / AI 空态 | PASS | 管理标签空态、回收站行内恢复/删除、AI 未配置空态 |
+| 时间槽 Sheet | **FAIL → 已修** | 三动作启动器（已知 P2）的主行动原填 `ds.primary`（旧陶土 #C2410C），规格 `.btn.primary` 是墨色；已改 `SpecTokens.ink`，并暴露根因见下 |
+| 时间槽 Sheet（复验 `b6bbf22`） | PASS | 实拍确认主行动为墨色填充、白字、白图标，与规格 `.cp-actions .btn.primary` 一致 |
+| Detail 已完成行的分隔条（复验 `b6bbf22`） | PASS | 由旧陶土改为墨色（`ds.primary` 现在解析为 ink）；「移到回收站」仍为红，符合规格的破坏性语义 |
+| 分享 / 权限 / 系统页 | 未目检 | 属系统原生 UI，按 §4.3 保留系统样式 |
+
+**目检暴露的根因（P1 级，已立案）**：`DsColors.light` 仍由旧调色板 `AppColors` 构造（`#FCFCFA / #F7F7F2 / #E8E7E1 / #3F413A / #C2410C`），80 处 `ds.primary` 消费点因此继续画旧值；守卫此前只覆盖原生组件目录，Dart 侧无禁线。修复方向：把 `DsColors` 映射到 `SpecTokens`（primary=墨、danger=红、warm/warn=琥珀），表内补 Dart 侧退役色禁线。状态见 5.6。
+
+### 5.6 收口状态（2026-11-24）
+
+| 门 | 状态 |
+|---|---|
+| 未归类 Surface = 0 / 未处理第一方 = 0 | 通过（§4） |
+| orphan UI = 0 / duplicate UI = 0 | 通过（§4.1，守卫断言可失败） |
+| P0 = 0 | 通过 |
+| P1 = 0 | 本轮 P1（日期格键盘、palette 根因）均已修（palette 修复在 `ui/palette-root`） |
+| `dart analyze .` | 0 issue |
+| `flutter test` | f045492：1035 全绿、skipped=0 |
+| release build | f045492 macOS 63.1MB 构建成功 |
+| CI（PR #113） | f045492 全 9 个 job 绿（test 必需检查通过） |
+| 代表页面目检 | 见 5.5 |
