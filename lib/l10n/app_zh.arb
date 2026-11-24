@@ -768,9 +768,9 @@
   "executionRow": "计划执行",
   "deadlineRow": "截止",
   "remindOnTime": "准时",
-  "remindMinutesBefore": "提前 {count} 分钟",
-  "remindHoursBefore": "提前 {count} 小时",
-  "remindDaysBefore": "提前 {count} 天",
+  "remindMinutesBefore": "{count} 分钟前",
+  "remindHoursBefore": "{count} 小时前",
+  "remindDaysBefore": "{count} 天前",
   "remindCustom": "自定义时间",
   "reminderNeedsAnchor": "先设置截止时间或开始时间，提醒才能相对它计算。",
   "actionEarlierToday": "今日早前",
@@ -1906,5 +1906,21 @@
         "type": "int"
       }
     }
-  }
+  },
+  "newTodoPageTitle": "记一件事",
+  "newItemPageSub": "Capture 的整页形态：字段和浮动捕获完全一致；不点开的字段不写入。",
+  "createTodoAction": "记下待办",
+  "createEventAction": "创建日程",
+  "newTodoPlaceholder": "写一个明天能看懂的动作",
+  "newEventPlaceholder": "给这段日程起个名字",
+  "newTodoFootnote": "标签、子任务、附件可以创建后再加；它们不属于捕获必填项。",
+  "newEventFootnote": "地点和备注可以创建后再加。",
+  "typeNoteTodo": "默认是待办；只有主动切到日程才会变。",
+  "typeNoteEvent": "从时间槽进入，所以是日程。",
+  "notFilled": "未填写",
+  "itemTypeTodo": "待办",
+  "itemTypeEvent": "日程",
+  "eventLocationUnset": "未填写",
+  "newItemSaveFailedNote": "这一页的内容还在；检查网络后重试。",
+  "newItemRepeatLabel": "重复"
 }

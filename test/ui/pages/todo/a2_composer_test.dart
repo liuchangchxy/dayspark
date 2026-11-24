@@ -826,7 +826,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('the notes row opens the full form with the typed title', (
+  testWidgets('the overflow button opens the full page with the typed title', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -854,8 +854,9 @@ void main() {
     );
     await tester.pump();
 
-    // The row used to be a dead cell: it painted like a field but did nothing.
-    await tester.tap(find.byKey(const ValueKey('a2-composer-notes')));
+    // Notes are no longer a capture field: the overflow button is the one
+    // path from the sheet to the full page, and it carries the typed title.
+    await tester.tap(find.byIcon(CupertinoIcons.ellipsis));
     await _settle(tester);
 
     expect(router.state.uri.path, '/todo/new');
@@ -894,9 +895,9 @@ void main() {
       );
       await tester.pump();
 
-      // Title -> deadline -> plan -> reminder -> calendar -> priority -> notes
-      // -> more -> primary. Each stop has to exist, or Enter lands elsewhere.
-      for (var i = 0; i < 8; i++) {
+      // Title -> deadline -> plan -> reminder -> calendar -> priority -> more
+      // -> primary. Each stop has to exist, or Enter lands elsewhere.
+      for (var i = 0; i < 7; i++) {
         await tester.sendKeyEvent(LogicalKeyboardKey.tab);
         await tester.pump();
       }

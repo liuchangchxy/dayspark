@@ -12,8 +12,8 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
-import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
+import 'package:dayspark/ui/pages/todo/new_item_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/ui/pages/todo/quick_add_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
@@ -299,7 +299,8 @@ abstract final class AppRouter {
                       0,
                     );
               return _pageTransition(
-                EventFormPage(
+                NewItemPage(
+                  isEvent: true,
                   initialSummary: state.uri.queryParameters['summary'],
                   initialStart: start != null
                       ? DateTime.fromMillisecondsSinceEpoch(
@@ -345,10 +346,6 @@ abstract final class AppRouter {
             path: '/todo/new',
             name: 'todoCreate',
             pageBuilder: (context, state) {
-              final parentIdParam = state.uri.queryParameters['parentId'];
-              final parentId = parentIdParam != null
-                  ? int.tryParse(parentIdParam)
-                  : null;
               final start = state.uri.queryParameters['start'];
               final end = state.uri.queryParameters['end'];
               final due = state.uri.queryParameters['due'];
@@ -364,12 +361,10 @@ abstract final class AppRouter {
                     : DateTime.fromMillisecondsSinceEpoch(millis);
               }
               return _pageTransition(
-                TodoFormPage(
-                  parentId: parentId,
-                  source: state.uri.queryParameters['source'],
-                  initialDueDate: parse(due),
-                  initialExecutionStart: parse(start),
-                  initialExecutionEnd: parse(end),
+                NewItemPage(
+                  initialDue: parse(due),
+                  initialStart: parse(start),
+                  initialEnd: parse(end),
                   initialSummary: state.uri.queryParameters['summary'],
                 ),
               );

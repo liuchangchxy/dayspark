@@ -6406,6 +6406,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keeping local will skip {count} associated items in backup'**
   String backupConflictSkipAssociated(int count);
+
+  /// No description provided for @newTodoPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a task'**
+  String get newTodoPageTitle;
+
+  /// No description provided for @newItemPageSub.
+  ///
+  /// In en, this message translates to:
+  /// **'The full-page form of Capture: same fields as the floating panel; fields you do not open are not written.'**
+  String get newItemPageSub;
+
+  /// No description provided for @createTodoAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add todo'**
+  String get createTodoAction;
+
+  /// No description provided for @createEventAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create event'**
+  String get createEventAction;
+
+  /// No description provided for @newTodoPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Write an action future-you can understand'**
+  String get newTodoPlaceholder;
+
+  /// No description provided for @newEventPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Name this event'**
+  String get newEventPlaceholder;
+
+  /// No description provided for @newTodoFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags, subtasks and attachments can be added after creation; they are not part of capture.'**
+  String get newTodoFootnote;
+
+  /// No description provided for @newEventFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Location and notes can be added after creation.'**
+  String get newEventFootnote;
+
+  /// No description provided for @typeNoteTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'A todo by default; only switching to event changes that.'**
+  String get typeNoteTodo;
+
+  /// No description provided for @typeNoteEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened from a time slot, so this is an event.'**
+  String get typeNoteEvent;
+
+  /// No description provided for @notFilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get notFilled;
+
+  /// No description provided for @itemTypeTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo'**
+  String get itemTypeTodo;
+
+  /// No description provided for @itemTypeEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get itemTypeEvent;
+
+  /// No description provided for @eventLocationUnset.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get eventLocationUnset;
+
+  /// No description provided for @newItemSaveFailedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This page still has your input. Check the connection and retry.'**
+  String get newItemSaveFailedNote;
+
+  /// No description provided for @newItemRepeatLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get newItemRepeatLabel;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

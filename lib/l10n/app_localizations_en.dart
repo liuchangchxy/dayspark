@@ -3531,4 +3531,52 @@ class AppLocalizationsEn extends AppLocalizations {
   String backupConflictSkipAssociated(int count) {
     return 'Keeping local will skip $count associated items in backup';
   }
+
+  @override
+  String get newTodoPageTitle => 'Capture a task';
+
+  @override
+  String get newItemPageSub => 'The full-page form of Capture: same fields as the floating panel; fields you do not open are not written.';
+
+  @override
+  String get createTodoAction => 'Add todo';
+
+  @override
+  String get createEventAction => 'Create event';
+
+  @override
+  String get newTodoPlaceholder => 'Write an action future-you can understand';
+
+  @override
+  String get newEventPlaceholder => 'Name this event';
+
+  @override
+  String get newTodoFootnote => 'Tags, subtasks and attachments can be added after creation; they are not part of capture.';
+
+  @override
+  String get newEventFootnote => 'Location and notes can be added after creation.';
+
+  @override
+  String get typeNoteTodo => 'A todo by default; only switching to event changes that.';
+
+  @override
+  String get typeNoteEvent => 'Opened from a time slot, so this is an event.';
+
+  @override
+  String get notFilled => 'Not set';
+
+  @override
+  String get itemTypeTodo => 'Todo';
+
+  @override
+  String get itemTypeEvent => 'Event';
+
+  @override
+  String get eventLocationUnset => 'Not set';
+
+  @override
+  String get newItemSaveFailedNote => 'This page still has your input. Check the connection and retry.';
+
+  @override
+  String get newItemRepeatLabel => 'Repeat';
 }

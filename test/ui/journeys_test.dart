@@ -16,9 +16,8 @@ import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
-import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
-import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
+import 'package:dayspark/ui/pages/todo/new_item_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
 /// Journeys through the real router and a real database.
@@ -204,10 +203,13 @@ void main() {
       '&end=${DateTime(2026, 10, 30, 11).millisecondsSinceEpoch}',
     );
     await _settle(tester);
-    expect(find.byType(EventFormPage), findsOneWidget);
+    expect(find.byType(NewItemPage), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField).first, 'Design review');
-    await tester.tap(find.text('Save'));
+    await tester.enterText(
+      find.byKey(const ValueKey('new-item-title')),
+      'Design review',
+    );
+    await tester.tap(find.text('Create event'));
     await _settle(tester);
 
     final event = (await db.select(db.events).get()).single;
@@ -250,7 +252,7 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.byType(TodoFormPage), findsOneWidget);
+    expect(find.byType(NewItemPage), findsOneWidget);
     expect(
       find.widgetWithText(TextField, 'Weekly review'),
       findsOneWidget,

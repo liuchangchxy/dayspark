@@ -1721,17 +1721,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String remindMinutesBefore(int count) {
-    return '提前 $count 分钟';
+    return '$count 分钟前';
   }
 
   @override
   String remindHoursBefore(int count) {
-    return '提前 $count 小时';
+    return '$count 小时前';
   }
 
   @override
   String remindDaysBefore(int count) {
-    return '提前 $count 天';
+    return '$count 天前';
   }
 
   @override
@@ -3477,4 +3477,52 @@ class AppLocalizationsZh extends AppLocalizations {
   String backupConflictSkipAssociated(int count) {
     return '保留本机将跳过 $count 个关联项';
   }
+
+  @override
+  String get newTodoPageTitle => '记一件事';
+
+  @override
+  String get newItemPageSub => 'Capture 的整页形态：字段和浮动捕获完全一致；不点开的字段不写入。';
+
+  @override
+  String get createTodoAction => '记下待办';
+
+  @override
+  String get createEventAction => '创建日程';
+
+  @override
+  String get newTodoPlaceholder => '写一个明天能看懂的动作';
+
+  @override
+  String get newEventPlaceholder => '给这段日程起个名字';
+
+  @override
+  String get newTodoFootnote => '标签、子任务、附件可以创建后再加；它们不属于捕获必填项。';
+
+  @override
+  String get newEventFootnote => '地点和备注可以创建后再加。';
+
+  @override
+  String get typeNoteTodo => '默认是待办；只有主动切到日程才会变。';
+
+  @override
+  String get typeNoteEvent => '从时间槽进入，所以是日程。';
+
+  @override
+  String get notFilled => '未填写';
+
+  @override
+  String get itemTypeTodo => '待办';
+
+  @override
+  String get itemTypeEvent => '日程';
+
+  @override
+  String get eventLocationUnset => '未填写';
+
+  @override
+  String get newItemSaveFailedNote => '这一页的内容还在；检查网络后重试。';
+
+  @override
+  String get newItemRepeatLabel => '重复';
 }

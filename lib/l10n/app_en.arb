@@ -2228,5 +2228,21 @@
         "type": "int"
       }
     }
-  }
+  },
+  "newTodoPageTitle": "Capture a task",
+  "newItemPageSub": "The full-page form of Capture: same fields as the floating panel; fields you do not open are not written.",
+  "createTodoAction": "Add todo",
+  "createEventAction": "Create event",
+  "newTodoPlaceholder": "Write an action future-you can understand",
+  "newEventPlaceholder": "Name this event",
+  "newTodoFootnote": "Tags, subtasks and attachments can be added after creation; they are not part of capture.",
+  "newEventFootnote": "Location and notes can be added after creation.",
+  "typeNoteTodo": "A todo by default; only switching to event changes that.",
+  "typeNoteEvent": "Opened from a time slot, so this is an event.",
+  "notFilled": "Not set",
+  "itemTypeTodo": "Todo",
+  "itemTypeEvent": "Event",
+  "eventLocationUnset": "Not set",
+  "newItemSaveFailedNote": "This page still has your input. Check the connection and retry.",
+  "newItemRepeatLabel": "Repeat"
 }

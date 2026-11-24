@@ -127,7 +127,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   DateTime? _start;
   DateTime? _end;
   int? _calendarId;
-  int _priority = 0;
+  int _priority = 5;
   Duration? _reminderOffset;
   bool _planOpen = false;
   bool _saving = false;
@@ -138,6 +138,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
   bool _suggestionApplied = false;
   bool _suggestionRemoved = false;
   bool _discardOpen = false;
+  bool _reminderTouched = false;
   String? _occurrenceId;
   Todo? _boundTodo;
 
@@ -160,10 +161,11 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
     _due = widget.todo?.dueDate;
     _start = widget.initialStart;
     _end = widget.initialEnd;
-    _priority = widget.todo?.priority ?? 0;
+    _priority = widget.todo?.priority ?? 5;
     _calendarId = widget.todo?.calendarId;
     _planOpen = false;
     _event = widget.startAsEvent && widget.todo == null;
+    if (_event) _reminderOffset = const Duration(minutes: 15);
     final parsed = parseCapture(_title.text, DateTime.now());
     _parsedHasSuggestion = widget.todo == null && parsed.start != null;
     if (!_scheduling && parsed.start != null) {
@@ -214,6 +216,9 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
         _suggestionRemoved = false;
       }
       if (!event) _suggestionRemoved = false;
+      if (event && !_reminderTouched && _reminderOffset == null) {
+        _reminderOffset = const Duration(minutes: 15);
+      }
     });
   }
 
@@ -246,14 +251,14 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
           _end != widget.initialEnd ||
           _dueChanged ||
           _reminderOffset != null ||
-          _priority != (widget.todo?.priority ?? 0);
+          _priority != (widget.todo?.priority ?? 5);
     }
     return _title.text.trim().isNotEmpty ||
         _due != null ||
         _start != null ||
         _end != null ||
-        _reminderOffset != null ||
-        _priority != 0 ||
+        (_reminderTouched && _reminderOffset != null) ||
+        _priority != 5 ||
         _calendarId != null;
   }
 
@@ -456,6 +461,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
       ),
     );
     if (picked == null || !mounted) return;
+    _reminderTouched = true;
     if (picked.offset == null) {
       setState(() => _reminderOffset = null);
       return;
@@ -807,7 +813,7 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
           ),
           _subRow(
             ds,
-            l.calendarField,
+            l.captureFieldCalendar,
             calendarName ?? (calendars.isEmpty ? '' : calendars.first.name),
             key: const ValueKey('a2-composer-calendar'),
             strong: calendarName != null,
@@ -832,17 +838,8 @@ class _A2ComposerSheetState extends ConsumerState<A2ComposerSheet> {
                 _ => l.priorityNone,
               },
               key: const ValueKey('a2-composer-priority'),
-              onTap: _pickPriority,
-            ),
-            // Notes live in the full form only; this row is the way there, and
-            // it carries the title so the trip does not lose what was typed.
-            _subRow(
-              ds,
-              l.notes,
-              l.composerOptional,
-              key: const ValueKey('a2-composer-notes'),
               last: true,
-              onTap: _openFullForm,
+              onTap: _pickPriority,
             ),
           ],
         ],
