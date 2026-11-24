@@ -380,6 +380,10 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 | 时间槽 Sheet | **FAIL → 已修** | 三动作启动器（已知 P2）的主行动原填 `ds.primary`（旧陶土 #C2410C），规格 `.btn.primary` 是墨色；已改 `SpecTokens.ink`，并暴露根因见下 |
 | 时间槽 Sheet（复验 `b6bbf22`） | PASS | 实拍确认主行动为墨色填充、白字、白图标，与规格 `.cp-actions .btn.primary` 一致 |
 | Detail 已完成行的分隔条（复验 `b6bbf22`） | PASS | 由旧陶土改为墨色（`ds.primary` 现在解析为 ink）；「移到回收站」仍为红，符合规格的破坏性语义 |
+| 内联时间方框（复验 `5fc8923`） | PASS | 实拍「具体时间」卡片：两个数字输入框 09 : 52、取消/确定，墨色主按钮；不是滚轮、不是表盘 |
+| 移动端 Today（Android 15 模拟器） | PASS | 同为纸白页 + 四档底栏 + 浮动捕获条，红 only 用于 now 线与逾期 |
+| Android 原生小组件（模拟器桌面实拍） | PASS | 桌面上两个小组件（日期型 / 今天型）均为纯白卡片、墨色正文、红色 `+`、灰色空心圆，`values-night` 未受影响 |
+| iOS/macOS 原生小组件 | 未目检 | 本机无法渲染 WidgetKit 表面；已由色板守卫断言覆盖（退役色为 0），仅剩系统宿主差异 |
 | 分享 / 权限 / 系统页 | 未目检 | 属系统原生 UI，按 §4.3 保留系统样式 |
 
 **目检暴露的根因（P1 级，已立案）**：`DsColors.light` 仍由旧调色板 `AppColors` 构造（`#FCFCFA / #F7F7F2 / #E8E7E1 / #3F413A / #C2410C`），80 处 `ds.primary` 消费点因此继续画旧值；守卫此前只覆盖原生组件目录，Dart 侧无禁线。修复方向：把 `DsColors` 映射到 `SpecTokens`（primary=墨、danger=红、warm/warn=琥珀），表内补 Dart 侧退役色禁线。状态见 5.6。
@@ -393,7 +397,7 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 | P0 = 0 | 通过 |
 | P1 = 0 | 本轮 P1（日期格键盘、palette 根因）均已修（palette 修复在 `ui/palette-root`） |
 | `dart analyze .` | 0 issue |
-| `flutter test` | f045492：1035 全绿、skipped=0 |
-| release build | f045492 macOS 63.1MB 构建成功 |
+| `flutter test` | `5fc8923`：1039 全绿、skipped=0 |
+| release build | `5fc8923` macOS 63.0MB 构建成功；debug APK 装到 Android 15 模拟器实机跑步 |
 | CI（PR #113） | f045492 全 9 个 job 绿（test 必需检查通过） |
-| 代表页面目检 | 见 5.5 |
+| 代表页面目检 | 见 5.5（桌面 9 屏 + 移动端 Today + Android 原生小组件，均为 release/真机实拍） |
