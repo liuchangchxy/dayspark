@@ -305,7 +305,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
         : ended
         ? l.completedLabel
         : l.upcoming;
-    final statusColor = inProgress ? context.ds.primaryHover : context.ds.ink3;
+    final statusColor = inProgress ? context.ds.danger : context.ds.ink3;
     final fraction = validRange
         ? (now.difference(start).inMilliseconds / length.inMilliseconds)
               .clamp(0.0, 1.0)

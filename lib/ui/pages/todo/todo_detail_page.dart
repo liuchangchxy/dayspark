@@ -364,7 +364,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       statusColor = ds.danger;
     } else if (days == 0) {
       status = l.today;
-      statusColor = ds.primaryHover;
+      statusColor = ds.danger;
     } else {
       status = l.upcoming;
       statusColor = ds.ink3;

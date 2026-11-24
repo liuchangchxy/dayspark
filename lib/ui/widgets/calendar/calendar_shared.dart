@@ -514,7 +514,7 @@ class _CalBlockTileState extends State<CalBlockTile> {
             style: TextStyle(
               fontSize: 10,
               height: 1.25,
-              color: ds.primary,
+              color: ds.danger,
               fontFeatures: AppTypography.tabular,
             ),
           )
@@ -576,7 +576,7 @@ class _CalBlockTileState extends State<CalBlockTile> {
             style: TextStyle(
               fontSize: 10.5,
               height: 1.25,
-              color: ds.primary,
+              color: ds.danger,
               fontFeatures: AppTypography.tabular,
             ),
           ),

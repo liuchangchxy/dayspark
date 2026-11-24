@@ -53,7 +53,7 @@ abstract final class AppColors {
   static const Color darkTextFaint = Color(0xFF6E7069);
   static const Color darkSeparator = Color(0xFF2C2D28);
   static const Color darkSeparatorSoft = Color(0xFF232420);
-  static const Color darkAccent = Color(0xFFE0703C);
+  static const Color darkAccent = Color(0xFFE8695B);
   static const Color darkAccentHover = Color(0xFFF08A55);
   static const Color darkAccentSoft = Color(0xFF33211A);
   static const Color darkAccentTint = Color(0xFF2A1C15);
@@ -232,7 +232,8 @@ class DsColors extends ThemeExtension<DsColors> {
     primaryHover: AppColors.darkTextSecondary,
     primarySoft: AppColors.darkSurfaceSecondary,
     primaryTint: AppColors.darkSurfaceSecondary,
-    onPrimary: Colors.white,
+    // The dark "ink" fill is near-white, so its label must be dark ink.
+    onPrimary: Color(0xFF14140F),
     warm: AppColors.darkWarm,
     warmSoft: AppColors.darkWarmSoft,
     warn: AppColors.darkWarning,

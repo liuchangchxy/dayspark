@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -330,12 +331,12 @@ class _MonthYearPickerSheetState extends ConsumerState<_MonthYearPickerSheet> {
     final today = _sameDay(day, ref.read(calendarNowProvider)());
     final selected = _sameDay(day, _selected);
     final background = today
-        ? ds.primaryTint
+        ? SpecTokens.redSoft
         : selected
         ? ds.surface3
         : null;
     final color = today
-        ? ds.primary
+        ? SpecTokens.red
         : otherMonth
         ? ds.ink3.withValues(alpha: 0.45)
         : ds.ink;

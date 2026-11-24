@@ -65,8 +65,9 @@ void main() {
       expect(DsColors.light.warm, AppColors.lightWarning);
     });
 
-    test('dark accent stays on its own table', () {
-      expect(AppColors.darkAccent, const Color(0xFFE0703C));
+    test('the dark default accent matches the terracotta preset', () {
+      expect(AppColors.darkAccent, const Color(0xFFE8695B));
+      expect(AppColors.darkAccent, AppAccent.terracotta.dark);
     });
 
     test('the default presets are the spec palette', () {
