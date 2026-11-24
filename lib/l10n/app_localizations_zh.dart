@@ -3531,4 +3531,352 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get timePickerInvalid => '小时需在 00–23、分钟需在 00–59；修正后才能确定。';
+
+  @override
+  String get pickTimeHint => '选择时间';
+
+  @override
+  String calendarOverlapCount(int count) {
+    return '$count 项重叠';
+  }
+
+  @override
+  String get calendarOverlapNote => '并排显示，不合并、不覆盖；点任一项打开详情。';
+
+  @override
+  String calendarDragReleaseHint(String time) {
+    return '松手 · $time 安排';
+  }
+
+  @override
+  String get deadlinePointNote => '点状标记，不占时间';
+
+  @override
+  String get slotCaptureFrom => '从时间槽进入';
+
+  @override
+  String get slotCaptureHint => '入口不同，Capture 表面相同；时间已预填。';
+
+  @override
+  String get slotOtherWays => '其他安排方式';
+
+  @override
+  String monthItemsOverflow(int count) {
+    return '$count 项未展开';
+  }
+
+  @override
+  String get savingLabel => '保存中…';
+
+  @override
+  String get settingsHomeAccountDesc => '登录、服务器与登录状态。';
+
+  @override
+  String get settingsHomeGeneralDesc => '默认日历、启动页、主题与语言。';
+
+  @override
+  String settingsHomeCalendarsDesc(int count) {
+    return '$count 个日历 · 1 个默认。';
+  }
+
+  @override
+  String get settingsHomeDataDesc => '标签、回收站、导入导出、备份。';
+
+  @override
+  String get settingsHomeAiDesc => '可选功能；需要自己的模型 Key。';
+
+  @override
+  String get settingsHomeNotifyDesc => '系统闹钟与权限。';
+
+  @override
+  String get settingsHomeSyncDesc => '服务器、账号、失败与冲突。';
+
+  @override
+  String get settingsHomeAboutDesc => '版本、许可与反馈入口。';
+
+  @override
+  String get settingsValueEnter => '进入';
+
+  @override
+  String get settingsValueOpen => '打开';
+
+  @override
+  String get settingsValueManage => '管理';
+
+  @override
+  String get settingsValueView => '查看';
+
+  @override
+  String get accountNotLoggedIn => '未登录';
+
+  @override
+  String get aiEnableFull => '启用 AI 助手';
+
+  @override
+  String get aiEnableDesc => '关闭后隐藏「打开助手」与对话入口；已创建的待办不受影响。';
+
+  @override
+  String get aiModelRow => '模型配置';
+
+  @override
+  String get aiKeyLocalOnly => '只在本机保存';
+
+  @override
+  String get aiModelDialogTitle => 'AI 模型';
+
+  @override
+  String get aiBaseUrlHelp => 'Key 只保存在这台设备；不会同步到服务器。检测会请求 /models。';
+
+  @override
+  String get aiKeyCheckFailedTitle => 'Key 校验失败。';
+
+  @override
+  String get aiKeyCheck401Body => '服务端返回 401；没有保存这次修改。';
+
+  @override
+  String aiKeyCheckFailedBody(String status) {
+    return '请求服务商失败（$status）；没有保存这次修改。';
+  }
+
+  @override
+  String get aiUnconfiguredAlertTitle => '还没有可用的模型。';
+
+  @override
+  String get aiUnconfiguredAlertBody => '填好 Base URL 和 Key 并保存后，才能发送消息。';
+
+  @override
+  String get aiOffAlertBody => 'AI 助手已关闭；设置里保留这一页，方便随时重新打开。';
+
+  @override
+  String aiConfiguredWithModel(String model) {
+    return '已配置 · $model';
+  }
+
+  @override
+  String aiConnectedModel(String model) {
+    return '已连接 · 模型 $model · 仅在本机保存 Key';
+  }
+
+  @override
+  String get aiChatSubtitleFallback => '对话是内容页；不是搜索，也不是命令框。';
+
+  @override
+  String get aiReplyInProgress => '正在回复…';
+
+  @override
+  String get syncConflictDesc => '同一个条目在本地和服务器都改过；逐项选择。';
+
+  @override
+  String syncConflictRecord(String id, String type) {
+    return '冲突记录 $id · $type';
+  }
+
+  @override
+  String get syncConflictLocalServer => '本地：此设备的修改仍保留。服务器：版本已变化，服务器拒绝了覆盖。';
+
+  @override
+  String get syncConflictApply => '应用选择';
+
+  @override
+  String get syncConflictMergeHint => '同步层没有字段级合并；选择「合并」不会改写任一版本。';
+
+  @override
+  String capturePlanTo(String date) {
+    return '计划到 $date';
+  }
+
+  @override
+  String get syncConflictKeepLocalResult => '已保留本地版本；下次编辑这条记录时会作为新修改重新上传。';
+
+  @override
+  String get capturePlanDayEmpty => '当天还没有安排';
+
+  @override
+  String get syncConflictRemoteUnavailable => '同步层没有暴露服务器副本；没有应用「保留服务器」的选择。';
+
+  @override
+  String capturePlanOverlapCount(int count) {
+    return '与 $count 项重叠';
+  }
+
+  @override
+  String get syncConflictMergeUnavailable => '同步层没有字段级合并；没有应用「合并」的选择，也没有伪造合并结果。';
+
+  @override
+  String captureSuggestionTitle(String range) {
+    return '$range · 建议安排';
+  }
+
+  @override
+  String get syncConflictBack => '返回同步';
+
+  @override
+  String get syncServerUnreachable => '不可达';
+
+  @override
+  String syncPendingBoth(int uploads, int downloads) {
+    return '$uploads 条待上传 · $downloads 条待下载';
+  }
+
+  @override
+  String get syncRetryDesc => '立即重试同步。';
+
+  @override
+  String get backupProgressTitle => '正在备份';
+
+  @override
+  String get backupProgressPacking => '打包日历、待办、日程、标签与附件索引。';
+
+  @override
+  String backupProgressWriting(String filename) {
+    return '正在写入 $filename';
+  }
+
+  @override
+  String backupProgressPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get backupIncludes => '包含';
+
+  @override
+  String backupIncludesCounts(int calendars, int todos, int events, int attachments) {
+    return '$calendars 个日历 · $todos 个待办 · $events 个日程 · 附件索引 $attachments 个';
+  }
+
+  @override
+  String get backupSavedLocation => '文件已保存到你选择的位置。';
+
+  @override
+  String captureEventCreatedToast(String range) {
+    return '已创建日程 · $range';
+  }
+
+  @override
+  String get backupFailedTitle => '备份失败';
+
+  @override
+  String overdueToolbarEarliest(String date) {
+    return '最早 $date';
+  }
+
+  @override
+  String get backupFailedBody => '目标位置不可写。';
+
+  @override
+  String timelineMissedPill(int count) {
+    return '已遗漏 $count 次';
+  }
+
+  @override
+  String get backupNoPartial => '没有生成半成品文件。';
+
+  @override
+  String get pastDueOrMissedSection => '已逾期 / 已遗漏';
+
+  @override
+  String get importErrorTitle => '导入失败';
+
+  @override
+  String get importSeeReport => '查看报告';
+
+  @override
+  String get importSkipRows => '跳过错误行并继续';
+
+  @override
+  String get importCannotSkip => '整份文件无法解析，无法只跳过错误行；修正文件后重试。';
+
+  @override
+  String get importReportTitle => '导入报告';
+
+  @override
+  String importReportSkipped(int count) {
+    return '将跳过 $count 行';
+  }
+
+  @override
+  String get importReportEmpty => '这份文件没有需要报告的坏行。';
+
+  @override
+  String importReportError(String error) {
+    return '解析错误：$error';
+  }
+
+  @override
+  String get exactAlarmNotActive => '未生效';
+
+  @override
+  String get systemNotification => '系统通知';
+
+  @override
+  String feedbackCharCount(int count) {
+    return '$count 字 · 不会自动附带日志';
+  }
+
+  @override
+  String get feedbackMetaReady => '可以复制，或带到 GitHub';
+
+  @override
+  String filterAppliedSummary(String criteria, int count) {
+    return '已筛选：$criteria · $count 项';
+  }
+
+  @override
+  String get feedbackMetaEmpty => '写点内容才能继续';
+
+  @override
+  String get listSeparator => '、';
+
+  @override
+  String get feedbackNoSilentSubmit => 'DaySpark 不会在后台自动提交任何内容。复制之后，你可以贴到任意渠道；GitHub 会打开一个空白 issue，正文已填好。';
+
+  @override
+  String get pickTimeTitle => '选择时间';
+
+  @override
+  String get feedbackLinkErrorTitle => '没能打开浏览器。';
+
+  @override
+  String get feedbackLinkErrorBody => '内容还在，可以重试，或先复制到剪贴板再手动打开。';
+
+  @override
+  String get aiOffValue => '已关闭';
+
+  @override
+  String get aiDisabledTitle => 'AI 助手已关闭';
+
+  @override
+  String get aiDisabledHint => '这是一个可选功能；打开开关并配置模型后，才会出现对话入口。';
+
+  @override
+  String get aiOpenSettings => '打开设置';
+
+  @override
+  String get aiConfigureModel => '配置模型';
+
+  @override
+  String settingsCalendarsCountOne(int count) {
+    return '$count 个日历 · 1 个默认';
+  }
+
+  @override
+  String get defaultCalendarBadgeValue => '默认';
+
+  @override
+  String settingsCurrentDefault(String name) {
+    return '当前默认：$name';
+  }
+
+  @override
+  String get settingsDefaultCalSavedPlaceholder => '保存默认日历';
+
+  @override
+  String get chatModelAction => '模型';
+
+  @override
+  String get chatClearAction => '清空对话';
+
+  @override
+  String get settingsBetaBadge => '候选版本';
 }

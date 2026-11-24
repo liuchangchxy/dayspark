@@ -111,6 +111,9 @@ class _SpecDatePickerDialogState extends State<SpecDatePickerDialog> {
     return DsDialog(
       title: l.pickDateHint,
       width: 320,
+      // The spec draws this card centred on desktop and docked to the bottom
+      // edge on phones; both pickers follow the same rule.
+      sheetOnMobile: true,
       actions: [
         Expanded(
           child: DsButton(
@@ -312,6 +315,8 @@ class _SpecTimePickerDialogState extends State<SpecTimePickerDialog> {
     _minuteController = TextEditingController(
       text: widget.initialTime.minute.toString().padLeft(2, '0'),
     );
+    _hourController.addListener(_revalidate);
+    _minuteController.addListener(_revalidate);
   }
 
   @override
@@ -323,21 +328,35 @@ class _SpecTimePickerDialogState extends State<SpecTimePickerDialog> {
 
   bool _invalid = false;
 
-  void _confirm() {
+  // The frozen spec's invalid state is live: red boxes, an explanation and a
+  // disabled 确定. Silently falling back to the last valid value would confirm
+  // a time the user never asked for.
+  TimeOfDay? get _parsed {
     final hour = int.tryParse(_hourController.text.trim());
     final minute = int.tryParse(_minuteController.text.trim());
-    // Silently forgiving bad input would confirm a time the user never asked
-    // for; the design says the field must be fixed first.
     if (hour == null ||
         minute == null ||
         hour < 0 ||
         hour > 23 ||
         minute < 0 ||
         minute > 59) {
+      return null;
+    }
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  void _revalidate() {
+    final invalid = _parsed == null;
+    if (invalid != _invalid) setState(() => _invalid = invalid);
+  }
+
+  void _confirm() {
+    final time = _parsed;
+    if (time == null) {
       setState(() => _invalid = true);
       return;
     }
-    Navigator.of(context).pop(TimeOfDay(hour: hour, minute: minute));
+    Navigator.of(context).pop(time);
   }
 
   @override
@@ -350,8 +369,9 @@ class _SpecTimePickerDialogState extends State<SpecTimePickerDialog> {
       fontFeatures: AppTypography.tabular,
     );
     return DsDialog(
-      title: l.dueTime,
+      title: l.pickTimeHint,
       width: 320,
+      sheetOnMobile: true,
       actions: [
         Expanded(
           child: DsButton(
@@ -363,7 +383,11 @@ class _SpecTimePickerDialogState extends State<SpecTimePickerDialog> {
         ),
         const SizedBox(width: AppSpacing.s2),
         Expanded(
-          child: DsButton(label: l.ok, expand: true, onPressed: _confirm),
+          child: DsButton(
+            label: l.ok,
+            expand: true,
+            onPressed: _invalid ? null : _confirm,
+          ),
         ),
       ],
       child: Column(
@@ -377,6 +401,7 @@ class _SpecTimePickerDialogState extends State<SpecTimePickerDialog> {
                 child: DsTextField(
                   controller: _hourController,
                   autofocus: true,
+                  error: _invalid,
                   style: fieldStyle,
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.next,
@@ -394,6 +419,7 @@ class _SpecTimePickerDialogState extends State<SpecTimePickerDialog> {
                 width: 72,
                 child: DsTextField(
                   controller: _minuteController,
+                  error: _invalid,
                   style: fieldStyle,
                   keyboardType: TextInputType.number,
                   textInputAction: TextInputAction.done,

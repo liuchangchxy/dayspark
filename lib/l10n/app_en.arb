@@ -2246,5 +2246,291 @@
   "newItemSaveFailedNote": "This page still has your input. Check the connection and retry.",
   "newItemRepeatLabel": "Repeat",
   "timePickerHint": "Type the numbers; press Enter to confirm. No dial.",
-  "timePickerInvalid": "Hour must be 00–23 and minute 00–59; fix it before confirming."
+  "timePickerInvalid": "Hour must be 00–23 and minute 00–59; fix it before confirming.",
+  "pickTimeHint": "Pick a time",
+  "calendarOverlapCount": "{count, plural, =1{1 item overlaps} other{{count} items overlap}}",
+  "@calendarOverlapCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarOverlapNote": "Side by side, never merged or covered; tap one to open it.",
+  "calendarDragReleaseHint": "Release · schedule at {time}",
+  "@calendarDragReleaseHint": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "deadlinePointNote": "A point marker, it occupies no time.",
+  "slotCaptureFrom": "From a time slot",
+  "slotCaptureHint": "Same capture surface from every entry; the time is prefilled.",
+  "slotOtherWays": "Other scheduling options",
+  "monthItemsOverflow": "{count} more items",
+  "@monthItemsOverflow": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savingLabel": "Saving…",
+  "settingsHomeAccountDesc": "Sign-in, server, and session status.",
+  "settingsHomeGeneralDesc": "Default calendar, startup view, theme, and language.",
+  "settingsHomeCalendarsDesc": "{count} calendars · 1 default.",
+  "@settingsHomeCalendarsDesc": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsHomeDataDesc": "Tags, trash, import/export, and backups.",
+  "settingsHomeAiDesc": "Optional; needs your own model key.",
+  "settingsHomeNotifyDesc": "System alarms and permissions.",
+  "settingsHomeSyncDesc": "Server, account, failures, and conflicts.",
+  "settingsHomeAboutDesc": "Version, licenses, and feedback.",
+  "settingsValueEnter": "Enter",
+  "settingsValueOpen": "Open",
+  "settingsValueManage": "Manage",
+  "settingsValueView": "View",
+  "accountNotLoggedIn": "Not signed in",
+  "aiEnableFull": "Enable AI assistant",
+  "aiEnableDesc": "Turning it off hides \"Open assistant\" and the chat entry; existing tasks are unaffected.",
+  "aiModelRow": "Model configuration",
+  "aiKeyLocalOnly": "Saved on this device only",
+  "aiModelDialogTitle": "AI model",
+  "aiBaseUrlHelp": "The key is saved only on this device; it is never synced to the server. Detection requests /models.",
+  "aiKeyCheckFailedTitle": "Key check failed.",
+  "aiKeyCheck401Body": "The server returned 401; this change was not saved.",
+  "aiKeyCheckFailedBody": "The provider request failed ({status}); this change was not saved.",
+  "@aiKeyCheckFailedBody": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "aiUnconfiguredAlertTitle": "No usable model yet.",
+  "aiUnconfiguredAlertBody": "Fill in the Base URL and key, save, and then you can send messages.",
+  "aiOffAlertBody": "The AI assistant is off; this page stays so you can turn it back on.",
+  "aiConfiguredWithModel": "Configured · {model}",
+  "@aiConfiguredWithModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "aiConnectedModel": "Connected · model {model} · key saved only on this device",
+  "@aiConnectedModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "aiChatSubtitleFallback": "Chat is a content page, not search and not the command palette.",
+  "aiReplyInProgress": "Replying…",
+  "syncConflictDesc": "The same record changed on both this device and the server; choose per item.",
+  "syncConflictRecord": "Conflict {id} · {type}",
+  "@syncConflictRecord": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "syncConflictLocalServer": "Local: this device's change is still here. Server: the version changed, so the server rejected the overwrite.",
+  "syncConflictApply": "Apply choices",
+  "syncConflictMergeHint": "The sync layer has no field-level merge; choosing Merge will not rewrite either version.",
+  "capturePlanTo": "Plan on {date}",
+  "@capturePlanTo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "syncConflictKeepLocalResult": "Kept the local version; the next edit to this record will upload again as a new change.",
+  "capturePlanDayEmpty": "Nothing scheduled that day",
+  "syncConflictRemoteUnavailable": "The sync layer does not expose the server copy; the \"Keep server\" choices were not applied.",
+  "capturePlanOverlapCount": "{count} overlapping",
+  "@capturePlanOverlapCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncConflictMergeUnavailable": "The sync layer has no field-level merge; Merge choices were not applied and no merge result was invented.",
+  "captureSuggestionTitle": "{range} · Suggested",
+  "@captureSuggestionTitle": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "syncConflictBack": "Back to sync",
+  "syncServerUnreachable": "Unreachable",
+  "syncPendingBoth": "{uploads} pending uploads · {downloads} pending downloads",
+  "@syncPendingBoth": {
+    "placeholders": {
+      "uploads": {
+        "type": "int"
+      },
+      "downloads": {
+        "type": "int"
+      }
+    }
+  },
+  "syncRetryDesc": "Retry sync now.",
+  "backupProgressTitle": "Backing up",
+  "backupProgressPacking": "Packaging calendars, tasks, events, tags, and the attachment index.",
+  "backupProgressWriting": "Writing {filename}",
+  "@backupProgressWriting": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "backupProgressPercent": "{percent}%",
+  "@backupProgressPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "backupIncludes": "Contains",
+  "backupIncludesCounts": "{calendars} calendars · {todos} tasks · {events} events · {attachments} attachment entries",
+  "@backupIncludesCounts": {
+    "placeholders": {
+      "calendars": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      },
+      "events": {
+        "type": "int"
+      },
+      "attachments": {
+        "type": "int"
+      }
+    }
+  },
+  "backupSavedLocation": "The file was saved where you chose.",
+  "captureEventCreatedToast": "Event created · {range}",
+  "@captureEventCreatedToast": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "backupFailedTitle": "Backup failed",
+  "overdueToolbarEarliest": "Earliest {date}",
+  "@overdueToolbarEarliest": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "backupFailedBody": "The destination is not writable.",
+  "timelineMissedPill": "Missed {count} times",
+  "@timelineMissedPill": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupNoPartial": "No partial file was produced.",
+  "pastDueOrMissedSection": "Overdue / Missed",
+  "importErrorTitle": "Import failed",
+  "importSeeReport": "View report",
+  "importSkipRows": "Skip error rows and continue",
+  "importCannotSkip": "The whole file cannot be parsed, so error rows cannot be skipped; fix the file and retry.",
+  "importReportTitle": "Import report",
+  "importReportSkipped": "{count} row(s) will be skipped",
+  "@importReportSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importReportEmpty": "This file has no bad rows to report.",
+  "importReportError": "Parse error: {error}",
+  "@importReportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "exactAlarmNotActive": "Not active",
+  "systemNotification": "System notifications",
+  "feedbackCharCount": "{count} characters · Logs are not attached automatically",
+  "@feedbackCharCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackMetaReady": "You can copy it or take it to GitHub",
+  "filterAppliedSummary": "Filtered: {criteria} · {count} items",
+  "@filterAppliedSummary": {
+    "placeholders": {
+      "criteria": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackMetaEmpty": "Write something first",
+  "listSeparator": ", ",
+  "feedbackNoSilentSubmit": "DaySpark never submits anything in the background. After copying, paste it anywhere; GitHub opens a blank issue with the body filled in.",
+  "pickTimeTitle": "Choose a time",
+  "feedbackLinkErrorTitle": "Could not open the browser.",
+  "feedbackLinkErrorBody": "Your text is still here; retry, or copy it to the clipboard and open it manually.",
+  "aiOffValue": "Off",
+  "aiDisabledTitle": "The AI assistant is off",
+  "aiDisabledHint": "This is an optional feature; turn it on and configure a model to get a chat entry.",
+  "aiOpenSettings": "Open settings",
+  "aiConfigureModel": "Configure model",
+  "settingsCalendarsCountOne": "{count} calendars · 1 default",
+  "@settingsCalendarsCountOne": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "defaultCalendarBadgeValue": "Default",
+  "settingsCurrentDefault": "Current default: {name}",
+  "@settingsCurrentDefault": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsDefaultCalSavedPlaceholder": "Save default calendar",
+  "chatModelAction": "Model",
+  "chatClearAction": "Clear chat",
+  "settingsBetaBadge": "Beta"
 }

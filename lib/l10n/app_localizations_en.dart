@@ -3585,4 +3585,358 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timePickerInvalid => 'Hour must be 00–23 and minute 00–59; fix it before confirming.';
+
+  @override
+  String get pickTimeHint => 'Pick a time';
+
+  @override
+  String calendarOverlapCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items overlap',
+      one: '1 item overlaps',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get calendarOverlapNote => 'Side by side, never merged or covered; tap one to open it.';
+
+  @override
+  String calendarDragReleaseHint(String time) {
+    return 'Release · schedule at $time';
+  }
+
+  @override
+  String get deadlinePointNote => 'A point marker, it occupies no time.';
+
+  @override
+  String get slotCaptureFrom => 'From a time slot';
+
+  @override
+  String get slotCaptureHint => 'Same capture surface from every entry; the time is prefilled.';
+
+  @override
+  String get slotOtherWays => 'Other scheduling options';
+
+  @override
+  String monthItemsOverflow(int count) {
+    return '$count more items';
+  }
+
+  @override
+  String get savingLabel => 'Saving…';
+
+  @override
+  String get settingsHomeAccountDesc => 'Sign-in, server, and session status.';
+
+  @override
+  String get settingsHomeGeneralDesc => 'Default calendar, startup view, theme, and language.';
+
+  @override
+  String settingsHomeCalendarsDesc(int count) {
+    return '$count calendars · 1 default.';
+  }
+
+  @override
+  String get settingsHomeDataDesc => 'Tags, trash, import/export, and backups.';
+
+  @override
+  String get settingsHomeAiDesc => 'Optional; needs your own model key.';
+
+  @override
+  String get settingsHomeNotifyDesc => 'System alarms and permissions.';
+
+  @override
+  String get settingsHomeSyncDesc => 'Server, account, failures, and conflicts.';
+
+  @override
+  String get settingsHomeAboutDesc => 'Version, licenses, and feedback.';
+
+  @override
+  String get settingsValueEnter => 'Enter';
+
+  @override
+  String get settingsValueOpen => 'Open';
+
+  @override
+  String get settingsValueManage => 'Manage';
+
+  @override
+  String get settingsValueView => 'View';
+
+  @override
+  String get accountNotLoggedIn => 'Not signed in';
+
+  @override
+  String get aiEnableFull => 'Enable AI assistant';
+
+  @override
+  String get aiEnableDesc => 'Turning it off hides \"Open assistant\" and the chat entry; existing tasks are unaffected.';
+
+  @override
+  String get aiModelRow => 'Model configuration';
+
+  @override
+  String get aiKeyLocalOnly => 'Saved on this device only';
+
+  @override
+  String get aiModelDialogTitle => 'AI model';
+
+  @override
+  String get aiBaseUrlHelp => 'The key is saved only on this device; it is never synced to the server. Detection requests /models.';
+
+  @override
+  String get aiKeyCheckFailedTitle => 'Key check failed.';
+
+  @override
+  String get aiKeyCheck401Body => 'The server returned 401; this change was not saved.';
+
+  @override
+  String aiKeyCheckFailedBody(String status) {
+    return 'The provider request failed ($status); this change was not saved.';
+  }
+
+  @override
+  String get aiUnconfiguredAlertTitle => 'No usable model yet.';
+
+  @override
+  String get aiUnconfiguredAlertBody => 'Fill in the Base URL and key, save, and then you can send messages.';
+
+  @override
+  String get aiOffAlertBody => 'The AI assistant is off; this page stays so you can turn it back on.';
+
+  @override
+  String aiConfiguredWithModel(String model) {
+    return 'Configured · $model';
+  }
+
+  @override
+  String aiConnectedModel(String model) {
+    return 'Connected · model $model · key saved only on this device';
+  }
+
+  @override
+  String get aiChatSubtitleFallback => 'Chat is a content page, not search and not the command palette.';
+
+  @override
+  String get aiReplyInProgress => 'Replying…';
+
+  @override
+  String get syncConflictDesc => 'The same record changed on both this device and the server; choose per item.';
+
+  @override
+  String syncConflictRecord(String id, String type) {
+    return 'Conflict $id · $type';
+  }
+
+  @override
+  String get syncConflictLocalServer => 'Local: this device\'s change is still here. Server: the version changed, so the server rejected the overwrite.';
+
+  @override
+  String get syncConflictApply => 'Apply choices';
+
+  @override
+  String get syncConflictMergeHint => 'The sync layer has no field-level merge; choosing Merge will not rewrite either version.';
+
+  @override
+  String capturePlanTo(String date) {
+    return 'Plan on $date';
+  }
+
+  @override
+  String get syncConflictKeepLocalResult => 'Kept the local version; the next edit to this record will upload again as a new change.';
+
+  @override
+  String get capturePlanDayEmpty => 'Nothing scheduled that day';
+
+  @override
+  String get syncConflictRemoteUnavailable => 'The sync layer does not expose the server copy; the \"Keep server\" choices were not applied.';
+
+  @override
+  String capturePlanOverlapCount(int count) {
+    return '$count overlapping';
+  }
+
+  @override
+  String get syncConflictMergeUnavailable => 'The sync layer has no field-level merge; Merge choices were not applied and no merge result was invented.';
+
+  @override
+  String captureSuggestionTitle(String range) {
+    return '$range · Suggested';
+  }
+
+  @override
+  String get syncConflictBack => 'Back to sync';
+
+  @override
+  String get syncServerUnreachable => 'Unreachable';
+
+  @override
+  String syncPendingBoth(int uploads, int downloads) {
+    return '$uploads pending uploads · $downloads pending downloads';
+  }
+
+  @override
+  String get syncRetryDesc => 'Retry sync now.';
+
+  @override
+  String get backupProgressTitle => 'Backing up';
+
+  @override
+  String get backupProgressPacking => 'Packaging calendars, tasks, events, tags, and the attachment index.';
+
+  @override
+  String backupProgressWriting(String filename) {
+    return 'Writing $filename';
+  }
+
+  @override
+  String backupProgressPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get backupIncludes => 'Contains';
+
+  @override
+  String backupIncludesCounts(int calendars, int todos, int events, int attachments) {
+    return '$calendars calendars · $todos tasks · $events events · $attachments attachment entries';
+  }
+
+  @override
+  String get backupSavedLocation => 'The file was saved where you chose.';
+
+  @override
+  String captureEventCreatedToast(String range) {
+    return 'Event created · $range';
+  }
+
+  @override
+  String get backupFailedTitle => 'Backup failed';
+
+  @override
+  String overdueToolbarEarliest(String date) {
+    return 'Earliest $date';
+  }
+
+  @override
+  String get backupFailedBody => 'The destination is not writable.';
+
+  @override
+  String timelineMissedPill(int count) {
+    return 'Missed $count times';
+  }
+
+  @override
+  String get backupNoPartial => 'No partial file was produced.';
+
+  @override
+  String get pastDueOrMissedSection => 'Overdue / Missed';
+
+  @override
+  String get importErrorTitle => 'Import failed';
+
+  @override
+  String get importSeeReport => 'View report';
+
+  @override
+  String get importSkipRows => 'Skip error rows and continue';
+
+  @override
+  String get importCannotSkip => 'The whole file cannot be parsed, so error rows cannot be skipped; fix the file and retry.';
+
+  @override
+  String get importReportTitle => 'Import report';
+
+  @override
+  String importReportSkipped(int count) {
+    return '$count row(s) will be skipped';
+  }
+
+  @override
+  String get importReportEmpty => 'This file has no bad rows to report.';
+
+  @override
+  String importReportError(String error) {
+    return 'Parse error: $error';
+  }
+
+  @override
+  String get exactAlarmNotActive => 'Not active';
+
+  @override
+  String get systemNotification => 'System notifications';
+
+  @override
+  String feedbackCharCount(int count) {
+    return '$count characters · Logs are not attached automatically';
+  }
+
+  @override
+  String get feedbackMetaReady => 'You can copy it or take it to GitHub';
+
+  @override
+  String filterAppliedSummary(String criteria, int count) {
+    return 'Filtered: $criteria · $count items';
+  }
+
+  @override
+  String get feedbackMetaEmpty => 'Write something first';
+
+  @override
+  String get listSeparator => ', ';
+
+  @override
+  String get feedbackNoSilentSubmit => 'DaySpark never submits anything in the background. After copying, paste it anywhere; GitHub opens a blank issue with the body filled in.';
+
+  @override
+  String get pickTimeTitle => 'Choose a time';
+
+  @override
+  String get feedbackLinkErrorTitle => 'Could not open the browser.';
+
+  @override
+  String get feedbackLinkErrorBody => 'Your text is still here; retry, or copy it to the clipboard and open it manually.';
+
+  @override
+  String get aiOffValue => 'Off';
+
+  @override
+  String get aiDisabledTitle => 'The AI assistant is off';
+
+  @override
+  String get aiDisabledHint => 'This is an optional feature; turn it on and configure a model to get a chat entry.';
+
+  @override
+  String get aiOpenSettings => 'Open settings';
+
+  @override
+  String get aiConfigureModel => 'Configure model';
+
+  @override
+  String settingsCalendarsCountOne(int count) {
+    return '$count calendars · 1 default';
+  }
+
+  @override
+  String get defaultCalendarBadgeValue => 'Default';
+
+  @override
+  String settingsCurrentDefault(String name) {
+    return 'Current default: $name';
+  }
+
+  @override
+  String get settingsDefaultCalSavedPlaceholder => 'Save default calendar';
+
+  @override
+  String get chatModelAction => 'Model';
+
+  @override
+  String get chatClearAction => 'Clear chat';
+
+  @override
+  String get settingsBetaBadge => 'Beta';
 }

@@ -191,6 +191,56 @@ List<CalLane> calPackLanes(List<CalBlockItem> items) {
   return result;
 }
 
+/// One connected run of blocks whose spans overlap. The spec draws a dashed
+/// `.overlap-zone` over such a run and labels it with the number of blocks.
+/// `start`/`end` are the union of the run, so the box always covers every
+/// member; [items] keeps the members so a caller can list them.
+class CalOverlapCluster {
+  const CalOverlapCluster({
+    required this.start,
+    required this.end,
+    required this.items,
+  });
+
+  final DateTime start;
+  final DateTime end;
+  final List<CalBlockItem> items;
+
+  int get count => items.length;
+}
+
+/// Connected overlap runs, in start order. A run of one is not an overlap.
+///
+/// This uses the same connectivity rule as [calPackLanes] (next start before
+/// the running end), so a cluster whose lanes > 1 is exactly a cluster here.
+List<CalOverlapCluster> calOverlapClusters(List<CalBlockItem> items) {
+  final sorted = [...items]..sort((a, b) {
+    final byStart = a.start.compareTo(b.start);
+    return byStart != 0 ? byStart : a.end.compareTo(b.end);
+  });
+  final clusters = <CalOverlapCluster>[];
+  var index = 0;
+  while (index < sorted.length) {
+    var runEnd = sorted[index].end;
+    var next = index + 1;
+    while (next < sorted.length && sorted[next].start.isBefore(runEnd)) {
+      if (sorted[next].end.isAfter(runEnd)) runEnd = sorted[next].end;
+      next++;
+    }
+    if (next - index >= 2) {
+      clusters.add(
+        CalOverlapCluster(
+          start: sorted[index].start,
+          end: runEnd,
+          items: sorted.sublist(index, next),
+        ),
+      );
+    }
+    index = next;
+  }
+  return clusters;
+}
+
 class CalGap {
   const CalGap(this.start, this.end);
 

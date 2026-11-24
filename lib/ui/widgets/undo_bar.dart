@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
-/// How long an undo stays offered. The completion window in the lists is the
-/// same five seconds, so the bar and the row disappear together.
-const Duration kUndoBarDuration = Duration(seconds: 5);
+/// How long an undo stays offered. The frozen spec fixes the window at four
+/// seconds (`overlays · 撤销条`: 完成或删除后的 4 秒), and the completion window
+/// in the lists matches it so the bar and the row disappear together.
+const Duration kUndoBarDuration = Duration(seconds: 4);
 
 const ValueKey<String> kUndoBarKey = ValueKey('undo-bar');
 

@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_pickers.dart';
 
 Widget _host(void Function(BuildContext) onOpen) {
@@ -144,5 +145,44 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(result, const TimeOfDay(hour: 9, minute: 5));
+  });
+
+  testWidgets('time picker refuses an impossible hour instead of guessing', (
+    tester,
+  ) async {
+    TimeOfDay? result;
+    var closed = false;
+    await tester.pumpWidget(
+      _host(
+        (context) async {
+          result = await showSpecTimePicker(
+            context,
+            initialTime: const TimeOfDay(hour: 15, minute: 15),
+          );
+          closed = true;
+        },
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), '25');
+    await tester.pumpAndSettle();
+
+    // The spec's invalid state: red boxes, an explanation, and 确定 disabled.
+    expect(find.textContaining('00–23'), findsOneWidget);
+    final ok = tester.widget<DsButton>(
+      find.widgetWithText(DsButton, 'OK'),
+    );
+    expect(ok.onPressed, isNull, reason: 'an impossible hour cannot be saved');
+
+    await tester.enterText(find.byType(TextField).at(0), '09');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('00–23'), findsNothing);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(closed, isTrue);
+    expect(result, const TimeOfDay(hour: 9, minute: 15));
   });
 }

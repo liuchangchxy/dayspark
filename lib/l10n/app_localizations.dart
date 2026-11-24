@@ -6514,6 +6514,606 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hour must be 00–23 and minute 00–59; fix it before confirming.'**
   String get timePickerInvalid;
+
+  /// No description provided for @pickTimeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a time'**
+  String get pickTimeHint;
+
+  /// No description provided for @calendarOverlapCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item overlaps} other{{count} items overlap}}'**
+  String calendarOverlapCount(int count);
+
+  /// No description provided for @calendarOverlapNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Side by side, never merged or covered; tap one to open it.'**
+  String get calendarOverlapNote;
+
+  /// No description provided for @calendarDragReleaseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Release · schedule at {time}'**
+  String calendarDragReleaseHint(String time);
+
+  /// No description provided for @deadlinePointNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A point marker, it occupies no time.'**
+  String get deadlinePointNote;
+
+  /// No description provided for @slotCaptureFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From a time slot'**
+  String get slotCaptureFrom;
+
+  /// No description provided for @slotCaptureHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Same capture surface from every entry; the time is prefilled.'**
+  String get slotCaptureHint;
+
+  /// No description provided for @slotOtherWays.
+  ///
+  /// In en, this message translates to:
+  /// **'Other scheduling options'**
+  String get slotOtherWays;
+
+  /// No description provided for @monthItemsOverflow.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more items'**
+  String monthItemsOverflow(int count);
+
+  /// No description provided for @savingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get savingLabel;
+
+  /// No description provided for @settingsHomeAccountDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in, server, and session status.'**
+  String get settingsHomeAccountDesc;
+
+  /// No description provided for @settingsHomeGeneralDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar, startup view, theme, and language.'**
+  String get settingsHomeGeneralDesc;
+
+  /// No description provided for @settingsHomeCalendarsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} calendars · 1 default.'**
+  String settingsHomeCalendarsDesc(int count);
+
+  /// No description provided for @settingsHomeDataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags, trash, import/export, and backups.'**
+  String get settingsHomeDataDesc;
+
+  /// No description provided for @settingsHomeAiDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional; needs your own model key.'**
+  String get settingsHomeAiDesc;
+
+  /// No description provided for @settingsHomeNotifyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'System alarms and permissions.'**
+  String get settingsHomeNotifyDesc;
+
+  /// No description provided for @settingsHomeSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Server, account, failures, and conflicts.'**
+  String get settingsHomeSyncDesc;
+
+  /// No description provided for @settingsHomeAboutDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Version, licenses, and feedback.'**
+  String get settingsHomeAboutDesc;
+
+  /// No description provided for @settingsValueEnter.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter'**
+  String get settingsValueEnter;
+
+  /// No description provided for @settingsValueOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get settingsValueOpen;
+
+  /// No description provided for @settingsValueManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage'**
+  String get settingsValueManage;
+
+  /// No description provided for @settingsValueView.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get settingsValueView;
+
+  /// No description provided for @accountNotLoggedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in'**
+  String get accountNotLoggedIn;
+
+  /// No description provided for @aiEnableFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable AI assistant'**
+  String get aiEnableFull;
+
+  /// No description provided for @aiEnableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turning it off hides \"Open assistant\" and the chat entry; existing tasks are unaffected.'**
+  String get aiEnableDesc;
+
+  /// No description provided for @aiModelRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Model configuration'**
+  String get aiModelRow;
+
+  /// No description provided for @aiKeyLocalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this device only'**
+  String get aiKeyLocalOnly;
+
+  /// No description provided for @aiModelDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI model'**
+  String get aiModelDialogTitle;
+
+  /// No description provided for @aiBaseUrlHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The key is saved only on this device; it is never synced to the server. Detection requests /models.'**
+  String get aiBaseUrlHelp;
+
+  /// No description provided for @aiKeyCheckFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Key check failed.'**
+  String get aiKeyCheckFailedTitle;
+
+  /// No description provided for @aiKeyCheck401Body.
+  ///
+  /// In en, this message translates to:
+  /// **'The server returned 401; this change was not saved.'**
+  String get aiKeyCheck401Body;
+
+  /// No description provided for @aiKeyCheckFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider request failed ({status}); this change was not saved.'**
+  String aiKeyCheckFailedBody(String status);
+
+  /// No description provided for @aiUnconfiguredAlertTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable model yet.'**
+  String get aiUnconfiguredAlertTitle;
+
+  /// No description provided for @aiUnconfiguredAlertBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the Base URL and key, save, and then you can send messages.'**
+  String get aiUnconfiguredAlertBody;
+
+  /// No description provided for @aiOffAlertBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI assistant is off; this page stays so you can turn it back on.'**
+  String get aiOffAlertBody;
+
+  /// No description provided for @aiConfiguredWithModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured · {model}'**
+  String aiConfiguredWithModel(String model);
+
+  /// No description provided for @aiConnectedModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected · model {model} · key saved only on this device'**
+  String aiConnectedModel(String model);
+
+  /// No description provided for @aiChatSubtitleFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat is a content page, not search and not the command palette.'**
+  String get aiChatSubtitleFallback;
+
+  /// No description provided for @aiReplyInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Replying…'**
+  String get aiReplyInProgress;
+
+  /// No description provided for @syncConflictDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The same record changed on both this device and the server; choose per item.'**
+  String get syncConflictDesc;
+
+  /// No description provided for @syncConflictRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict {id} · {type}'**
+  String syncConflictRecord(String id, String type);
+
+  /// No description provided for @syncConflictLocalServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Local: this device\'s change is still here. Server: the version changed, so the server rejected the overwrite.'**
+  String get syncConflictLocalServer;
+
+  /// No description provided for @syncConflictApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply choices'**
+  String get syncConflictApply;
+
+  /// No description provided for @syncConflictMergeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync layer has no field-level merge; choosing Merge will not rewrite either version.'**
+  String get syncConflictMergeHint;
+
+  /// No description provided for @capturePlanTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan on {date}'**
+  String capturePlanTo(String date);
+
+  /// No description provided for @syncConflictKeepLocalResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept the local version; the next edit to this record will upload again as a new change.'**
+  String get syncConflictKeepLocalResult;
+
+  /// No description provided for @capturePlanDayEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled that day'**
+  String get capturePlanDayEmpty;
+
+  /// No description provided for @syncConflictRemoteUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync layer does not expose the server copy; the \"Keep server\" choices were not applied.'**
+  String get syncConflictRemoteUnavailable;
+
+  /// No description provided for @capturePlanOverlapCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overlapping'**
+  String capturePlanOverlapCount(int count);
+
+  /// No description provided for @syncConflictMergeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync layer has no field-level merge; Merge choices were not applied and no merge result was invented.'**
+  String get syncConflictMergeUnavailable;
+
+  /// No description provided for @captureSuggestionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{range} · Suggested'**
+  String captureSuggestionTitle(String range);
+
+  /// No description provided for @syncConflictBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to sync'**
+  String get syncConflictBack;
+
+  /// No description provided for @syncServerUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreachable'**
+  String get syncServerUnreachable;
+
+  /// No description provided for @syncPendingBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'{uploads} pending uploads · {downloads} pending downloads'**
+  String syncPendingBoth(int uploads, int downloads);
+
+  /// No description provided for @syncRetryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry sync now.'**
+  String get syncRetryDesc;
+
+  /// No description provided for @backupProgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backing up'**
+  String get backupProgressTitle;
+
+  /// No description provided for @backupProgressPacking.
+  ///
+  /// In en, this message translates to:
+  /// **'Packaging calendars, tasks, events, tags, and the attachment index.'**
+  String get backupProgressPacking;
+
+  /// No description provided for @backupProgressWriting.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing {filename}'**
+  String backupProgressWriting(String filename);
+
+  /// No description provided for @backupProgressPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String backupProgressPercent(int percent);
+
+  /// No description provided for @backupIncludes.
+  ///
+  /// In en, this message translates to:
+  /// **'Contains'**
+  String get backupIncludes;
+
+  /// No description provided for @backupIncludesCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{calendars} calendars · {todos} tasks · {events} events · {attachments} attachment entries'**
+  String backupIncludesCounts(int calendars, int todos, int events, int attachments);
+
+  /// No description provided for @backupSavedLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'The file was saved where you chose.'**
+  String get backupSavedLocation;
+
+  /// No description provided for @captureEventCreatedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Event created · {range}'**
+  String captureEventCreatedToast(String range);
+
+  /// No description provided for @backupFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup failed'**
+  String get backupFailedTitle;
+
+  /// No description provided for @overdueToolbarEarliest.
+  ///
+  /// In en, this message translates to:
+  /// **'Earliest {date}'**
+  String overdueToolbarEarliest(String date);
+
+  /// No description provided for @backupFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The destination is not writable.'**
+  String get backupFailedBody;
+
+  /// No description provided for @timelineMissedPill.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed {count} times'**
+  String timelineMissedPill(int count);
+
+  /// No description provided for @backupNoPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'No partial file was produced.'**
+  String get backupNoPartial;
+
+  /// No description provided for @pastDueOrMissedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue / Missed'**
+  String get pastDueOrMissedSection;
+
+  /// No description provided for @importErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed'**
+  String get importErrorTitle;
+
+  /// No description provided for @importSeeReport.
+  ///
+  /// In en, this message translates to:
+  /// **'View report'**
+  String get importSeeReport;
+
+  /// No description provided for @importSkipRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip error rows and continue'**
+  String get importSkipRows;
+
+  /// No description provided for @importCannotSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'The whole file cannot be parsed, so error rows cannot be skipped; fix the file and retry.'**
+  String get importCannotSkip;
+
+  /// No description provided for @importReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import report'**
+  String get importReportTitle;
+
+  /// No description provided for @importReportSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} row(s) will be skipped'**
+  String importReportSkipped(int count);
+
+  /// No description provided for @importReportEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This file has no bad rows to report.'**
+  String get importReportEmpty;
+
+  /// No description provided for @importReportError.
+  ///
+  /// In en, this message translates to:
+  /// **'Parse error: {error}'**
+  String importReportError(String error);
+
+  /// No description provided for @exactAlarmNotActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Not active'**
+  String get exactAlarmNotActive;
+
+  /// No description provided for @systemNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'System notifications'**
+  String get systemNotification;
+
+  /// No description provided for @feedbackCharCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters · Logs are not attached automatically'**
+  String feedbackCharCount(int count);
+
+  /// No description provided for @feedbackMetaReady.
+  ///
+  /// In en, this message translates to:
+  /// **'You can copy it or take it to GitHub'**
+  String get feedbackMetaReady;
+
+  /// No description provided for @filterAppliedSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Filtered: {criteria} · {count} items'**
+  String filterAppliedSummary(String criteria, int count);
+
+  /// No description provided for @feedbackMetaEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something first'**
+  String get feedbackMetaEmpty;
+
+  /// No description provided for @listSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **', '**
+  String get listSeparator;
+
+  /// No description provided for @feedbackNoSilentSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark never submits anything in the background. After copying, paste it anywhere; GitHub opens a blank issue with the body filled in.'**
+  String get feedbackNoSilentSubmit;
+
+  /// No description provided for @pickTimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a time'**
+  String get pickTimeTitle;
+
+  /// No description provided for @feedbackLinkErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the browser.'**
+  String get feedbackLinkErrorTitle;
+
+  /// No description provided for @feedbackLinkErrorBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your text is still here; retry, or copy it to the clipboard and open it manually.'**
+  String get feedbackLinkErrorBody;
+
+  /// No description provided for @aiOffValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get aiOffValue;
+
+  /// No description provided for @aiDisabledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI assistant is off'**
+  String get aiDisabledTitle;
+
+  /// No description provided for @aiDisabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This is an optional feature; turn it on and configure a model to get a chat entry.'**
+  String get aiDisabledHint;
+
+  /// No description provided for @aiOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get aiOpenSettings;
+
+  /// No description provided for @aiConfigureModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure model'**
+  String get aiConfigureModel;
+
+  /// No description provided for @settingsCalendarsCountOne.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} calendars · 1 default'**
+  String settingsCalendarsCountOne(int count);
+
+  /// No description provided for @defaultCalendarBadgeValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultCalendarBadgeValue;
+
+  /// No description provided for @settingsCurrentDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Current default: {name}'**
+  String settingsCurrentDefault(String name);
+
+  /// No description provided for @settingsDefaultCalSavedPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Save default calendar'**
+  String get settingsDefaultCalSavedPlaceholder;
+
+  /// No description provided for @chatModelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get chatModelAction;
+
+  /// No description provided for @chatClearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear chat'**
+  String get chatClearAction;
+
+  /// No description provided for @settingsBetaBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Beta'**
+  String get settingsBetaBadge;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -1248,6 +1248,7 @@ class DsTextField extends StatelessWidget {
     this.enabled = true,
     this.obscureText = false,
     this.style,
+    this.error = false,
   });
 
   final TextEditingController controller;
@@ -1262,6 +1263,10 @@ class DsTextField extends StatelessWidget {
   final bool enabled;
   final bool obscureText;
   final TextStyle? style;
+
+  /// Paints the field's border red. The frozen spec's invalid-number state uses
+  /// a red hairline instead of an error sublabel on the field itself.
+  final bool error;
 
   @override
   Widget build(BuildContext context) {
@@ -1291,15 +1296,15 @@ class DsTextField extends StatelessWidget {
         ),
         border: OutlineInputBorder(
           borderRadius: AppRadii.control,
-          borderSide: BorderSide(color: ds.line),
+          borderSide: BorderSide(color: error ? SpecTokens.red : ds.line),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppRadii.control,
-          borderSide: BorderSide(color: ds.line),
+          borderSide: BorderSide(color: error ? SpecTokens.red : ds.line),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadii.control,
-          borderSide: BorderSide(color: ds.primary),
+          borderSide: BorderSide(color: error ? SpecTokens.red : ds.primary),
         ),
       ),
     );

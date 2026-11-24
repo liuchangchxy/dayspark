@@ -169,18 +169,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     );
   }
 
-  /// A month cell only says "something happens here". Selecting a day with
-  /// content therefore opens it, so the entry can actually be read; an empty
-  /// day keeps the plain browse-date behaviour.
-  void _selectDay(
-    DateTime day,
-    List<CalendaEventAdapter> events,
-    List<TaskAllocationCalendarItem> allocations,
-  ) {
+  /// Spec mobileCalendar('month'): every month cell enters cal-day, empty or
+  /// not. The cell is a day, not a disclosure for "does this day have rows".
+  void _selectDay(DateTime day) {
     _setBrowse(day);
-    if (_dayHasEntries(day, events, allocations)) {
-      _setMode(CalendarViewMode.day);
-    }
+    _setMode(CalendarViewMode.day);
   }
 
   void _createAt(DateTime day) {
@@ -430,7 +423,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
               events: visibleEvents,
               allocations: visibleAllocations,
               deadlines: visibleDeadlines,
-              onSelectDay: (day) => _selectDay(day, visibleEvents, visibleAllocations),
+              onSelectDay: (day) => _selectDay(day),
               onEvent: widget.onEventTapped,
               onAllocation: widget.onAllocationTapped,
               onDeadline: widget.onDeadlineTapped,

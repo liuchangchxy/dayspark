@@ -14,6 +14,7 @@ import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart' show FocusableTap;
+import 'package:dayspark/ui/design/ds.dart' show showDsSheet;
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
@@ -109,6 +110,28 @@ CalendaEventAdapter? _firstRecurringEvent(List<CalBlockItem> items) {
   }
   return null;
 }
+
+/// The month has no time grid to hang a series context on, so the spec puts
+/// the strip above the weekday header. Its rule is "a recurring instance is in
+/// the month being shown"; the earliest such event is the one the strip names.
+CalendaEventAdapter? _monthSeriesEvent(
+  List<CalendaEventAdapter> events,
+  DateTime anchor,
+) {
+  CalendaEventAdapter? first;
+  for (final event in events) {
+    if (!calEventIsRecurring(event)) continue;
+    if (event.start.year != anchor.year || event.start.month != anchor.month) {
+      continue;
+    }
+    if (first == null || event.start.isBefore(first.start)) first = event;
+  }
+  return first;
+}
+
+/// The month-grid ordering from the spec's `monthItems`: all-day and
+/// multi-day items first, then everything else by start time. Every deadline
+/// used to be appended last, which pushed a 09:00 due above a 10:00 event.
 
 String _calendarName(Map<int, String> names, int calendarId) {
   final name = names[calendarId];
@@ -325,9 +348,17 @@ class A2PhoneMonthGrid extends StatelessWidget {
       for (final e in events)
         if (!calSameDay(e.start, e.end)) e,
     ];
+    final seriesEvent = _monthSeriesEvent(events, anchor);
     return ListView(
       padding: EdgeInsets.zero,
       children: [
+        // Spec mobileCalendar('month'): mobileSeriesCard sits above the month
+        // header when the shown month contains a recurring instance.
+        if (seriesEvent != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            child: _A2MobileSeriesCard(event: seriesEvent),
+          ),
         if (multiDayEvents.isNotEmpty)
           _MobileSpanBand(events: multiDayEvents, onEvent: onEvent),
         Container(
@@ -512,6 +543,23 @@ class _A2PhoneMonthCell extends StatelessWidget {
               ],
             ),
           ],
+          // Spec mobileCalendar('month') overflow state: past two items the
+          // cell appends "+N" instead of asking dots to carry the count.
+          if (count > 2)
+            Text(
+              '+${count - 2}',
+              key: ValueKey(
+                'month-overflow-${date.year}-${date.month}-${date.day}',
+              ),
+              maxLines: 1,
+              style: _a2Text(
+                9,
+                FontWeight.w600,
+                isToday || isSelected ? ds.primary : ds.ink3,
+                height: 1,
+                tabular: true,
+              ),
+            ),
         ],
       ),
     );
@@ -708,25 +756,25 @@ class _MobileSpanBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
     final l = AppLocalizations.of(context)!;
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
       decoration: BoxDecoration(
-        color: SpecTokens.paper,
-        border: Border.all(color: SpecTokens.hair, width: 1),
-        borderRadius: BorderRadius.circular(6),
+        // Spec .m-allday-span: blue wash, 3px work bar, radius 4.
+        color: SpecTokens.scheduleBlueSoft,
+        border: const Border(left: BorderSide(color: SpecTokens.work, width: 3)),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.only(top: 1),
             child: Text(
               l.multiDaySpanLabel,
               style: const TextStyle(
-                fontSize: 10.5,
+                fontSize: 9,
                 fontWeight: FontWeight.w700,
                 color: SpecTokens.ink,
                 fontFamilyFallback: AppTypography.fallback,
@@ -755,7 +803,7 @@ class _MobileSpanBand extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      padding: const EdgeInsets.symmetric(vertical: 1),
                       child: Text(
                         l.multiDayEventSpanSummary(
                           event.title,
@@ -769,7 +817,7 @@ class _MobileSpanBand extends StatelessWidget {
                                 1,
                           ),
                         ),
-                        style: _a2Text(10, FontWeight.w400, ds.ink),
+                        style: _a2Text(9, FontWeight.w400, SpecTokens.ink),
                       ),
                     ),
                   ),
@@ -866,8 +914,11 @@ class A2DesktopMonthGrid extends StatelessWidget {
       for (final e in events)
         if (!calSameDay(e.start, e.end)) e,
     ];
+    final seriesEvent = _monthSeriesEvent(events, anchor);
     return Column(
       children: [
+        // Spec monthView: seriesContext() above the weekday header.
+        if (seriesEvent != null) _A2SeriesStrip(event: seriesEvent),
         if (multiDayEvents.isNotEmpty)
           _MonthSpanBand(events: multiDayEvents, onEvent: onEvent),
         // Spec .month-week: height 30px, 9.5px faint font, border 1px solid var(--hair)
@@ -1112,22 +1163,20 @@ class _A2MonthChip extends StatelessWidget {
     final event = entry.event;
     final allocation = entry.allocation;
     final deadline = entry.deadline;
-    final Color background;
     final Color barColor;
     final Color textColor;
     if (event != null) {
       final palette = frozenPaletteFor(event.color ?? const Color(0xFF8A8A82));
-      background = palette.bg;
       barColor = palette.color;
-      textColor = palette.ink;
+      // Spec .mchip has one text colour (ink-2); only deadline chips are
+      // amber/red, and only a plan keeps the work bar without recolouring.
+      textColor = SpecTokens.ink2;
     } else if (allocation != null) {
-      background = const Color(0xFFF1F0EA);
       barColor = SpecTokens.work;
-      textColor = const Color(0xFF3B3B33);
+      textColor = SpecTokens.ink2;
     } else {
       final isOverdue =
           deadline != null && calDayOf(deadline.due).isBefore(calDayOf(today));
-      background = isOverdue ? SpecTokens.redSoft : SpecTokens.amberSoft;
       barColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
       textColor = isOverdue ? SpecTokens.red : SpecTokens.amber;
     }
@@ -1142,47 +1191,40 @@ class _A2MonthChip extends StatelessWidget {
     } else {
       chipText = entry.title;
     }
-    return Container(
-      width: double.infinity,
-      height: 18,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 3,
-            height: 9,
-            decoration: BoxDecoration(
-              color: barColor,
-              borderRadius: BorderRadius.circular(1),
+    // Spec .mchip: a bare 3px colour bar plus 9px text. No fill, no padding,
+    // no pill — the old 18px rounded chip was a second visual language.
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 9,
+          decoration: BoxDecoration(
+            color: barColor,
+            borderRadius: BorderRadius.circular(1),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: chipText),
+                if (event != null && calEventIsRecurring(event))
+                  calRepeatBadgeSpan(context),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 9.0,
+              fontWeight: FontWeight.w400,
+              color: textColor,
+              height: 1.2,
+              fontFamilyFallback: AppTypography.fallback,
             ),
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: chipText),
-                  if (event != null && calEventIsRecurring(event))
-                    calRepeatBadgeSpan(context),
-                ],
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 9.0,
-                fontWeight: FontWeight.w400,
-                color: textColor,
-                height: 1.2,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1209,6 +1251,36 @@ class _A2MonthEntry {
 
   String get title =>
       event?.title ?? allocation?.todo.summary ?? deadline!.title;
+
+  /// Spec `monthItems`: an all-day/multi-day item sorts above every timed one,
+  /// including a `09:00` deadline, because `allDay` is the first key.
+  bool get isAllDay {
+    final value = event;
+    if (value != null) {
+      return value.isAllDay || !calSameDay(value.start, value.end);
+    }
+    if (deadline != null) return !calDeadlineHasTime(deadline!.due);
+    return false;
+  }
+
+  /// Start minute-of-day used as the second sort key. All-day entries all
+  /// report 0, matching the spec's empty `time` string.
+  int get sortMinute {
+    final value = event;
+    if (value != null && !isAllDay) {
+      return value.start.hour * 60 + value.start.minute;
+    }
+    final allocationValue = allocation;
+    if (allocationValue != null) {
+      final local = allocationValue.allocation.startAt.toLocal();
+      return local.hour * 60 + local.minute;
+    }
+    final deadlineValue = deadline;
+    if (deadlineValue != null && calDeadlineHasTime(deadlineValue.due)) {
+      return deadlineValue.due.hour * 60 + deadlineValue.due.minute;
+    }
+    return 0;
+  }
 
   String label(AppLocalizations l) {
     if (event != null || allocation != null) {
@@ -1254,6 +1326,13 @@ List<_A2MonthEntry> _entriesFor(
       entries.add(_A2MonthEntry.deadline(deadline));
     }
   }
+  // Spec monthItems sorts the union: all-day/multi-day first, then by start
+  // time. Deadlines are entries, not a trailing appendix.
+  entries.sort((a, b) {
+    final allDay = (b.isAllDay ? 1 : 0) - (a.isAllDay ? 1 : 0);
+    if (allDay != 0) return allDay;
+    return a.sortMinute.compareTo(b.sortMinute);
+  });
   return entries;
 }
 
@@ -1474,6 +1553,14 @@ class A2TimeGridView extends StatelessWidget {
     final seriesEvent = _firstRecurringEvent(
       blocks[calDayOf(seriesDay)] ?? const [],
     );
+    final daySpanEvents = dayMode
+        ? [
+            for (final event
+                in allDayByDay[calDayOf(days.first)] ??
+                    const <CalendaEventAdapter>[])
+              if (!calSameDay(event.start, event.end)) event,
+          ]
+        : const <CalendaEventAdapter>[];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1484,6 +1571,10 @@ class A2TimeGridView extends StatelessWidget {
         if (dayMode && seriesEvent != null)
           _A2SeriesStrip(event: seriesEvent),
         _allDayLane(context, allDayByDay, allDayEvents),
+        // Spec dayView: monthSpanBand() follows the all-day lane, so a
+        // multi-day chip is never reduced to a bare title in day view.
+        if (dayMode && daySpanEvents.isNotEmpty)
+          _MonthSpanBand(events: daySpanEvents, onEvent: onEvent),
         _deadlineLane(context, l),
         if (emptyTitle != null)
           Padding(
@@ -1777,7 +1868,10 @@ class A2TimeGridView extends StatelessWidget {
       }
 
       final shouldFold = isDesktop;
-      final colOverflow = List<int>.filled(days.length, 0);
+      final colOverflow = List<List<CalendaEventAdapter>>.generate(
+        days.length,
+        (_) => <CalendaEventAdapter>[],
+      );
       for (var i = 0; i < relevant.length; i++) {
         final r = rows[i];
         if (shouldFold && r >= 2) {
@@ -1791,12 +1885,12 @@ class A2TimeGridView extends StatelessWidget {
           var to = days.lastIndexWhere((d) => calSameDay(d, endDay));
           if (to < 0) to = days.length - 1;
           for (var c = from; c <= to; c++) {
-            colOverflow[c]++;
+            colOverflow[c].add(e);
           }
         }
       }
 
-      final hasOverflow = colOverflow.any((count) => count > 0);
+      final hasOverflow = colOverflow.any((events) => events.isNotEmpty);
       final renderedRows = shouldFold
           ? (hasOverflow ? 3 : (rowEnds.isEmpty ? 1 : math.min(rowEnds.length, 2)))
           : (rowEnds.isEmpty ? 1 : rowEnds.length);
@@ -1872,21 +1966,36 @@ class A2TimeGridView extends StatelessWidget {
                   ],
                   if (shouldFold)
                     for (var c = 0; c < days.length; c++)
-                      if (colOverflow[c] > 0)
+                      if (colOverflow[c].isNotEmpty)
                         Positioned(
                           top: 3.0 + 2 * 24.0,
                           left: c * colWidth + 4.0,
                           width: colWidth - 8.0,
-                          child: Text(
-                            _a2OverflowLabel(colOverflow[c]),
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w400,
-                              color: SpecTokens.muted,
-                              fontFamilyFallback: AppTypography.fallback,
+                          child: FocusableTap(
+                            key: ValueKey(
+                              'all-day-overflow-${days[c].year}-'
+                              '${days[c].month}-${days[c].day}',
+                            ),
+                            onTap: () => _showAllDayOverflow(
+                              context,
+                              days[c],
+                              colOverflow[c],
+                            ),
+                            semanticsLabel: l.monthItemsOverflow(
+                              colOverflow[c].length,
+                            ),
+                            borderRadius: BorderRadius.circular(3),
+                            child: Text(
+                              _a2OverflowLabel(colOverflow[c].length),
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w400,
+                                color: SpecTokens.muted,
+                                fontFamilyFallback: AppTypography.fallback,
+                              ),
                             ),
                           ),
                         ),
@@ -1922,8 +2031,43 @@ class A2TimeGridView extends StatelessWidget {
     );
   }
 
-  Widget _deadlineLane(BuildContext context, AppLocalizations l) {
-    final hasDeadlines = deadlines.any(
+  /// The folded all-day run must stay reachable. The spec never folds, so a
+  /// bare "+N" would be the only trace of hidden events; tapping it opens the
+  /// same chip language in a sheet instead of leaving dead text.
+  Future<void> _showAllDayOverflow(
+    BuildContext context,
+    DateTime day,
+    List<CalendaEventAdapter> events,
+  ) {
+    final l = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).toString();
+    return showDsSheet<void>(
+      context: context,
+      title: '${l.allDayLabel} · ${DateFormat.MMMd(locale).format(day)}',
+      body: Builder(
+        builder: (sheetContext) => Column(
+          key: const ValueKey('all-day-overflow-sheet'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final event in events)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: _A2AllDayChip(
+                  event: event,
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    onEvent?.call(event);
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _deadlineLane(BuildContext context, AppLocalizations l) {    final hasDeadlines = deadlines.any(
       (deadline) =>
           !calDeadlineHasTime(deadline.due) &&
           days.any((day) => calSameDay(deadline.due, day)),
@@ -2196,6 +2340,30 @@ class A2TimeGridView extends StatelessWidget {
           ),
         ];
 
+        // Spec desktop day: a dashed .overlap-zone covers each overlapping
+        // run and names it ("3 项重叠"). The lanes below still pack side by
+        // side; the zone is what says the packing is an overlap, not a stack.
+        for (final cluster in calOverlapClusters(items)) {
+          final startMinutes = cluster.start
+              .difference(windowStart)
+              .inMinutes
+              .clamp(_a2StartMinute, _a2EndHour * 60);
+          final endMinutes = cluster.end
+              .difference(windowStart)
+              .inMinutes
+              .clamp(_a2StartMinute, _a2EndHour * 60);
+          widgets.add(
+            _A2OverlapZone(
+              top: _axis.offsetOf(startMinutes),
+              height: math.max(
+                4,
+                _axis.offsetOf(endMinutes) - _axis.offsetOf(startMinutes),
+              ),
+              count: cluster.count,
+            ),
+          );
+        }
+
         // Positioned blocks with side-by-side lanes
         for (var index = 0; index < items.length; index++) {
           final item = items[index];
@@ -2243,6 +2411,8 @@ class A2TimeGridView extends StatelessWidget {
               child: _A2TimeBlock(
                 title: item.title,
                 meta: meta,
+                start: item.start,
+                end: item.end,
                 fill: fill,
                 edge: edge,
                 isPlan: isPlan,
@@ -2501,29 +2671,53 @@ class _SlotHoverLayerState extends State<_SlotHoverLayer> {
                     widget.axis.offsetOf(
                         range.start.hour * 60 + range.start.minute),
                 child: IgnorePointer(
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0x12000000),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: const Color(0xB28A8A82),
-                        width: 1,
+                  child: Stack(
+                    children: [
+                      // Spec .slot-ghost: dashed blue outline, very pale blue
+                      // fill — the same language as the event block, not a
+                      // neutral grey hover.
+                      const Positioned.fill(
+                        child: CustomPaint(
+                          painter: _DashedBoxPainter(
+                            color: Color(0xFFA9B8C4),
+                            fill: Color(0xFFF7FAFB),
+                            radius: 4,
+                            strokeWidth: 1,
+                          ),
+                        ),
                       ),
-                    ),
-                    alignment: Alignment.topLeft,
-                    child: Text(
-                      '＋ ${calTimeRange(range.start, range.end)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w500,
-                        color: SpecTokens.muted,
-                        fontFamilyFallback: AppTypography.fallback,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 7),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '＋ ${AppLocalizations.of(context)!.newEvent}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: _a2Text(
+                                  9,
+                                  FontWeight.w400,
+                                  const Color(0xFF456B8A),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${DateFormatters.formatTime(range.start)}–'
+                              '${DateFormatters.formatTime(range.end)}',
+                              maxLines: 1,
+                              style: _a2Text(
+                                8,
+                                FontWeight.w400,
+                                const Color(0xFF7A92A3),
+                                tabular: true,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -2584,6 +2778,8 @@ class _A2TimeBlock extends StatefulWidget {
   const _A2TimeBlock({
     required this.title,
     required this.meta,
+    required this.start,
+    required this.end,
     required this.fill,
     required this.edge,
     required this.isPlan,
@@ -2598,6 +2794,8 @@ class _A2TimeBlock extends StatefulWidget {
 
   final String title;
   final String? meta;
+  final DateTime start;
+  final DateTime end;
   final Color fill;
   final Color edge;
   final bool isPlan;
@@ -2738,34 +2936,35 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
       ),
     );
 
-    return Transform.translate(
-      offset: Offset(0, _dragDy),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: FocusableTap(
-          onTap: widget.onTap,
-          semanticsLabel: widget.meta == null
-              ? widget.title
-              : '${widget.title} · ${widget.meta}',
-          borderRadius: BorderRadius.circular(4),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onLongPressStart: canDrag
-                ? (_) => setState(() => _dragDy = 0)
-                : null,
-            onLongPressMoveUpdate: canDrag
-                ? (details) =>
-                      setState(() => _dragDy = details.offsetFromOrigin.dy)
-                : null,
-            onLongPressEnd: canDrag ? (_) => _finishDrag() : null,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (_resizeDy == 0) return card;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: FocusableTap(
+        onTap: widget.onTap,
+        semanticsLabel: widget.meta == null
+            ? widget.title
+            : '${widget.title} · ${widget.meta}',
+        borderRadius: BorderRadius.circular(4),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onLongPressStart: canDrag
+              ? (_) => setState(() => _dragDy = 0)
+              : null,
+          onLongPressMoveUpdate: canDrag
+              ? (details) =>
+                    setState(() => _dragDy = details.offsetFromOrigin.dy)
+              : null,
+          onLongPressEnd: canDrag ? (_) => _finishDrag() : null,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final Widget body;
+              if (_resizeDy == 0) {
+                body = card;
+              } else {
                 final effectiveHeight = math.max(
                   15.55,
                   constraints.maxHeight + _resizeDy,
                 );
-                return OverflowBox(
+                body = OverflowBox(
                   alignment: Alignment.topCenter,
                   minHeight: 0,
                   maxHeight: double.infinity,
@@ -2775,11 +2974,219 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
                     child: card,
                   ),
                 );
-              },
-            ),
+              }
+              if (_dragDy == 0) return body;
+
+              // Spec drag state: the real block dims in place and a dashed
+              // ghost follows the finger with the time the drop would use.
+              final l = AppLocalizations.of(context)!;
+              final minutes = (_dragDy / _a2HourHeight * 60).round();
+              final snapped = (minutes / 30).round() * 30;
+              final target = widget.start.add(Duration(minutes: snapped));
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: Opacity(opacity: 0.28, child: body),
+                  ),
+                  Positioned(
+                    top: _dragDy,
+                    left: 2,
+                    right: 2,
+                    height: math.max(15.55, constraints.maxHeight),
+                    child: IgnorePointer(
+                      child: _A2DragGhost(
+                        label: l.calendarDragReleaseHint(
+                          DateFormatters.formatTime(target),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+}
+
+/// A single dashed horizontal rule (spec `.m-deadline-marker` border-top).
+class _DashedRulePainter extends CustomPainter {
+  const _DashedRulePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = size.height;
+    var x = 0.0;
+    while (x < size.width) {
+      final next = math.min(x + 3, size.width);
+      canvas.drawLine(
+        Offset(x, size.height / 2),
+        Offset(next, size.height / 2),
+        paint,
+      );
+      x = next + 2;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRulePainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+/// Spec `.overlap-zone`: 1px dashed amber outline, 4% amber wash, and an 8px
+/// amber label pinned to the top-right over a white backing. It sits behind
+/// the blocks (z-index 1), so the side-by-side lanes stay readable.
+class _A2OverlapZone extends StatelessWidget {
+  const _A2OverlapZone({
+    required this.top,
+    required this.height,
+    required this.count,
+  });
+
+  final double top;
+  final double height;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Positioned(
+      top: top,
+      left: 0,
+      right: 0,
+      height: height,
+      child: IgnorePointer(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                key: const ValueKey('calendar-overlap-zone'),
+                painter: const _DashedBoxPainter(
+                  color: Color(0xFFD8B77B),
+                  fill: Color(0x0A9A6A18),
+                  radius: 4,
+                  strokeWidth: 1,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 4,
+              top: -8,
+              child: Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: Text(
+                  l.calendarOverlapCount(count),
+                  style: const TextStyle(
+                    fontSize: 8,
+                    height: 1.5,
+                    color: Color(0xFF9A6A18),
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dashed rounded rectangle used by the overlap zone and the drag ghost.
+class _DashedBoxPainter extends CustomPainter {
+  const _DashedBoxPainter({
+    required this.color,
+    required this.strokeWidth,
+    this.fill,
+    this.radius = 4,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final Color? fill;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(radius),
+    );
+    if (fill != null) {
+      canvas.drawRRect(rrect, Paint()..color = fill!);
+    }
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+    for (final metric
+        in (Path()..addRRect(rrect)).computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final next = (distance + 4).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance = next + 3;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBoxPainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.strokeWidth != strokeWidth ||
+      oldDelegate.fill != fill ||
+      oldDelegate.radius != radius;
+}
+
+/// Spec `.drag-ghost`: dashed blue outline, pale blue fill, "Release ·
+/// 10:00" readout. It previews the drop target while the real block dims in
+/// place instead of silently teleporting.
+class _A2DragGhost extends StatelessWidget {
+  const _A2DragGhost({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: CustomPaint(
+            painter: const _DashedBoxPainter(
+              color: Color(0xFF8B9EAC),
+              fill: Color(0xFFF4F8FA),
+              radius: 4,
+              strokeWidth: 1.5,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _a2Text(
+                8.5,
+                FontWeight.w600,
+                const Color(0xFF456B8A),
+                height: 1.2,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2945,6 +3352,35 @@ class A2PhoneWeekList extends StatelessWidget {
         allocations: _adapt(allocations),
       ),
     );
+    // Spec mobileCalendar('week') empty state: the body is the empty state,
+    // not seven empty day groups. Groups only exist where a day has rows.
+    if (isEmpty) {
+      return ListView(
+        key: const ValueKey('phone-week-list-view'),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+        children: [
+          Text(
+            l.calendarWeekEmpty,
+            key: const ValueKey('phone-week-empty'),
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: SpecTokens.ink2,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            l.calendarWeekEmptyHint,
+            style: const TextStyle(
+              fontSize: 10.5,
+              color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ],
+      );
+    }
     return ListView(
       key: const ValueKey('phone-week-list-view'),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
@@ -2971,34 +3407,6 @@ class A2PhoneWeekList extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         if (seriesEvent != null) _A2MobileSeriesCard(event: seriesEvent),
-        if (isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l.calendarWeekEmpty,
-                  key: const ValueKey('phone-week-empty'),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: SpecTokens.ink2,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  l.calendarWeekEmptyHint,
-                  style: const TextStyle(
-                    fontSize: 10.5,
-                    color: SpecTokens.faint,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-              ],
-            ),
-          ),
         for (final day in days)
           _A2PhoneWeekDay(
             day: day,
@@ -3387,11 +3795,27 @@ class A2PhoneDayList extends StatelessWidget {
     final allocationItems = {
       for (final a in allocations) a.allocation.id: a,
     };
+    final multiDayEvents = [
+      for (final event in allDayEvents)
+        if (!calSameDay(event.start, event.end)) event,
+    ];
+    // Spec overlap state: the overlapping run leaves the row list and becomes
+    // one band of side-by-side lanes. The band still names the span and count.
+    final overlapClusters = calOverlapClusters(items);
+    final overlapItems = <CalBlockItem>{
+      for (final cluster in overlapClusters) ...cluster.items,
+    };
     final rows = <({int minute, Widget child})>[
       for (final item in items)
+        if (!overlapItems.contains(item))
+          (
+            minute: item.start.hour * 60 + item.start.minute,
+            child: _mobileTimeRow(context, item, allocationItems),
+          ),
+      for (final cluster in overlapClusters)
         (
-          minute: item.start.hour * 60 + item.start.minute,
-          child: _mobileTimeRow(context, item, allocationItems),
+          minute: cluster.start.hour * 60 + cluster.start.minute,
+          child: _mobileOverlapBand(context, cluster),
         ),
       for (final deadline in timedDeadlines)
         (
@@ -3405,34 +3829,32 @@ class A2PhoneDayList extends StatelessWidget {
       padding: EdgeInsets.zero,
       children: [
         if (onSelectDay != null) _dateStrip(context),
-        // All-day chips
+        // Spec .m-allday: a 32px "All day" label, then the chips in a row
+        // (not an unlabelled Wrap).
         if (allDayEvents.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                for (final event in allDayEvents)
-                  _A2AllDayChip(
-                    event: event,
-                    onTap: () => onEvent?.call(event),
-                  ),
-              ],
-            ),
+          _mobileLane(
+            context,
+            label: l.allDayLabel,
+            chips: [
+              for (final event in allDayEvents)
+                _A2AllDayChip(
+                  event: event,
+                  onTap: () => onEvent?.call(event),
+                ),
+            ],
           ),
-        // Deadline chips
+        // Spec m-allday-span: the multi-day summary under the all-day row.
+        if (multiDayEvents.isNotEmpty)
+          _MobileSpanBand(events: multiDayEvents, onEvent: onEvent),
+        // Spec .m-allday: the date-only deadlines get their own "Deadline"
+        // label row instead of sharing the all-day Wrap.
         if (dayDeadlines.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                for (final dl in dayDeadlines)
-                  _deadlineChip(context, dl),
-              ],
-            ),
+          _mobileLane(
+            context,
+            label: l.deadline,
+            chips: [
+              for (final dl in dayDeadlines) _deadlineChip(context, dl),
+            ],
           ),
         // Time head
         if (seriesEvent != null)
@@ -3462,6 +3884,16 @@ class A2PhoneDayList extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
             child: row.child,
           ),
+        // Spec m-deadline-note: a timed deadline is a point, not a block.
+        if (timedDeadlines.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(54, 2, 16, 4),
+            child: Text(
+              l.deadlinePointNote,
+              key: const ValueKey('phone-deadline-point-note'),
+              style: _a2Text(8, FontWeight.w400, ds.faint),
+            ),
+          ),
         if (rows.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -3471,6 +3903,167 @@ class A2PhoneDayList extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+
+  /// Spec .m-allday: 7px vertical padding, hairline bottom, a 32px label in
+  /// 9px faint type, then chips that scroll sideways instead of wrapping.
+  Widget _mobileLane(
+    BuildContext context, {
+    required String label,
+    required List<Widget> chips,
+  }) {
+    final ds = context.ds;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 7, 16, 7),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              label,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _a2Text(9, FontWeight.w400, ds.ink3),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < chips.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 6),
+                    chips[i],
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Spec `.m-overlap-band`: a headed block of three side-by-side lanes plus
+  /// the note that tapping one opens it.
+  Widget _mobileOverlapBand(
+    BuildContext context,
+    CalOverlapCluster cluster,
+  ) {
+    final l = AppLocalizations.of(context)!;
+    return Container(
+      key: const ValueKey('mobile-overlap-band'),
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFBF8),
+        border: Border.all(color: const Color(0xFFDEDED6)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                calTimeRange(cluster.start, cluster.end),
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: SpecTokens.faint,
+                  fontFamilyFallback: AppTypography.fallback,
+                  fontFeatures: AppTypography.tabular,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                l.calendarOverlapCount(cluster.count),
+                style: const TextStyle(
+                  fontSize: 9,
+                  color: SpecTokens.amber,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < cluster.items.length; i++) ...[
+                if (i > 0) const SizedBox(width: 4),
+                Expanded(child: _mobileOverlapLane(context, cluster.items[i])),
+              ],
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            l.calendarOverlapNote,
+            style: const TextStyle(
+              fontSize: 8,
+              color: SpecTokens.faint,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mobileOverlapLane(BuildContext context, CalBlockItem item) {
+    final ds = context.ds;
+    final isPlan = item.isAllocation;
+    final accent = ds.eventAccent(item.event?.color ?? ds.primary);
+    final bar = isPlan ? ds.work : accent;
+    final bg = isPlan ? const Color(0xFFF1F0EA) : ds.tint(accent);
+    final timeStr = DateFormatters.formatTime(item.start);
+    final endStr = DateFormatters.formatTime(item.end);
+    final lane = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+        border: Border(left: BorderSide(color: bar, width: 2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: _a2Text(9, FontWeight.w600, ds.ink, height: 1.35),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '$timeStr–$endStr',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: _a2Text(8, FontWeight.w400, ds.ink3, tabular: true),
+          ),
+        ],
+      ),
+    );
+    return FocusableTap(
+      onTap: () {
+        final event = item.event;
+        if (event != null) {
+          onEvent?.call(event);
+          return;
+        }
+        final allocation = item.allocation;
+        if (allocation == null) return;
+        final original = _findAllocation(allocations, allocation.id);
+        if (original != null) onAllocation?.call(original);
+      },
+      semanticsLabel: '$timeStr–$endStr ${item.title}',
+      borderRadius: BorderRadius.circular(4),
+      child: lane,
     );
   }
 
@@ -3558,6 +4151,9 @@ class A2PhoneDayList extends StatelessWidget {
     final time = DateFormatters.formatTime(deadline.due);
     final isOverdue = calDayOf(deadline.due).isBefore(calDayOf(now));
     final color = isOverdue ? ds.danger : ds.warn;
+    // Spec m-deadline-marker: a dashed amber rule with a dot, not a solid
+    // border. The time already owns the left column, so the label repeats the
+    // fact ("Due · title") rather than the clock.
     return FocusableTap(
       onTap: () => onDeadline?.call(deadline),
       semanticsLabel: l.deadlineMarkerLabel(time, deadline.title),
@@ -3574,34 +4170,40 @@ class A2PhoneDayList extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 22),
-              padding: const EdgeInsets.only(top: 4),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: color.withValues(alpha: 0.45))),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 2),
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: 1.5,
+                  child: CustomPaint(
+                    painter: _DashedRulePainter(
+                      color: color.withValues(alpha: 0.75),
                     ),
                   ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(
-                      l.deadlineMarkerLabel(time, deadline.title),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _a2Text(8.5, FontWeight.w400, color),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        '${l.deadline} · ${deadline.title}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _a2Text(8.5, FontWeight.w400, color),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
