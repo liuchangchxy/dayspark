@@ -388,6 +388,22 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 
 **目检暴露的根因（P1 级，已立案）**：`DsColors.light` 仍由旧调色板 `AppColors` 构造（`#FCFCFA / #F7F7F2 / #E8E7E1 / #3F413A / #C2410C`），80 处 `ds.primary` 消费点因此继续画旧值；守卫此前只覆盖原生组件目录，Dart 侧无禁线。修复方向：把 `DsColors` 映射到 `SpecTokens`（primary=墨、danger=红、warm/warn=琥珀），表内补 Dart 侧退役色禁线。状态见 5.6。
 
+### 5.7 回归清算（审 `884bab9..98c506e`，2026-11-24 二轮）
+
+该区间只有 13 个 UI 文件改动（+242/−312），风险几乎全部来自 `b6bbf22` 的色板根因：`ds.primary` 由强调色改为墨色、`AppColors` 全表换 spec 值。四组只读审计并行（Today/Todo/Capture/Detail、Calendar/Picker/Sheet、Settings/Search/Tags/Trash/AI、Shared System/Native Widget）；第 4 组超时未回，由主控按同口径自查裁决（范围内那三个页面文件零 diff）。
+
+| # | 回归 | `884bab9` | 修前 | 修后 | 证据 |
+|---|---|---|---|---|---|
+| 1 | 月/年选择器的「今天」消失 | 桃底 + 陶土字，一眼可辨 | wash 底 + 墨字，与普通日、选中格难分 | `SpecTokens.red` 字 + `redSoft` 底 | `month_year_picker.dart:331-341`；真机读色 `#c92a1e` |
+| 2 | 详情「今天 / 进行中」从红变灰 | 暗陶土 | 墨灰 `#45453F` | `ds.danger` | `todo_detail_page.dart:367`、`event_detail_page.dart:308` |
+| 3 | 日历进行中区块「还剩 N 分钟」失去 live 色 | 陶土 | 墨 | `ds.danger` | `calendar_shared.dart:517,579` |
+| 4 | 事件进行中进度条 | 陶土 | 墨（与已改红的状态文字不一致） | `ds.danger` | `event_detail_page.dart:870` |
+| 5 | 深色 `onPrimary` 白字落近白底（潜伏，`ThemeMode.light` 不可达） | 可读 | ≈1.2:1 | 深墨字；深色默认 accent 对齐 terracotta 预设 | `app_colors.dart:231-235`、`:56` |
+
+判为**改进/等价、不再动**：ghost 按钮/新建/聚焦框/光标/选择态改墨（spec 动作=墨）；手机月格 today 墨胶囊（spec `.m-month-cell.is-today` ink）；逾期 due-pill 去红洗底（spec `background:transparent`）；桌面月格/周头/now 线维持规格红；OAuth 页壳为纯样式；原生小组件、toast、undo bar 在该区间零改动；Capture 提示行、`A2Clock`、`A2DueCapsule` 非逾期点改墨（三者原为强调色、无红语义）。
+
+**回归修复后门禁**：`dart analyze .` 0 issue；`flutter test` **1039 全绿**；macOS release 构建成功；CI 见 PR #113。受影响 Surface 已实拍复验（月/年选择器 today = `#c92a1e`、时间槽 sheet 墨色主行动、详情隔条墨色）。
+
 ### 5.6 收口状态（2026-11-24）
 
 | 门 | 状态 |
@@ -397,7 +413,7 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 | P0 = 0 | 通过 |
 | P1 = 0 | 本轮 P1（日期格键盘、palette 根因）均已修（palette 修复在 `ui/palette-root`） |
 | `dart analyze .` | 0 issue |
-| `flutter test` | `5fc8923`：1039 全绿、skipped=0 |
-| release build | `5fc8923` macOS 63.0MB 构建成功；debug APK 装到 Android 15 模拟器实机跑步 |
+| `flutter test` | `3cf1e63`（回归清算后）：1039 全绿、skipped=0 |
+| release build | `3cf1e63` macOS 构建成功；debug APK 装 Android 15 模拟器实跑 |
 | CI（PR #113） | f045492 全 9 个 job 绿（test 必需检查通过） |
 | 代表页面目检 | 见 5.5（桌面 9 屏 + 移动端 Today + Android 原生小组件，均为 release/真机实拍） |
