@@ -867,7 +867,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                   alignment: Alignment.centerLeft,
                   widthFactor: fraction,
                   heightFactor: 1,
-                  child: ColoredBox(color: ds.primary),
+                  child: ColoredBox(color: ds.danger),
                 ),
               ],
             ),
