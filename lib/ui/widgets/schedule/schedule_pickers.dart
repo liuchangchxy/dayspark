@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/spec_pickers.dart';
-import 'package:dayspark/ui/widgets/time_picker/wheel_time_picker.dart';
 
 /// Date/time vocabulary shared by every Todo and Event surface.
 ///
@@ -28,7 +27,7 @@ Future<DateTime?> pickDeadline(
   if (withTime != true) {
     return DateTime(date.year, date.month, date.day);
   }
-  final time = await showWheelTimePicker(
+  final time = await showSpecTimePicker(
     context,
     initialTime: TimeOfDay.fromDateTime(initial),
   );
@@ -48,7 +47,7 @@ Future<DateTime?> pickDateTime(
     lastDate: DateTime(2100),
   );
   if (date == null || !context.mounted) return null;
-  final time = await showWheelTimePicker(
+  final time = await showSpecTimePicker(
     context,
     initialTime: TimeOfDay.fromDateTime(initial),
   );

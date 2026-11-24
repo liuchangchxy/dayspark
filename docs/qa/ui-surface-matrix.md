@@ -13,7 +13,7 @@
 | 路由 | `app_router.dart` 的 `path` 全集 | 16 |
 | Tab / 导航 | 顶栏 Today/Todo/Calendar + 设置入口 | 见矩阵 |
 | Dialog | `showDialog(` 调用点 | 约 30 处，分布在 18 个页面文件 |
-| Sheet | `showModalBottomSheet(` 调用点 | 4 处（slot sheet、时间轮、月年选择、composer） |
+| Sheet | `showModalBottomSheet(` 调用点 | 4 处（slot sheet、月年选择、composer、时间槽候选待办选择）；时间选择已改为 `DsDialog` 内联方框 |
 | Overlay | `OverlayEntry(` 调用点 | 2 处（筛选浮层、命令浮层） |
 | 页面内条件分支 | 页面 build 里的状态开关 | 见矩阵 |
 | Responsive 分支 | 720 / 1000 / 1180 三档 | 见矩阵 |
@@ -74,7 +74,7 @@
 | `ai_config_dialog.dart:28` | 容器里第 233 行返回的就是 `DsDialog`（`DsButton` + `DsTextField`） | 合规，撤回 |
 | `a2_composer.dart:62` / `:69` | 同一个 composer 组件，桌面居中 dialog、手机 bottom sheet，**同一断点常量决定**，代码里有 WHY 注释 | 平台感知的正确实现，不动 |
 | `search_page.dart:63` | `showCommandOverlay` 就是命令浮层模型 P10 的容器 | 归属 P10，不动 |
-| `month_year_picker.dart:25` / `:32`、`calendar_slot_sheet.dart:48`、`wheel_time_picker.dart:20`、`todo_occurrence_picker_sheet.dart:71`、`legacy_recurrence_dialog.dart:96`、`calendar_filter_sheet.dart:40` | 各自的容器，内容组件在设计系统内 | 按 Surface 判定，不按文件判定 |
+| `month_year_picker.dart:25` / `:32`、`calendar_slot_sheet.dart:48`、`todo_occurrence_picker_sheet.dart:71`、`legacy_recurrence_dialog.dart:96`、`calendar_filter_sheet.dart:40` | 各自的容器，内容组件在设计系统内 | 按 Surface 判定，不按文件判定 |
 
 **教训**：`showDialog` / `showModalBottomSheet` 本身不是违规信号，违规的是"容器里不是设计系统组件"。按调用点计数会造假问题。
 
@@ -359,7 +359,7 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 | P1 | 日期选择器 42 格原为 `Semantics+MouseRegion+GestureDetector`，键盘无法聚焦/激活，较被替换的 Material 选择器是退步 | 已改为 `FocusableTap`（Tab 可达、Enter/Space 激活、焦点环可见），`spec_pickers_test` 绿 |
 | P2 | 守卫只扫 `res/values`、`res/layout`，漏 `values-night` 等目录；§5.3 声称的 sheet/顶栏/legacy 三项未落地 | 色板扫描改为 `res/` 全递归；新增 legacy 复活与 sheet 白名单两条断言，均注入违规证伪；顶栏项按 §5.3.5 归人工审查 |
 | P3 | toast 默认 2.2s + 每次 `hideCurrentSnackBar`，与旧 SnackBar 的 4s 排队语义不同 | 属规格 `setToast` 的 2200ms，记录为有意变更；未加测试 |
-| P3 | 移动端时间选择仍走 Cupertino 滚轮 sheet（`wheel_time_picker.dart`），R8 的"内联方框"目前只覆盖桌面 | 记为 P2 待办：移动端时间入口尚未归入 `planPicker` 模型，下一轮收敛 |
+| ~~P3~~ | 移动端时间选择仍走 Cupertino 滚轮 sheet（`wheel_time_picker.dart`），R8 的"内联方框"只覆盖桌面 | **已修**：`wheel_time_picker.dart` 删除，`pickDeadline`/`pickDateTime` 全部平台走 `showSpecTimePicker` 内联方框；`todo_create_deadline_test` 同步断言 `SpecTimePickerDialog` |
 | P3 | 选择器文案由 Material 的 "Select date/Time" 换为 app 自有 `pickDateHint`/`dueTime` | 正是收敛目的（消除第三套语言），保留 |
 | P3 | `reportIssue` 行无测试；`event_detail` 的 discard 对话框多了 `AnimationStyle.noAnimation`，`todo_detail` 没有 | 记 P2/P3 待办，不阻断本轮 |
 

@@ -157,12 +157,14 @@ String _specDayKey(DateTime day) =>
     '${day.month.toString().padLeft(2, '0')}-'
     '${day.day.toString().padLeft(2, '0')}';
 
-/// Same, then accepts the wheel time picker that a timed event asks for next.
+/// Same, then accepts the spec's inline time card that a timed event asks for.
 Future<void> _pickDate(WidgetTester tester, String label, DateTime day) async {
   await _pickDateOnly(tester, label, day);
-  final sheet = find.byType(BottomSheet);
-  if (sheet.evaluate().isEmpty) return;
-  await tester.tap(find.descendant(of: sheet, matching: find.text('OK')));
+  final timeDialog = find.byType(SpecTimePickerDialog);
+  if (timeDialog.evaluate().isEmpty) return;
+  await tester.tap(
+    find.descendant(of: timeDialog, matching: find.text('OK')),
+  );
   await _settle(tester);
 }
 

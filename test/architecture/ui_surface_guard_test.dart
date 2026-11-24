@@ -173,7 +173,6 @@ void main() {
       'lib/ui/pages/todo/a2_composer.dart',
       'lib/ui/pages/todo/month_year_picker.dart',
       'lib/ui/widgets/calendar/calendar_slot_sheet.dart',
-      'lib/ui/widgets/time_picker/wheel_time_picker.dart',
     };
     final offenders = <String>[];
     for (final entity in Directory('lib').listSync(recursive: true)) {

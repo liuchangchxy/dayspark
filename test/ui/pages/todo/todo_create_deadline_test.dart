@@ -244,9 +244,11 @@ void main() {
     await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
     await _settle(tester);
 
-    final sheet = find.byType(BottomSheet);
-    expect(sheet, findsOneWidget, reason: 'the time step still asks');
-    await tester.tap(find.descendant(of: sheet, matching: find.text('OK')));
+    // The time step is the spec's inline hour/minute card, not a wheel sheet:
+    // it opens in the same dialog chrome and confirms with the same OK.
+    final timeDialog = find.byType(SpecTimePickerDialog);
+    expect(timeDialog, findsOneWidget, reason: 'the time step still asks');
+    await tester.tap(find.descendant(of: timeDialog, matching: find.text('OK')));
     await _settle(tester);
 
     await tester.tap(find.text('Save'));
