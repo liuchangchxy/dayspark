@@ -289,7 +289,7 @@ class _SpecTaskRowState extends State<SpecTaskRow> {
                 ),
                 decoration: BoxDecoration(
                   color: widget.isOverdue
-                      ? const Color(0x1AEA5545)
+                      ? Colors.transparent
                       : SpecTokens.wash,
                   borderRadius: BorderRadius.circular(3),
                 ),

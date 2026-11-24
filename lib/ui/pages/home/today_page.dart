@@ -1924,7 +1924,7 @@ class _A2TodayPageState extends ConsumerState<A2TodayPage> {
                 vertical: 1.5,
               ),
               decoration: BoxDecoration(
-                color: isOverdue ? const Color(0x1AEA5545) : SpecTokens.wash,
+                color: isOverdue ? Colors.transparent : SpecTokens.wash,
                 borderRadius: BorderRadius.circular(3),
               ),
               child: Text(

@@ -70,6 +70,32 @@ void main() {
     );
   });
 
+  test('the retired palette cannot come back into lib/', () {
+    const retired = <String>[
+      'FCFCFA',
+      '191A17',
+      '3F413A',
+      'E8E7E1',
+      'C2410C',
+      '7D5416',
+    ];
+    final offenders = <String>[];
+    for (final entity in Directory('lib').listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      final source = entity.readAsStringSync().toUpperCase();
+      for (final hex in retired) {
+        if (source.contains(hex)) offenders.add('${entity.path} -> $hex');
+      }
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'The shared token layer resolves to the frozen spec palette; '
+          'see docs/qa/ui-surface-matrix.md 3.7. Offenders: $offenders',
+    );
+  });
+
   test('native widgets carry the spec palette, not the retired one', () {
     const retired = <String>[
       'FCFCFA',

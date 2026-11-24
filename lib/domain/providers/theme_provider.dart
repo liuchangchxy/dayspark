@@ -17,7 +17,7 @@ AppAccent readStoredAccent(SharedPreferences prefs) =>
 /// off the token table. [terracotta] is the app's own accent, so it is first
 /// and it is what an install with no stored choice gets.
 enum AppAccent {
-  terracotta('terracotta', '陶土', 'Terracotta', Color(0xFFC2410C), Color(0xFFE0703C)),
+  terracotta('terracotta', '陶土', 'Terracotta', Color(0xFFC92A1E), Color(0xFFE8695B)),
   blue('blue', '蓝', 'Blue', Color(0xFF2D4F7C), Color(0xFF8FB0D9)),
   teal('teal', '青', 'Teal', Color(0xFF3F6B68), Color(0xFF8FB8B2)),
   green('green', '绿', 'Green', Color(0xFF4C6B55), Color(0xFFA3C4A8)),

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -423,7 +424,6 @@ class _SolidActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -433,7 +433,7 @@ class _SolidActionRow extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: ds.primary,
+            color: SpecTokens.ink,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -441,7 +441,7 @@ class _SolidActionRow extends StatelessWidget {
               SizedBox(
                 width: 22,
                 height: 22,
-                child: Center(child: Icon(icon, size: 18, color: ds.onPrimary)),
+                child: Center(child: Icon(icon, size: 18, color: Colors.white)),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -453,7 +453,7 @@ class _SolidActionRow extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: _slotText(15, FontWeight.w600, ds.onPrimary),
+                      style: _slotText(15, FontWeight.w600, Colors.white),
                     ),
                     Text(
                       subtitle,
@@ -462,7 +462,7 @@ class _SolidActionRow extends StatelessWidget {
                       style: _slotText(
                         12,
                         FontWeight.w400,
-                        ds.onPrimary.withValues(alpha: 0.82),
+                        Colors.white.withValues(alpha: 0.82),
                       ),
                     ),
                   ],
@@ -472,7 +472,7 @@ class _SolidActionRow extends StatelessWidget {
               Icon(
                 CupertinoIcons.chevron_right,
                 size: 14,
-                color: ds.onPrimary.withValues(alpha: 0.72),
+                color: Colors.white.withValues(alpha: 0.72),
               ),
             ],
           ),
