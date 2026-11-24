@@ -140,6 +140,7 @@ svg.od-icon{stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;
 .ph-sum{margin-top:5px;font-size:10.5px;color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ph-right{display:flex;align-items:center;gap:8px;flex:none;padding-bottom:2px}
 .tool{height:29px;padding:0 9px;border:1px solid var(--hair-2);border-radius:6px;font-size:11px;color:var(--ink-2);background:#fff;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.tool.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
 .tool:hover{background:var(--wash)}
 .tool .od-icon{--od-icon-size:12px;color:var(--muted)}
 .tool.is-on{background:var(--wash)}
@@ -170,7 +171,15 @@ svg.od-icon{stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;
 .task-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;min-height:55px;padding:7px 3px;border-bottom:1px solid #f3f3ee;border-radius:5px;text-align:left}
 .task-row:hover{background:var(--wash)}
 .task-row.is-done .task-title{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1px}
-.check{width:16px;height:16px;border-radius:50%;border:1.4px solid #cfcfc7;background:#fff;display:grid;place-items:center;color:#fff;flex:none}
+.check{width:16px;height:16px;border-radius:50%;border:1.4px solid #cfcfc7;background:#fff;display:grid;place-items:center;color:#fff;flex:none;position:relative}
+/* 15px circle, 44px touch target: the ring stays small, the invisible hit slop
+   grows to 44 on the phone only (a mouse does not need it on desktop). */
+.m-app .check::after{content:'';position:absolute;inset:-15px}
+.m-app .row-act{width:44px;height:44px;min-width:44px;min-height:44px;flex:none;margin:-9px 0}
+/* Same rule for every icon-only control: visual size stays, hit area is 44. */
+.m-app .m-icon,.m-app .m-back,.m-app .cap-send,.m-app .drawer-close,.m-app .cmd-x{position:relative}
+.m-app .m-icon::after,.m-app .m-back::after,.m-app .cap-send::after,.m-app .drawer-close::after{content:'';position:absolute;inset:-9px}
+.m-app .f-chip{height:32px;padding:0 10px;display:inline-flex;align-items:center}
 .check:hover{border-color:#a9a9a0}
 .check.is-on{background:var(--ink);border-color:var(--ink)}
 .check .od-icon{--od-icon-size:8px;stroke-width:2.8}
@@ -252,7 +261,7 @@ svg.od-icon{stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;
 .ds-day.is-today:not(.is-on) b{color:var(--red)}
 .product.mobile .date-strip{gap:8px}
 .product.mobile .ds-day{width:34px;height:44px}
-.product.mobile .ds-days{gap:3px}
+.product.mobile .ds-days{gap:2px}
 .product.mobile .ds-month{font-size:10px}
 .bg-band{flex:none;padding:10px 0 12px;border-bottom:1px solid var(--hair)}
 .bg-band-head{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:.04em}
@@ -260,6 +269,9 @@ svg.od-icon{stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;
 .bg-chips{display:flex;gap:6px;margin-top:7px;min-width:0;overflow-x:auto;scrollbar-width:none}
 .bg-chips::-webkit-scrollbar{display:none}
 .bg-chip{flex:none;display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 7px;border:1px solid var(--hair);border-radius:4px;background:#fbfbf8;font-size:10px;color:var(--ink-2);white-space:nowrap}
+/* The strip is a background hint, not a carousel: a chip sliced by the right
+   edge reads as a layout bug. On the phone it wraps to a second row instead. */
+.m-app .bg-chips{flex-wrap:wrap;overflow-x:visible;row-gap:6px}
 .bg-chip i{width:5px;height:5px;border-radius:50%;flex:none}
 .empty-state{padding:76px 20px;text-align:center;border-bottom:1px solid var(--hair)}
 .empty-state .od-icon{--od-icon-size:27px;color:#b5b5ab;margin-bottom:10px}
@@ -431,6 +443,7 @@ mark{background:var(--amber-soft);color:inherit;border-radius:2px;padding:0 1px}
 .cap-date.is-empty{color:var(--faint)}
 .cap-input{flex:1;min-width:0;border:0;outline:none;background:transparent;font-size:13.5px;color:var(--ink);line-height:1.4}
 .cap-input::placeholder{color:#8e8e84}
+input::placeholder,textarea::placeholder{color:#8e8e84;opacity:1}
 .cap-kbd{flex:none;font-family:var(--font);font-size:9px;color:var(--faint);border:1px solid var(--hair-2);background:#fafaf7;border-radius:3px;padding:1px 5px}
 .cap-send{flex:none;width:34px;height:34px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center}
 .cap-send:hover{background:#000}
@@ -814,6 +827,205 @@ button.cp-field{width:100%;text-align:left;background:transparent}
 .m-state-card{border:1px solid var(--hair);border-radius:8px;padding:10px;margin-bottom:10px;background:#fff}
 .m-state-card h3{font-size:9px;letter-spacing:.08em;color:var(--faint);margin:0 0 7px}
 
+/* ---- 共享选择器：日期 / 时间 ---- */
+.pk-scrim{position:absolute;inset:0;z-index:82;background:rgba(25,25,24,.26);display:grid;place-items:center}
+.pk-card{width:320px;background:#fff;border-radius:10px;box-shadow:0 26px 80px rgba(20,20,18,.26);overflow:hidden}
+.pk-head{display:flex;align-items:center;gap:8px;height:44px;padding:0 8px;border-bottom:1px solid var(--hair)}
+.pk-head b{flex:1;text-align:center;font-size:13px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk-nav{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--muted);flex:none}
+.pk-nav:hover{background:var(--wash);color:var(--ink)}
+.pk-nav .od-icon{--od-icon-size:12px}
+.pk-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));height:30px;background:var(--wash);border-left:1px solid var(--hair);border-top:1px solid var(--hair)}
+.pk-week span{display:grid;place-items:center;font-size:9.5px;color:var(--faint)}
+.pk-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-left:1px solid var(--hair);border-top:1px solid var(--hair)}
+.pk-cell{height:42px;display:grid;place-items:center;background:#fff;border-right:1px solid var(--hair);border-bottom:1px solid var(--hair);font-size:10.5px;color:var(--ink-2);font-variant-numeric:tabular-nums;min-width:0}
+.pk-cell i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-variant-numeric:tabular-nums}
+.pk-cell.is-out{background:var(--wash);color:var(--faint)}
+.pk-cell.is-today i{border:1px solid var(--ink)}
+.pk-cell.is-on i{background:var(--ink);color:#fff;font-weight:600}
+.pk-cell.is-off{background:var(--wash);color:#c9c9c0}
+.pk-foot{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--hair)}
+.pk-foot button{flex:1;height:32px;border:1px solid var(--hair-2);border-radius:6px;background:#fff;font-size:11px;color:var(--ink-2)}
+.pk-foot button.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+.pk-time{display:flex;align-items:center;justify-content:center;gap:10px;padding:22px 16px 20px}
+.pk-time .box{width:72px;height:48px;border:1px solid var(--hair-2);border-radius:6px;display:grid;place-items:center;font-size:18px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.pk-time .box.is-focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(25,25,24,.10)}
+.pk-time .colon{font-size:18px;color:var(--ink-2)}
+.pk-hint{font-size:9.5px;line-height:1.5;color:var(--faint);text-align:center;padding:0 16px 12px}
+.pk-host-note{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);z-index:40;font-size:9.5px;color:var(--faint);background:#fff;border:1px solid var(--hair);border-radius:5px;padding:4px 8px;white-space:nowrap}
+
+/* ---- 浮层与反馈组件板 ---- */
+.ov-sheet{height:100%;overflow:auto;padding:26px 34px 40px;background:#fff}
+.ov-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:14px;margin-bottom:16px}
+.ov-head h1{font-size:24px;font-weight:650;margin:0}
+.ov-head p{margin:4px 0 0;font-size:10.5px;color:var(--muted);line-height:1.55}
+.ov-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.ov-card{border:1px solid var(--hair);border-radius:8px;padding:12px;background:#fff;min-width:0}
+.ov-card h3{font-size:9.5px;letter-spacing:.08em;color:var(--faint);font-weight:650;margin:0 0 8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ov-card h3 span{letter-spacing:0;font-weight:400;color:#a3a399}
+.ov-wide{grid-column:span 2}
+.ov-stage{border:1px solid var(--hair);border-radius:6px;background:var(--wash);padding:12px;min-height:118px;display:flex;flex-direction:column;justify-content:center;gap:8px;position:relative;overflow:hidden}
+.ov-stage .toast,.ov-stage .undo-bar{position:static;transform:none;left:auto;right:auto;bottom:auto;width:100%;max-width:none}
+.ov-stage .confirm-modal{position:static;width:100%;box-shadow:none;padding:11px}
+.ov-stage .popover{position:static;width:100%;box-shadow:none;top:auto;right:auto}
+.ov-stage .m-sheet{position:static;left:auto;right:auto;bottom:auto;width:100%;box-shadow:none}
+.ov-stage .plan-card{width:100%;box-shadow:none}
+.ov-stage .plan-body{padding:10px 12px}
+.ov-stage .plan-foot{padding:9px 12px}
+.ov-note{font-size:9px;color:var(--faint);line-height:1.45;margin-top:7px}
+
+/* ---- AI 对话 ---- */
+.ai-page{height:100%;display:flex;flex-direction:column;min-height:0;position:relative}
+.ai-head{flex:none;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:17px 28px 12px;border-bottom:1px solid var(--hair)}
+.ai-head h1{font-size:20px;font-weight:650;margin:0;letter-spacing:.01em}
+.ai-head p{margin:3px 0 0;font-size:10.5px;color:var(--faint);line-height:1.5}
+.ai-head-actions{display:flex;align-items:center;gap:7px;flex:none;padding-bottom:2px}
+.ai-body{flex:1;min-height:0;overflow-y:auto;padding:18px 28px 14px;scrollbar-width:thin;scrollbar-color:#deded7 transparent}
+.ai-body::-webkit-scrollbar{width:8px}
+.ai-body::-webkit-scrollbar-thumb{background:#deded7;border-radius:4px;border:2px solid #fff}
+.ai-wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:9px;min-width:0}
+.ai-msg{max-width:600px;border:1px solid var(--hair-2);border-radius:8px;padding:10px 12px;background:#fff;font-size:12.5px;line-height:1.65;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.ai-msg.is-user{align-self:flex-end;background:var(--wash)}
+.ai-msg.is-error{border-color:#e8c9c3;background:var(--red-soft);color:#7c231b}
+.ai-msg-head{display:flex;align-items:center;gap:5px;font-size:9px;letter-spacing:.06em;color:var(--faint);margin-bottom:4px}
+.ai-msg.is-user .ai-msg-head{justify-content:flex-end}
+.ai-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+.ai-chip{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border:1px solid var(--hair-2);border-radius:5px;background:#fff;font-size:10px;color:var(--ink-2)}
+.ai-chip:hover{background:var(--wash);color:var(--ink)}
+.ai-chip .od-icon{--od-icon-size:10px;color:var(--muted)}
+.ai-retry{margin-top:7px;font-size:10px;color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+.ai-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 24px;color:var(--faint);min-height:0}
+.ai-empty .od-icon{--od-icon-size:26px;color:#b5b5ab;margin-bottom:10px}
+.ai-empty b{font-size:14px;color:var(--ink);font-weight:600}
+.ai-empty p{margin:5px 0 0;font-size:11px;line-height:1.6;max-width:360px}
+.ai-empty .mini-btn{margin-top:12px}
+.ai-composer{flex:none;border-top:1px solid var(--hair);background:#fff;padding:10px 28px}
+.ai-composer-in{max-width:860px;margin:0 auto;display:flex;align-items:center;gap:8px;min-width:0}
+.ai-composer input{flex:1;min-width:0;height:40px;border:1px solid var(--hair-2);border-radius:6px;padding:0 12px;font-size:12.5px;color:var(--ink);background:#fff;outline:none}
+.ai-composer input:focus{border-color:#a9a9a0;box-shadow:0 0 0 3px rgba(25,25,24,.04)}
+.ai-send{width:40px;height:40px;border-radius:6px;background:var(--ink);color:#fff;display:grid;place-items:center;flex:none}
+.ai-send .od-icon{--od-icon-size:15px;stroke-width:2}
+.ai-send.is-busy{background:var(--wash);color:var(--muted);border:1px solid var(--hair-2)}
+.ai-spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--hair-2);border-top-color:var(--muted);animation:odspin 1s linear infinite}
+@keyframes odspin{to{transform:rotate(360deg)}}
+
+/* ---- 反馈 ---- */
+.fb-page{height:100%;display:flex;flex-direction:column;min-height:0}
+/* ---- 新建整页表单 ---- */
+.new-page{height:100%;display:flex;flex-direction:column;min-height:0}
+.new-body{flex:1;min-height:0;overflow-y:auto;padding:16px 28px 40px}
+.new-wrap{max-width:640px;margin:0 auto}
+.new-hint{font-size:10px;color:var(--muted);background:var(--wash);border:1px solid var(--hair);border-radius:6px;padding:7px 10px}
+.new-from{font-size:9.5px;color:var(--faint);line-height:1.6;margin-top:12px}
+.new-type{display:flex;align-items:center;gap:6px;padding:9px 0 0}
+.new-type-btn{height:26px;padding:0 9px;border:1px solid var(--hair-2);border-radius:5px;background:#fff;font-size:10.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:4px}
+.new-type-btn.is-on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+.new-type-note{font-size:9.5px;color:var(--faint);margin-left:2px}
+.new-facts{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.new-fact{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 8px;border:1px solid var(--hair);border-radius:4px;background:#fbfbf8;font-size:10px;color:var(--ink-2)}
+.new-fact.is-empty{color:var(--faint)}
+.new-fields{margin-top:12px;border-top:1px solid var(--hair);padding-top:2px}
+.d-foot-note{font-size:9.5px;color:var(--faint);margin-left:auto;align-self:center}
+.fb-body{flex:1;min-height:0;overflow-y:auto;padding:18px 28px 40px}
+.fb-wrap{max-width:640px;margin:0 auto}
+.fb-label{font-size:9px;letter-spacing:.08em;color:var(--faint);font-weight:650;margin-bottom:5px}
+.fb-area{width:100%;min-height:170px;border:1px solid var(--hair-2);border-radius:7px;padding:10px 11px;font-size:12px;line-height:1.7;color:var(--ink);background:#fff;resize:none;outline:none;font-family:var(--font)}
+.fb-area:focus{border-color:#a9a9a0;box-shadow:0 0 0 3px rgba(25,25,24,.04)}
+.fb-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;font-size:9.5px;color:var(--faint)}
+.fb-actions{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.fb-btn{display:flex;align-items:center;justify-content:center;gap:7px;height:38px;border:1px solid var(--hair-2);border-radius:6px;background:#fff;font-size:11.5px;color:var(--ink-2)}
+.fb-btn.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+.fb-btn:disabled{opacity:.4}
+.fb-btn .od-icon{--od-icon-size:13px}
+.fb-note{margin-top:12px;padding:9px 10px;border-left:2px solid var(--hair-2);background:var(--wash);font-size:10px;line-height:1.55;color:var(--muted)}
+
+/* ---- Toast / Undo 补充 ---- */
+.toast{max-width:560px;text-align:center;line-height:1.5}
+.toast b{font-weight:600}
+.toast .t-act{color:#fff;text-decoration:underline;text-underline-offset:2px;margin-left:9px;font-size:10.5px;font-weight:400;white-space:nowrap}
+.toast.is-danger{background:#5f1a14}
+
+/* ---- 原生小组件 ---- */
+.wd-sheet{height:100%;overflow:auto;padding:26px 34px 40px;background:#fbfbf8}
+.wd-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;border-bottom:1px solid var(--hair);padding-bottom:14px;margin-bottom:16px}
+.wd-head h1{font-size:24px;font-weight:650;margin:0}
+.wd-head p{margin:4px 0 0;font-size:10.5px;color:var(--muted);line-height:1.55}
+.wd-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.wd-cols:has(> :only-child){grid-template-columns:minmax(0,1fr)}
+.wd-focus-note{font-size:10px;color:var(--ink-2);background:var(--wash);border:1px solid var(--hair);border-radius:6px;padding:7px 10px;margin-bottom:14px}
+.wd-card{min-width:0}
+.wd-label{font-size:9.5px;letter-spacing:.08em;color:var(--faint);font-weight:650;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.wd-label span{letter-spacing:0;font-weight:400}
+.wd-ios{border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(20,20,18,.10);padding:10px;color:var(--ink);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.wd-ios.sm{aspect-ratio:1/1}
+.wd-ios.md{aspect-ratio:2.13/1}
+.wd-ios.lg{aspect-ratio:1/1}
+.wd-ios .wd-date{font-size:22px;font-weight:650;line-height:1.05;letter-spacing:.01em}
+.wd-ios .wd-dow{font-size:9px;color:var(--muted);margin-top:2px}
+.wd-ios .wd-top{display:flex;align-items:flex-start;gap:6px}
+.wd-ios .wd-add{margin-left:auto;font-size:8.5px;color:var(--red);font-weight:600;white-space:nowrap}
+.wd-ios .wd-sec{font-size:7.5px;letter-spacing:.08em;color:var(--faint);font-weight:650;margin-top:7px}
+.wd-row{display:flex;align-items:center;gap:5px;min-width:0;font-size:9px;color:var(--ink-2);min-height:17px}
+.wd-row b{font-weight:600;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.wd-row .bar{width:2px;height:11px;border-radius:1px;background:var(--bar,#4f7bbf);flex:none}
+.wd-row .t{font-size:7.5px;color:var(--faint);font-variant-numeric:tabular-nums;flex:none}
+.wd-row .ck{width:10px;height:10px;border-radius:50%;border:1.2px solid #cfcfc7;flex:none}
+.wd-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:6px;font-size:8px;color:var(--faint);min-width:0}
+.wd-empty{display:flex;align-items:center;justify-content:center;flex:1;font-size:9px;color:var(--faint);text-align:center;padding:6px}
+.wd-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;margin-top:5px}
+.wd-month span{height:13px;display:grid;place-items:center;font-size:7px;color:var(--ink-2);position:relative;min-width:0}
+.wd-month span.out{color:#c9c9c0}
+.wd-month span.on{background:var(--ink);color:#fff;border-radius:3px}
+.wd-month span.dot::after{content:"";position:absolute;left:50%;bottom:1px;width:2px;height:2px;border-radius:50%;background:var(--red);transform:translateX(-50%)}
+.wd-and{border-radius:12px;background:#fff;box-shadow:0 6px 18px rgba(20,20,18,.08);padding:9px;color:var(--ink);min-width:0;display:flex;flex-direction:column}
+.wd-and.h2{aspect-ratio:2/1}
+.wd-and.h4{aspect-ratio:1/1}
+.wd-and .wd-date{font-size:17px}
+.wd-and .wd-dow{font-size:8px}
+.wd-chip-row{display:flex;gap:4px;margin-top:5px}
+.wd-chip{height:18px;padding:0 6px;border-radius:9px;background:var(--wash);font-size:8px;color:var(--ink-2);display:inline-flex;align-items:center}
+.wd-stack{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.wd-note{font-size:9px;color:var(--faint);line-height:1.5;margin-top:8px}
+
+/* ---- 设置：账号 / AI ---- */
+.set-account{display:flex;align-items:center;gap:11px;padding:13px 0;border-top:1px solid var(--hair);margin-bottom:2px}
+.set-avatar{width:34px;height:34px;border-radius:50%;background:var(--wash);border:1px solid var(--hair-2);display:grid;place-items:center;font-size:11px;color:var(--ink-2);flex:none;font-weight:600}
+.set-account-main{min-width:0}
+.set-account b{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.set-account small{display:block;font-size:10px;color:var(--faint);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.set-switch{width:34px;height:19px;border-radius:10px;background:var(--hair-2);position:relative;flex:none;transition:background .15s ease;border:0;padding:0}
+.set-switch::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:transform .15s ease}
+.set-switch.is-on{background:var(--ink)}
+.set-switch.is-on::after{transform:translateX(15px)}
+.set-key-row{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-2);min-width:0}
+.set-key{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:var(--muted);background:var(--wash);border:1px solid var(--hair);border-radius:4px;padding:2px 5px;white-space:nowrap}
+.ai-preset-row{display:flex;gap:5px;flex-wrap:wrap}
+.ai-preset{height:26px;padding:0 9px;border:1px solid var(--hair-2);border-radius:5px;background:#fff;font-size:10.5px;color:var(--ink-2)}
+.ai-preset.is-on{background:var(--ink);border-color:var(--ink);color:#fff}
+.set-modal-scrim{position:absolute;inset:0;z-index:83;background:rgba(25,25,24,.26);display:grid;place-items:center}
+.set-modal{width:430px;max-height:calc(100% - 60px);overflow:auto;background:#fff;border-radius:10px;box-shadow:0 26px 80px rgba(20,20,18,.26)}
+/* On the 390 canvas the dialog is a sheet, not a 430px card: a desktop-width
+   card here clips its own right edge and hides the save action. */
+.m-app .set-modal-scrim{align-items:flex-end;padding:0 10px 10px}
+.m-app .set-modal{width:100%;max-width:100%;max-height:calc(100% - 74px);border-radius:12px}
+.set-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 15px;border-bottom:1px solid var(--hair)}
+.set-modal-head b{font-size:12px;font-weight:600}
+.set-modal-body{padding:13px 15px}
+.set-modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:11px 15px;border-top:1px solid var(--hair);background:#fbfbf8}
+
+/* ---- 服务端授权页（浏览器宿主） ---- */
+.oauth-host{height:100%;display:grid;grid-template-columns:minmax(0,1fr);place-items:center;background:#f3f3ee;padding:24px}
+.oauth-card{width:400px;max-width:100%;background:#fff;border:1px solid var(--hair-2);border-radius:10px;overflow:hidden;box-shadow:0 18px 50px rgba(20,20,18,.10)}
+.oauth-head{display:flex;align-items:center;gap:9px;padding:16px 18px;border-bottom:1px solid var(--hair);font-size:13px;font-weight:650}
+.oauth-body{padding:16px 18px}
+.oauth-body h2{font-size:15px;font-weight:650;margin:0 0 5px}
+.oauth-body p{font-size:11px;line-height:1.6;color:var(--muted);margin:0 0 10px}
+.oauth-scope{display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-top:1px solid #f3f3ee;font-size:10.5px;color:var(--ink-2);line-height:1.5}
+.oauth-scope .od-icon{--od-icon-size:12px;color:var(--faint);margin-top:1px;flex:none}
+.oauth-foot{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--hair);background:#fbfbf8}
+.oauth-foot button{flex:1;height:32px;border:1px solid var(--hair-2);border-radius:6px;background:#fff;font-size:11px;color:var(--ink-2)}
+.oauth-foot button.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+
 @media (prefers-reduced-motion:reduce){
   *{transition:none !important;animation:none !important;scroll-behavior:auto !important}
 }
@@ -945,7 +1157,22 @@ const state = {
   trashName:'',
   trashRemoved:[],
   deleteMigrate:'',
-  deletedCals:[]
+  deletedCals:[],
+  aiInput:'',
+  aiSent:false,
+  aiBusy:false,
+  fbText:'',
+  fbCopied:false,
+  pickerDate:TODAY,
+  pickerMonth:'2026-11',
+  timeValue:'15:15',
+  aiEnabled:true,
+  aiConfigured:true,
+  aiConfigOpen:false,
+  aiKeyVisible:false,
+  overlayFocus:'all',
+  widgetKind:'today',
+  widgetEmpty:false
 };
 
 const SCREENS = {
@@ -958,10 +1185,19 @@ const SCREENS = {
   'cal-day':{title:'日历 · 日', desc:'单日时间占用；定时截止在时间轴上只出现一条线。', variants:[['normal','正常'],['deadline','定时截止'],['slot','时间槽'],['calendars','显示 / 隐藏'],['recurring','重复实例'],['overlap','重叠'],['allday','全天 / 跨天'],['detail','详情']]},
   'detail-todo':{title:'详情 · 待办', desc:'详情就是编辑器：标题、截止、计划、重复、提醒、日历、优先级、标签、备注、子任务、附件。', variants:[['normal','全部字段'],['validation','校验错误'],['save-error','保存失败'],['delete','删除确认'],['recurring','重复范围'],['long','超长内容']]},
   'detail-event':{title:'详情 · 日程', desc:'日程编辑：标题、时间、全天、日历、地点、重复、提醒、标签、备注。', variants:[['normal','定时'],['allday','全天'],['validation','校验错误'],['delete','删除确认'],['recurring','重复范围']]},
+  'new-todo':{title:'新建 · 待办', desc:'整页表单从空白开始：只有标题必填，其余默认“无截止、无计划、默认日历”。保存前可见会写入什么，放弃要确认。', variants:[['normal','空白'],['template','从模板填入'],['validation','标题为空'],['dirty','未保存离开'],['save-error','保存失败']]},
+  'new-event':{title:'新建 · 日程', desc:'整页表单从空白开始：时间由入口预填（时间槽 / 今天），可以改；全天与跨天同一开关。', variants:[['normal','从时间槽'],['allday','全天'],['validation','结束早于开始'],['dirty','未保存离开'],['save-error','保存失败']]},
   'capture':{title:'捕获', desc:'一个 Capture 表面：待办默认；解析出时间只给建议，不偷偷改类型。', variants:[['compact','紧凑'],['expanded','展开'],['parsed','解析建议'],['event','日程'],['date','日期选择'],['plan','计划选择'],['calendar','日历选择'],['reminder','提醒选择'],['validation','校验错误'],['save-error','保存失败'],['discard','放弃确认'],['keyboard','键盘弹出']]},
   'plan-picker':{title:'计划选择器', desc:'给待办安排时间；日期、开始结束、时长；已有安排只做背景提示，不拦重叠。从详情打开时，取消或提交都回到原编辑状态。', variants:[['normal','默认时间'],['edit','编辑时间'],['overlap','重叠背景']]},
-  'command':{title:'命令框', desc:'先内容，后动作；不把设置栏目当普通搜索结果。', variants:[['result','内容结果'],['selected','键盘选中'],['action','动作结果'],['empty','空'],['noresult','无结果']]},
-  'settings-home':{title:'设置', desc:'设置首页：通用、日历、数据、通知与同步。', variants:[['normal','首页']]},
+  'command':{title:'命令框', desc:'先内容，后动作；不把设置栏目当普通搜索结果。桌面是覆盖层，手机是整页：同一套分组、行与键位规则。', variants:[['result','内容结果'],['selected','键盘选中'],['action','动作结果'],['empty','空'],['noresult','无结果']]},
+  'ai-chat':{title:'AI 对话', desc:'对话是内容页；回复里的动作只在最新一条出现。没配置 Key 时只解释下一步，不假装能发送。', variants:[['normal','对话'],['empty','未配置'],['ready','空对话'],['sending','发送中'],['error','失败'],['disabled','已关闭'],['clear','清空确认']]},
+  'feedback':{title:'反馈', desc:'只复制或带到 GitHub；不声称“已提交”。空内容禁用主按钮，复制成功后按钮与 toast 同时变。', variants:[['normal','撰写'],['empty','空内容'],['copied','已复制'],['link-error','打开失败']]},
+  'picker-date':{title:'日期选择器', desc:'320px 月卡：42 格、周一起始、今天描边、选中墨色圆、禁用变灰；取消 / 确定。桌面为对话框，手机为底部弹出。', variants:[['normal','当月'],['nav','换月'],['off','禁用日期']]},
+  'picker-time':{title:'时间选择器', desc:'两个 72px 数字输入框 + 冒号；不是表盘。非法输入回退到上一个有效值。', variants:[['normal','默认'],['focus','聚焦'],['invalid','非法时间']]},
+  'overlays':{title:'浮层与反馈', desc:'Dialog / Sheet / Popover / Toast / Undo / 横幅共用一套纸面语言；这里逐格给出真实尺寸与层级。', variants:[['all','全部'],['toast','Toast'],['undo','撤销'],['confirm','确认'],['sheet','Sheet'],['popover','Popover'],['dialog','Dialog']]},
+  'widgets':{title:'原生小组件', desc:'iOS / macOS 三种小组件 × 小中大；Android 三种 × 2×2 / 4×2 / 4×4。内容跟随今天 / 待办 / 日历的行语义。', variants:[['today','今天'],['todo','待办'],['calendar','日历'],['empty','空态'],['android','Android']]},
+  'server-oauth':{title:'服务端授权页', desc:'浏览器里的 MCP 客户端同意页；只借 DaySpark 的纸面、字阶与按钮，不套用 App 外壳。', variants:[['normal','授权'],['denied','拒绝']]},
+  'settings-home':{title:'设置', desc:'设置首页：账号、通用、日历、数据、AI、通知、同步与关于。', variants:[['normal','首页']]},
   'settings-default-calendar':{title:'设置 · 默认日历', desc:'新待办和捕获落到哪个日历；没有“未分类”。', variants:[['normal','选择']]},
   'settings-general':{title:'设置 · 通用', desc:'默认日历、启动页、主题与语言。', variants:[['normal','默认']]},
   'settings-calendars':{title:'设置 · 日历管理', desc:'新建、改名、改色、删除；删除时决定内容迁移。', variants:[['normal','列表']]},
@@ -971,6 +1207,8 @@ const SCREENS = {
   'settings-io':{title:'设置 · 导入与备份', desc:'ICS 导入导出；完整备份与合并备份。', variants:[['normal','入口']]},
   'settings-notify':{title:'设置 · 通知', desc:'系统闹钟、通知权限、精确提醒。', variants:[['normal','正常']]},
   'settings-sync':{title:'设置 · 同步', desc:'服务器、账号、同步状态。', variants:[['normal','正常']]},
+  'settings-account':{title:'设置 · 账号', desc:'登录 / 已登录两态；登录失败与读取失败要分开，不把“读不到”画成“没登录”。', variants:[['normal','已登录'],['logged-out','未登录'],['failed','登录失败'],['load-error','读取失败']]},
+  'settings-ai':{title:'设置 · AI', desc:'AI 是可选功能：开关、Key 配置、已配置后才能进入对话。Key 只显示后四位。', variants:[['normal','已配置'],['off','已关闭'],['unconfigured','未配置'],['config','配置弹窗'],['detecting','检测模型'],['config-error','保存失败']]},
   'settings-about':{title:'设置 · 关于', desc:'版本、许可、链接。', variants:[['normal','默认']]},
   'settings-calendar-new':{title:'设置 · 新建日历', desc:'新日历的名称、颜色和创建入口。', variants:[['normal','新建']]},
   'settings-calendar-edit':{title:'设置 · 编辑日历', desc:'名称、颜色、只读的默认状态与删除入口；默认日历在单独设置里改。', variants:[['normal','编辑']]},
@@ -988,8 +1226,8 @@ const SCREENS = {
 };
 const NAV = [
   ['产品页', [['today','今天'],['todo-inbox','待办 · 未安排'],['todo-all','待办 · 全部'],['todo-date','待办 · 按日期'],['cal-week','日历 · 周'],['cal-month','日历 · 月'],['cal-day','日历 · 日']]],
-  ['全局表面', [['detail-todo','详情 · 待办'],['detail-event','详情 · 日程'],['capture','捕获'],['plan-picker','计划选择器'],['command','命令框'],['states','状态总览']]],
-  ['设置', [['settings-home','设置首页'],['settings-general','通用'],['settings-default-calendar','默认日历'],['settings-calendars','日历管理'],['settings-calendar-new','新建日历'],['settings-calendar-edit','编辑日历'],['settings-calendar-delete','删除 / 迁移'],['settings-data','数据'],['settings-tags','标签'],['settings-tag-new','新建标签'],['settings-tag-edit','编辑标签'],['settings-trash','回收站'],['settings-io','导入 / 导出'],['settings-import','导入 ICS'],['settings-backup','备份'],['settings-notify','通知'],['settings-notify-denied','通知被拒绝'],['settings-sync','同步'],['settings-sync-logged-out','同步未登录'],['settings-sync-failed','同步失败'],['settings-sync-conflict','同步冲突'],['settings-about','关于']]],
+  ['全局表面', [['detail-todo','详情 · 待办'],['detail-event','详情 · 日程'],['new-todo','新建 · 待办'],['new-event','新建 · 日程'],['capture','捕获'],['plan-picker','计划选择器'],['command','命令框'],['ai-chat','AI 对话'],['feedback','反馈'],['picker-date','日期选择器'],['picker-time','时间选择器'],['overlays','浮层与反馈'],['widgets','原生小组件'],['server-oauth','服务端授权页'],['states','状态总览']]],
+  ['设置', [['settings-home','设置首页'],['settings-account','账号'],['settings-general','通用'],['settings-default-calendar','默认日历'],['settings-calendars','日历管理'],['settings-calendar-new','新建日历'],['settings-calendar-edit','编辑日历'],['settings-calendar-delete','删除 / 迁移'],['settings-data','数据'],['settings-tags','标签'],['settings-tag-new','新建标签'],['settings-tag-edit','编辑标签'],['settings-trash','回收站'],['settings-io','导入 / 导出'],['settings-import','导入 ICS'],['settings-backup','备份'],['settings-ai','AI 助手'],['settings-notify','通知'],['settings-notify-denied','通知被拒绝'],['settings-sync','同步'],['settings-sync-logged-out','同步未登录'],['settings-sync-failed','同步失败'],['settings-sync-conflict','同步冲突'],['settings-about','关于']]],
   ['规范', [['spec','视觉规范']]]
 ];
 
@@ -1020,7 +1258,23 @@ function ico(name,size=14){
     sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/>',
     filter:'<path d="M4 5h16l-6 7v6l-4 2v-8z"/>',
     pluscircle:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
-    arrowright:'<path d="M5 12h14m-5-5 5 5-5 5"/>'
+    arrowright:'<path d="M5 12h14m-5-5 5 5-5 5"/>',
+    sparkles:'<path d="M12 3.5 13.6 8l4.4 1.6L13.6 11 12 15.5 10.4 11 6 9.6 10.4 8z"/><path d="M18 15.5 18.8 18l2.2.8-2.2.8L18 21.8l-.8-2.2-2.2-.8 2.2-.8z"/><path d="M5.5 3.5 6 5l1.5.5L6 6l-.5 1.5L5 6l-1.5-.5L5 5z"/>',
+    chat:'<path d="M4.5 5.5h15v10h-8l-4 3.5v-3.5h-3z"/>',
+    copy:'<rect x="8" y="8" width="11" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2"/>',
+    link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.7 1.7"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.7-1.7"/>',
+    send:'<path d="M4 12 20 4l-7 16-2.5-6.5z"/><path d="m10.5 13.5 3.5-3.5"/>',
+    refresh:'<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4h-4"/>',
+    key:'<circle cx="8" cy="12" r="4"/><path d="M12 12h9m-3 0v3m-3-3v2"/>',
+    server:'<rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/><path d="M7.5 7h.01M7.5 17h.01"/>',
+    alert:'<path d="M12 4 21 20H3z"/><path d="M12 10v4m0 3h.01"/>',
+    undo:'<path d="M9 7 4 12l5 5"/><path d="M4 12h9a6 6 0 0 1 0 12"/>',
+    shield:'<path d="M12 3 19 6v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/><path d="m9 12 2 2 4-4"/>',
+    monitor:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8m-4-4v4"/>',
+    phone:'<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+    sliders:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+    external:'<path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+    checkcircle:'<circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.5 2.5 4.5-5"/>'
   };
   return '<svg class="od-icon" viewBox="0 0 24 24" style="--od-icon-size:'+size+'px" aria-hidden="true">'+(p[name]||p.list)+'</svg>';
 }
@@ -1184,10 +1438,19 @@ function desktopScreen(){
   const s=state.screen;
   if(s==='spec')return pTop('')+`<div class="p-main">${specSheet()}</div>`;
   if(s==='states')return pTop('')+`<div class="p-main">${statesPage()}</div>`;
+  if(s==='overlays')return pTop('')+`<div class="p-main">${overlaysSheet()}</div>`;
+  if(s==='widgets')return pTop('')+`<div class="p-main">${widgetsSheet()}</div>`;
+  if(s==='server-oauth')return `<div class="product" style="width:100%;height:100%">${serverOAuthPage()}</div>`;
+  if(s==='ai-chat')return pTop('')+`<div class="p-main">${aiChatPage()}</div>`;
+  if(s==='feedback')return pTop('settings-general')+`<div class="p-main">${feedbackPage()}</div>`;
+  if(s==='picker-date')return desktopBase(state.cmdReturn||'today',datePickerCard());
+  if(s==='picker-time')return desktopBase(state.cmdReturn||'today',timePickerCard());
   if(s.startsWith('settings-'))return pTop('')+`<div class="p-main">${settingsPage(s.replace('settings-',''))}</div>`;
   if(s==='command')return desktopBase(state.cmdReturn||'today',commandOverlay());
   if(s==='capture')return pTop('today')+`<div class="p-main">${todayPage({capture:state.capture})}</div>`;
   if(s==='plan-picker'){const r=state.planReturn||'today';const base=r==='detail-todo'?'today':r==='detail-event'?'cal-day':r;return desktopBase(base,planPicker());}
+  if(s==='new-todo')return pTop('today')+`<div class="p-main">${newItemPage(false)}</div>`;
+  if(s==='new-event')return pTop('calendar')+`<div class="p-main">${newItemPage(true)}</div>`;
   if(s==='detail-todo')return pTop('today')+`<div class="p-main">${todayPage({drawer:state.drawer||{type:'todo',id:pickTodoId(state.variant==='recurring'?'recurring':state.variant==='long'?'long':'report')}})}</div>`;
   if(s==='detail-event'){
     const eid=state.variant==='allday'?'sprint':state.variant==='recurring'?'weekly':'dentist';
@@ -1210,6 +1473,8 @@ function mobileScreen(){
   if(s.startsWith('todo-')&&state.variant==='detail')return mobileDetail({type:'todo',id:pickTodoId(s==='todo-all'?'recurring':'report')});
   if(s.startsWith('cal-')&&state.variant==='detail')return mobileDetail({type:'event',id:pickEventId('dentist')});
   if(s.startsWith('settings-'))return mobileSettings(s.replace('settings-',''));
+  if(s==='new-todo')return mobileNewItem(false);
+  if(s==='new-event')return mobileNewItem(true);
   if(s==='detail-todo')return mobileDetail({type:'todo',id:pickTodoId(state.variant==='recurring'?'recurring':state.variant==='long'?'long':'report')});
   if(s==='detail-event')return mobileDetail({type:'event',id:pickEventId(state.variant==='allday'?'sprint':state.variant==='recurring'?'weekly':'dentist')});
   if(s==='capture')return mobileToday(state.capture);
@@ -1219,6 +1484,13 @@ function mobileScreen(){
   if(s.startsWith('cal-'))return mobileCalendar(s.split('-')[1]);
   if(s==='spec')return mobileSpec();
   if(s==='states')return mobileStates();
+  if(s==='overlays')return mobileOverlays();
+  if(s==='widgets')return mobileWidgets();
+  if(s==='server-oauth')return `<div class="m-app" style="background:#f3f3ee">${serverOAuthPage()}</div>`;
+  if(s==='ai-chat')return mobileAi();
+  if(s==='feedback')return mobileFeedback();
+  if(s==='picker-date')return mobilePicker('date');
+  if(s==='picker-time')return mobilePicker('time');
   return mobileToday(state.capture!=='compact'?state.capture:state.variant);
 }
 
@@ -1868,6 +2140,56 @@ function detailEditor(ref,inline=false){
     ${state.confirmDelete||state.variant==='delete'?`<div class="confirm-scrim"><div class="confirm-modal" role="dialog" aria-modal="true" aria-label="确认删除"><h3>删除「${esc(title)}」？</h3><p>${deleteCopy(item,isEvent)}</p><div class="cf-actions"><button type="button" data-action="cancel-delete">取消</button><button type="button" class="cf-danger" data-action="confirm-delete">删除到回收站</button></div></div></div>`:''}
   </aside>`;
 }
+/* 新建：整页表单，与详情编辑器同一套字段行和同一套校验。
+   入口（捕获“创建”、日历时间槽、Cmd+K、小组件深链）都落到这里，
+   所以标题、默认日历和“保存前可见”的规则只写一次。 */
+function newItemPage(isEvent){
+  // 这是 Capture 的「整页宿主」：字段、类型、默认值与浮动捕获完全同一套，
+  // 只是当它由深链（小组件、Cmd+K 动作）打开时占满一页，而不是浮在页面上。
+  // 它不引入第二套创建模型，也不带详情编辑器才有的标签/子任务/附件。
+  const v=state.variant;
+  const expanded=v==='template';
+  const titleError=v==='validation';
+  const saving=v==='save-error';
+  const title=expanded?(isEvent?'和设计团队评审方案':'交季度总结'):'';
+  const cal=isEvent?'work':(state.defaultCal||'personal');
+  const allDay=isEvent&&v==='allday';
+  const facts=isEvent
+    ? `<span class="new-fact"><i class="cal-dot" style="background:${calOf(cal).color}"></i>${calOf(cal).name}</span><span class="new-fact">${ico('clock',10)} ${allDay?'全天 · 11/20':'11/20 11:00–12:00'}</span><span class="new-fact">${ico('bell',10)} 15 分钟前</span>`
+    : `<span class="new-fact is-empty">无日期</span><span class="new-fact"><i class="cal-dot" style="background:${calOf(cal).color}"></i>${calOf(cal).name}</span><span class="new-fact is-empty">无截止</span>`;
+  const fields=isEvent?`
+      <div class="cp-field"><span class="k">时间</span><span class="v">${allDay?'全天':(expanded?'11/21 10:00–11:00':'11/20 11:00–12:00')}</span></div>
+      <div class="cp-field"><span class="k">全天</span><span class="v">${allDay?'是':'否'}</span></div>
+      <div class="cp-field"><span class="k">日历</span><span class="v">${calOf(cal).name}</span></div>
+      <div class="cp-field"><span class="k">地点</span><span class="v">${expanded?'会议室 B':'未填写'}</span></div>
+      <div class="cp-field"><span class="k">重复</span><span class="v">不重复</span></div>
+      <div class="cp-field"><span class="k">提醒</span><span class="v">15 分钟前</span></div>`:`
+      <div class="cp-field"><span class="k">截止</span><span class="v ${expanded?'is-due':''}">${expanded?ico('flag',11)+' 11/21 18:00':'无截止'}</span></div>
+      <div class="cp-field"><span class="k">计划执行</span><span class="v ${expanded?'is-plan':''}">${expanded?ico('clock',11)+' 11/21 15:00–16:00':'未安排'}</span></div>
+      <div class="cp-field"><span class="k">提醒</span><span class="v">不提醒</span></div>
+      <div class="cp-field"><span class="k">日历</span><span class="v">${calOf(cal).name}${cal===(state.defaultCal||'personal')?' · 默认':''}</span></div>
+      <div class="cp-field"><span class="k">优先级</span><span class="v">中</span></div>`;
+  return `<div class="page new-page">
+    ${pageHead({title:isEvent?'新建日程':'记一件事',sub:'Capture 的整页形态：字段和浮动捕获完全一致；不点开的字段不写入。',right:`<button type="button" class="tool" data-action="noop">取消</button><button type="button" class="tool primary" data-action="noop">${saving?'重试保存':(isEvent?'创建日程':'记下待办')}</button>`})}
+    <div class="new-body"><div class="new-wrap">
+      ${saving?`<div class="inline-alert is-red"><b>保存失败 · 未写入。</b> 这一页的内容还在；检查网络后重试。</div>`:''}
+      ${v==='dirty'?`<div class="inline-alert"><b>还没有保存。</b><br>离开会丢弃这次输入；也可以留下继续编辑。</div>`:''}
+      <div class="new-type">
+        <button type="button" class="new-type-btn ${isEvent?'':'is-on'}" data-action="noop">${ico('check',10)} 待办</button>
+        <button type="button" class="new-type-btn ${isEvent?'is-on':''}" data-action="noop">${ico('calendar',10)} 日程</button>
+        <span class="new-type-note">${isEvent?'从时间槽进入，所以是日程。':'默认是待办；只有主动切到日程才会变。'}</span>
+      </div>
+      <label class="form-label" for="new-title" style="margin:12px 0 4px;display:block">标题</label>
+      <input class="form-input" id="new-title" value="${esc(title)}" placeholder="${isEvent?'给这段日程起个名字':'写一个明天能看懂的动作'}" style="font-size:17px;font-weight:600;width:100%" aria-invalid="${titleError}">
+      ${titleError?'<div class="form-error">标题不能为空。</div>':''}
+      <div class="new-facts">${facts}</div>
+      <div class="cp-fields new-fields">${fields}</div>
+      <div class="new-from">${isEvent?'地点和备注可以创建后再加。':'标签、子任务、附件可以创建后再加；它们不属于捕获必填项。'}</div>
+    </div></div>
+    ${v==='dirty'?`<div class="confirm-scrim"><div class="confirm-modal" role="dialog" aria-modal="true" aria-label="未保存离开"><h3>离开这张表单？</h3><p>还没有创建；标题和已填内容会丢失。</p><div class="cf-actions"><button type="button" data-action="noop">留下</button><button type="button" class="cf-danger" data-action="noop">丢弃</button></div></div></div>`:''}
+  </div>`;
+}
+
 function captureChoicePanel(title,sub,body,footer){
   return `<div class="capture-panel" style="width:430px;bottom:82px">
     <div class="cp-head"><div><div class="cp-title">${title}</div><div class="cp-sub">${sub}</div></div><button type="button" class="drawer-close" data-action="capture-compact" aria-label="收起">${ico('x',12)}</button></div>
@@ -2080,13 +2402,14 @@ function cmdAction(iconName,title,meta,action){
 function settingsPage(section){
   const active=section==='calendar-edit'||section==='calendar-delete'||section==='calendar-new'?'calendars':section==='default-calendar'?'general':section==='tag-edit'||section==='tag-new'?'tags':section==='import'||section==='backup'?'io':section==='notify-denied'?'notify':section==='sync-failed'||section==='sync-conflict'||section==='sync-logged-out'?'sync':section;
   return `<div class="page settings-page">
-    ${pageHead({title:'设置',sub:'默认日历、数据与偏好'})}
+    ${pageHead({title:'设置',sub:'账号、默认日历、数据与偏好'})}
     <div class="settings-body">
       <nav class="set-nav" aria-label="设置分区">${[
-        ['general','通用'],['calendars','日历管理'],['data','数据'],['tags','标签'],['trash','回收站'],['io','导入与备份'],['notify','通知'],['sync','同步'],['about','关于']
+        ['account','账号'],['general','通用'],['calendars','日历管理'],['data','数据'],['tags','标签'],['trash','回收站'],['io','导入与备份'],['ai','AI 助手'],['notify','通知'],['sync','同步'],['about','关于']
       ].map(([k,v])=>`<button type="button" class="${active===k?'is-on':''}" data-action="settings" data-section="${k}">${v}</button>`).join('')}</nav>
       <div class="set-content">${settingsContent(section)}</div>
     </div>
+    ${state.aiConfigOpen?aiConfigDialog():''}
     ${state.toast?`<div class="toast">${esc(state.toast)}</div>`:''}
   </div>`;
 }
@@ -2103,8 +2426,47 @@ function trashItems(){
 }
 function trashCount(){return 3-state.trashRemoved.length+state.trashExtra.length;}
 function trashTarget(){const items=trashItems();const found=items.find(x=>x.id===state.trashId);return found||{title:state.trashName||'这一项',sub:''};}
+function aiConfigDialog(){
+  const v=state.variant;
+  const detecting=v==='detecting';
+  const error=v==='config-error';
+  return `<div class="set-modal-scrim" data-action="ai-config-close"><div class="set-modal" role="dialog" aria-label="AI 模型配置">
+    <div class="set-modal-head"><b>AI 模型</b><button type="button" class="drawer-close" data-action="ai-config-close">${ico('x',12)}</button></div>
+    <div class="set-modal-body">
+      ${error?`<div class="inline-alert is-red" style="margin:0 0 10px"><b>Key 校验失败。</b><br>服务端返回 401；没有保存这次修改。</div>`:''}
+      <div class="form-row full" style="margin-bottom:10px"><label class="form-label">服务商</label><div class="ai-preset-row">${['OpenAI','Anthropic','DeepSeek','Gemini','Moonshot','Qwen','GLM','Ollama','自定义'].map((n,i)=>`<button type="button" class="ai-preset ${i===0?'is-on':''}" data-action="noop">${n}</button>`).join('')}</div></div>
+      <div class="form-row full" style="margin-bottom:10px"><label class="form-label">Base URL</label><input class="form-input" value="https://api.openai.com/v1"></div>
+      <div class="form-row full" style="margin-bottom:10px"><label class="form-label">API Key</label><input class="form-input" type="password" value="sk-••••••••••••••••4f2a"></div>
+      <div class="form-row full" style="margin-bottom:4px"><label class="form-label">模型</label><div style="display:flex;gap:7px;align-items:center"><input class="form-input" value="gpt-4o-mini" style="flex:1"><button type="button" class="mini-btn" data-action="ai-detect">${detecting?'检测中…':'检测模型'}</button></div><div class="form-help">Key 只保存在这台设备；不会同步到服务器。检测会请求 ${'/models'}。</div></div>
+      ${detecting?`<div class="io-card" style="margin:8px 0 0;padding:10px"><div class="form-help" style="display:flex;align-items:center;gap:7px"><span class="ai-spin"></span>正在读取可用模型…</div></div>`:''}
+    </div>
+    <div class="set-modal-foot"><button type="button" class="mini-btn" data-action="ai-config-remove" style="color:var(--red);margin-right:auto">移除配置</button><button type="button" class="mini-btn" data-action="ai-config-close">取消</button><button type="button" class="mini-btn primary" data-action="ai-config-save">保存</button></div>
+  </div></div>`;
+}
 function settingsContent(section){
-  if(section==='home')return `<h2 class="set-h">设置</h2><p class="set-desc">先把默认日历定下来，再管数据和同步。</p>${setRow('通用','默认日历、启动页、主题与语言。','进入','settings','general')}${setRow('日历管理',`${calIds().length} 个日历 · 1 个默认。`,'管理','settings','calendars')}${setRow('数据','标签、回收站、导入导出、备份。','打开','settings','data')}${setRow('通知','系统闹钟与权限。','查看','settings','notify')}${setRow('同步','服务器、账号、失败与冲突。','查看','settings','sync')}${setRow('关于','版本与许可。','查看','settings','about')}`;
+  if(section==='home')return `<h2 class="set-h">设置</h2><p class="set-desc">先确认账号与默认日历，再管数据、AI 和同步。</p>${setRow('账号','登录、服务器与登录状态。','chang@local','settings','account')}${setRow('通用','默认日历、启动页、主题与语言。','进入','settings','general')}${setRow('日历管理',`${calIds().length} 个日历 · 1 个默认。`,'管理','settings','calendars')}${setRow('数据','标签、回收站、导入导出、备份。','打开','settings','data')}${setRow('AI 助手','可选功能；需要自己的模型 Key。',state.aiEnabled?(state.aiConfigured?'已配置 · gpt-4o-mini':'未配置'):'已关闭','settings','ai')}${setRow('通知','系统闹钟与权限。','查看','settings','notify')}${setRow('同步','服务器、账号、失败与冲突。','查看','settings','sync')}${setRow('关于','版本、许可与反馈入口。','查看','settings','about')}`;
+  if(section==='account'){
+    const v=state.variant;
+    const who='chang@local';
+    const head=`<div class="set-account"><span class="set-avatar">C</span><div class="set-account-main"><b>${v==='logged-out'?'未登录':who}</b><small>${v==='logged-out'?'本地仍可用；登录后才多设备同步。':v==='load-error'?'读取账号状态失败；这不等于退出登录。':'sync.dayspark.local · 已登录'}</small></div></div>`;
+    if(v==='load-error')return `<h2 class="set-h">账号</h2><p class="set-desc">读取账号状态时出错；不要把“读不到”画成“没登录”。</p>${head}<div class="inline-alert is-red"><b>无法读取账号状态。</b><br>你的会话可能仍然有效；先重试，不要直接重新登录。</div><div class="filter-actions"><button type="button" class="primary" data-action="noop">重试</button></div>`;
+    if(v==='failed')return `<h2 class="set-h">登录</h2><p class="set-desc">登录失败时保留已填的服务器地址和邮箱。</p><div class="inline-alert is-red"><b>邮箱或密码不正确。</b><br>服务器可达；没有创建新会话。</div><div class="io-card"><div class="form-grid"><div class="form-row full"><label class="form-label">服务器</label><input class="form-input" value="https://sync.dayspark.local"></div><div class="form-row full"><label class="form-label">邮箱</label><input class="form-input" value="chang@local" aria-invalid="true" style="border-color:var(--red)"></div><div class="form-row full"><label class="form-label">密码</label><input class="form-input" type="password" value="••••••••" aria-invalid="true" style="border-color:var(--red)"></div></div></div><div class="filter-actions"><button type="button" data-action="settings" data-section="account">取消</button><button type="button" class="primary" data-action="noop">重新登录</button></div>`;
+    if(v==='logged-out')return `<h2 class="set-h">账号</h2><p class="set-desc">DaySpark 自托管同步；不登录也能用全部本地功能。</p>${head}<div class="io-card"><div class="form-grid"><div class="form-row full"><label class="form-label">服务器</label><input class="form-input" value="https://sync.dayspark.local"></div><div class="form-row full"><label class="form-label">邮箱</label><input class="form-input" placeholder="you@example.com"></div><div class="form-row full"><label class="form-label">密码</label><input class="form-input" type="password" placeholder="••••••••"></div></div></div><div class="filter-actions"><button type="button" class="primary" data-action="noop">登录</button></div>`;
+    return `<h2 class="set-h">账号</h2><p class="set-desc">当前会话；退出登录不会删除本地数据。</p>${head}${setRow('服务器','自托管地址。','sync.dayspark.local','noop')}${setRow('最后同步','最近一次成功同步。','今天 14:58 · 成功','noop')}${setRow('退出登录','本地数据保留，停止上传。','退出','noop')}`;
+  }
+  if(section==='ai'){
+    const v=state.variant;
+    const enabled=state.aiEnabled&&v!=='off';
+    const configured=state.aiConfigured&&v!=='unconfigured';
+    const keyRow=configured?`<div class="set-key-row"><span class="set-key">sk-••••4f2a</span><span style="color:var(--faint);font-size:9.5px">只在本机保存</span></div>`:'未配置';
+    return `<h2 class="set-h">AI 助手</h2><p class="set-desc">可选功能：用你自己的模型 Key；关闭后入口和对话都消失。</p>
+      <div class="set-row"><div class="set-label">启用 AI 助手<small>关闭后隐藏「打开助手」与对话入口；已创建的待办不受影响。</small></div><button type="button" class="set-switch ${enabled?'is-on':''}" data-action="ai-toggle" role="switch" aria-checked="${enabled}" aria-label="启用 AI 助手"></button></div>
+      ${enabled?setRow('模型配置','服务商、Base URL、Key 与模型名。',keyRow,'ai-config-open'):''}
+      ${enabled&&configured?setRow('打开助手','进入对话页。','打开','ai-open-chat'):''}
+      ${enabled&&!configured?`<div class="inline-alert"><b>还没有可用的模型。</b><br>填好 Base URL 和 Key 并保存后，才能发送消息。</div>`:''}
+      ${!enabled?`<div class="inline-alert">AI 助手已关闭；设置里保留这一页，方便随时重新打开。</div>`:''}
+      <p class="set-desc" style="margin-top:14px">对话只在本机保存；模型请求直接发往你填的服务商。DaySpark 服务器不参与，也不保存 Key。</p>`;
+  }
   if(section==='default-calendar')return `<h2 class="set-h">默认日历</h2><p class="set-desc">只决定“新条目默认落到哪里”，不会改已有条目的日历。</p>${[['personal','个人','12 项'],['work','工作','28 项'],['home','家事','16 项'],['health','健康','8 项'],['life','生活','11 项'],['study','学习','6 项']].filter(([id])=>!state.deletedCals.includes(id)).map(([id,n,c])=>`<button type="button" class="filter-option" data-action="default-cal" data-value="${id}"><span class="filter-box ${state.defaultCal===id?'is-on':''}">${state.defaultCal===id?ico('check',8):''}</span><span class="cal-dot" style="background:${calOf(id).color}"></span>${n}<span style="margin-left:auto;color:var(--faint);font-size:10px">${calCount(id)} 项</span></button>`).join('')}<div class="inline-alert">没有“未分类”：如果这里没有设置，就使用列表中的第一个日历。</div><div class="filter-actions"><button type="button" class="primary" data-action="save-default-cal">保存默认日历</button></div>`;
   if(section==='general')return `<h2 class="set-h">通用</h2><p class="set-desc">决定新待办落到哪里，以及打开应用时先看到什么。</p>
     ${setRow('默认日历','新待办和捕获默认放到这里；没设置时用第一个日历，不存在“未分类”。',`${calOf(state.defaultCal).name} <span class="badge-default">默认</span>`,'settings','default-calendar')}
@@ -2151,6 +2513,7 @@ function settingsContent(section){
   if(section==='about')return `<h2 class="set-h">关于</h2><p class="set-desc">DaySpark · 本地优先的个人时间管理工具。</p>
     ${setRow('版本','当前构建。','0.35.0','noop')}
     ${setRow('数据','存储位置。','本地优先 · 自托管同步','noop')}
+    ${setRow('反馈','问题、建议或一句抱怨；复制或带到 GitHub。','去反馈','open-feedback')}
     ${setRow('许可','开源许可。','查看','noop')}`;
   if(section==='calendar-new')return `<h2 class="set-h">新建日历</h2><p class="set-desc">先定名称和颜色；新日历不会自动成为默认日历，创建后到「默认日历」里选择。</p><div class="io-card"><div class="form-grid"><div class="form-row full"><label class="form-label">名称</label><input class="form-input" placeholder="例如：副业"></div><div class="form-row full"><label class="form-label">颜色</label><div class="filter-chip-row">${['#4f7bbf','#6a9464','#c4794a','#6c6fa8','#a98b4f','#8a8a82'].map((c,i)=>`<span class="swatch" style="--bg:${c};--bar:${c};width:24px;height:20px;border-radius:4px;display:inline-block" class="${i===0?'is-on':''}"></span>`).join('')}</div></div></div></div><div class="filter-actions"><button type="button" data-action="settings" data-section="calendars">取消</button><button type="button" class="primary" data-action="noop">创建日历</button></div>`;
   if(section==='calendar-edit'){const cal=calOf(state.calendarId);return `<h2 class="set-h">编辑日历</h2><p class="set-desc">正在编辑「${cal.name}」；名称、颜色。默认日历在单独设置里改。</p>
@@ -2221,7 +2584,7 @@ function mobileStates(){
     <section class="m-state-card"><h3>已遗漏 / 重复实例</h3><div class="mini-ui"><div class="mini-row"><span class="check">${ico('check',7)}</span><span style="min-width:0"><b>整理周会纪要并群发</b><span class="missed">已遗漏 2</span></span></div><div class="mini-row"><span class="repeat-badge">${ico('repeat',8)} 每周五</span><b>第 3 次</b></div><div class="state-note">重复只有一个入口；完成只影响这一次。</div></div></section>
     <section class="m-state-card"><h3>重叠 / 全天 / 跨天</h3><div class="mini-ui"><div class="mini-row"><b>15:15</b><span>计划 · 提交周报</span></div><div class="mini-row"><b>15:30</b><span>日程 · 客户电话</span></div><div class="mini-row"><b>16:00</b><span>日程 · 整理周会纪要</span></div><div class="allday-chip" style="max-width:100%;--ev-bg:${CAL.work.bg};--ev-ink:${CAL.work.ink};--ev-bar:${CAL.work.color}"><span>设计冲刺 · 11/18–11/20</span></div><div class="state-note">移动端重叠用列表堆叠；全天/跨天留在全天条。</div></div></section>
     <section class="m-state-card"><h3>长标题 / disabled / selected</h3><div class="mini-ui"><div class="mini-row"><span class="check is-on">${ico('check',7)}</span><span class="od-truncate" style="max-width:250px">把第四季度所有客户反馈整理成一份可以给设计和研发共同评审的问题清单</span></div><div style="display:flex;gap:5px"><span class="mini-chip is-disabled">disabled</span><span class="mini-chip is-focus">focus</span><span class="mini-chip is-on">selected</span></div></div></section>
-    <section class="m-state-card"><h3>键盘弹出 / 安全区</h3><div class="mini-ui" style="border-radius:10px;overflow:hidden;background:#f7f7f4;padding:0"><div style="padding:8px"><div class="form-row"><label class="form-label">标题</label><input class="form-input" value="交季度总结"></div></div><div class="m-keyboard" style="position:static;border-radius:0;padding:5px 4px 18px">${'qwertyuiop'.split('').map(k=>`<span>${k}</span>`).join('')}</div><div class="m-home" style="position:static;background:#fff"></div></div><div class="state-note">sheet 抬到键盘上方；home indicator 与安全区不被遮挡。</div></section>
+    <section class="m-state-card"><h3>键盘弹出 / 安全区</h3><div class="mini-ui" style="border-radius:10px;overflow:hidden;background:#f7f7f4;padding:0"><div style="padding:8px"><div class="form-row"><label class="form-label">标题</label><input class="form-input" value="交季度总结"></div></div><div class="m-keyboard" style="position:static;border-radius:0;padding:5px 4px 18px">${'qwertyuiop'.split('').map(k=>`<span>${k}</span>`).join('')}</div><div class="m-home" style="position:static;left:auto;transform:none;margin:6px auto 0;background:#1b1b1a"></div></div><div class="state-note">sheet 抬到键盘上方；home indicator 与安全区不被遮挡。</div></section>
     <section class="m-state-card"><h3>bottom sheet 收起 / 展开</h3><div class="mini-ui" style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div class="mini-banner">收起：只显示输入条</div></div><div><div class="mini-banner"><b>展开：字段可见</b><br>日期 · 计划 · 日历 · 提醒</div></div></div><div class="state-note">收起不丢草稿；展开不改变类型。</div></section>
   </div>`,{back:true});
 }
@@ -2280,6 +2643,219 @@ function specSheet(){
       </ul></section>
     </div>
   </div>`;
+}
+
+/* ---------------- AI 对话 ---------------- */
+const AI_THREAD = [
+  {role:'user', text:'把这周的周报整理成三条要点，周五 18:00 前发出去。'},
+  {role:'ai', text:'1. 本周完成了 11 月版本的三处交互收敛，计划页与今天页的时间语义已统一。\n2. 待处理：导入 ICS 时第 14 行的日期格式仍会失败，需要一份容错报告。\n3. 下周三前给林总一版 Q4 提案框架，先列结构再补数据。\n\n要我把它记成一条周五截止的待办吗？', actions:true}
+];
+function aiEmptyState(icon,title,msg,label,action){
+  return `<div class="ai-empty">${ico(icon,26)}<b>${esc(title)}</b><p>${esc(msg)}</p>${label?`<button type="button" class="mini-btn primary" data-action="${action}">${esc(label)}</button>`:''}</div>`;
+}
+function aiBubble(m,i,last){
+  const isUser=m.role==='user';
+  if(m.role==='error')return `<div class="ai-msg is-error" style="align-self:flex-start"><div class="ai-msg-head">${ico('alert',9)} 出错</div>${esc(m.text)}${last?`<div><button type="button" class="ai-retry" data-action="ai-retry">重试上一条</button></div>`:''}</div>`;
+  return `<div class="ai-msg ${isUser?'is-user':''}"><div class="ai-msg-head">${isUser?'你':'AI 助手'}</div>${esc(m.text)}${(!isUser&&m.actions&&last)?`<div class="ai-actions"><button type="button" class="ai-chip" data-action="ai-insert">${ico('plus',10)}新建待办</button><button type="button" class="ai-chip" data-action="ai-insert">${ico('calendar',10)}新建日程</button><button type="button" class="ai-chip" data-action="ai-insert">${ico('clock',10)}安排时间</button><button type="button" class="ai-chip" data-action="ai-insert">${ico('list',10)}拆成子任务</button></div>`:''}</div>`;
+}
+function aiChatPage(){
+  const v=state.variant;
+  const enabled=state.aiEnabled&&v!=='disabled';
+  const configured=state.aiConfigured&&v!=='empty';
+  const busy=v==='sending';
+  const thread=AI_THREAD.concat(v==='error'?[{role:'error',text:'没有连上模型服务：401 Unauthorized。Key 可能已失效，回复没有保存。'}]:[]);
+  const lastIdx=thread.length-1;
+  let body='';
+  if(!enabled)body=aiEmptyState('chat','AI 助手已关闭','这是一个可选功能；打开开关并配置模型后，才会出现对话入口。','打开设置','ai-open-settings');
+  else if(!configured)body=aiEmptyState('key','还没有配置模型','填一个 OpenAI 兼容的 Base URL 和 API Key；Key 只保存在本机，不会上传到 DaySpark 服务器。','配置模型','ai-open-config');
+  else if(v==='ready')body=aiEmptyState('sparkles','问点什么，或让它帮你整理','可以问「今天还剩什么」「把这周的会议整理成纪要」，也可以让它把一段话拆成待办。','','');
+  else body=`<div class="ai-wrap">${thread.map((m,i)=>aiBubble(m,i,i===lastIdx)).join('')}${busy?`<div class="ai-msg" style="align-self:flex-start;display:flex;align-items:center;gap:8px;color:var(--muted)"><span class="ai-spin"></span>正在回复…</div>`:''}</div>`;
+  return `<div class="page ai-page">
+    <header class="ai-head"><div><h1>AI 助手</h1><p>${enabled&&configured?'已连接 · 模型 gpt-4o-mini · 仅在本机保存 Key':'对话是内容页；不是搜索，也不是命令框。'}</p></div><div class="ai-head-actions">${enabled&&configured&&v!=='ready'?`<button type="button" class="tool" data-action="ai-clear">${ico('trash',12)}清空对话</button>`:''}<button type="button" class="tool" data-action="ai-open-config">${ico('sliders',12)}模型</button></div></header>
+    <div class="ai-body">${body}</div>
+    <div class="ai-composer"><div class="ai-composer-in"><input id="ai-input" value="${esc(state.aiInput)}" placeholder="${enabled&&configured?'问点什么，回车发送':'配置模型后才能发送'}" aria-label="输入消息" ${enabled&&configured?'':'disabled'}><button type="button" class="ai-send ${busy?'is-busy':''}" data-action="ai-send" aria-label="发送" ${enabled&&configured?'':'disabled'}>${busy?'<span class="ai-spin"></span>':ico('send',15)}</button></div></div>
+    ${v==='clear'?`<div class="pk-scrim" data-action="ai-clear-cancel"><div class="pk-card" role="dialog" aria-label="清空对话"><div class="set-modal-head"><b>清空这段对话？</b><button type="button" class="drawer-close" data-action="ai-clear-cancel">${ico('x',12)}</button></div><div class="set-modal-body" style="font-size:11px;line-height:1.6;color:var(--muted)">消息会从这台设备移除，不能撤销；已经创建到待办或日程里的内容不受影响。</div><div class="pk-foot"><button type="button" data-action="ai-clear-cancel">取消</button><button type="button" class="primary" data-action="ai-clear-confirm">清空</button></div></div></div>`:''}
+    ${state.toast?`<div class="toast">${esc(state.toast)}</div>`:''}
+  </div>`;
+}
+
+/* ---------------- 反馈 ---------------- */
+const FB_SAMPLE='「按日期」里把计划块拖到另一个时间后，结束时间没有跟着变。\n\n机型：iPhone 15 · 版本 0.35.0\n复现：待办 · 按日期 → 拖动 15:15 的计划块到 16:00';
+function feedbackPage(){
+  const v=state.variant;
+  const text=v==='empty'?'':(state.fbText||FB_SAMPLE);
+  const copied=v==='copied';
+  const linkError=v==='link-error';
+  const hasText=!!text.trim();
+  return `<div class="page fb-page">
+    ${pageHead({title:'反馈',sub:'问题、建议或一句抱怨都可以',right:`<button type="button" class="tool" data-action="back">${ico('chevron-left',12)}返回设置</button>`})}
+    <div class="fb-body"><div class="fb-wrap">
+      <div class="fb-label">写点什么</div>
+      <textarea class="fb-area" id="fb-input" placeholder="发生了什么、你期望什么；如果方便，写上机型和版本。" aria-label="反馈内容">${esc(text)}</textarea>
+      <div class="fb-meta"><span>${text.length} 字 · 不会自动附带日志</span><span>${hasText?'可以复制，或带到 GitHub':'写点内容才能继续'}</span></div>
+      ${linkError?`<div class="inline-alert is-red" style="margin-top:12px"><b>没能打开浏览器。</b><br>内容还在，可以重试，或先复制到剪贴板再手动打开。</div>`:''}
+      <div class="fb-actions">
+        <button type="button" class="fb-btn primary" data-action="fb-copy" ${hasText?'':'disabled'}>${ico(copied?'check':'copy',13)}${copied?'已复制到剪贴板':'复制反馈内容'}</button>
+        <button type="button" class="fb-btn" data-action="fb-github">${ico('external',13)}在 GitHub 上提交</button>
+      </div>
+      <div class="fb-note">DaySpark 不会在后台自动提交任何内容。复制之后，你可以贴到任意渠道；GitHub 会打开一个空白 issue，正文已填好。</div>
+    </div></div>
+    ${state.toast?`<div class="toast">${esc(state.toast)}</div>`:''}
+  </div>`;
+}
+
+/* ---------------- 日期 / 时间选择器 ---------------- */
+function monthCells(month){
+  const first=month+'-01';
+  const [y,m]=month.split('-').map(Number);
+  const startDow=new Date(Date.UTC(y,m-1,1)).getUTCDay();
+  const back=(startDow+6)%7;
+  const start=addDays(first,-back);
+  return Array.from({length:42},(_,i)=>addDays(start,i));
+}
+function monthLabel(month){const [y,m]=month.split('-').map(Number);return `${y} 年 ${m} 月`;}
+function datePickerCard(){
+  const v=state.variant;
+  const month=v==='nav'?'2026-12':(state.pickerMonth||'2026-11');
+  const cells=monthCells(month);
+  const sel=v==='nav'?'2026-12-03':(state.pickerDate||TODAY);
+  return `<div class="pk-scrim" data-action="picker-cancel"><div class="pk-card" role="dialog" aria-label="选择日期">
+    <div class="pk-head"><button type="button" class="pk-nav" data-action="picker-prev" aria-label="上个月">${ico('chevron-left',12)}</button><b>${monthLabel(month)}</b><button type="button" class="pk-nav" data-action="picker-next" aria-label="下个月">${ico('chevron-right',12)}</button></div>
+    <div class="pk-week">${['一','二','三','四','五','六','日'].map(d=>`<span>${d}</span>`).join('')}</div>
+    <div class="pk-grid">${cells.map(d=>{
+      const out=d.slice(0,7)!==month;
+      const off=v==='off'&&d<TODAY;
+      return `<button type="button" class="pk-cell ${out?'is-out':''} ${d===sel?'is-on':''} ${off?'is-off':''} ${d===TODAY?'is-today':''}" data-action="picker-pick" data-date="${d}" ${off?'disabled':''}><i>${dayNum(d)}</i></button>`;
+    }).join('')}</div>
+    <div class="pk-foot"><button type="button" data-action="picker-cancel">取消</button><button type="button" class="primary" data-action="picker-ok">确定</button></div>
+  </div></div>`;
+}
+function timePickerCard(){
+  const v=state.variant;
+  const [hh,mm]=(state.timeValue||'15:15').split(':');
+  const invalid=v==='invalid';
+  return `<div class="pk-scrim" data-action="time-cancel"><div class="pk-card" role="dialog" aria-label="选择时间">
+    <div class="pk-head"><span style="width:28px"></span><b>选择时间</b><button type="button" class="pk-nav" data-action="time-cancel" aria-label="关闭">${ico('x',12)}</button></div>
+    <div class="pk-time"><label class="box ${v==='focus'?'is-focus':''} ${invalid?'is-focus':''}" style="${invalid?'border-color:var(--red);box-shadow:none':''}"><input id="pk-hour" value="${invalid?'25':hh}" aria-label="小时" style="width:100%;border:0;background:transparent;text-align:center;font:inherit;color:inherit;outline:none"></label><span class="colon">:</span><label class="box"><input id="pk-minute" value="${invalid?'80':mm}" aria-label="分钟" style="width:100%;border:0;background:transparent;text-align:center;font:inherit;color:inherit;outline:none"></label></div>
+    ${invalid?`<div class="form-error" style="padding:0 16px 10px;text-align:center">小时需在 00–23、分钟需在 00–59；修正后才能确定。</div>`:`<div class="pk-hint">直接输入数字；回车确定。不使用表盘。</div>`}
+    <div class="pk-foot"><button type="button" data-action="time-cancel">取消</button><button type="button" class="primary" data-action="time-ok" ${invalid?'disabled style="opacity:.4"':''}>确定</button></div>
+  </div></div>`;
+}
+
+/* ---------------- 浮层与反馈板 ---------------- */
+function overlaysSheet(){
+  const v=state.variant;
+  const show=k=>v==='all'||v===k;
+  return `<div class="ov-sheet">
+    <div class="ov-head"><div><h1>浮层与反馈</h1><p>Dialog / Sheet / Popover / Toast / Undo 共用一套纸面语言：白面、1px 边、墨色主按钮、红色只表示危险与失败。层级固定，不因宿主页面改变。</p></div><span class="badge-default">尺寸为真实值</span></div>
+    <div class="ov-grid">
+      ${show('toast')?`<section class="ov-card ov-wide"><h3>Toast<span>桌面 · 底部 84 / 手机 · 底部 76</span></h3><div class="ov-stage"><div class="toast"><b>已保存</b> 提交周报给林总<span class="t-act">撤销</span></div><div class="toast is-danger"><b>没有连上服务器。</b> 草稿还在<span class="t-act">重试</span></div></div><div class="ov-note">深墨底、白字、单行；最长 560px。带动作时动作在右侧下划线，不用按钮。失败用更深的红墨，不用亮红。</div></section>`:''}
+      ${show('undo')?`<section class="ov-card"><h3>撤销条<span>完成 / 删除后 4 秒</span></h3><div class="ov-stage"><div class="undo-bar"><span>已标记完成</span><b>提交周报给林总</b><button type="button" data-action="noop">撤销</button></div></div><div class="ov-note">撤销条不是 toast：它承载一次可逆动作，位置在捕获条上方；4 秒后自动消失，不堆叠。</div></section>`:''}
+      ${show('confirm')?`<section class="ov-card"><h3>确认对话框<span>320px</span></h3><div class="ov-stage"><div class="confirm-modal" style="box-shadow:none"><h3>删除「提交周报给林总」？</h3><p>会进回收站，可以恢复。重复条目会写明删除整个系列。</p><div class="cf-actions"><button type="button" data-action="noop">取消</button><button type="button" class="cf-danger" data-action="noop">删除</button></div></div></div><div class="ov-note">破坏性动作的主按钮用红底；普通确认用墨色。取消永远在左。</div></section>`:''}
+      ${show('sheet')?`<section class="ov-card"><h3>底部 Sheet<span>手机 · 左右 10 / 底部 10</span></h3><div class="ov-stage" style="padding:0;background:#e9e9e2"><div class="m-sheet"><div class="m-sheet-head"><b>记一件事</b><button type="button" data-action="noop">${ico('x',13)}</button></div><div class="m-sheet-body"><div class="cp-field"><span class="k">标题</span><span class="v">交季度总结</span></div><div class="cp-field"><span class="k">截止</span><span class="v" style="color:var(--amber)">11/21 18:00</span></div><div class="cp-field"><span class="k">日历</span><span class="v">个人 · 默认</span></div><div class="cp-actions" style="justify-content:flex-end;padding-top:9px"><button type="button" class="btn primary" data-action="noop">记下待办</button></div></div></div></div><div class="ov-note">Sheet 抬到键盘上方；收起不丢草稿；展开不改变类型。</div></section>`:''}
+      ${show('popover')?`<section class="ov-card"><h3>Popover<span>桌面 · 310 / 250 / 320</span></h3><div class="ov-stage"><div class="popover"><div class="popover-head"><span style="font-size:10px;font-weight:600">筛选</span><button type="button" class="drawer-close" data-action="noop">${ico('x',11)}</button></div><div class="popover-body"><div class="filter-sec"><div class="filter-label">日历</div><div class="cal-filter-row"><span class="filter-box is-on">${ico('check',7)}</span><span class="cal-dot" style="background:${CAL.work.color}"></span>工作</div><div class="cal-filter-row"><span class="filter-box"></span><span class="cal-dot" style="background:${CAL.home.color}"></span>家事</div></div><div class="filter-actions"><button type="button" data-action="noop">清除</button><button type="button" class="primary" data-action="noop">应用</button></div></div></div></div><div class="ov-note">Popover 贴触发按钮下方，不遮挡触发点；点外部关闭；宽度由内容类型决定，不拉伸。</div></section>`:''}
+      ${show('dialog')?`<section class="ov-card"><h3>Dialog<span>320 / 430</span></h3><div class="ov-stage"><div class="plan-card" style="box-shadow:none"><div class="plan-head"><b>安排「提交周报给林总」</b><button type="button" class="drawer-close" data-action="noop">${ico('x',12)}</button></div><div class="plan-body"><div class="plan-date">11 月 20 日</div><div class="plan-sub">周五 · 只写计划执行，不改截止。</div><div class="plan-time"><div class="box"><small>开始</small>15:15</div><div class="box"><small>结束</small>16:00</div><div class="box"><small>时长</small>45 分钟</div></div></div><div class="plan-foot"><button type="button" class="tool" data-action="noop">取消</button><button type="button" class="tool is-on" data-action="noop">安排</button></div></div></div><div class="ov-note">选择器与安排器用同一种卡片；320 用于日期 / 时间，430 用于带上下文的安排。</div></section>`:''}
+    </div>
+  </div>`;
+}
+
+/* ---------------- 原生小组件 ---------------- */
+function wdRow(o){
+  return `<div class="wd-row">${o.check?`<span class="ck ${o.done?'is-on':''}"></span>`:`<span class="bar" style="--bar:${o.color||CAL.work.color}"></span>`}<b>${esc(o.title)}</b>${o.time?`<span class="t" style="margin-left:auto">${o.time}</span>`:''}</div>`;
+}
+function wdActionWidget(size,empty){
+  const sm=size==='sm';
+  const lg=size==='lg';
+  return `<div class="wd-ios ${size}">
+    <div class="wd-top"><div><div class="wd-date">11/20</div><div class="wd-dow">周五 · 第 47 周</div></div>${sm?'':`<div class="wd-add">+ 待办</div>${lg?'<div class="wd-add">+ 日程</div>':''}`}</div>
+    ${empty?`<div class="wd-empty">今天没有安排<br>打开 DaySpark 以更新</div>`:sm?wdRow({color:CAL.health.color,title:'牙医复诊',time:'14:30'}):`
+      <div class="wd-sec">现在</div>${wdRow({color:CAL.health.color,title:'牙医复诊',time:'14:30'})}
+      <div class="wd-sec">之后</div>${wdRow({color:CAL.work.color,title:'计划 · 提交周报',time:'15:15'})}${lg?wdRow({color:CAL.work.color,title:'整理周会纪要',time:'16:00'})+'<div class="wd-sec">截止</div>'+wdRow({check:true,title:'提交周报给林总',time:'18:00'}):''}
+      <div class="wd-foot"><span>今日已完成 2</span><span style="color:var(--red)">逾期 1</span></div>`}
+  </div>`;
+}
+function wdTodoWidget(size,empty){
+  return `<div class="wd-ios ${size}">
+    <div class="wd-top"><div><div class="wd-date">待办</div><div class="wd-dow">${empty?'今天没有待办':'4 项未完成 · 1 项今天截止'}</div></div><div class="wd-add">+ 待办</div></div>
+    ${empty?`<div class="wd-empty">没有待办<br>打开 DaySpark 以更新</div>`:`
+      ${wdRow({check:true,title:'提交周报给林总',time:'18:00'})}
+      ${wdRow({check:true,title:'预约 11 月体检',time:'明天'})}
+      ${size!=='sm'?wdRow({check:true,title:'给妈妈回电话'}):''}
+      ${size==='lg'?wdRow({check:true,title:'买猫粮和清洁用品'})+wdRow({check:true,title:'整理书架，把读完的收起来'}):''}
+      <div class="wd-foot"><span>全部</span><span>收件箱 · 6</span></div>`}
+  </div>`;
+}
+function wdCalendarWidget(size,empty){
+  const cells=monthCells('2026-11');
+  return `<div class="wd-ios ${size}">
+    <div class="wd-top"><div><div class="wd-date" style="font-size:${size==='md'?'13px':'17px'}">2026 年 11 月</div><div class="wd-dow">${empty?'这一天没有安排':'11/20 · 周五 · 3 项'}</div></div><div class="wd-add">+ 日程</div></div>
+    ${size==='md'?`<div class="wd-month">${cells.map(d=>`<span class="${d.slice(0,7)!=='2026-11'?'out':''} ${d===TODAY?'on':''} ${['2026-11-20','2026-11-22','2026-11-25'].includes(d)?'dot':''}">${dayNum(d)}</span>`).join('')}</div>`:`
+      <div class="wd-month">${cells.map(d=>`<span class="${d.slice(0,7)!=='2026-11'?'out':''} ${d===TODAY?'on':''} ${['2026-11-20','2026-11-22','2026-11-25'].includes(d)?'dot':''}">${dayNum(d)}</span>`).join('')}</div>
+      ${empty?'':`<div class="wd-sec">11/20 · 周五</div>${wdRow({color:CAL.health.color,title:'牙医复诊',time:'14:30'})}${wdRow({color:CAL.work.color,title:'计划 · 提交周报',time:'15:15'})}`}`}
+  </div>`;
+}
+function wdAndroid(kind,empty){
+  const size=kind==='calendar'?'h4':kind==='todo'?'h2':'h2';
+  return `<div class="wd-and ${size}">
+    <div class="wd-top"><div><div class="wd-date">${kind==='calendar'?'11 月':kind==='todo'?'待办':'11/20'}</div><div class="wd-dow">${empty?'没有安排':'周五 · 3 项'}</div></div><div class="wd-add">+</div></div>
+    ${empty?`<div class="wd-empty">打开 DaySpark 以更新</div>`:kind==='calendar'?`<div class="wd-month">${monthCells('2026-11').slice(0,35).map(d=>`<span class="${d.slice(0,7)!=='2026-11'?'out':''} ${d===TODAY?'on':''}">${dayNum(d)}</span>`).join('')}</div>`:kind==='todo'?`${wdRow({check:true,title:'提交周报给林总'})}${wdRow({check:true,title:'预约 11 月体检'})}`:`${wdRow({color:CAL.health.color,title:'牙医复诊',time:'14:30'})}${wdRow({color:CAL.work.color,title:'计划 · 提交周报',time:'15:15'})}`}
+  </div>`;
+}
+function widgetsSheet(){
+  const v=state.variant;
+  const empty=v==='empty';
+  const only=v==='today'||v==='todo'||v==='calendar'||v==='android'?v:null;
+  const show=k=>!only||only===k;
+  const sec={
+    today:`<section class="wd-card"><div class="wd-label">iOS / macOS · 今日行动<span>158 / 338 / 338</span></div><div class="wd-stack">
+        <div style="width:158px">${wdActionWidget('sm',empty)}</div>
+        <div style="width:338px">${wdActionWidget('md',empty)}</div>
+        <div style="width:338px">${wdActionWidget('lg',empty)}</div>
+      </div><div class="wd-note">小尺寸只放「现在」与下一条；中尺寸加「之后」；大尺寸再带今天已完成与逾期计数。</div></section>`,
+    todo:`<section class="wd-card"><div class="wd-label">iOS / macOS · 待办<span>158 / 338 / 338</span></div><div class="wd-stack">
+        <div style="width:158px">${wdTodoWidget('sm',empty)}</div>
+        <div style="width:338px">${wdTodoWidget('md',empty)}</div>
+        <div style="width:338px">${wdTodoWidget('lg',empty)}</div>
+      </div><div class="wd-note">行语义与待办页一致：空心圆、标题、右侧截止；完成不在小组件里发生。</div></section>`,
+    calendar:`<section class="wd-card"><div class="wd-label">iOS / macOS · 月历<span>338 · 无小尺寸</span></div><div class="wd-stack">
+        <div style="width:338px">${wdCalendarWidget('md',empty)}</div>
+        <div style="width:338px">${wdCalendarWidget('lg',empty)}</div>
+      </div><div class="wd-note">今天用墨色实心格；有内容的日期下方是点，不是彩色块。</div></section>`,
+    android:`<section class="wd-card"><div class="wd-label">Android · 三种小组件<span>2×2 / 4×2 / 4×4</span></div><div class="wd-stack">
+        <div style="width:110px">${wdAndroid('today',empty)}</div>
+        <div style="width:250px">${wdAndroid('todo',empty)}</div>
+        <div style="width:250px">${wdAndroid('calendar',empty)}</div>
+      </div><div class="wd-note">Android 选择器预览图与描述沿用同一份文案：今日行动 / 待办 / 月历。点击行打开对应条目；空白区域打开应用。</div></section>`
+  };
+  const note=only?`<div class="wd-focus-note">正在单独查看「${only==='android'?'Android':only==='today'?'今日行动':only==='todo'?'待办':'月历'}」；其余小组件在对应的状态里。</div>`:'';
+  return `<div class="wd-sheet">
+    <div class="wd-head"><div><h1>原生小组件</h1><p>内容模型跟随今天 / 待办 / 日历的行语义；颜色只取 SpecTokens，不再有第二套旧调色板。浅色锁定，不跟随系统变暗。</p></div><span class="badge-default">P12 · iOS / macOS / Android</span></div>
+    ${note}
+    <div class="wd-cols">
+      ${show('today')?sec.today:''}
+      ${show('todo')?sec.todo:''}
+      ${show('calendar')?sec.calendar:''}
+      ${show('android')?sec.android:''}
+    </div>
+    <div class="wd-note" style="margin-top:16px;max-width:900px">三种小组件共用的规则：只读快照，不在小组件里编辑；过期快照显示「打开 DaySpark 以更新」而不是旧数据；空态说明下一步；暗色系统下仍按浅色纸面绘制，与 App 一致。</div>
+  </div>`;
+}
+
+/* ---------------- 服务端授权页 ---------------- */
+function serverOAuthPage(){
+  const denied=state.variant==='denied';
+  return `<div class="oauth-host"><div class="oauth-card">
+    <div class="oauth-head"><span class="p-mark" style="width:22px;height:22px;border-radius:6px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:11px">D</span>DaySpark</div>
+    <div class="oauth-body">
+      ${denied?`<h2>已拒绝授权</h2><p>MCP 客户端「Claude Desktop」没有获得访问权限。你可以关闭这个页面，或在客户端里重新发起连接。</p><div class="oauth-scope">${ico('alert',12)}<span>没有共享任何日历、待办或账号信息。</span></div>`:`
+      <h2>允许「Claude Desktop」访问你的 DaySpark？</h2><p>这是一个 MCP 客户端，正在请求以你的账号读取和写入数据。授权后可以随时在设置里撤销。</p>
+      <div class="oauth-scope">${ico('calendar',12)}<span>读取日历、待办和日程</span></div>
+      <div class="oauth-scope">${ico('plus',12)}<span>创建和修改待办、日程</span></div>
+      <div class="oauth-scope">${ico('user',12)}<span>读取账号邮箱（chang@local）</span></div>
+      <div class="oauth-scope">${ico('shield',12)}<span>不会读取其他设备上的本地数据；不会访问附件内容</span></div>`}
+    </div>
+    <div class="oauth-foot">${denied?`<button type="button" class="primary" data-action="noop">返回客户端</button>`:`<button type="button" data-action="oauth-deny">拒绝</button><button type="button" class="primary" data-action="oauth-allow">允许访问</button>`}</div>
+  </div></div>`;
 }
 
 /* ---------------- mobile ---------------- */
@@ -2521,6 +3097,48 @@ function mobileCalendar(view){
   const viewSwitch=`<div class="mode-switch" style="margin:0 0 9px">${['month','week','day'].map(v=>`<button type="button" class="${state.calView===v?'is-on':''}" data-action="cal-view" data-view="${v}">${v==='month'?'月':v==='week'?'周':'日'}</button>`).join('')}</div>`;
   return mobileShell('日历',viewSwitch+banner+body,{dock:true,active:'calendar',actions:`<button type="button" class="m-icon" data-action="cal-prev" aria-label="上一段">${ico('chevron-left',15)}</button><button type="button" class="m-icon" data-action="cal-next" aria-label="下一段">${ico('chevron-right',15)}</button><button type="button" class="m-icon" data-action="open-cal-filter" aria-label="显示日历">${ico('filter',14)}</button>`});
 }
+function mobileNewItem(isEvent){
+  const v=state.variant;
+  const expanded=v==='template';
+  const titleError=v==='validation';
+  const saving=v==='save-error';
+  const title=expanded?(isEvent?'和设计团队评审方案':'交季度总结'):'';
+  const cal=isEvent?'work':(state.defaultCal||'personal');
+  const allDay=isEvent&&v==='allday';
+  const facts=isEvent
+    ? `<span class="new-fact"><i class="cal-dot" style="background:${calOf(cal).color}"></i>${calOf(cal).name}</span><span class="new-fact">${ico('clock',10)} ${allDay?'全天 · 11/20':'11/20 11:00–12:00'}</span><span class="new-fact">${ico('bell',10)} 15 分钟前</span>`
+    : `<span class="new-fact is-empty">无日期</span><span class="new-fact"><i class="cal-dot" style="background:${calOf(cal).color}"></i>${calOf(cal).name}</span><span class="new-fact is-empty">无截止</span>`;
+  const fields=isEvent?`
+      <div class="cp-field"><span class="k">时间</span><span class="v">${allDay?'全天':(expanded?'11/21 10:00–11:00':'11/20 11:00–12:00')}</span></div>
+      <div class="cp-field"><span class="k">全天</span><span class="v">${allDay?'是':'否'}</span></div>
+      <div class="cp-field"><span class="k">日历</span><span class="v">${calOf(cal).name}</span></div>
+      <div class="cp-field"><span class="k">地点</span><span class="v">${expanded?'会议室 B':'未填写'}</span></div>
+      <div class="cp-field"><span class="k">重复</span><span class="v">不重复</span></div>
+      <div class="cp-field"><span class="k">提醒</span><span class="v">15 分钟前</span></div>`:`
+      <div class="cp-field"><span class="k">截止</span><span class="v ${expanded?'is-due':''}">${expanded?'11/21 18:00':'无截止'}</span></div>
+      <div class="cp-field"><span class="k">计划执行</span><span class="v ${expanded?'is-plan':''}">${expanded?'11/21 15:00–16:00':'未安排'}</span></div>
+      <div class="cp-field"><span class="k">提醒</span><span class="v">不提醒</span></div>
+      <div class="cp-field"><span class="k">日历</span><span class="v">${calOf(cal).name}${cal===(state.defaultCal||'personal')?' · 默认':''}</span></div>
+      <div class="cp-field"><span class="k">优先级</span><span class="v">中</span></div>`;
+  return `<div class="m-app"><div class="m-status"><span>15:00</span><span class="m-status-icons"><i></i><i></i><i></i></span></div>
+    <header class="m-top"><button type="button" class="m-back" data-action="noop">${ico('x',16)}</button><div class="m-title">${isEvent?'新建日程':'记一件事'}</div><div class="m-actions"><button type="button" class="tool primary" data-action="noop">${saving?'重试':'保存'}</button></div></header>
+    <div class="m-detail-scroll">
+      ${saving?`<div class="m-banner is-red"><b>保存失败。</b> 这一页还在；检查网络后重试。</div>`:''}
+      ${v==='dirty'?`<div class="m-banner"><b>还没有保存。</b><br>离开会丢弃这次输入。</div>`:''}
+      <div class="new-type" style="margin-top:2px">
+        <button type="button" class="new-type-btn ${isEvent?'':'is-on'}" data-action="noop">${ico('check',10)} 待办</button>
+        <button type="button" class="new-type-btn ${isEvent?'is-on':''}" data-action="noop">${ico('calendar',10)} 日程</button>
+      </div>
+      <div class="m-form-label" style="margin-top:10px">标题</div>
+      <input class="m-form-input" value="${esc(title)}" placeholder="${isEvent?'给这段日程起个名字':'写一个明天能看懂的动作'}" style="font-size:17px;font-weight:600;margin-top:4px" aria-invalid="${titleError}">
+      ${titleError?'<div class="form-error" style="margin-top:4px">标题不能为空。</div>':''}
+      <div class="new-facts" style="margin-top:10px">${facts}</div>
+      <div class="cp-fields new-fields" style="margin-top:8px">${fields}</div>
+      <div class="new-from" style="margin-top:8px">${isEvent?'地点和备注可以创建后再加。':'标签、子任务、附件可以创建后再加。'}</div>
+    </div>
+    ${v==='dirty'?`<div class="confirm-scrim"><div class="confirm-modal" role="dialog" aria-modal="true" aria-label="未保存离开"><h3>离开这张表单？</h3><p>还没有创建；标题和已填内容会丢失。</p><div class="cf-actions"><button type="button" data-action="noop">留下</button><button type="button" class="cf-danger" data-action="noop">丢弃</button></div></div></div>`:''}
+    <div class="m-home"></div></div>`;
+}
 function mobileDetail(ref){
   const isEvent=ref.type==='event';
   const item=draftFor(ref);
@@ -2579,11 +3197,31 @@ function mobileCommand(){
     <div class="m-cmd"><div class="m-cmd-input">${ico('search',15)}<input value="${v==='noresult'?'不存在的任务':'周报'}" aria-label="搜索"><button type="button" class="m-icon" data-action="close-cmd">${ico('x',14)}</button></div><div class="m-cmd-body">${body}</div></div><div class="m-home"></div></div>`;
 }
 function mobileSettings(section){
-  const titleMap={'default-calendar':'默认日历',general:'通用',calendars:'日历管理','calendar-new':'新建日历','calendar-edit':'编辑日历','calendar-delete':'删除日历',data:'数据',tags:'标签','tag-new':'新建标签','tag-edit':'编辑标签',trash:'回收站',io:'导入与备份',import:'导入 ICS',backup:'备份',notify:'通知','notify-denied':'通知被拒绝',sync:'同步','sync-logged-out':'同步未登录','sync-failed':'同步失败','sync-conflict':'同步冲突',about:'关于'};
+  const titleMap={'default-calendar':'默认日历',general:'通用',calendars:'日历管理','calendar-new':'新建日历','calendar-edit':'编辑日历','calendar-delete':'删除日历',data:'数据',tags:'标签','tag-new':'新建标签','tag-edit':'编辑标签',trash:'回收站',io:'导入与备份',import:'导入 ICS',backup:'备份',account:'账号',ai:'AI 助手',notify:'通知','notify-denied':'通知被拒绝',sync:'同步','sync-logged-out':'同步未登录','sync-failed':'同步失败','sync-conflict':'同步冲突',about:'关于'};
   const title=titleMap[section]||'设置';
   let body='';
   const row=(a,b,action,sub)=>`<button type="button" class="m-settings-row" ${action?`data-action="${action}"`:''} data-section="${sub||''}"><span>${a}${sub&&b?'':''}<small>${b||''}</small></span><span class="m-settings-value">${ico('chevron-right',11)}</span></button>`;
-  if(section==='home')body=[['通用','默认日历、启动时打开','general'],['日历管理',`${calIds().length} 个日历`,'calendars'],['数据','标签 / 回收站 / 导入','data'],['通知','权限与提醒','notify'],['同步','账号、失败、冲突','sync'],['关于','版本与许可','about']].map(([a,b,sub])=>`<button type="button" class="m-settings-row" data-action="settings" data-section="${sub}"><span>${a}<small>${b}</small></span><span class="m-settings-value">${ico('chevron-right',11)}</span></button>`).join('');
+  if(section==='home')body=[['账号','登录与服务器','account'],['通用','默认日历、启动时打开','general'],['日历管理',`${calIds().length} 个日历`,'calendars'],['数据','标签 / 回收站 / 导入','data'],['AI 助手',state.aiEnabled?(state.aiConfigured?'已配置 · gpt-4o-mini':'未配置'):'已关闭','ai'],['通知','权限与提醒','notify'],['同步','账号、失败、冲突','sync'],['关于','版本、许可、反馈','about']].map(([a,b,sub])=>`<button type="button" class="m-settings-row" data-action="settings" data-section="${sub}"><span>${a}<small>${b}</small></span><span class="m-settings-value">${ico('chevron-right',11)}</span></button>`).join('');
+  else if(section==='account'){
+    const v=state.variant;
+    const head=`<div class="set-account" style="border:0;padding:2px 0 12px"><span class="set-avatar">C</span><div class="set-account-main"><b>${v==='logged-out'?'未登录':'chang@local'}</b><small>${v==='logged-out'?'本地仍可用；登录后才同步':v==='load-error'?'读取账号状态失败':'sync.dayspark.local · 已登录'}</small></div></div>`;
+    if(v==='load-error')body=head+`<div class="m-banner is-red"><b>无法读取账号状态。</b><br>会话可能仍然有效；先重试，不要直接重新登录。</div><button type="button" class="mini-btn primary" data-action="noop">重试</button>`;
+    else if(v==='failed')body=`<div class="m-banner is-red"><b>邮箱或密码不正确。</b><br>服务器可达；没有创建新会话。</div><div class="m-form"><div class="m-form-row"><span class="m-form-label">服务器</span><input class="m-form-input" value="https://sync.dayspark.local"></div><div class="m-form-row"><span class="m-form-label">邮箱</span><input class="m-form-input" value="chang@local" style="border-color:var(--red)"></div><div class="m-form-row"><span class="m-form-label">密码</span><input class="m-form-input" type="password" value="••••••••" style="border-color:var(--red)"></div></div><button type="button" class="mini-btn primary" data-action="noop">重新登录</button>`;
+    else if(v==='logged-out')body=head+`<div class="m-form"><div class="m-form-row"><span class="m-form-label">服务器</span><input class="m-form-input" value="https://sync.dayspark.local"></div><div class="m-form-row"><span class="m-form-label">邮箱</span><input class="m-form-input" placeholder="you@example.com"></div><div class="m-form-row"><span class="m-form-label">密码</span><input class="m-form-input" type="password" placeholder="••••••••"></div></div><button type="button" class="mini-btn primary" data-action="noop">登录</button>`;
+    else body=head+`<div class="m-settings-row"><span>服务器<small>sync.dayspark.local</small></span><span class="m-settings-value">正常</span></div><div class="m-settings-row"><span>最后同步<small>今天 14:58</small></span><span class="m-settings-value">成功</span></div><button type="button" class="mini-btn" data-action="noop" style="color:var(--red)">退出登录</button>`;
+  }
+  else if(section==='ai'){
+    const v=state.variant;
+    const enabled=state.aiEnabled&&v!=='off';
+    const configured=state.aiConfigured&&v!=='unconfigured';
+    body=`<div class="m-settings-row" style="border-top:0"><span>启用 AI 助手<small>关闭后隐藏对话入口</small></span><button type="button" class="set-switch ${enabled?'is-on':''}" data-action="ai-toggle" role="switch" aria-checked="${enabled}" aria-label="启用 AI 助手"></button></div>`
+      +(enabled?`<div class="m-settings-row"><span>模型配置<small>${configured?'sk-••••4f2a · gpt-4o-mini':'未配置'}</small></span><span class="m-settings-value"><button type="button" class="mini-btn" data-action="ai-config-open">编辑</button></span></div>`:'')
+      +(enabled&&configured?`<button type="button" class="mini-btn primary" data-action="ai-open-chat">打开助手</button>`:'')
+      +(enabled&&!configured?`<div class="m-banner">填好 Base URL 和 Key 并保存后，才能发送消息。</div>`:'')
+      +(!enabled?`<div class="m-banner">AI 助手已关闭；这一页会保留，方便随时重新打开。</div>`:'')
+      +`<p class="set-desc" style="margin-top:12px">对话只在本机保存；模型请求直接发往你填的服务商。</p>`;
+    if(state.aiConfigOpen)body+=aiConfigDialog();
+  }
   else if(section==='general')body=`<button type="button" class="m-settings-row" data-action="settings" data-section="default-calendar"><span>默认日历<small>${calOf(state.defaultCal).name} · 默认</small></span><span class="m-settings-value">${ico('chevron-right',11)}</span></button>`+[['启动时打开','今天'],['主题','浅色'],['强调色','暖灰'],['语言','简体中文']].map(([a,b])=>`<div class="m-settings-row"><span>${a}</span><span class="m-settings-value">${b} ${ico('chevron-right',11)}</span></div>`).join('');
   else if(section==='default-calendar')body=['个人','工作','家事','健康','生活','学习'].filter(n=>!state.deletedCals.includes(calIdByName(n))).map((n,i)=>{const id=n==='个人'?'personal':n==='工作'?'work':n==='家事'?'home':n==='健康'?'health':n==='生活'?'life':'study';return `<button type="button" class="m-settings-row" data-action="default-cal" data-value="${id}"><span><span class="cal-dot" style="display:inline-block;margin-right:7px;background:${calOf(id).color}"></span>${n}</span><span class="m-settings-value">${state.defaultCal===id?ico('check',11):''}</span></button>`}).join('')+`<div class="m-banner">没有“未分类”；不设置时用列表第一个日历。</div><button type="button" class="mini-btn primary" data-action="save-default-cal">保存默认日历</button>`;
   else if(section==='calendars')body=['个人','工作','家事','健康','生活','学习'].filter(n=>!state.deletedCals.includes(calIdByName(n))).map(n=>`<button type="button" class="m-settings-row" data-action="settings" data-section="calendar-edit" data-cal="${n==='个人'?'personal':n==='工作'?'work':n==='家事'?'home':n==='健康'?'health':n==='生活'?'life':'study'}"><span><span class="cal-dot" style="display:inline-block;margin-right:7px;background:${calOf(n==='个人'?'personal':n==='工作'?'work':n==='家事'?'home':n==='健康'?'health':n==='生活'?'life':'study').color}"></span>${n}${(n==='个人'?'personal':n==='工作'?'work':n==='家事'?'home':n==='健康'?'health':n==='生活'?'life':'study')===state.defaultCal?' <span class="badge-default">默认</span>':''}</span><span class="m-settings-value">${ico('chevron-right',11)}</span></button>`).join('')+`<button type="button" class="add-row" data-action="settings" data-section="calendar-new">${ico('plus',12)} 新建日历</button>`;
@@ -2627,8 +3265,84 @@ function mobileSettings(section){
   else if(section==='sync-logged-out')body=`<div class="m-banner"><b>还没有登录。</b><br>本地仍可用；登录后才多设备同步。</div><div class="m-settings-row"><span>服务器<small>sync.dayspark.local</small></span><span class="m-settings-value">编辑</span></div><button type="button" class="mini-btn primary" data-action="noop">登录</button>`;
   else if(section==='sync-failed')body=`<div class="m-banner is-red"><b>今天 14:58 同步失败。</b><br>服务器超时；3 条本地修改等待重试。</div><button type="button" class="mini-btn primary" data-action="noop">立即重试</button><div class="m-settings-row"><span>本地状态<small>3 条待上传</small></span><span class="m-settings-value">本地优先</span></div>`;
   else if(section==='sync-conflict')body=`<div class="m-banner"><b>提交周报给林总</b><br>本地 18:00 · 服务器 17:00</div><div class="filter-chip-row"><span class="f-chip">保留本地</span><span class="f-chip is-on">保留服务器</span><span class="f-chip">合并</span></div><div class="m-banner"><b>牙医复诊</b><br>本地 14:30 · 服务器已删除</div><div class="filter-chip-row"><span class="f-chip is-on">保留本地</span><span class="f-chip">接受删除</span></div>`;
-  else if(section==='about')body=`<div class="m-settings-row"><span>版本</span><span class="m-settings-value">0.35.0</span></div><div class="m-settings-row"><span>数据<small>本地优先 · 自托管同步</small></span><span class="m-settings-value">${ico('chevron-right',11)}</span></div><div class="m-settings-row"><span>许可</span><span class="m-settings-value">查看 ${ico('chevron-right',11)}</span></div>`;
+  else if(section==='about')body=`<div class="m-settings-row"><span>版本</span><span class="m-settings-value">0.35.0</span></div><div class="m-settings-row"><span>数据<small>本地优先 · 自托管同步</small></span><span class="m-settings-value">${ico('chevron-right',11)}</span></div><button type="button" class="m-settings-row" data-action="open-feedback"><span>反馈<small>复制或带到 GitHub</small></span><span class="m-settings-value">${ico('chevron-right',11)}</span></button><div class="m-settings-row"><span>许可</span><span class="m-settings-value">查看 ${ico('chevron-right',11)}</span></div>`;
   return mobileShell(title,body,{back:true});
+}
+function mobileAi(){
+  const v=state.variant;
+  const enabled=state.aiEnabled&&v!=='disabled';
+  const configured=state.aiConfigured&&v!=='empty';
+  const busy=v==='sending';
+  const thread=AI_THREAD.concat(v==='error'?[{role:'error',text:'没有连上模型服务：401 Unauthorized。回复没有保存。'}]:[]);
+  const lastIdx=thread.length-1;
+  let body='';
+  if(!enabled)body=`<div class="ai-empty" style="padding:60px 24px">${ico('chat',26)}<b>AI 助手已关闭</b><p>这是一个可选功能；打开开关并配置模型后才会出现对话入口。</p><button type="button" class="mini-btn primary" data-action="ai-open-settings">打开设置</button></div>`;
+  else if(!configured)body=`<div class="ai-empty" style="padding:60px 24px">${ico('key',26)}<b>还没有配置模型</b><p>填一个 OpenAI 兼容的 Base URL 和 API Key；Key 只保存在本机。</p><button type="button" class="mini-btn primary" data-action="ai-open-config">配置模型</button></div>`;
+  else if(v==='ready')body=`<div class="ai-empty" style="padding:60px 24px">${ico('sparkles',26)}<b>问点什么，或让它帮你整理</b><p>可以问「今天还剩什么」，也可以让它把一段话拆成待办。</p></div>`;
+  else body=`<div style="display:flex;flex-direction:column;gap:8px">${thread.map((m,i)=>{
+    if(m.role==='error')return `<div class="ai-msg is-error" style="max-width:100%"><div class="ai-msg-head">${ico('alert',9)} 出错</div>${esc(m.text)}${i===lastIdx?'<div><button type="button" class="ai-retry" data-action="ai-retry">重试上一条</button></div>':''}</div>`;
+    const isUser=m.role==='user';
+    return `<div class="ai-msg ${isUser?'is-user':''}" style="max-width:88%"><div class="ai-msg-head">${isUser?'你':'AI 助手'}</div>${esc(m.text)}${(!isUser&&m.actions&&i===lastIdx)?`<div class="ai-actions"><button type="button" class="ai-chip" data-action="ai-insert">${ico('plus',10)}新建待办</button><button type="button" class="ai-chip" data-action="ai-insert">${ico('calendar',10)}新建日程</button><button type="button" class="ai-chip" data-action="ai-insert">${ico('clock',10)}安排时间</button></div>`:''}</div>`;
+  }).join('')}${busy?`<div class="ai-msg" style="align-self:flex-start;display:flex;align-items:center;gap:8px;color:var(--muted)"><span class="ai-spin"></span>正在回复…</div>`:''}</div>`;
+  const actions=`<button type="button" class="m-icon" data-action="ai-open-config" aria-label="模型">${ico('sliders',15)}</button>${enabled&&configured&&v!=='ready'?`<button type="button" class="m-icon" data-action="ai-clear" aria-label="清空对话">${ico('trash',15)}</button>`:''}`;
+  const composer=enabled&&configured?`<div class="m-capture" style="height:auto;padding:6px 8px;gap:7px;bottom:10px"><input class="cap-input" id="ai-input" value="${esc(state.aiInput)}" placeholder="问点什么，回车发送" aria-label="输入消息"><button type="button" class="cap-send ${busy?'is-busy':''}" data-action="ai-send" aria-label="发送">${busy?'<span class="ai-spin"></span>':ico('send',14)}</button></div>`:'';
+  return mobileShell('AI 助手',body,{back:true,actions,composer:false}).replace('<div class="m-home"></div>',composer+'<div class="m-home"></div>')+(v==='clear'?`<div class="pk-scrim" data-action="ai-clear-cancel"><div class="pk-card" role="dialog" aria-label="清空对话"><div class="set-modal-head"><b>清空这段对话？</b><button type="button" class="drawer-close" data-action="ai-clear-cancel">${ico('x',12)}</button></div><div class="set-modal-body" style="font-size:11px;line-height:1.6;color:var(--muted)">消息会从这台设备移除，不能撤销。</div><div class="pk-foot"><button type="button" data-action="ai-clear-cancel">取消</button><button type="button" class="primary" data-action="ai-clear-confirm">清空</button></div></div></div>`:'');
+}
+function mobileFeedback(){
+  const v=state.variant;
+  const text=v==='empty'?'':(state.fbText||FB_SAMPLE);
+  const copied=v==='copied';
+  const hasText=!!text.trim();
+  const body=`<div class="fb-label">写点什么</div><textarea class="fb-area" id="fb-input" style="min-height:190px" placeholder="发生了什么、你期望什么；如果方便，写上机型和版本。">${esc(text)}</textarea><div class="fb-meta"><span>${text.length} 字 · 不附带日志</span><span>${hasText?'可以复制':'先写点内容'}</span></div>${v==='link-error'?`<div class="m-banner is-red" style="margin-top:12px"><b>没能打开浏览器。</b><br>内容还在，可以重试或先复制。</div>`:''}<div class="fb-actions"><button type="button" class="fb-btn primary" data-action="fb-copy" ${hasText?'':'disabled'}>${ico(copied?'check':'copy',13)}${copied?'已复制到剪贴板':'复制反馈内容'}</button><button type="button" class="fb-btn" data-action="fb-github">${ico('external',13)}在 GitHub 上提交</button></div><div class="fb-note">不会在后台自动提交；GitHub 会打开一个正文已填好的空白 issue。</div>`;
+  return mobileShell('反馈',body,{back:true});
+}
+function mobilePicker(kind){
+  const v=state.variant;
+  const host=`<div class="m-date">11 月 20 日</div><div class="m-sub">周五 · 第 47 周</div><div class="m-sum">1 逾期 · 2 今天截止 · 4 无日期 · 2 已完成</div>${mobileTaskSections()}`;
+  let sheet='';
+  if(kind==='time'){
+    const [hh,mm]=(state.timeValue||'15:15').split(':');
+    const invalid=v==='invalid';
+    sheet=`<div class="m-sheet" style="bottom:10px"><div class="m-sheet-head"><b>选择时间</b><button type="button" data-action="time-cancel">${ico('x',13)}</button></div><div class="m-sheet-body"><div class="pk-time" style="padding:14px 0 6px"><label class="box ${v==='focus'?'is-focus':''}" style="${invalid?'border-color:var(--red)':''}"><input value="${invalid?'25':hh}" aria-label="小时" style="width:100%;border:0;background:transparent;text-align:center;font:inherit;color:inherit;outline:none"></label><span class="colon">:</span><label class="box"><input value="${invalid?'80':mm}" aria-label="分钟" style="width:100%;border:0;background:transparent;text-align:center;font:inherit;color:inherit;outline:none"></label></div>${invalid?`<div class="form-error" style="text-align:center;padding:0 0 8px">小时需在 00–23、分钟需在 00–59。</div>`:`<div class="cp-hint" style="text-align:center;padding-bottom:8px">直接输入数字；不使用表盘。</div>`}<div class="cp-actions" style="justify-content:flex-end"><button type="button" class="btn" data-action="time-cancel">取消</button><button type="button" class="btn primary" data-action="time-ok" ${invalid?'disabled style="opacity:.4"':''}>确定</button></div></div></div>`;
+  }else{
+    const month=v==='nav'?'2026-12':'2026-11';
+    const cells=monthCells(month);
+    const sel=v==='nav'?'2026-12-03':TODAY;
+    sheet=`<div class="m-sheet" style="bottom:10px"><div class="m-sheet-head"><b>${monthLabel(month)}</b><span style="display:flex;gap:4px"><button type="button" class="m-icon" data-action="picker-prev" aria-label="上个月">${ico('chevron-left',13)}</button><button type="button" class="m-icon" data-action="picker-next" aria-label="下个月">${ico('chevron-right',13)}</button></span></div><div class="m-sheet-body"><div class="pk-week" style="border-radius:6px 6px 0 0">${['一','二','三','四','五','六','日'].map(d=>`<span>${d}</span>`).join('')}</div><div class="pk-grid">${cells.map(d=>{const out=d.slice(0,7)!==month;const off=v==='off'&&d<TODAY;return `<button type="button" class="pk-cell ${out?'is-out':''} ${d===sel?'is-on':''} ${off?'is-off':''} ${d===TODAY?'is-today':''}" data-action="picker-pick" data-date="${d}" ${off?'disabled':''}><i>${dayNum(d)}</i></button>`;}).join('')}</div><div class="cp-actions" style="justify-content:flex-end;padding-top:10px"><button type="button" class="btn" data-action="picker-cancel">取消</button><button type="button" class="btn primary" data-action="picker-ok">确定</button></div></div></div>`;
+  }
+  return mobileShell('今天',host,{capture:false}).replace('<div class="m-home"></div>',sheet+'<div class="m-home"></div>');
+}
+function mobileOverlays(){
+  const v=state.variant;
+  const show=k=>v==='all'||v===k;
+  const card=(title,note,inner)=>`<section class="m-state-card"><h3>${title}</h3><div class="mini-ui" style="min-height:0">${inner}</div><div class="state-note">${note}</div></section>`;
+  return mobileShell('浮层与反馈',`<div class="m-state-list">
+    ${show('toast')?card('Toast','深墨底白字，最长 560；带动作时右侧下划线。',`<div class="toast" style="position:static;transform:none;left:auto;bottom:auto;max-width:none;width:100%"><b>已保存</b> 提交周报给林总<span class="t-act">撤销</span></div><div class="toast is-danger" style="position:static;transform:none;left:auto;bottom:auto;max-width:none;width:100%"><b>同步失败。</b> 草稿还在<span class="t-act">重试</span></div>`):''}
+    ${show('undo')?card('撤销条','完成或删除后的 4 秒；在捕获条上方，不堆叠。',`<div class="m-undo" style="position:static;margin:0"><span>已标记完成 · 提交周报</span><button type="button" data-action="noop">撤销</button></div>`):''}
+    ${show('confirm')?card('确认对话框','破坏性动作用红底主按钮；取消在左。',`<div class="confirm" style="margin:0"><b>删除「提交周报」？</b><br>会进回收站，可以恢复。<div class="cf-actions"><button data-action="noop">取消</button><button class="primary" data-action="noop">删除</button></div></div>`):''}
+    ${show('sheet')?card('底部 Sheet','抬到键盘上方；收起不丢草稿。',`<div class="m-sheet" style="position:static;left:auto;right:auto;bottom:auto;box-shadow:none"><div class="m-sheet-head"><b>记一件事</b><button type="button" data-action="noop">${ico('x',13)}</button></div><div class="m-sheet-body"><div class="cp-field"><span class="k">标题</span><span class="v">交季度总结</span></div><div class="cp-field"><span class="k">截止</span><span class="v" style="color:var(--amber)">11/21 18:00</span></div><div class="cp-actions" style="justify-content:flex-end;padding-top:9px"><button type="button" class="btn primary" data-action="noop">记下待办</button></div></div></div>`):''}
+    ${show('popover')?card('Popover','手机不使用 popover；筛选与日历开关都改为底部 sheet。',`<div class="m-banner">桌面用 popover，手机用 sheet；同一个筛选面板，两种宿主。</div>`):''}
+    ${show('dialog')?card('Dialog','日期 / 时间用 320 卡片，安排用整页 sheet。',`<div class="mini-banner"><b>选择日期</b><br>42 格月卡 · 320px</div>`):''}
+  </div>`,{back:true});
+}
+function mobileWidgets(){
+  const v=state.variant;
+  const empty=v==='empty';
+  const only=v==='today'||v==='todo'||v==='calendar'||v==='android'?v:null;
+  const show=k=>!only||only===k;
+  const sec={
+    today:`<section class="m-state-card"><h3>iOS · 今日行动</h3><div class="mini-ui" style="align-items:center;gap:10px"><div style="width:150px">${wdActionWidget('sm',empty)}</div><div style="width:100%">${wdActionWidget('md',empty)}</div></div><div class="state-note">小尺寸只放「现在」与下一条；中尺寸加「之后」；内容跟随今天的时间区与截止。</div></section>`,
+    todo:`<section class="m-state-card"><h3>iOS · 待办</h3><div class="mini-ui" style="gap:10px"><div style="width:150px">${wdTodoWidget('sm',empty)}</div><div style="width:100%">${wdTodoWidget('md',empty)}</div></div><div class="state-note">行语义与待办页一致：空心圆、标题、右侧截止；完成不在小组件里发生。</div></section>`,
+    calendar:`<section class="m-state-card"><h3>iOS · 月历</h3><div class="mini-ui" style="gap:10px"><div style="width:100%">${wdCalendarWidget('md',empty)}</div></div><div class="state-note">今天用墨色实心格；有内容的日期下方是点，不是彩色块；点日期打开当天。</div></section>`,
+    android:`<section class="m-state-card"><h3>Android · 2×2 / 4×2 / 4×4</h3><div class="mini-ui" style="gap:10px;align-items:center"><div style="width:104px">${wdAndroid('today',empty)}</div><div style="width:100%">${wdAndroid('todo',empty)}</div><div style="width:100%">${wdAndroid('calendar',empty)}</div></div><div class="state-note">三种 provider 共用同一份行构建；预览图与描述沿用同一文案。</div></section>`
+  };
+  return mobileShell('原生小组件',`<div class="m-state-list">
+    ${show('today')?sec.today:''}
+    ${show('todo')?sec.todo:''}
+    ${show('calendar')?sec.calendar:''}
+    ${show('android')?sec.android:''}
+    <section class="m-state-card"><h3>共用规则</h3><div class="mini-ui"><div class="mini-banner is-ink">只读快照 · 浅色锁定 · 过期提示「打开 DaySpark 以更新」</div></div><div class="state-note">不在小组件里编辑；空态说明下一步；暗色系统下仍按浅色纸面绘制。</div></section>
+  </div>`,{back:true});
 }
 function mobileSpec(){
   return mobileShell('视觉规范',`<div class="m-spec"><h2>颜色语义</h2><div class="swatch-row"><span class="swatch" style="--bg:#dce7f7;--bar:#4f7bbf"></span>日程 · 日历色</div><div class="swatch-row"><span class="swatch" style="--bg:#f1f0ea;--bar:#5f7183"></span>计划执行 · 中性 + 细色条</div><div class="swatch-row"><span class="swatch" style="--bg:#f7eedb;--bar:#9a6a18"></span>截止 · 警告色</div><h2>硬规则</h2><p>一条待办今天只出现一次。截止不是时间占用。类型不替用户决定。创建入口可以多，Capture 只有一个。</p></div>`,{back:true});
@@ -2648,6 +3362,9 @@ function render(){
   if(!state.drawer&&!state.screen.startsWith('detail-')&&state.variant!=='detail')state.drawerEdit=false;
   if(state.screen.startsWith('cal-'))state.calView=state.screen.split('-')[1];
   const meta=SCREENS[state.screen]||SCREENS.today;
+  // The AI config dialog is a property of the variant, not of how the variant
+  // was reached. Deriving it here keeps deep links and chip clicks identical.
+  if(state.screen==='settings-ai')state.aiConfigOpen=['config','detecting','config-error'].includes(state.variant);
   document.getElementById('spec-title').textContent=meta.title;
   document.getElementById('spec-desc').textContent=meta.desc;
   const navBox=document.getElementById('spec-nav');
@@ -2711,8 +3428,13 @@ function go(screen){
   state.inboxNoDate=false;
   state.toast=null;
   state.suggestionRemoved=false;
+  state.aiConfigOpen=false;
+  state.fbCopied=false;
   if(screen==='capture'){state.variant='compact';state.capture='compact';state.captureReturn='today';}
   if(screen==='command'){state.variant='result';state.cmdQuery='周报';state.cmdReturn='today';}
+  if(screen==='picker-date'||screen==='picker-time'){state.cmdReturn='today';state.variant='normal';}
+  if(screen==='settings-ai')state.variant='normal';
+  if(screen==='ai-chat')state.variant='normal';
   if(screen==='plan-picker'){state.variant='normal';state.planReturn='today';state.planDate=TODAY;state.planStart='15:15';state.planEnd='16:00';}
   if(screen.startsWith('cal-'))state.calView=screen.split('-')[1];
   if(screen==='cal-day'||screen==='todo-date')state.selectedDate=TODAY;
@@ -2735,6 +3457,8 @@ document.addEventListener('click',(e)=>{
     state.completedOpen=false;
     state.earlyOpen=false;
     state.toast=null;
+    state.aiConfigOpen=state.screen==='settings-ai'&&['config','detecting','config-error'].includes(variant.dataset.variant);
+    state.fbCopied=variant.dataset.variant==='copied';
     if(state.screen!=='capture')state.capture='compact';
     if(state.screen.startsWith('cal-'))state.hiddenCals=state.variant==='calendars'?['work']:[];
     if(state.screen==='capture')state.capture=variant.dataset.variant;
@@ -3010,6 +3734,39 @@ document.addEventListener('click',(e)=>{
     commitDraft();clearDraft();if(state.variant!=='detail')state.variant='normal';setToast('已保存');return;
   }
   if(act==='noop'){setToast('这是设计状态；真实写入由实现阶段接入。');return;}
+  if(act==='open-feedback'){state.screen='feedback';state.variant='normal';render();return;}
+  if(act==='fb-copy'){state.fbCopied=true;state.variant='copied';setToast('已复制反馈内容');return;}
+  if(act==='fb-github'){state.variant='link-error';render();return;}
+  if(act==='ai-toggle'){state.aiEnabled=!state.aiEnabled;state.variant='normal';render();return;}
+  if(act==='ai-config-open'){state.aiConfigOpen=true;state.variant=state.variant==='config-error'?'config-error':'normal';render();return;}
+  if(act==='ai-config-close'){state.aiConfigOpen=false;render();return;}
+  if(act==='ai-config-save'){state.aiConfigOpen=false;state.aiConfigured=true;state.aiEnabled=true;state.variant='normal';setToast('已保存模型配置');return;}
+  if(act==='ai-config-remove'){state.aiConfigOpen=false;state.aiConfigured=false;state.variant='unconfigured';setToast('已移除模型配置');return;}
+  if(act==='ai-detect'){state.variant='detecting';render();setTimeout(()=>{state.variant='normal';render();},1400);return;}
+  if(act==='ai-open-settings'){go('settings-ai');return;}
+  if(act==='ai-open-config'){state.aiConfigOpen=true;render();return;}
+  if(act==='ai-open-chat'){go('ai-chat');state.variant='normal';render();return;}
+  if(act==='ai-send'){state.aiSent=true;state.variant='sending';render();setTimeout(()=>{state.variant='normal';render();},1500);return;}
+  if(act==='ai-retry'){state.variant='sending';render();setTimeout(()=>{state.variant='normal';render();},1500);return;}
+  if(act==='ai-insert'){setToast('已作为草稿打开捕获；确认后才写入');return;}
+  if(act==='ai-clear'){state.variant='clear';render();return;}
+  if(act==='ai-clear-cancel'){state.variant='normal';render();return;}
+  if(act==='ai-clear-confirm'){state.variant='normal';setToast('对话已清空');return;}
+  if(act==='picker-prev'||act==='picker-next'){
+    const base=state.variant==='nav'?'2026-12':(state.pickerMonth||'2026-11');
+    const [y,m]=base.split('-').map(Number);
+    const d=new Date(Date.UTC(y,m-1+(act==='picker-next'?1:-1),1));
+    state.pickerMonth=d.toISOString().slice(0,7);state.variant='normal';render();return;
+  }
+  if(act==='picker-pick'){state.pickerDate=a.dataset.date;state.pickerMonth=a.dataset.date.slice(0,7);state.variant='normal';render();return;}
+  if(act==='picker-cancel'||act==='time-cancel'){
+    if(e.target.classList&&e.target.classList.contains('pk-scrim')&&e.target!==a)return;
+    state.screen=state.cmdReturn||'today';state.variant='normal';render();return;
+  }
+  if(act==='picker-ok'){state.screen=state.cmdReturn||'today';state.variant='normal';setToast('已选择 '+md(state.pickerDate||TODAY));return;}
+  if(act==='time-ok'){state.screen=state.cmdReturn||'today';state.variant='normal';setToast('已选择 '+(state.timeValue||'15:15'));return;}
+  if(act==='oauth-allow'){state.variant='normal';setToast('已授权；可以回到客户端');return;}
+  if(act==='oauth-deny'){state.variant='denied';render();return;}
   if(act==='filter'){state.variant='filter';state.drawer=null;state.confirmDelete=false;clearDraft();render();return;}
   if(act==='back'){
     if(state.drawer){clearDraft();state.drawer=null;state.confirmDelete=false;state.variant='normal';render();return;}
