@@ -402,6 +402,23 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 
 判为**改进/等价、不再动**：ghost 按钮/新建/聚焦框/光标/选择态改墨（spec 动作=墨）；手机月格 today 墨胶囊（spec `.m-month-cell.is-today` ink）；逾期 due-pill 去红洗底（spec `background:transparent`）；桌面月格/周头/now 线维持规格红；OAuth 页壳为纯样式；原生小组件、toast、undo bar 在该区间零改动；Capture 提示行、`A2Clock`、`A2DueCapsule` 非逾期点改墨（三者原为强调色、无红语义）。
 
+
+**共享组件影响面闭合（机械检查，非新审计）**：该区间内 Today/Todo/Capture/Detail 的六个页面文件只有 4 个 hunk（`today_page:1924`、`todo_detail:270/364/1991`），其余字节相同；因此只需核对"本区间改过的共享符号 → 这些 Surface 的实际消费点"。
+
+| 区间内改动的共享符号 | 在这四个 Surface 的消费点 | 结论 |
+|---|---|---|
+| `DsColors.light` 全表值（`app_colors.dart`） | 全部经 `context.ds`（ink/ink2/ink3/line/surface2/danger/primary） | 动作/选中改墨=改进；5 处语义红已恢复（见上表） |
+| `AppTheme` 浅色 Material 默认 | `a2.dart:1000` FilledButton（→墨）、各输入框光标/聚焦（→墨） | 符合 spec 动作=墨，改进 |
+| `AppAccent.terracotta` | 无（仅设置页外观与桌面组件读取） | 不适用 |
+| `SpecTaskRow` 逾期 pill 去红洗底 | `today_page:1824`、`a2_todo_page:2971` | spec `.due-pill.is-red{background:transparent}`，改进 |
+| `showSpecDatePicker` 42 格 → `FocusableTap` | 4 处日期入口（form / quick-add / composer / detail） | 视觉等价，新增键盘可达 |
+| `pickDeadline` / `pickDateTime` → 内联时间卡 | 8 处（capture / composer / form / event） | R8 规格判定为改进（原移动端滚轮） |
+| `showSpecToast` | 16 处 | 实现与调用点在该区间零改动，等价 |
+| `undo_bar` | 4 处（详情删除等） | 该文件在区间零改动，等价 |
+| `toggleTodoCompletion` 新增可选 `anchorDate` | detail / form | 可选参数，默认仍取真实时钟，等价 |
+| 详情放弃修改对话框 `AnimationStyle.noAnimation` | detail | 与 event 详情一致，无可见差异 |
+| `calendar_slot_sheet` 实心行改墨 / OAuth 页壳 | 不属于这四个 Surface | 不适用 |
+
 **回归修复后门禁**：`dart analyze .` 0 issue；`flutter test` **1039 全绿**；macOS release 构建成功；CI 见 PR #113。受影响 Surface 已实拍复验（月/年选择器 today = `#c92a1e`、时间槽 sheet 墨色主行动、详情隔条墨色）。
 
 ### 5.6 收口状态（2026-11-24）
