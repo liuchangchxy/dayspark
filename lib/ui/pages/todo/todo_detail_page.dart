@@ -270,6 +270,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     if (!_dirty) return true;
     final l = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
+      animationStyle: AnimationStyle.noAnimation,
       context: context,
       builder: (ctx) => DsDialog(
         title: l.discardChanges,

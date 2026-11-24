@@ -361,7 +361,7 @@ iOS Swift 里 `WidgetPalette` 的 fallback 就是这组旧值（`CalendarTodoWid
 | P3 | toast 默认 2.2s + 每次 `hideCurrentSnackBar`，与旧 SnackBar 的 4s 排队语义不同 | 属规格 `setToast` 的 2200ms，记录为有意变更；未加测试 |
 | ~~P3~~ | 移动端时间选择仍走 Cupertino 滚轮 sheet（`wheel_time_picker.dart`），R8 的"内联方框"只覆盖桌面 | **已修**：`wheel_time_picker.dart` 删除，`pickDeadline`/`pickDateTime` 全部平台走 `showSpecTimePicker` 内联方框；`todo_create_deadline_test` 同步断言 `SpecTimePickerDialog` |
 | P3 | 选择器文案由 Material 的 "Select date/Time" 换为 app 自有 `pickDateHint`/`dueTime` | 正是收敛目的（消除第三套语言），保留 |
-| P3 | `reportIssue` 行无测试；`event_detail` 的 discard 对话框多了 `AnimationStyle.noAnimation`，`todo_detail` 没有 | 记 P2/P3 待办，不阻断本轮 |
+| ~~P3~~ | `reportIssue` 行无测试；`event_detail` 的 discard 对话框多了 `AnimationStyle.noAnimation`，`todo_detail` 没有 | **已修**：`about_section_test` 断言反馈行；`todo_detail` 的 discard 补同款 `AnimationStyle.noAnimation`，两处对话框一致 |
 
 ### 5.5 真机目检记录（2026-11-24 会话末，macOS release 构建 f045492）
 

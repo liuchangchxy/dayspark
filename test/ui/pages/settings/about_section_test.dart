@@ -25,6 +25,11 @@ void main() {
     expect(find.text('Version'), findsOneWidget);
     expect(find.text('0.35.0'), findsOneWidget);
     expect(find.text('License'), findsOneWidget);
+    expect(
+      find.text('Report an Issue'),
+      findsOneWidget,
+      reason: 'the feedback entry is the only route out of About',
+    );
 
     await tester.tap(find.text('License'));
     await tester.pumpAndSettle();
