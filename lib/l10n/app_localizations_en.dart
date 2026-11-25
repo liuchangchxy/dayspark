@@ -2679,7 +2679,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSubtitle => 'Default calendar, data and preferences';
 
   @override
-  String get settingsHomeDesc => 'Set the default calendar first, then manage data and sync.';
+  String get settingsHomeDesc => 'Confirm the account and default calendar first, then data, AI and sync.';
 
   @override
   String get general => 'General';

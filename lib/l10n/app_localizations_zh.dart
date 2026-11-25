@@ -2649,7 +2649,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSubtitle => '默认日历、数据与偏好';
 
   @override
-  String get settingsHomeDesc => '先把默认日历定下来，再管数据和同步。';
+  String get settingsHomeDesc => '先确认账号与默认日历，再管数据、AI 和同步。';
 
   @override
   String get general => '通用';

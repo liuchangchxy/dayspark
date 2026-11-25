@@ -1339,7 +1339,10 @@ class CmdRow extends StatelessWidget {
                           fontFamilyFallback: AppTypography.fallback,
                         ),
                       ),
-                      if (meta.isNotEmpty)
+                      // The spec's phone command rows are a single line: the
+                      // group heading already says 待办 / 日程 / 动作, so a meta
+                      // line and a side tag would repeat it.
+                      if (meta.isNotEmpty && !mobile)
                         Padding(
                           padding: const EdgeInsets.only(top: 1),
                           child: Text(
@@ -1357,7 +1360,7 @@ class CmdRow extends StatelessWidget {
                   ),
                 ),
               ),
-              if (side.isNotEmpty) ...[
+              if (side.isNotEmpty && !mobile) ...[
                 const SizedBox(width: 8),
                 Text(
                   side,

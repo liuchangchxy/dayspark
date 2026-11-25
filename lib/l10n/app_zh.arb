@@ -1433,7 +1433,7 @@
   "defaultCalendarSaved": "已保存默认日历",
   "badgeDefault": "默认",
   "settingsSubtitle": "默认日历、数据与偏好",
-  "settingsHomeDesc": "先把默认日历定下来，再管数据和同步。",
+  "settingsHomeDesc": "先确认账号与默认日历，再管数据、AI 和同步。",
   "general": "通用",
   "generalDesc": "决定新待办落到哪里，以及打开应用时先看到什么。",
   "themeDesc": "暖灰纸面、白色内容面；选中与操作用墨色。",

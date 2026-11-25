@@ -4886,7 +4886,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsHomeDesc.
   ///
   /// In en, this message translates to:
-  /// **'Set the default calendar first, then manage data and sync.'**
+  /// **'Confirm the account and default calendar first, then data, AI and sync.'**
   String get settingsHomeDesc;
 
   /// No description provided for @general.

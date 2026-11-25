@@ -1710,7 +1710,7 @@
   "defaultCalendarSaved": "Default calendar saved",
   "badgeDefault": "Default",
   "settingsSubtitle": "Default calendar, data and preferences",
-  "settingsHomeDesc": "Set the default calendar first, then manage data and sync.",
+  "settingsHomeDesc": "Confirm the account and default calendar first, then data, AI and sync.",
   "general": "General",
   "generalDesc": "Decide where new tasks land and what to see on startup.",
   "themeDesc": "Warm paper surface, white content; ink for selection and actions.",
