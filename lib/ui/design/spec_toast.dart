@@ -4,11 +4,16 @@ import 'package:flutter/material.dart';
 
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
 const Color _toastInk = Color(0xFF1B1B1A);
 const Color _toastPaper = Color(0xFFFFFFFF);
 const double _toastMaxWidth = 560;
-const double _toastBottomGap = 84;
+
+/// Desktop clears the bottom edge; mobile clears the 56px tab bar the same
+/// way the undo bar does (spec `.m-undo` / toast bottom 118).
+const double _toastBottomGapDesktop = 84;
+const double _toastBottomGapMobile = 118;
 
 void showSpecToast(
   BuildContext context,
@@ -22,6 +27,9 @@ void showSpecToast(
   if (messenger == null) {
     return;
   }
+  final bottomGap = isWorkspaceLayout(context)
+      ? _toastBottomGapDesktop
+      : _toastBottomGapMobile;
   messenger
     ..hideCurrentSnackBar()
     ..showSnackBar(
@@ -31,11 +39,7 @@ void showSpecToast(
         backgroundColor: const Color(0x00000000),
         behavior: SnackBarBehavior.floating,
         padding: EdgeInsets.zero,
-        margin: const EdgeInsets.only(
-          left: 24,
-          right: 24,
-          bottom: _toastBottomGap,
-        ),
+        margin: EdgeInsets.only(left: 24, right: 24, bottom: bottomGap),
         content: _SpecToastBody(
           message: message,
           actionLabel: actionLabel,

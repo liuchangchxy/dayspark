@@ -236,6 +236,12 @@ class _HomePageState extends ConsumerState<HomePage>
           _handleNotificationAction(actionId, parentId, parentType, reminderId),
         );
       };
+      // Body taps (and event "mark complete" taps) are navigation, not
+      // mutations: open the item the notification named instead of dropping
+      // the reader on whichever tab happened to be active.
+      notifService.onNotificationTapped = (parentId, parentType) {
+        unawaited(_handleNotificationTap(parentId, parentType));
+      };
       _startDayCheckTimer();
       _checkVersionChangelog();
       _refreshHomeWidget();
@@ -253,9 +259,11 @@ class _HomePageState extends ConsumerState<HomePage>
     if (!mounted ||
         calendars.length != 1 ||
         calendars.single.name != 'Personal' ||
-        !const {'#2563EB', '#5F7183', '#8a8a82'}.contains(
-          calendars.single.color,
-        ) ||
+        !const {
+          '#2563EB',
+          '#5F7183',
+          '#8a8a82',
+        }.contains(calendars.single.color) ||
         calendars.single.name == l.defaultCalendarName) {
       return;
     }
@@ -487,11 +495,41 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
+  /// A notification body tap names a local row, not an object: resolve it the
+  /// same way the detail loaders do. A row already in the trash goes through
+  /// the id route so the reader sees "in Trash" rather than an editable page.
+  Future<void> _handleNotificationTap(int parentId, String parentType) async {
+    if (!mounted) return;
+    final db = ref.read(databaseProvider);
+    if (parentType == 'todo') {
+      final todo = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(parentId))).getSingleOrNull();
+      if (!mounted || todo == null) return;
+      if (todo.deletedAt != null) {
+        context.push('/todo/detail?id=$parentId');
+        return;
+      }
+      _openTodo(todo);
+    } else if (parentType == 'event') {
+      final event = await (db.select(
+        db.events,
+      )..where((row) => row.id.equals(parentId))).getSingleOrNull();
+      if (!mounted || event == null) return;
+      if (event.deletedAt != null) {
+        context.push('/event/detail?id=$parentId');
+        return;
+      }
+      _openEvent(CalendaEventAdapter.fromDrift(event));
+    }
+  }
+
   @override
   void dispose() {
     _dayCheckTimer?.cancel();
     _todayTicker?.cancel();
     NotificationService().onNotificationAction = null;
+    NotificationService().onNotificationTapped = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -531,10 +569,7 @@ class _HomePageState extends ConsumerState<HomePage>
       final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SparkTopBar(
-            clock: widget.clock,
-            onSelect: (index) => _setTab(index),
-          ),
+          SparkTopBar(clock: widget.clock, onSelect: (index) => _setTab(index)),
           const SyncStatusBanner(),
           Expanded(
             child: inlineDetail
@@ -601,17 +636,16 @@ class _HomePageState extends ConsumerState<HomePage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SyncStatusBanner(),
+                    // Mobile has no persistent chrome under the page, so the
+                    // banner carries the short one-line sync state.
+                    const SyncStatusBanner(short: true),
                     Expanded(child: page),
                   ],
                 ),
               ),
             ),
             if (!keyboardOpen)
-              _MobileDock(
-                current: tab,
-                onSelect: (index) => _setTab(index),
-              ),
+              _MobileDock(current: tab, onSelect: (index) => _setTab(index)),
           ],
         ),
       ),
@@ -668,7 +702,9 @@ class _HomePageState extends ConsumerState<HomePage>
       onOpenUnplanned: _openInboxNoDate,
       onOpenAll: () {
         ref.read(todosViewProvider.notifier).state = const TodosAllView();
-        _setTab(1);
+        // AppTab is action/calendar/todos: "all" is the Todo destination, not
+        // the Calendar (index 1).
+        _setTab(2);
       },
       onScheduleTodo: (todo) => _scheduleTodoWithPlanPicker(todo),
     );
@@ -679,9 +715,7 @@ class _HomePageState extends ConsumerState<HomePage>
     final dayView = ref.watch(todosViewProvider) is TodosDayView;
     final key = _rangeKey(_calendarRange());
     final eventsAsync = ref.watch(eventsInDateRangeProvider(key));
-    final allocationsAsync = ref.watch(
-      taskAllocationsInDateRangeProvider(key),
-    );
+    final allocationsAsync = ref.watch(taskAllocationsInDateRangeProvider(key));
     final todosAsync = ref.watch(allTodosProvider);
     final unplannedAsync = ref.watch(unplannedTodosProvider);
     final dayAgendaLoading = [
@@ -735,8 +769,13 @@ class _HomePageState extends ConsumerState<HomePage>
     final anchor = contextDate != null
         ? DateTime(contextDate.year, contextDate.month, contextDate.day)
         : today;
-    final initialStart =
-        DateTime(anchor.year, anchor.month, anchor.day, 15, 15);
+    final initialStart = DateTime(
+      anchor.year,
+      anchor.month,
+      anchor.day,
+      15,
+      15,
+    );
     final initialEnd = initialStart.add(const Duration(minutes: 45));
 
     final picked = await SpecPlanPickerDialog.show(
@@ -749,8 +788,11 @@ class _HomePageState extends ConsumerState<HomePage>
         final end = start.add(const Duration(days: 1));
         final db = ref.read(databaseProvider);
         final events = await db.eventsDao.getEventCandidates(start, end);
-        final allocations =
-            await fetchTaskAllocationsInDateRange(db, start, end);
+        final allocations = await fetchTaskAllocationsInDateRange(
+          db,
+          start,
+          end,
+        );
         final blocks = calDayBlocks(
           day: start,
           events: [
@@ -816,12 +858,11 @@ class _HomePageState extends ConsumerState<HomePage>
     final range = _calendarRange();
     final key = _rangeKey(range);
     final eventsAsync = ref.watch(eventsInDateRangeProvider(key));
-    final allocationsAsync = ref.watch(
-      taskAllocationsInDateRangeProvider(key),
-    );
+    final allocationsAsync = ref.watch(taskAllocationsInDateRangeProvider(key));
     final browseDate = ref.watch(viewedDateProvider);
     final calendarColors = {
-      for (final calendar in ref.watch(calendarsProvider).valueOrNull ?? const [])
+      for (final calendar
+          in ref.watch(calendarsProvider).valueOrNull ?? const [])
         calendar.id: ColorUtils.parseHex(calendar.color),
     };
     final deadlineTodos = (ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
@@ -838,8 +879,7 @@ class _HomePageState extends ConsumerState<HomePage>
     return A2CalendarPage(
       events: adaptedEvents.valueOrNull ?? const <CalendaEventAdapter>[],
       allocations:
-          allocationsAsync.valueOrNull ??
-          const <TaskAllocationCalendarItem>[],
+          allocationsAsync.valueOrNull ?? const <TaskAllocationCalendarItem>[],
       eventsAsync: adaptedEvents,
       allocationsAsync: allocationsAsync,
       onRetry: () {
@@ -854,6 +894,7 @@ class _HomePageState extends ConsumerState<HomePage>
             due: todo.dueDate!,
           ),
       ],
+      onSearch: _openSearch,
       onEventTapped: _openEvent,
       onAllocationTapped: (item) => _openTodo(item.todo),
       onDeadlineTapped: (deadline) {
@@ -959,7 +1000,8 @@ class _HomePageState extends ConsumerState<HomePage>
     final colors = {
       for (final c in calendars) c.id: ColorUtils.parseHex(c.color),
     };
-    final events = ref.watch(eventsInDateRangeProvider(key)).valueOrNull ??
+    final events =
+        ref.watch(eventsInDateRangeProvider(key)).valueOrNull ??
         const <Event>[];
     final allocations =
         ref.watch(taskAllocationsInDateRangeProvider(key)).valueOrNull ??
@@ -1018,10 +1060,7 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
-  Future<bool> _captureOnTodoPageWithDraft(
-    String text,
-    A2CaptureDraft draft,
-  ) {
+  Future<bool> _captureOnTodoPageWithDraft(String text, A2CaptureDraft draft) {
     return submitTodoCapture(ref, context, text, draft);
   }
 
@@ -1120,9 +1159,7 @@ class _HomePageState extends ConsumerState<HomePage>
   /// (>= 1000) shows the detail in place; narrow desktop (< 1000) and mobile
   /// (< 720) navigate instead.
   bool _rendersSelectionHere(AppTab tab) =>
-      (tab == AppTab.action ||
-          tab == AppTab.calendar ||
-          tab == AppTab.todos) &&
+      (tab == AppTab.action || tab == AppTab.calendar || tab == AppTab.todos) &&
       canShowDesktopDrawer(context);
 
   void _openTodo(Todo todo) {
@@ -1142,9 +1179,6 @@ class _HomePageState extends ConsumerState<HomePage>
     }
     context.push('/event/detail', extra: event);
   }
-
-
-
 }
 
 class _InlineDetailPane extends StatelessWidget {
@@ -1181,9 +1215,24 @@ class _MobileDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final items = [
-      (l.today, CupertinoIcons.sun_max, current == AppTab.action, () => onSelect(0)),
-      (l.todos, CupertinoIcons.checkmark_alt, current == AppTab.todos, () => onSelect(2)),
-      (l.calendar, CupertinoIcons.calendar, current == AppTab.calendar, () => onSelect(1)),
+      (
+        l.today,
+        CupertinoIcons.sun_max,
+        current == AppTab.action,
+        () => onSelect(0),
+      ),
+      (
+        l.todos,
+        CupertinoIcons.checkmark_alt,
+        current == AppTab.todos,
+        () => onSelect(2),
+      ),
+      (
+        l.calendar,
+        CupertinoIcons.calendar,
+        current == AppTab.calendar,
+        () => onSelect(1),
+      ),
       (l.navMe, CupertinoIcons.person, false, () => context.push('/settings')),
     ];
 

@@ -601,6 +601,14 @@ struct ActionWidgetView: View {
         return snapshot.todayIso != WidgetDates.iso(Date())
     }
 
+    // A stale snapshot still names a past day. Its `+` links must not create
+    // an item on that date, so they follow the device's today instead — the
+    // same rule the Android Action widget applies.
+    private var addDateIso: String {
+        guard let snapshot else { return WidgetDates.iso(Date()) }
+        return stale ? WidgetDates.iso(Date()) : snapshot.todayIso
+    }
+
     // A small widget only honours one URL, so point it at the row it shows.
     private var smallWidgetURL: URL {
         guard !stale, let block = snapshot?.action else { return WidgetLinks.action }
@@ -699,13 +707,13 @@ struct ActionWidgetView: View {
                     .lineLimit(1)
             }
             if !small {
-                Link(destination: WidgetLinks.quickAdd(snapshot.todayIso)) {
+                Link(destination: WidgetLinks.quickAdd(addDateIso)) {
                     Text(ui?.addTodo ?? WidgetCopy.newTodo)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(palette.accent)
                 }
                 if large || family == .systemMedium {
-                    Link(destination: WidgetLinks.newEvent(snapshot.todayIso)) {
+                    Link(destination: WidgetLinks.newEvent(addDateIso)) {
                         Text(ui?.addEvent ?? WidgetCopy.newEvent)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(palette.accent)

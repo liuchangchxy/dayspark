@@ -288,24 +288,20 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
     );
   }
 
-  String _failureText(
-    AppLocalizations l,
-    SyncStatus status,
-    int pending,
-  ) {
+  String _failureText(AppLocalizations l, SyncStatus status, int pending) {
     final failedAt = status.lastErrorAt;
     final reason = status.lastError ?? l.syncFailedBanner;
     final when = failedAt == null
         ? reason
-        : l.syncFailedAt(DateFormatters.formatRelativeTime(failedAt, l), reason);
-    final pendingLine = pending > 0
-        ? '\n${l.syncPendingUploads(pending)}'
-        : '';
+        : l.syncFailedAt(
+            DateFormatters.formatRelativeTime(failedAt, l),
+            reason,
+          );
+    final pendingLine = pending > 0 ? '\n${l.syncPendingUploads(pending)}' : '';
     return '$when$pendingLine';
   }
 
-  static String _shortId(String id) =>
-      id.length <= 8 ? id : id.substring(0, 8);
+  static String _shortId(String id) => id.length <= 8 ? id : id.substring(0, 8);
 
   /// Logging out stops sync on a device that may be the only place the data
   /// lives, so it is confirmed rather than fired on the first tap.
@@ -399,11 +395,24 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
                     ),
                 ],
               ),
-              AsyncError() => Text(l.devicesLoadFailed),
-              _ => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: CircularProgressIndicator()),
+              AsyncError() => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l.devicesLoadFailed,
+                    style: TextStyle(fontSize: 13, color: context.ds.danger),
+                  ),
+                  const SizedBox(height: AppSpacing.s2),
+                  DsButton(
+                    label: l.retry,
+                    tone: DsButtonTone.secondary,
+                    small: true,
+                    onPressed: () => ref.invalidate(connectedDevicesProvider),
+                  ),
+                ],
               ),
+              _ => const _DevicesSkeleton(),
             };
           },
         ),
@@ -441,9 +450,51 @@ class _AccountSectionState extends ConsumerState<AccountSection> {
   }
 }
 
+/// Row-shaped placeholder for the device list while it is being read. A
+/// spinner would be fine too, but row skeletons keep the dialog from jumping
+/// when the real rows arrive.
+class _DevicesSkeleton extends StatelessWidget {
+  const _DevicesSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.ds.lineSoft;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 3; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.s2),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.s4),
+                Container(
+                  width: 72,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _FieldRow extends StatelessWidget {
   const _FieldRow({required this.label, required this.child});
-
   final String label;
   final Widget child;
 

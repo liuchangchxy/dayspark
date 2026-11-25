@@ -7,11 +7,11 @@ import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/import_export_section.dart';
 
 Widget _panel(ImportFailurePanel panel) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      locale: const Locale('en'),
-      home: Scaffold(body: SingleChildScrollView(child: panel)),
-    );
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  locale: const Locale('en'),
+  home: Scaffold(body: SingleChildScrollView(child: panel)),
+);
 
 void main() {
   testWidgets('a whole-file parse error offers a report but no fake skip', (
@@ -80,4 +80,33 @@ void main() {
     await tester.tap(find.text('Skip error rows and continue'));
     expect(skips, 1);
   });
+
+  testWidgets(
+    'partial import keeps the failure surface and the written summary',
+    (tester) async {
+      await tester.pumpWidget(
+        _panel(
+          ImportFailurePanel(
+            error: null,
+            skipped: const [],
+            failedCount: 2,
+            summary: 'Created 3 · updated 1 · skipped 2',
+            onReport: () {},
+            onSkip: () {},
+          ),
+        ),
+      );
+
+      // A partial write is a failure, not an "import complete" alert.
+      expect(find.text('Import failed'), findsOneWidget);
+      expect(
+        find.textContaining('Created 3 · updated 1 · skipped 2'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('2 row(s) failed during import'),
+        findsOneWidget,
+      );
+    },
+  );
 }

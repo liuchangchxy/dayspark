@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dayspark/domain/providers/account_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/about_section.dart';
@@ -38,6 +41,17 @@ Future<void> _pumpSettings(WidgetTester tester) async {
 
 double _y(WidgetTester tester, Finder finder) => tester.getTopLeft(finder).dy;
 
+/// Holds the settings home on the account-loading frame until the test
+/// completes the future.
+class _PendingAccountNotifier extends AccountAuthNotifier {
+  _PendingAccountNotifier(this._future);
+
+  final Future<AccountAuthState> _future;
+
+  @override
+  Future<AccountAuthState> build() => _future;
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -48,6 +62,42 @@ void main() {
       buildNumber: '24',
       buildSignature: '',
     );
+  });
+
+  testWidgets('account summary stays neutral while the account is loading', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final pendingAccount = Completer<AccountAuthState>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          accountAuthProvider.overrideWith(
+            () => _PendingAccountNotifier(pendingAccount.future),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const SettingsPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('account-summary-loading')),
+      findsOneWidget,
+    );
+    expect(find.text('Not signed in'), findsNothing);
+
+    // Let the page's startup futures finish so no timer outlives the tree.
+    pendingAccount.complete(const AccountAuthState());
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 350));
   });
 
   testWidgets(
@@ -235,9 +285,7 @@ void main() {
       expect(find.byType(AppearanceSection), findsNothing);
 
       // Clicking General nav item switches to General
-      await tester.tap(
-        find.widgetWithText(SettingsNavItem, 'General'),
-      );
+      await tester.tap(find.widgetWithText(SettingsNavItem, 'General'));
       await tester.pump(const Duration(milliseconds: 350));
       expect(find.byType(AppearanceSection), findsOneWidget);
 
@@ -348,10 +396,7 @@ void main() {
       // Content max-width is 700
       final constrainedBox = tester.widget<ConstrainedBox>(
         find
-            .ancestor(
-              of: homeContent,
-              matching: find.byType(ConstrainedBox),
-            )
+            .ancestor(of: homeContent, matching: find.byType(ConstrainedBox))
             .first,
       );
       expect(constrainedBox.constraints.maxWidth, 700.0);

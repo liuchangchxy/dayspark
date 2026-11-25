@@ -7,7 +7,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/infrastructure/platform/home_widget_interactivity.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
@@ -105,6 +105,72 @@ class _MissingObjectPage extends StatelessWidget {
   }
 }
 
+/// A deep link that resolves to a soft-deleted row.
+///
+/// The row still exists (Trash can restore it), but opening the editor would
+/// write to something the user already deleted. State the situation and offer
+/// the two ways forward: review it in Trash, or go home.
+class _TrashedItemPage extends StatelessWidget {
+  const _TrashedItemPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final router = GoRouter.maybeOf(context);
+    return WorkspacePage(
+      key: const ValueKey('trashed-item-page'),
+      title: l?.trashedItemTitle ?? 'This item is in Trash',
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                CupertinoIcons.trash,
+                size: 30,
+                color: context.semantic.textTertiary,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                l?.trashedItemBody ??
+                    'The link points to an item that was moved to Trash. '
+                        'Restore it to keep editing.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              FilledButton(
+                key: const ValueKey('trashed-go-trash'),
+                onPressed: () => router?.go('/trash'),
+                child: Text(l?.goToTrash ?? 'Go to Trash'),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                key: const ValueKey('trashed-go-home'),
+                onPressed: () => router?.go('/'),
+                child: Text(l?.returnToHome ?? 'Return to Home'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The raw row for a deep-linked event. The adapter does not carry
+/// [Event.deletedAt], so the loader has to see the row itself to tell an
+/// ordinary "missing" link from one that points into Trash.
+final _liveEventRowProvider = StreamProvider.autoDispose.family<Event?, int>((
+  ref,
+  id,
+) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(
+    db.events,
+  )..where((row) => row.id.equals(id))).watchSingleOrNull();
+});
+
 class _DetailLoadingPage extends StatelessWidget {
   const _DetailLoadingPage();
 
@@ -137,6 +203,11 @@ class _TodoDetailLoader extends ConsumerWidget {
             message: l?.missingTodoParam ?? 'This link did not carry a todo.',
           );
         }
+        // A soft-deleted row is still findable by id; it must not open an
+        // editable detail page.
+        if (todo.deletedAt != null) {
+          return const _TrashedItemPage();
+        }
         return TodoDetailPage(todo: todo);
       },
     );
@@ -151,20 +222,23 @@ class _EventDetailLoader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
-    final async = ref.watch(liveEventProvider(id));
+    final async = ref.watch(_liveEventRowProvider(id));
     return async.when(
       loading: () => const _DetailLoadingPage(),
       error: (error, stack) => _MissingObjectPage(
         message: l?.missingEventParam ?? 'This link did not carry an event.',
       ),
-      data: (event) {
-        if (event == null) {
+      data: (row) {
+        if (row == null) {
           return _MissingObjectPage(
             message:
                 l?.missingEventParam ?? 'This link did not carry an event.',
           );
         }
-        return EventDetailPage(event: event);
+        if (row.deletedAt != null) {
+          return const _TrashedItemPage();
+        }
+        return EventDetailPage(event: CalendaEventAdapter.fromDrift(row));
       },
     );
   }
@@ -363,6 +437,7 @@ abstract final class AppRouter {
                     ? null
                     : DateTime.fromMillisecondsSinceEpoch(millis);
               }
+
               return _pageTransition(
                 NewItemPage(
                   initialDue: parse(due),

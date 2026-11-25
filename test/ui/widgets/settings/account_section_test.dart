@@ -78,7 +78,9 @@ Future<(int, int)> _seedSyncedRows(AppDatabase db) async {
   final calendarId = await db
       .into(db.calendars)
       .insert(CalendarsCompanion.insert(name: 'Personal'));
-  final eventId = await db.into(db.events).insert(
+  final eventId = await db
+      .into(db.events)
+      .insert(
         EventsCompanion.insert(
           calendarId: calendarId,
           summary: 'synced event',
@@ -92,11 +94,10 @@ Future<(int, int)> _seedSyncedRows(AppDatabase db) async {
       serverRev: Value(7),
     ),
   );
-  final todoId = await db.into(db.todos).insert(
-        TodosCompanion.insert(
-          calendarId: calendarId,
-          summary: 'synced todo',
-        ),
+  final todoId = await db
+      .into(db.todos)
+      .insert(
+        TodosCompanion.insert(calendarId: calendarId, summary: 'synced todo'),
       );
   await (db.update(db.todos)..where((t) => t.id.equals(todoId))).write(
     const TodosCompanion(
@@ -115,7 +116,9 @@ Future<void> _pumpSection(WidgetTester tester) async {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         locale: Locale('en'),
-        home: Scaffold(body: SingleChildScrollView(child: AccountSection(showHeader: true))),
+        home: Scaffold(
+          body: SingleChildScrollView(child: AccountSection(showHeader: true)),
+        ),
       ),
     ),
   );
@@ -142,111 +145,120 @@ void main() {
     },
   );
 
-  test('login success persists config, flips sync flag ON, restarts engine',
-      () async {
-    final tokens = MemoryTokenStore();
-    final fake = _FakeAuthApi(session: _session());
-    var engineBuilds = 0;
-    final container = ProviderContainer(
-      overrides: [
-        syncTokenStoreProvider.overrideWithValue(tokens),
-        accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
-        syncEngineProvider.overrideWith((ref) {
-          engineBuilds++;
-          return null;
-        }),
-      ],
-    );
-    addTearDown(container.dispose);
+  test(
+    'login success persists config, flips sync flag ON, restarts engine',
+    () async {
+      final tokens = MemoryTokenStore();
+      final fake = _FakeAuthApi(session: _session());
+      var engineBuilds = 0;
+      final container = ProviderContainer(
+        overrides: [
+          syncTokenStoreProvider.overrideWithValue(tokens),
+          accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
+          syncEngineProvider.overrideWith((ref) {
+            engineBuilds++;
+            return null;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    await container.read(accountAuthProvider.future);
-    await container
-        .read(accountAuthProvider.notifier)
-        .login(
-          serverUrl: 'https://sync.example.com/',
-          email: ' user@example.com ',
-          password: 'secret123',
-        );
+      await container.read(accountAuthProvider.future);
+      await container
+          .read(accountAuthProvider.notifier)
+          .login(
+            serverUrl: 'https://sync.example.com/',
+            email: ' user@example.com ',
+            password: 'secret123',
+          );
 
-    final state = container.read(accountAuthProvider).valueOrNull!;
-    expect(state.error, isNull);
-    expect(state.email, 'user@example.com');
-    expect(fake.loginCalls, 1);
-    expect(fake.emails, ['user@example.com']);
-    expect(tokens.refresh, 'refresh-1');
+      final state = container.read(accountAuthProvider).valueOrNull!;
+      expect(state.error, isNull);
+      expect(state.email, 'user@example.com');
+      expect(fake.loginCalls, 1);
+      expect(fake.emails, ['user@example.com']);
+      expect(tokens.refresh, 'refresh-1');
 
-    final settings = await container.read(syncSettingsProvider.future);
-    expect(settings.baseUrl, 'https://sync.example.com',
-        reason: 'trailing slash trimmed');
+      final settings = await container.read(syncSettingsProvider.future);
+      expect(
+        settings.baseUrl,
+        'https://sync.example.com',
+        reason: 'trailing slash trimmed',
+      );
 
-    final flags = await container.read(featureFlagsProvider.future);
-    expect(flags.isEnabled(FeatureFlag.sync), isTrue);
+      final flags = await container.read(featureFlagsProvider.future);
+      expect(flags.isEnabled(FeatureFlag.sync), isTrue);
 
-    expect(engineBuilds, greaterThan(0),
-        reason: 'engine provider invalidated to restart with new config');
-  });
+      expect(
+        engineBuilds,
+        greaterThan(0),
+        reason: 'engine provider invalidated to restart with new config',
+      );
+    },
+  );
 
-  test('logout clears tokens, flips sync flag OFF, resets account state',
-      () async {
-    final tokens = MemoryTokenStore(
-      access: 'access-1',
-      refresh: 'refresh-1',
-    );
-    SharedPreferences.setMockInitialValues({'account_email': 'a@b.co'});
-    final fake = _FakeAuthApi(session: _session());
-    final container = ProviderContainer(
-      overrides: [
-        syncTokenStoreProvider.overrideWithValue(tokens),
-        accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
-      ],
-    );
-    addTearDown(container.dispose);
+  test(
+    'logout clears tokens, flips sync flag OFF, resets account state',
+    () async {
+      final tokens = MemoryTokenStore(access: 'access-1', refresh: 'refresh-1');
+      SharedPreferences.setMockInitialValues({'account_email': 'a@b.co'});
+      final fake = _FakeAuthApi(session: _session());
+      final container = ProviderContainer(
+        overrides: [
+          syncTokenStoreProvider.overrideWithValue(tokens),
+          accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    final before = await container.read(accountAuthProvider.future);
-    expect(before.email, 'a@b.co');
+      final before = await container.read(accountAuthProvider.future);
+      expect(before.email, 'a@b.co');
 
-    await container.read(accountAuthProvider.notifier).logout();
+      await container.read(accountAuthProvider.notifier).logout();
 
-    final state = container.read(accountAuthProvider).valueOrNull!;
-    expect(state.email, isNull);
-    expect(state.busy, isFalse);
-    expect(tokens.refresh, isNull);
-    expect(tokens.access, isNull);
+      final state = container.read(accountAuthProvider).valueOrNull!;
+      expect(state.email, isNull);
+      expect(state.busy, isFalse);
+      expect(tokens.refresh, isNull);
+      expect(tokens.access, isNull);
 
-    final flags = await container.read(featureFlagsProvider.future);
-    expect(flags.isEnabled(FeatureFlag.sync), isFalse);
+      final flags = await container.read(featureFlagsProvider.future);
+      expect(flags.isEnabled(FeatureFlag.sync), isFalse);
 
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('account_email'), isNull);
-  });
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('account_email'), isNull);
+    },
+  );
 
-  test('non-http server URL is rejected locally without calling the API',
-      () async {
-    final fake = _FakeAuthApi(session: _session());
-    final container = ProviderContainer(
-      overrides: [
-        syncTokenStoreProvider.overrideWithValue(MemoryTokenStore()),
-        accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
-      ],
-    );
-    addTearDown(container.dispose);
+  test(
+    'non-http server URL is rejected locally without calling the API',
+    () async {
+      final fake = _FakeAuthApi(session: _session());
+      final container = ProviderContainer(
+        overrides: [
+          syncTokenStoreProvider.overrideWithValue(MemoryTokenStore()),
+          accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    await container.read(accountAuthProvider.future);
-    await container
-        .read(accountAuthProvider.notifier)
-        .login(
-          serverUrl: 'ftp://sync.example.com',
-          email: 'user@example.com',
-          password: 'secret123',
-        );
+      await container.read(accountAuthProvider.future);
+      await container
+          .read(accountAuthProvider.notifier)
+          .login(
+            serverUrl: 'ftp://sync.example.com',
+            email: 'user@example.com',
+            password: 'secret123',
+          );
 
-    final state = container.read(accountAuthProvider).valueOrNull!;
-    expect(state.error, AccountAuthError.invalidUrl);
-    expect(fake.loginCalls, 0);
+      final state = container.read(accountAuthProvider).valueOrNull!;
+      expect(state.error, AccountAuthError.invalidUrl);
+      expect(fake.loginCalls, 0);
 
-    final flags = await container.read(featureFlagsProvider.future);
-    expect(flags.isEnabled(FeatureFlag.sync), isFalse);
-  });
+      final flags = await container.read(featureFlagsProvider.future);
+      expect(flags.isEnabled(FeatureFlag.sync), isFalse);
+    },
+  );
 
   test('register 409 maps to emailAlreadyRegistered', () async {
     final fake = _FakeAuthApi(
@@ -276,67 +288,76 @@ void main() {
   });
 
   test(
-      'login as a different identity resets cursor, snapshots and outbox, '
-      'without rewriting local row sync state into fresh uploads (DS-001)', () async {
-    SharedPreferences.setMockInitialValues({
-      'account_email': 'old@example.com',
-      'last_sync_identity': 'https://sync.example.com|user-1',
-      'sync_pull_cursor': 42,
-      'sync_snapshot_old-event-sync-id':
-          '{"rev":7,"payload":{"summary":"stale"}}',
-    });
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(() => db.close());
-    final (eventId, todoId) = await _seedSyncedRows(db);
+    'login as a different identity resets cursor, snapshots and outbox, '
+    'without rewriting local row sync state into fresh uploads (DS-001)',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'account_email': 'old@example.com',
+        'last_sync_identity': 'https://sync.example.com|user-1',
+        'sync_pull_cursor': 42,
+        'sync_snapshot_old-event-sync-id':
+            '{"rev":7,"payload":{"summary":"stale"}}',
+      });
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(() => db.close());
+      final (eventId, todoId) = await _seedSyncedRows(db);
 
-    final fake = _FakeAuthApi(session: _otherSession());
-    final container = ProviderContainer(
-      overrides: [
-        syncTokenStoreProvider.overrideWithValue(MemoryTokenStore()),
-        accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
-        syncEngineProvider.overrideWith((ref) => null),
-        databaseProvider.overrideWithValue(db),
-      ],
-    );
-    addTearDown(container.dispose);
+      final fake = _FakeAuthApi(session: _otherSession());
+      final container = ProviderContainer(
+        overrides: [
+          syncTokenStoreProvider.overrideWithValue(MemoryTokenStore()),
+          accountAuthApiFactoryProvider.overrideWithValue((baseUrl) => fake),
+          syncEngineProvider.overrideWith((ref) => null),
+          databaseProvider.overrideWithValue(db),
+        ],
+      );
+      addTearDown(container.dispose);
 
-    await container.read(accountAuthProvider.future);
-    await container
-        .read(accountAuthProvider.notifier)
-        .login(
-          serverUrl: 'https://other.example.com/',
-          email: 'new@example.com',
-          password: 'secret123',
-        );
+      await container.read(accountAuthProvider.future);
+      await container
+          .read(accountAuthProvider.notifier)
+          .login(
+            serverUrl: 'https://other.example.com/',
+            email: 'new@example.com',
+            password: 'secret123',
+          );
 
-    final state = container.read(accountAuthProvider).valueOrNull!;
-    expect(state.error, isNull);
-    expect(state.email, 'new@example.com');
+      final state = container.read(accountAuthProvider).valueOrNull!;
+      expect(state.error, isNull);
+      expect(state.email, 'new@example.com');
 
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('last_sync_identity'),
-        'https://other.example.com|user-2');
-    expect(prefs.getInt('sync_pull_cursor'), isNull,
-        reason: 'stale watermark must not survive an identity switch');
-    expect(prefs.getString('sync_snapshot_old-event-sync-id'), isNull,
-        reason: 'old-server snapshots must be dropped');
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getString('last_sync_identity'),
+        'https://other.example.com|user-2',
+      );
+      expect(
+        prefs.getInt('sync_pull_cursor'),
+        isNull,
+        reason: 'stale watermark must not survive an identity switch',
+      );
+      expect(
+        prefs.getString('sync_snapshot_old-event-sync-id'),
+        isNull,
+        reason: 'old-server snapshots must be dropped',
+      );
 
-    // Data domain isolation (DS-001): Existing local records MUST NOT have their
-    // syncId cleared to be re-uploaded to the new identity via baseline sweep.
-    final event =
-        await (db.select(db.events)..where((t) => t.id.equals(eventId)))
-            .getSingle();
-    expect(event.serverRev, 7);
-    expect(event.syncId, 'old-event-sync-id');
-    final todo =
-        await (db.select(db.todos)..where((t) => t.id.equals(todoId)))
-            .getSingle();
-    expect(todo.serverRev, 3);
-    expect(todo.syncId, 'old-todo-sync-id');
-  });
+      // Data domain isolation (DS-001): Existing local records MUST NOT have their
+      // syncId cleared to be re-uploaded to the new identity via baseline sweep.
+      final event = await (db.select(
+        db.events,
+      )..where((t) => t.id.equals(eventId))).getSingle();
+      expect(event.serverRev, 7);
+      expect(event.syncId, 'old-event-sync-id');
+      final todo = await (db.select(
+        db.todos,
+      )..where((t) => t.id.equals(todoId))).getSingle();
+      expect(todo.serverRev, 3);
+      expect(todo.syncId, 'old-todo-sync-id');
+    },
+  );
 
-  test('re-login with the same identity keeps sync state untouched',
-      () async {
+  test('re-login with the same identity keeps sync state untouched', () async {
     SharedPreferences.setMockInitialValues({
       'last_sync_identity': 'https://sync.example.com|user-1',
       'sync_pull_cursor': 42,
@@ -371,26 +392,32 @@ void main() {
     expect(state.error, isNull);
 
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('last_sync_identity'),
-        'https://sync.example.com|user-1');
-    expect(prefs.getInt('sync_pull_cursor'), 42,
-        reason: 'same identity keeps the watermark (continuity)');
+    expect(
+      prefs.getString('last_sync_identity'),
+      'https://sync.example.com|user-1',
+    );
+    expect(
+      prefs.getInt('sync_pull_cursor'),
+      42,
+      reason: 'same identity keeps the watermark (continuity)',
+    );
     expect(prefs.getString('sync_snapshot_old-event-sync-id'), isNotNull);
 
-    final event =
-        await (db.select(db.events)..where((t) => t.id.equals(eventId)))
-            .getSingle();
+    final event = await (db.select(
+      db.events,
+    )..where((t) => t.id.equals(eventId))).getSingle();
     expect(event.serverRev, 7);
     expect(event.syncId, 'old-event-sync-id');
-    final todo =
-        await (db.select(db.todos)..where((t) => t.id.equals(todoId)))
-            .getSingle();
+    final todo = await (db.select(
+      db.todos,
+    )..where((t) => t.id.equals(todoId))).getSingle();
     expect(todo.serverRev, 3);
     expect(todo.syncId, 'old-todo-sync-id');
   });
 
-  testWidgets('status line surfaces lastRejected codes when non-empty',
-      (tester) async {
+  testWidgets('status line surfaces lastRejected codes when non-empty', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({'account_email': 'a@b.co'});
     await tester.pumpWidget(
       ProviderScope(
@@ -410,8 +437,11 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           locale: Locale('en'),
-          home:
-              Scaffold(body: SingleChildScrollView(child: AccountSection(showHeader: true))),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: AccountSection(showHeader: true),
+            ),
+          ),
         ),
       ),
     );
@@ -423,4 +453,51 @@ void main() {
       reason: 'raw op verdict codes must appear on the status line',
     );
   });
+
+  testWidgets(
+    'device load failure is not drawn as an empty list; retry refetches',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'account_email': 'a@b.co'});
+      var deviceReads = 0;
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            syncTokenStoreProvider.overrideWithValue(
+              MemoryTokenStore(access: 'a', refresh: 'r'),
+            ),
+            syncEngineProvider.overrideWith((ref) => null),
+            pendingSyncOpsProvider.overrideWith((ref) => Stream.value(0)),
+            connectedDevicesProvider.overrideWith((ref) async {
+              deviceReads++;
+              throw StateError('offline');
+            }),
+          ],
+          child: const MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: Locale('en'),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: AccountSection(showHeader: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Connected devices'));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't load the device list"), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('No devices have reported in yet.'), findsNothing);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(deviceReads, 2);
+      expect(find.text("Couldn't load the device list"), findsOneWidget);
+    },
+  );
 }

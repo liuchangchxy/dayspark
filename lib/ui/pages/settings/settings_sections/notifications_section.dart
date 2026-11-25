@@ -13,7 +13,7 @@ import 'package:dayspark/ui/design/spec_toast.dart';
 
 import '../settings_ui.dart';
 
-class NotificationsSection extends ConsumerWidget {
+class NotificationsSection extends ConsumerStatefulWidget {
   const NotificationsSection({super.key});
 
   static final systemAlarmProvider = StateProvider<bool>((ref) {
@@ -39,7 +39,36 @@ class NotificationsSection extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationsSection> createState() =>
+      _NotificationsSectionState();
+}
+
+class _NotificationsSectionState extends ConsumerState<NotificationsSection> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    // Permission changes happen in the system app: the only reliable moment
+    // to re-read them is when this app comes back to the foreground.
+    _lifecycleListener = AppLifecycleListener(onResume: _refreshFromSystem);
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
+
+  void _refreshFromSystem() {
+    if (!mounted) return;
+    ref.invalidate(NotificationsSection.permissionStatusProvider);
+    ref.invalidate(NotificationsSection.canScheduleExactProvider);
+    unawaited(NotificationsSection.loadSystemAlarmSetting(ref));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     // Platform gates come from defaultTargetPlatform rather than dart:io so a
     // widget test can exercise each platform's set of rows.
@@ -48,10 +77,17 @@ class NotificationsSection extends ConsumerWidget {
         !kIsWeb &&
         (platform == TargetPlatform.android || platform == TargetPlatform.iOS);
     final showsPermission = !kIsWeb;
-    final status = ref.watch(permissionStatusProvider).valueOrNull;
+    // SPEC: exact alarms are an Android-only requirement. Other platforms
+    // must not render a row whose "allowed" value nothing enforces.
+    final showsExactAlarm = !kIsWeb && platform == TargetPlatform.android;
+    final status = ref
+        .watch(NotificationsSection.permissionStatusProvider)
+        .valueOrNull;
     final denied = status == NotificationPermissionStatus.denied;
-    final exactAllowed = ref.watch(canScheduleExactProvider).valueOrNull;
-    final alarmOn = ref.watch(systemAlarmProvider);
+    final exactAllowed = showsExactAlarm
+        ? ref.watch(NotificationsSection.canScheduleExactProvider).valueOrNull
+        : null;
+    final alarmOn = ref.watch(NotificationsSection.systemAlarmProvider);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -85,7 +121,12 @@ class NotificationsSection extends ConsumerWidget {
                   onChanged: (v) {
                     // Flip the visual state first: stopAll takes 190-335 ms with 12
                     // alarms and must not hold the switch hostage.
-                    ref.read(systemAlarmProvider.notifier).state = v;
+                    ref
+                            .read(
+                              NotificationsSection.systemAlarmProvider.notifier,
+                            )
+                            .state =
+                        v;
                     unawaited(ref.read(alarmToggleProvider)(v));
                   },
                 ),
@@ -108,25 +149,30 @@ class NotificationsSection extends ConsumerWidget {
                       : SettingsChevron.right,
                   onTap: status == NotificationPermissionStatus.granted
                       ? null
-                      : () => _requestPermission(context, ref, l, status),
+                      : () => _requestPermission(context, l, status),
                 ),
-            SettingsRow(
-              label: l.exactAlarmTitle,
-              subtitle: l.exactAlarmDesc,
-              value: exactAllowed == false || denied
-                  ? l.exactAlarmNotActive
-                  : l.notificationAllowed,
-              chevron: exactAllowed == false && !denied
-                  ? SettingsChevron.right
-                  : SettingsChevron.none,
-              onTap: exactAllowed == false && !denied
-                  ? () async {
-                      await NotificationService()
-                          .requestExactAlarmsPermission();
-                      ref.invalidate(canScheduleExactProvider);
-                    }
-                  : null,
-            ),
+            if (showsExactAlarm)
+              SettingsRow(
+                label: l.exactAlarmTitle,
+                subtitle: l.exactAlarmDesc,
+                value: denied || exactAllowed == false
+                    ? l.exactAlarmNotActive
+                    : exactAllowed == true
+                    ? l.notificationAllowed
+                    : l.notificationUnknown,
+                chevron: exactAllowed == false && !denied
+                    ? SettingsChevron.right
+                    : SettingsChevron.none,
+                onTap: exactAllowed == false && !denied
+                    ? () async {
+                        await NotificationService()
+                            .requestExactAlarmsPermission();
+                        ref.invalidate(
+                          NotificationsSection.canScheduleExactProvider,
+                        );
+                      }
+                    : null,
+              ),
             if (denied)
               SettingsRow(
                 label: l.inAppReminders,
@@ -152,7 +198,6 @@ class NotificationsSection extends ConsumerWidget {
 
   Future<void> _requestPermission(
     BuildContext context,
-    WidgetRef ref,
     AppLocalizations l,
     NotificationPermissionStatus? status,
   ) async {
@@ -161,7 +206,7 @@ class NotificationsSection extends ConsumerWidget {
       return;
     }
     await NotificationService().requestPermission();
-    ref.invalidate(permissionStatusProvider);
+    ref.invalidate(NotificationsSection.permissionStatusProvider);
     if (!context.mounted) return;
     showSpecToast(context, l.notificationPermissionAsked);
   }

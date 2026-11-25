@@ -60,6 +60,10 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
   late DateTime? _start;
   late DateTime? _end;
   late bool _allDay;
+
+  /// The inclusive last day of an all-day event. Null means "same day as the
+  /// start"; an all-day row stores DTEND as midnight after this date.
+  DateTime? _allDayEnd;
   Duration? _reminder;
   int? _calendarId;
   int _priority = 5;
@@ -80,6 +84,12 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
     _start = widget.initialStart;
     _end = widget.initialEnd;
     _allDay = widget.initialAllDay;
+    if (_allDay && _start != null && _end == null) {
+      _end = DateTime(_start!.year, _start!.month, _start!.day + 1);
+    }
+    _allDayEnd = widget.initialAllDay
+        ? _inclusiveAllDayEnd(_start, _end)
+        : null;
     // The design gives an event a 15-minute reminder by default and a todo
     // none; the split is a default, not a rule, so picking one wins.
     _reminder = _event ? const Duration(minutes: 15) : null;
@@ -107,7 +117,8 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
       (_reminderTouched && _reminder != null) ||
       _priority != 5 ||
       (_location?.trim().isNotEmpty ?? false) ||
-      _rrule != null;
+      _rrule != null ||
+      _allDayEnd != null;
 
   String _md(DateTime d) =>
       DateFormat.MMMd(Localizations.localeOf(context).toString()).format(d);
@@ -150,10 +161,7 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
 
   Future<void> _pickDue() async {
     final l = AppLocalizations.of(context)!;
-    final picked = await pickDeadline(
-      context,
-      initial: _due ?? DateTime.now(),
-    );
+    final picked = await pickDeadline(context, initial: _due ?? DateTime.now());
     if (picked == null || !mounted) return;
     setState(() => _due = picked);
     if (!mounted) return;
@@ -199,6 +207,7 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
       _start = picked.$1;
       _end = picked.$2;
       _allDay = false;
+      _allDayEnd = null;
     });
   }
 
@@ -250,6 +259,109 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
   }
 
   DateTime? get _anchor => _event ? _start : (_start ?? _due);
+
+  /// All-day events count whole days: [start] is the first day's midnight and
+  /// [end] is exclusive. The row the user sees is the start day plus an
+  /// inclusive end date, so one day has start == end and a three-day span
+  /// ends two dates later.
+  DateTime? get _allDayStartDate => _start == null
+      ? null
+      : DateTime(_start!.year, _start!.month, _start!.day);
+
+  DateTime? get _allDayEndDate {
+    final initial = _allDayStartDate;
+    if (initial == null) return null;
+    final end = _allDayEnd;
+    if (end == null) return initial;
+    final endDay = DateTime(end.year, end.month, end.day);
+    return endDay.isBefore(initial) ? initial : endDay;
+  }
+
+  int get _allDayDayCount {
+    final start = _allDayStartDate;
+    final end = _allDayEndDate;
+    if (start == null || end == null) return 1;
+    return end.difference(start).inDays + 1;
+  }
+
+  String get _allDaySpanLabel {
+    final start = _allDayStartDate;
+    if (start == null) return '';
+    final end = _allDayEndDate!;
+    return _allDayDayCount <= 1 ? _md(start) : '${_md(start)}–${_md(end)}';
+  }
+
+  /// With all-day off only the start matters; the end date is a property of
+  /// the all-day draft and is dropped with it. Coming back to a timed event
+  /// must not leave the midnight-to-midnight block the all-day draft implied:
+  /// a same-day range keeps its times, anything else becomes 09:00–10:00.
+  void _setAllDay(bool allDay) {
+    setState(() {
+      _allDay = allDay;
+      if (allDay) {
+        if (_start == null) {
+          final now = DateTime.now();
+          final start = DateTime(now.year, now.month, now.day);
+          _start = start;
+          _end = start.add(const Duration(days: 1));
+          _allDayEnd = start;
+        } else {
+          _allDayEnd ??= _allDayStartDate;
+        }
+        return;
+      }
+      _allDayEnd = null;
+      final start = _start;
+      final end = _end;
+      if (start == null || end == null) return;
+      final sameDay =
+          start.year == end.year &&
+          start.month == end.month &&
+          start.day == end.day;
+      final length = end.difference(start);
+      final keepTimes =
+          sameDay &&
+          length > Duration.zero &&
+          length < const Duration(hours: 24);
+      if (keepTimes) return;
+      _start = DateTime(start.year, start.month, start.day, 9);
+      _end = DateTime(start.year, start.month, start.day, 10);
+    });
+  }
+
+  /// The start of an all-day event is a date, not a moment. Moving it keeps
+  /// the chosen number of days, so "three days from Tuesday" stays three days.
+  Future<void> _pickAllDayStart() async {
+    final current = _allDayStartDate ?? DateTime.now();
+    final picked = await pickDeadline(context, initial: current);
+    if (picked == null || !mounted) return;
+    final start = DateTime(picked.year, picked.month, picked.day);
+    final days = _allDayDayCount;
+    setState(() {
+      _start = start;
+      // The timed end is never read while all-day is on, but keeping it valid
+      // lets the switch back to timed behave like any other event.
+      _end = start.add(const Duration(days: 1));
+      _allDayEnd = days <= 1 ? start : start.add(Duration(days: days - 1));
+    });
+  }
+
+  Future<void> _pickAllDayEnd() async {
+    final start = _allDayStartDate;
+    if (start == null) return;
+    final picked = await pickDeadline(
+      context,
+      initial: _allDayEndDate ?? start,
+    );
+    if (picked == null || !mounted) return;
+    final day = DateTime(picked.year, picked.month, picked.day);
+    setState(() {
+      // An end before the start is not an error to report: the picker's job is
+      // to bound the span, so the start wins and the form never holds an
+      // impossible range.
+      _allDayEnd = day.isBefore(start) ? start : day;
+    });
+  }
 
   Future<void> _pickCalendar() async {
     final picked = await pickCalendar(context, ref, selectedId: _calendarId);
@@ -384,18 +496,22 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
     try {
       await RecordScope.run(ref.read(databaseProvider), (tx) async {
         if (_event) {
-          final start = _allDay
-              ? DateTime(_start!.year, _start!.month, _start!.day)
-              : _start!;
-          final end = _allDay
-              ? DateTime(_start!.year, _start!.month, _start!.day)
-                    .add(const Duration(days: 1))
+          // All-day is whole days: start at the first day's midnight, end at
+          // midnight after the inclusive end date. A single day is one day,
+          // never a hard-coded `start + 1`.
+          final start = _allDay ? _allDayStartDate! : _start!;
+          final endDate = _allDay
+              ? DateTime(
+                  _allDayEndDate!.year,
+                  _allDayEndDate!.month,
+                  _allDayEndDate!.day + 1,
+                )
               : _end!;
           final eventId = await ref.read(createEventProvider)(
             calendarId: calendarId,
             summary: title,
             startDt: start,
-            endDt: end,
+            endDt: endDate,
             isAllDay: _allDay,
             location: _location,
             rrule: _rrule,
@@ -510,7 +626,8 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
                 children: [
                   if (_writeFailed) ...[
                     _Alert(
-                      text: '${l.saveFailedNotWritten} '
+                      text:
+                          '${l.saveFailedNotWritten} '
                           '${l.newItemSaveFailedNote}',
                       danger: true,
                     ),
@@ -521,11 +638,13 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
                     note: _event ? l.typeNoteEvent : l.typeNoteTodo,
                     onSelect: (value) => setState(() {
                       _event = value;
-                      if (!value) _rrule = null;
+                      if (!value) {
+                        _rrule = null;
+                        _allDay = false;
+                        _allDayEnd = null;
+                      }
                       if (!_reminderTouched) {
-                        _reminder = value
-                            ? const Duration(minutes: 15)
-                            : null;
+                        _reminder = value ? const Duration(minutes: 15) : null;
                       }
                     }),
                   ),
@@ -570,19 +689,22 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
                             ),
                             _Fact(
                               text: _allDay
-                                  ? '${l.allDay} · ${_md(_start ?? DateTime.now())}'
+                                  ? _allDaySpanLabel.isEmpty
+                                        ? l.allDay
+                                        : '${l.allDay} · $_allDaySpanLabel'
                                   : _start != null && _end != null
                                   ? _range(_start!, _end!)
                                   : l.notScheduled,
                               icon: CupertinoIcons.clock,
                             ),
-                            _Fact(text: _reminderLabel(l), icon: CupertinoIcons.bell),
+                            _Fact(
+                              text: _reminderLabel(l),
+                              icon: CupertinoIcons.bell,
+                            ),
                           ]
                         : [
                             _Fact(
-                              text: _start != null
-                                  ? _md(_start!)
-                                  : l.noDate,
+                              text: _start != null ? _md(_start!) : l.noDate,
                               icon: CupertinoIcons.clock,
                               muted: _start == null,
                             ),
@@ -609,16 +731,33 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
                           ? [
                               _FieldRow(
                                 label: l.captureFieldEventTime,
-                                value: _start != null && _end != null
+                                value: _allDay
+                                    ? _allDaySpanLabel.isEmpty
+                                          ? l.notScheduled
+                                          : '${l.allDay} · $_allDaySpanLabel'
+                                    : _start != null && _end != null
                                     ? _range(_start!, _end!)
                                     : l.notScheduled,
-                                onTap: _pickSlot,
+                                onTap: _allDay ? _pickAllDayStart : _pickSlot,
                               ),
                               _FieldRow(
                                 label: l.allDay,
-                                value: _allDay ? l.captureFieldYes : l.captureFieldNo,
-                                onTap: () => setState(() => _allDay = !_allDay),
+                                value: _allDay
+                                    ? l.captureFieldYes
+                                    : l.captureFieldNo,
+                                onTap: () => _setAllDay(!_allDay),
                               ),
+                              if (_allDay && _allDayStartDate != null) ...[
+                                _FieldRow(
+                                  label: l.endDateOfEvent,
+                                  value: _md(_allDayEndDate!),
+                                  onTap: _pickAllDayEnd,
+                                ),
+                                _FieldRow(
+                                  label: l.dayCountLabel,
+                                  value: '$_allDayDayCount',
+                                ),
+                              ],
                               _FieldRow(
                                 label: l.captureFieldCalendar,
                                 value: calendarName,
@@ -696,6 +835,19 @@ class _NewItemPageState extends ConsumerState<NewItemPage> {
       ),
     );
   }
+}
+
+/// The inclusive last day an all-day [start]–[end] pair covers. Stored all-day
+/// rows end at an exclusive midnight, so the last day is the day before it; a
+/// same-day pair (start and end on the same date) is one day.
+DateTime? _inclusiveAllDayEnd(DateTime? start, DateTime? end) {
+  if (start == null) return null;
+  final startDay = DateTime(start.year, start.month, start.day);
+  if (end == null) return startDay;
+  final lastDay = end.hour == 0 && end.minute == 0
+      ? DateTime(end.year, end.month, end.day).subtract(const Duration(days: 1))
+      : DateTime(end.year, end.month, end.day);
+  return lastDay.isBefore(startDay) ? startDay : lastDay;
 }
 
 Color? _parseColor(String? hex) {
@@ -846,19 +998,13 @@ class _TypeButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 9),
           decoration: BoxDecoration(
             color: on ? SpecTokens.ink : SpecTokens.paper,
-            border: Border.all(
-              color: on ? SpecTokens.ink : SpecTokens.hair2,
-            ),
+            border: Border.all(color: on ? SpecTokens.ink : SpecTokens.hair2),
             borderRadius: BorderRadius.circular(5),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 10,
-                color: on ? Colors.white : SpecTokens.ink2,
-              ),
+              Icon(icon, size: 10, color: on ? Colors.white : SpecTokens.ink2),
               const SizedBox(width: 4),
               Text(
                 label,
@@ -878,12 +1024,7 @@ class _TypeButton extends StatelessWidget {
 }
 
 class _Fact {
-  const _Fact({
-    required this.text,
-    this.icon,
-    this.color,
-    this.muted = false,
-  });
+  const _Fact({required this.text, this.icon, this.color, this.muted = false});
 
   final String text;
   final IconData? icon;
@@ -949,11 +1090,7 @@ class _Facts extends StatelessWidget {
 }
 
 class _FieldRow extends StatelessWidget {
-  const _FieldRow({
-    required this.label,
-    required this.value,
-    this.onTap,
-  });
+  const _FieldRow({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
@@ -1090,9 +1227,7 @@ class _PrimaryToolButton extends StatelessWidget {
         foregroundColor: Colors.white,
         backgroundColor: SpecTokens.ink,
         disabledBackgroundColor: SpecTokens.ink.withValues(alpha: 0.5),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         textStyle: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

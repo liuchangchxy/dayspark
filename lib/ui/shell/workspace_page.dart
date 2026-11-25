@@ -1,9 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/shell/sync_status_banner.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 
 /// Chrome shared by every pushed page.
@@ -38,6 +41,7 @@ class WorkspacePage extends StatelessWidget {
     final desktop = isWorkspaceLayout(context);
     final canPop = GoRouter.maybeOf(context)?.canPop() ?? false;
     final showBack = canPop;
+    final l = AppLocalizations.of(context);
 
     final content = maxContentWidth == null
         ? child
@@ -49,47 +53,61 @@ class WorkspacePage extends StatelessWidget {
             ),
           );
 
+    final titledContent = titleWidget == null
+        ? content
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s4,
+                  0,
+                  AppSpacing.s4,
+                  AppSpacing.s3,
+                ),
+                child: titleWidget,
+              ),
+              Expanded(child: content),
+            ],
+          );
+
     if (!desktop) {
+      final homeLabel = l?.returnToHome ?? 'Return to Home';
       return Scaffold(
         backgroundColor: context.ds.bg,
         appBar: DsTopBar(
           title: titleWidget == null ? title : '',
+          // A cold-started detail route has no stack to pop. It still needs a
+          // visible way out, so the same slot carries "close" and goes home.
           leading: showBack
               ? DsIconButton(
                   icon: CupertinoIcons.back,
-                  tooltip: MaterialLocalizations.of(
-                    context,
-                  ).backButtonTooltip,
+                  tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                   onPressed: () => _leave(context),
                 )
-              : null,
+              : DsIconButton(
+                  icon: CupertinoIcons.xmark,
+                  tooltip: homeLabel,
+                  onPressed: () => _leave(context),
+                ),
           actions: actions,
         ),
-        body: titleWidget == null
-            ? child
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.s4,
-                      0,
-                      AppSpacing.s4,
-                      AppSpacing.s3,
-                    ),
-                    child: titleWidget,
-                  ),
-                  Expanded(child: child),
-                ],
-              ),
+        // Pushed pages have no Home tab bar underneath, so the same sync line
+        // sits directly below the top bar. The desktop shell already owns the
+        // banner and must not draw it twice.
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _mobileSyncBanner(context),
+            Expanded(child: titledContent),
+          ],
+        ),
         bottomNavigationBar: footer == null
             ? null
             : Container(
                 decoration: BoxDecoration(
                   color: context.ds.surface,
-                  border: Border(
-                    top: BorderSide(color: context.ds.lineSoft),
-                  ),
+                  border: Border(top: BorderSide(color: context.ds.lineSoft)),
                 ),
                 child: SafeArea(top: false, child: footer!),
               ),
@@ -105,6 +123,14 @@ class WorkspacePage extends StatelessWidget {
             size: 18,
             compact: true,
             tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            onPressed: () => _leave(context),
+          )
+        else
+          DsIconButton(
+            icon: CupertinoIcons.xmark,
+            size: 18,
+            compact: true,
+            tooltip: l?.returnToHome ?? 'Return to Home',
             onPressed: () => _leave(context),
           ),
         if (actions.isNotEmpty) ...actions,
@@ -142,6 +168,18 @@ void _leave(BuildContext context) {
     return;
   }
   router?.go('/');
+}
+
+/// The sync line belongs to the mobile page body. WorkspacePage is also pumped
+/// bare in widget tests (no ProviderScope), where there is no sync state to
+/// read; omit the banner instead of throwing from the shell.
+Widget _mobileSyncBanner(BuildContext context) {
+  try {
+    ProviderScope.containerOf(context, listen: false);
+  } catch (_) {
+    return const SizedBox.shrink();
+  }
+  return const SyncStatusBanner(short: true);
 }
 
 /// Primary action on a [WorkspacePage] — same shape in the mobile top bar and

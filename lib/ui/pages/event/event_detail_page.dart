@@ -13,9 +13,13 @@ import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/providers/attachments_provider.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/records/record_scope.dart';
+import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_toast.dart';
@@ -93,6 +97,20 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
   bool _deletedNotified = false;
   bool _editing = false;
 
+  /// Reminders and attachments are part of the same draft as the event fields:
+  /// nothing reaches the database until Save, and Cancel restores the rows the
+  /// pane opened with. [DraftReminder.triggerTime] is what the popup stores; the
+  /// saved lookup replaces id-less rows with their new ids so a later save
+  /// cannot add them twice.
+  List<DraftReminder> _reminders = const [];
+  List<DraftAttachment> _attachments = const [];
+  List<DraftReminder> _snapshotReminders = const [];
+  List<DraftAttachment> _snapshotAttachments = const [];
+  bool _remindersTouched = false;
+  bool _attachmentsTouched = false;
+  bool _associationsLoaded = false;
+  Future<void>? _associationLoad;
+
   @override
   void initState() {
     super.initState();
@@ -102,6 +120,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     _description.text = _draft.description;
     _location.text = _draft.location;
     _editing = !(widget.inlineSummary || widget.embedded);
+    if (_editing) _loadAssociations();
   }
 
   @override
@@ -135,6 +154,72 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       if (!_locationFocus.hasFocus && _location.text != next.location) {
         _location.text = next.location;
       }
+    });
+  }
+
+  /// Reads the stored reminders and attachments once, as the baseline the
+  /// draft is diffed against. Save awaits this future, so a tap that beats the
+  /// read cannot commit an empty draft over rows it never saw.
+  Future<void> _loadAssociations() {
+    final future = _readAssociations();
+    _associationLoad = future;
+    return future;
+  }
+
+  /// Waits for the baseline, retrying once if the first read failed. A transient
+  /// read error must not turn Save into a permanently failing button.
+  Future<bool> _ensureAssociationsLoaded() async {
+    if (_associationsLoaded) return true;
+    await _associationLoad;
+    if (_associationsLoaded) return true;
+    await _loadAssociations();
+    return _associationsLoaded;
+  }
+
+  Future<void> _readAssociations() async {
+    final id = widget.event.drifId;
+    try {
+      final reminders = await ref.read(eventRemindersProvider(id).future);
+      final attachments = await ref.read(eventAttachmentsProvider(id).future);
+      if (!mounted) return;
+      final reminderRows = [
+        for (final row in reminders)
+          DraftReminder(id: row.id, triggerTime: row.triggerTime),
+      ];
+      final attachmentRows = [
+        for (final row in attachments) DraftAttachment.fromRow(row),
+      ];
+      setState(() {
+        _snapshotReminders = reminderRows;
+        _snapshotAttachments = attachmentRows;
+        // A row the user already staged before the read landed must survive it;
+        // only the baseline changes underneath.
+        if (!_remindersTouched) _reminders = [...reminderRows];
+        if (!_attachmentsTouched) _attachments = [...attachmentRows];
+        _associationsLoaded = true;
+      });
+    } catch (error) {
+      debugPrint('event_detail: association load failed: $error');
+      if (!mounted) return;
+      setState(() => _associationsLoaded = false);
+    }
+  }
+
+  void _setReminders(List<DraftReminder> next) {
+    setState(() {
+      _reminders = next;
+      _remindersTouched = true;
+      _dirty = true;
+      _saveFailed = false;
+    });
+  }
+
+  void _setAttachments(List<DraftAttachment> next) {
+    setState(() {
+      _attachments = next;
+      _attachmentsTouched = true;
+      _dirty = true;
+      _saveFailed = false;
     });
   }
 
@@ -204,6 +289,46 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     return confirmed ?? false;
   }
 
+  /// Saving a recurring occurrence writes the series anchor and therefore
+  /// every instance. Nothing here offers an instance-level override: the
+  /// dialog exists to say that out loud before the write, and Cancel leaves
+  /// the database untouched.
+  ///
+  /// "Recurring" is decided by what the pane opened on, not by the current
+  /// rule: clearing the repeat control is itself a series-wide edit and still
+  /// deserves the confirmation.
+  Future<bool> _confirmSeriesSave() async {
+    if (!widget.event.isRecurringOccurrence && _snapshot.rrule == null) {
+      return true;
+    }
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      animationStyle: AnimationStyle.noAnimation,
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.saveSeriesTitle,
+        actions: [
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.saveSeriesConfirm,
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+        child: Text(
+          l.saveSeriesBody,
+          style: AppTypography.body.copyWith(color: context.ds.ink2),
+        ),
+      ),
+    );
+    return confirmed ?? false;
+  }
+
   void _beginEdit(CalendaEventAdapter live) {
     setState(() {
       _snapshot = _EventDraft.fromAdapter(live);
@@ -213,7 +338,11 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       _location.text = _draft.location;
       _dirty = false;
       _editing = true;
+      _remindersTouched = false;
+      _attachmentsTouched = false;
+      _associationsLoaded = false;
     });
+    _loadAssociations();
   }
 
   @override
@@ -319,7 +448,9 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               if (widget.embedded) _drawerHead(context, l),
               Expanded(
                 child: ListView(
-                  key: PageStorageKey<String>('event-detail-${widget.event.drifId}'),
+                  key: PageStorageKey<String>(
+                    'event-detail-${widget.event.drifId}',
+                  ),
                   padding: EdgeInsets.fromLTRB(
                     side,
                     widget.embedded ? 18 : 14,
@@ -371,12 +502,19 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
                       parentType: 'event',
                       parentId: live.drifId,
                       anchorTime: _draft.start,
+                      draft: _reminders,
+                      onDraftChanged: _setReminders,
                     ),
                     const SizedBox(height: 18),
                     _notes(context, l),
                     _tags(context, live),
                     const SizedBox(height: 8),
-                    AttachmentList(parentType: 'event', parentId: live.drifId),
+                    AttachmentList(
+                      parentType: 'event',
+                      parentId: live.drifId,
+                      draft: _attachments,
+                      onDraftChanged: _setAttachments,
+                    ),
                     const SizedBox(height: 8),
                   ],
                 ),
@@ -419,10 +557,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             }
           },
         },
-        child: Focus(
-          autofocus: true,
-          child: pageContent,
-        ),
+        child: Focus(autofocus: true, child: pageContent),
       ),
     );
   }
@@ -446,18 +581,15 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     final locale = Localizations.localeOf(context).toString();
     final date =
         '${DateFormat.MMMd(locale).format(start)} ${DateFormat.E(locale).format(start)}';
-    final eyebrow = [
-      currentCalendar?.name ?? l.eventLabel,
-      date,
-    ].join(' · ');
+    final eyebrow = [currentCalendar?.name ?? l.eventLabel, date].join(' · ');
     final repeatLabel = _draft.rrule == null
         ? '—'
         : describeRepeat(context, _draft.rrule);
     final reminderLabel = reminders.isEmpty
         ? l.noReminders
         : reminders
-            .map((item) => formatDeadline(context, item.triggerTime))
-            .join(' · ');
+              .map((item) => formatDeadline(context, item.triggerTime))
+              .join(' · ');
     final tagLabel = tags.isEmpty
         ? l.noTags
         : tags.map((tag) => tag.name).join(' · ');
@@ -521,11 +653,11 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
           height: rowHeight,
           value: validRange
               ? (_draft.allDay
-                  ? l.durationAllDay
-                  : formatExecutionLength(
-                      context,
-                      _draft.end.difference(_draft.start),
-                    ))
+                    ? l.durationAllDay
+                    : formatExecutionLength(
+                        context,
+                        _draft.end.difference(_draft.start),
+                      ))
               : l.invalidTimeRange,
         ),
         _PaneFieldRow(
@@ -582,7 +714,11 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
           ),
         ),
         const SizedBox(height: 12),
-        AttachmentList(parentType: 'event', parentId: live.drifId, enabled: false),
+        AttachmentList(
+          parentType: 'event',
+          parentId: live.drifId,
+          enabled: false,
+        ),
         const SizedBox(height: 8),
       ],
     );
@@ -639,9 +775,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       height: 50,
       padding: const EdgeInsets.only(left: 18, right: 12),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: ds.line),
-        ),
+        border: Border(bottom: BorderSide(color: ds.line)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -878,11 +1012,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
             padding: const EdgeInsets.only(top: 6),
             child: Text(
               l.invalidTimeRange,
-              style: TextStyle(
-                fontSize: 11,
-                height: 16 / 11,
-                color: ds.danger,
-              ),
+              style: TextStyle(fontSize: 11, height: 16 / 11, color: ds.danger),
             ),
           ),
         _PaneFieldRow(
@@ -902,10 +1032,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
           height: rowHeight,
           valueChild: Align(
             alignment: Alignment.centerLeft,
-            child: Switch(
-              value: _draft.allDay,
-              onChanged: _toggleAllDay,
-            ),
+            child: Switch(value: _draft.allDay, onChanged: _toggleAllDay),
           ),
         ),
         _PaneFieldRow(
@@ -1116,6 +1243,17 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     }
     final description = _description.text.trim();
     final location = _location.text.trim();
+    final allDayChanged = _draft.allDay != _snapshot.allDay;
+    // The stored time only changes when the user changed a time control. An
+    // all-day row whose DTSTART carries a clock time keeps it on a title-only
+    // edit; the one exception is a row this pane just turned into all-day, and
+    // the toggle has already normalised it to midnight.
+    final timeChanged =
+        !_sameEventTime(_draft, _snapshot) || (allDayChanged && _draft.allDay);
+    // Saving a recurring occurrence is a series-wide write; say so first and
+    // treat Cancel as no write at all.
+    if (!await _confirmSeriesSave()) return;
+    if (!mounted) return;
     setState(() {
       _saving = true;
       _saveFailed = false;
@@ -1123,20 +1261,92 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       _timeError = false;
     });
     try {
-      await ref.read(updateEventProvider)(
-        widget.event.drifId,
-        EventsCompanion(
-          summary: Value(title),
-          description: Value(description.isEmpty ? null : description),
-          location: Value(location.isEmpty ? null : location),
-          startDt: Value(_draft.start),
-          endDt: Value(_draft.end),
-          isAllDay: Value(_draft.allDay),
-          calendarId: Value(_draft.calendarId),
-          rrule: Value(_draft.rrule),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
+      if (!await _ensureAssociationsLoaded()) {
+        // The baseline still never arrived. Writing the event while the
+        // reminder and attachment drafts have nothing to diff against would
+        // silently keep (or duplicate) rows, so this is a failed save the user
+        // can retry.
+        if (!mounted) return;
+        setState(() {
+          _saveFailed = true;
+          _saving = false;
+        });
+        return;
+      }
+      if (!mounted) return;
+
+      // Bytes first, outside the transaction: a source file that has gone
+      // missing has to fail the save before anything is written, not halfway.
+      final staged = <({DraftAttachment draft, Uint8List bytes})>[];
+      for (final item in _attachments.where((a) => a.id == null)) {
+        staged.add((
+          draft: item,
+          bytes: await ref.read(stageAttachmentProvider)(
+            bytes: item.bytes,
+            sourcePath: item.sourcePath,
+            fileName: item.fileName,
+          ),
+        ));
+      }
+      if (!mounted) return;
+
+      final db = ref.read(databaseProvider);
+      final uploaded = <({int id, List<int>? bytes})>[];
+      final residue = <AttachmentResidue?>[];
+      final stagedFiles = <String?>[];
+
+      // One scope for the event row and its children: Save means "the draft as
+      // a whole", so a failure anywhere has to leave the database as it was.
+      final committed = await RecordScope.run(db, (tx) async {
+        await ref.read(updateEventProvider)(
+          widget.event.drifId,
+          EventsCompanion(
+            summary: Value(title),
+            description: Value(description.isEmpty ? null : description),
+            location: Value(location.isEmpty ? null : location),
+            startDt: timeChanged ? Value(_draft.start) : const Value.absent(),
+            endDt: timeChanged ? Value(_draft.end) : const Value.absent(),
+            isAllDay: allDayChanged
+                ? Value(_draft.allDay)
+                : const Value.absent(),
+            calendarId: Value(_draft.calendarId),
+            rrule: Value(_draft.rrule),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+        try {
+          return await _commitDrafts(
+            tx,
+            staged: staged,
+            uploaded: uploaded,
+            residue: residue,
+            stagedFiles: stagedFiles,
+          );
+        } catch (error) {
+          // The event update rolled back, but a file this scope already wrote
+          // did not — and SQLite may hand the same id to a later insert.
+          await ref.read(discardStagedFilesProvider)(stagedFiles);
+          rethrow;
+        }
+      });
+
+      // Past the commit: the network and the filesystem cannot roll a scope
+      // back, so they run after it.
+      await ref.read(uploadAttachmentsProvider)(uploaded);
+      for (final item in residue) {
+        await ref.read(discardAttachmentResidueProvider)(item);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _snapshotReminders = committed.reminders;
+        _reminders = [...committed.reminders];
+        _snapshotAttachments = committed.attachments;
+        _attachments = [...committed.attachments];
+        _remindersTouched = false;
+        _attachmentsTouched = false;
+        _associationsLoaded = true;
+      });
     } catch (error) {
       debugPrint('event_detail: save failed: $error');
       if (!mounted) return;
@@ -1151,8 +1361,8 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       title: title,
       description: description,
       location: location,
-      start: _draft.start,
-      end: _draft.end,
+      start: timeChanged ? _draft.start : _snapshot.start,
+      end: timeChanged ? _draft.end : _snapshot.end,
       allDay: _draft.allDay,
       calendarId: _draft.calendarId,
       rrule: _draft.rrule,
@@ -1167,6 +1377,74 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
     });
   }
 
+  /// Writes the reminder and attachment drafts inside the caller's scope:
+  /// rows that vanished are deleted, rows that appeared are created or
+  /// inserted. Existing rows keep their id, so an edit that did not touch them
+  /// stays untouched.
+  Future<({List<DraftReminder> reminders, List<DraftAttachment> attachments})>
+  _commitDrafts(
+    RecordScope tx, {
+    required List<({DraftAttachment draft, Uint8List bytes})> staged,
+    required List<({int id, List<int>? bytes})> uploaded,
+    required List<AttachmentResidue?> residue,
+    required List<String?> stagedFiles,
+  }) async {
+    for (final item in _snapshotReminders.where((item) => item.id != null)) {
+      if (_reminders.any((other) => other.id == item.id)) continue;
+      await ref.read(deleteReminderProvider)(item.id!);
+    }
+    final createdReminders = <DraftReminder>[];
+    for (final item in _reminders.where((item) => item.id == null)) {
+      final id = await ref.read(createReminderProvider)(
+        parentType: 'event',
+        parentId: widget.event.drifId,
+        triggerTime: item.triggerTime,
+      );
+      createdReminders.add(
+        DraftReminder(id: id, triggerTime: item.triggerTime),
+      );
+    }
+
+    for (final item in _snapshotAttachments.where((item) => item.id != null)) {
+      if (_attachments.any((other) => other.id == item.id)) continue;
+      residue.add(await ref.read(deleteAttachmentRowProvider)(tx, item.id!));
+    }
+    final insertedAttachments = <DraftAttachment>[];
+    for (final item in staged) {
+      final stage = await ref.read(insertAttachmentRowProvider)(
+        tx,
+        parentType: 'event',
+        parentId: widget.event.drifId,
+        fileName: item.draft.fileName,
+        mimeType: item.draft.mimeType,
+        data: item.bytes,
+        onFileWritten: stagedFiles.add,
+      );
+      uploaded.add((id: stage.id, bytes: item.bytes));
+      insertedAttachments.add(
+        DraftAttachment(
+          id: stage.id,
+          fileName: item.draft.fileName,
+          mimeType: item.draft.mimeType,
+          fileSize: item.draft.fileSize,
+          serverFileRef: item.draft.serverFileRef,
+        ),
+      );
+    }
+
+    final reminders = [
+      for (final item in _reminders)
+        if (item.id != null) item,
+      ...createdReminders,
+    ];
+    final attachments = [
+      for (final item in _attachments)
+        if (item.id != null) item,
+      ...insertedAttachments,
+    ];
+    return (reminders: reminders, attachments: attachments);
+  }
+
   void _cancel() {
     setState(() {
       _draft = _snapshot;
@@ -1178,6 +1456,12 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       _title.text = _snapshot.title;
       _description.text = _snapshot.description;
       _location.text = _snapshot.location;
+      // Cancel restores the reminders and attachments the pane opened with;
+      // nothing was written while the draft lived.
+      _reminders = [..._snapshotReminders];
+      _attachments = [..._snapshotAttachments];
+      _remindersTouched = false;
+      _attachmentsTouched = false;
       if (widget.inlineSummary || widget.embedded) _editing = false;
     });
     _titleFocus.unfocus();
@@ -1203,18 +1487,39 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
 
   void _toggleAllDay(bool allDay) {
     if (allDay == _draft.allDay) return;
-    final start = allDay
-        ? DateTime(_draft.start.year, _draft.start.month, _draft.start.day)
-        : _draft.start;
-    final end = allDay
-        ? DateTime(_draft.end.year, _draft.end.month, _draft.end.day)
-        : _draft.end;
-    final validEnd = allDay && !end.isAfter(start)
-        ? DateTime(start.year, start.month, start.day + 1)
-        : end;
-    _setDraft(
-      _withDraft(allDay: allDay, start: start, end: validEnd),
-    );
+    if (allDay) {
+      final start = DateTime(
+        _draft.start.year,
+        _draft.start.month,
+        _draft.start.day,
+      );
+      var end = DateTime(_draft.end.year, _draft.end.month, _draft.end.day);
+      if (!end.isAfter(start)) {
+        end = DateTime(start.year, start.month, start.day + 1);
+      }
+      _setDraft(_withDraft(allDay: true, start: start, end: end));
+      return;
+    }
+    // Turning all-day off used to leave 00:00 → next 00:00: a 24-hour timed
+    // event that belongs to neither day. A same-day range keeps its times;
+    // anything that crosses midnight, lasts 24 hours or collapses to zero is
+    // reset to a normal 09:00–10:00 on the start date.
+    final start = _draft.start;
+    final end = _draft.end;
+    final sameDay =
+        start.year == end.year &&
+        start.month == end.month &&
+        start.day == end.day;
+    final length = end.difference(start);
+    final keepTimes =
+        sameDay && length > Duration.zero && length < const Duration(hours: 24);
+    final nextStart = keepTimes
+        ? start
+        : DateTime(start.year, start.month, start.day, 9);
+    final nextEnd = keepTimes
+        ? end
+        : DateTime(start.year, start.month, start.day, 10);
+    _setDraft(_withDraft(allDay: false, start: nextStart, end: nextEnd));
   }
 
   Future<void> _pickBoundary({required bool isStart}) async {
@@ -1228,9 +1533,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
       final span = length.isNegative || length == Duration.zero
           ? const Duration(hours: 1)
           : length;
-      _setDraft(
-        _withDraft(start: picked, end: picked.add(span)),
-      );
+      _setDraft(_withDraft(start: picked, end: picked.add(span)));
     } else {
       _setDraft(_withDraft(end: picked));
     }
@@ -1402,10 +1705,7 @@ class _EventDetailPaneState extends ConsumerState<EventDetailPane> {
               children: [
                 TextButton(onPressed: retry, child: Text(l.retry)),
                 const SizedBox(width: AppSpacing.s2),
-                TextButton(
-                  onPressed: _leaveFromFailure,
-                  child: Text(l.close),
-                ),
+                TextButton(onPressed: _leaveFromFailure, child: Text(l.close)),
               ],
             ),
           ],
@@ -1487,6 +1787,12 @@ bool _sameEventDraft(_EventDraft a, _EventDraft b) {
       a.calendarId == b.calendarId &&
       a.rrule == b.rrule;
 }
+
+/// Whether the form changed the event's stored time. A row that was already
+/// all-day keeps its DTSTART/DTEND on an edit that leaves them alone, including
+/// the clock time an imported all-day row may carry.
+bool _sameEventTime(_EventDraft a, _EventDraft b) =>
+    a.start == b.start && a.end == b.end && a.allDay == b.allDay;
 
 /// A deleted object cannot stay on screen. Pop the detail route so the user
 /// lands on the list they came from, falling back to Home for deep links.
@@ -1661,9 +1967,7 @@ class _PaneButton extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: primary ? Colors.transparent : ds.line,
-        ),
+        border: Border.all(color: primary ? Colors.transparent : ds.line),
       ),
       child: Center(
         child: Text(
@@ -1694,10 +1998,7 @@ class _PaneButton extends StatelessWidget {
               onTap: onPressed,
               borderRadius: BorderRadius.circular(6),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minWidth: 48,
-                  minHeight: 48,
-                ),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 child: Center(child: visual),
               ),
             ),

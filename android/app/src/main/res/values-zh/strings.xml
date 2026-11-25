@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_today_name">今日行动</string>
-    <string name="widget_today_description">查看并完成今天正在发生的事</string>
+    <string name="widget_today_description">查看今天正在发生的事，点按条目打开</string>
     <string name="widget_todos_name">待办</string>
-    <string name="widget_todos_description">你的任务清单，直接在桌面完成</string>
+    <string name="widget_todos_description">查看你的待办，点按条目打开</string>
     <string name="widget_calendar_name">月历</string>
     <string name="widget_calendar_description">查看本月任意一天的安排</string>
     <string name="widget_open_app">打开 DaySpark</string>

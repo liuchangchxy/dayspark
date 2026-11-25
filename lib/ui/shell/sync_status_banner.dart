@@ -11,8 +11,14 @@ import 'package:dayspark/l10n/app_localizations.dart';
 
 /// Shell-level sync state line: offline, failed, or conflicts pending
 /// review. Hidden while sync is not configured or not logged in.
+///
+/// [short] uses the one-line mobile copy (`syncOfflineShort` /
+/// `syncFailedShort` / `syncConflictShort`); the desktop banner keeps the
+/// longer explanatory line.
 class SyncStatusBanner extends ConsumerWidget {
-  const SyncStatusBanner({super.key});
+  const SyncStatusBanner({super.key, this.short = false});
+
+  final bool short;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,7 +31,9 @@ class SyncStatusBanner extends ConsumerWidget {
 
     if (online == false) {
       return _SyncBanner(
-        message: pending > 0
+        message: short
+            ? l.syncOfflineShort
+            : pending > 0
             ? l.syncOfflinePending(pending)
             : l.syncOfflineBanner,
       );
@@ -33,7 +41,9 @@ class SyncStatusBanner extends ConsumerWidget {
     if (status.phase == SyncPhase.error) {
       return _SyncBanner(
         title: l.syncPhaseError,
-        message: pending > 0
+        message: short
+            ? l.syncFailedShort
+            : pending > 0
             ? l.syncPendingUploads(pending)
             : l.syncFailedBanner,
         isRed: true,
@@ -63,7 +73,10 @@ class SyncStatusBanner extends ConsumerWidget {
       );
     }
     if (conflicts > 0) {
-      return _SyncBanner(message: l.syncConflictCount(conflicts), isRed: true);
+      return _SyncBanner(
+        message: short ? l.syncConflictShort : l.syncConflictCount(conflicts),
+        isRed: true,
+      );
     }
     return const SizedBox.shrink();
   }

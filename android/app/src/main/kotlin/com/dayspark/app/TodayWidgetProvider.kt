@@ -88,10 +88,17 @@ class TodayWidgetProvider : AppWidgetProvider() {
       val accent = context.getColor(R.color.widget_accent)
       val error = theme?.colors?.get("error") ?: context.getColor(R.color.widget_error)
 
-      val dateIso = snapshot.todayIso().ifEmpty { WidgetSupport.todayIso(context) }
-      val stale = dateIso != WidgetSupport.todayIso(context)
-      views.setTextViewText(R.id.action_date, WidgetSupport.formatDate(dateIso))
-      views.setTextViewText(R.id.action_weekday, WidgetSupport.formatWeekday(dateIso))
+      val snapshotTodayIso = snapshot.todayIso().ifEmpty { WidgetSupport.todayIso(context) }
+      val deviceTodayIso = WidgetSupport.todayIso(context)
+      val stale = snapshotTodayIso != deviceTodayIso
+      // A stale snapshot still describes another day. Creating from its `+`
+      // buttons would write the new item onto that wrong date, so both add
+      // links follow the device's today instead — the same rule as the Apple
+      // Action widget. The rows themselves stay hidden behind the "Open
+      // DaySpark to update" state.
+      val addDateIso = if (stale) deviceTodayIso else snapshotTodayIso
+      views.setTextViewText(R.id.action_date, WidgetSupport.formatDate(snapshotTodayIso))
+      views.setTextViewText(R.id.action_weekday, WidgetSupport.formatWeekday(snapshotTodayIso))
       WidgetSupport.textColor(views, R.id.action_date, theme, "textPrimary", primary)
       WidgetSupport.textColor(views, R.id.action_weekday, theme, "textSecondary", secondary)
 
@@ -120,7 +127,7 @@ class TodayWidgetProvider : AppWidgetProvider() {
         R.id.action_add_todo,
         WidgetSupport.openUri(
           context,
-          WidgetSupport.quickAddUri(dateIso),
+          WidgetSupport.quickAddUri(addDateIso),
           appWidgetId + 501,
         ),
       )
@@ -134,7 +141,7 @@ class TodayWidgetProvider : AppWidgetProvider() {
           R.id.action_add_event,
           WidgetSupport.openUri(
             context,
-            WidgetSupport.newEventUri(dateIso),
+            WidgetSupport.newEventUri(addDateIso),
             appWidgetId + 502,
           ),
         )

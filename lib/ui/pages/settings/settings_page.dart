@@ -83,7 +83,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           });
     }
     if (widget.initialSection != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialSection());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _applyInitialSection(),
+      );
     }
   }
 
@@ -150,11 +152,20 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   /// sections, not a hidden form behind a sync row.
   Widget _settingsHomeBody(AppLocalizations l) {
     final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
-    final email = ref.watch(accountAuthProvider).valueOrNull?.email;
+    final account = ref.watch(accountAuthProvider);
+    // Reading the account is not the same as being signed out: while the read
+    // is in flight the row shows a neutral skeleton instead of "not signed in".
+    final accountLoading = account.isLoading && !account.hasValue;
+    final accountValue = account.hasValue
+        ? (account.value!.email ?? l.accountNotLoggedIn)
+        : account.hasError
+        ? l.accountLoadFailed
+        : null;
     final aiEnabled =
-        ref.watch(featureFlagsProvider).valueOrNull?.isEnabled(
-          FeatureFlag.aiAssistant,
-        ) ??
+        ref
+            .watch(featureFlagsProvider)
+            .valueOrNull
+            ?.isEnabled(FeatureFlag.aiAssistant) ??
         true;
     final aiConfigured = ref.watch(isAiConfiguredProvider).valueOrNull ?? false;
     final aiModel = ref.watch(aiConfigProvider).value?.model;
@@ -170,7 +181,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         SettingsRow(
           label: l.userAccount,
           subtitle: l.settingsHomeAccountDesc,
-          value: email ?? l.accountNotLoggedIn,
+          value: accountValue,
+          trailing: accountLoading
+              ? const _AccountValueSkeleton(
+                  key: ValueKey('account-summary-loading'),
+                )
+              : null,
           chevron: SettingsChevron.right,
           onTap: () => _goToSectionKey('account'),
         ),
@@ -246,66 +262,66 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           },
         ),
       ),
-    _SettingsSectionItem(
-      key: 'calendars',
-      label: l.manageCalendars,
-      subtitle: l.calendarManagementDesc,
-      widget: CalendarSettingsSection(
-        onOpenDefaultCalendar: () {
-          setState(() => _showingDefaultCalendar = true);
-        },
-      ),
-    ),
-    _SettingsSectionItem(
-      key: 'data',
-      label: l.data,
-      subtitle: l.dataSectionDesc,
-      widget: DataSection(onSelectSection: _goToSectionKey),
-    ),
-    _SettingsSectionItem(
-      key: 'tags',
-      label: l.tags,
-      subtitle: l.tagManagementDesc,
-      widget: const TagsPage(embedded: true),
-    ),
-    _SettingsSectionItem(
-      key: 'trash',
-      label: l.trash,
-      subtitle: l.trashDesc,
-      widget: const TrashPage(embedded: true),
-    ),
-    _SettingsSectionItem(
-      key: 'io',
-      label: l.importAndBackup,
-      subtitle: l.ioSectionDesc,
-      widget: const ImportExportSection(),
-    ),
-    _SettingsSectionItem(
-      key: 'ai',
-      label: l.aiAssistant,
-      subtitle: l.aiSectionDesc,
-      widget: const AiSection(),
-    ),
-    if (hasNotificationSettings)
       _SettingsSectionItem(
-        key: 'notify',
-        label: l.notify,
-        subtitle: l.notifySectionDesc,
-        widget: const NotificationsSection(),
+        key: 'calendars',
+        label: l.manageCalendars,
+        subtitle: l.calendarManagementDesc,
+        widget: CalendarSettingsSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
       ),
-    _SettingsSectionItem(
-      key: 'sync',
-      label: l.sync,
-      subtitle: l.syncSectionDesc,
-      widget: SyncSection(onGoToAccount: () => _goToSectionKey('account')),
-    ),
-    _SettingsSectionItem(
-      key: 'about',
-      label: l.about,
-      subtitle: l.aboutDesc,
-      widget: AboutSection(version: _cachedVersion ?? ''),
-    ),
-  ];
+      _SettingsSectionItem(
+        key: 'data',
+        label: l.data,
+        subtitle: l.dataSectionDesc,
+        widget: DataSection(onSelectSection: _goToSectionKey),
+      ),
+      _SettingsSectionItem(
+        key: 'tags',
+        label: l.tags,
+        subtitle: l.tagManagementDesc,
+        widget: const TagsPage(embedded: true),
+      ),
+      _SettingsSectionItem(
+        key: 'trash',
+        label: l.trash,
+        subtitle: l.trashDesc,
+        widget: const TrashPage(embedded: true),
+      ),
+      _SettingsSectionItem(
+        key: 'io',
+        label: l.importAndBackup,
+        subtitle: l.ioSectionDesc,
+        widget: const ImportExportSection(),
+      ),
+      _SettingsSectionItem(
+        key: 'ai',
+        label: l.aiAssistant,
+        subtitle: l.aiSectionDesc,
+        widget: const AiSection(),
+      ),
+      if (hasNotificationSettings)
+        _SettingsSectionItem(
+          key: 'notify',
+          label: l.notify,
+          subtitle: l.notifySectionDesc,
+          widget: const NotificationsSection(),
+        ),
+      _SettingsSectionItem(
+        key: 'sync',
+        label: l.sync,
+        subtitle: l.syncSectionDesc,
+        widget: SyncSection(onGoToAccount: () => _goToSectionKey('account')),
+      ),
+      _SettingsSectionItem(
+        key: 'about',
+        label: l.about,
+        subtitle: l.aboutDesc,
+        widget: AboutSection(version: _cachedVersion ?? ''),
+      ),
+    ];
   }
 
   String _mobileTitle(AppLocalizations l, String section) => switch (section) {
@@ -465,10 +481,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             body: ListView(
               padding: const EdgeInsets.only(bottom: AppSpacing.s8),
               children: [
-                Container(
-                  color: SpecTokens.paper,
-                  child: _settingsHomeBody(l),
-                ),
+                Container(color: SpecTokens.paper, child: _settingsHomeBody(l)),
               ],
             ),
           ),
@@ -517,9 +530,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
     final sections = _desktopSections(l);
     final onHome = _section < 0 && !_showingDefaultCalendar;
-    final selected = onHome
-        ? -1
-        : _section.clamp(0, sections.length - 1);
+    final selected = onHome ? -1 : _section.clamp(0, sections.length - 1);
     final currentSection = onHome ? null : sections[selected];
 
     return Scaffold(
@@ -564,8 +575,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             for (var i = 0; i < sections.length; i++)
                               SettingsNavItem(
                                 label: sections[i].label,
-                                selected: !_showingDefaultCalendar &&
-                                    selected == i ||
+                                selected:
+                                    !_showingDefaultCalendar && selected == i ||
                                     (_showingDefaultCalendar &&
                                         sections[i].key == 'general'),
                                 onTap: () => _selectSection(i),
@@ -727,6 +738,24 @@ class _SettingsNavItemState extends State<SettingsNavItem> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Neutral placeholder for the account row while its state is being read.
+/// It must not read as either "signed in" or "not signed in".
+class _AccountValueSkeleton extends StatelessWidget {
+  const _AccountValueSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 9,
+      decoration: BoxDecoration(
+        color: SpecTokens.hair2,
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }

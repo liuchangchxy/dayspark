@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
@@ -13,7 +14,6 @@ import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_views.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
@@ -24,6 +24,8 @@ import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
 bool _initialLoading(AsyncValue<Object?>? state) =>
     state != null && state.isLoading && !state.hasValue;
+
+const _keyHiddenCalendars = 'calendar_hidden_filters';
 
 class A2CalendarPage extends ConsumerStatefulWidget {
   const A2CalendarPage({
@@ -41,6 +43,7 @@ class A2CalendarPage extends ConsumerStatefulWidget {
     this.onCreateAtDay,
     this.onEventChanged,
     this.onAllocationChanged,
+    this.onSearch,
   });
 
   final List<CalendaEventAdapter> events;
@@ -66,11 +69,53 @@ class A2CalendarPage extends ConsumerStatefulWidget {
   final Future<void> Function(TaskAllocationCalendarItem item)?
   onAllocationChanged;
 
+  /// The phone header's search glyph. HomePage wires it to the command/search
+  /// surface; the calendar itself has nothing to search.
+  final VoidCallback? onSearch;
+
   @override
   ConsumerState<A2CalendarPage> createState() => _A2CalendarPageState();
 }
 
 class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
+  bool _hiddenRestored = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual<Set<int>>(calendarHiddenFilterProvider, (_, next) {
+      _saveHidden(next);
+    });
+    // Restore the hidden calendar set on cold start. The provider keeps its
+    // type and API; only the page persists its value.
+    Future<void>(() async {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList(_keyHiddenCalendars);
+      if (!mounted) return;
+      if (raw != null) {
+        final restored = <int>{
+          for (final value in raw)
+            if (int.tryParse(value) != null) int.parse(value),
+        };
+        // Do not clobber a set the user already touched during startup.
+        if (restored.isNotEmpty &&
+            ref.read(calendarHiddenFilterProvider).isEmpty) {
+          ref.read(calendarHiddenFilterProvider.notifier).state = restored;
+        }
+      }
+      _hiddenRestored = true;
+    });
+  }
+
+  Future<void> _saveHidden(Set<int> hidden) async {
+    if (!_hiddenRestored) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _keyHiddenCalendars,
+      [for (final id in hidden) '$id'],
+    );
+  }
+
   void _setBrowse(DateTime value) {
     final day = calDayOf(value);
     if (calSameDay(day, ref.read(viewedDateProvider))) return;
@@ -111,41 +156,6 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
 
   /// The three calendar views named in words, so the header does not have to
   /// teach three different icons. Month / week / day are the only options.
-  Future<void> _openViewMenu() async {
-    final l = AppLocalizations.of(context)!;
-    final current = ref.read(calendarViewModeProvider);
-    final picked = await showDsSheet<CalendarViewMode>(
-      context: context,
-      title: l.calendar,
-      body: Builder(
-        builder: (sheetContext) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final entry in [
-              (CalendarViewMode.month, l.month),
-              (CalendarViewMode.week, l.week),
-              (CalendarViewMode.day, l.day),
-            ])
-              DsSettingRow(
-                label: entry.$2,
-                selected: entry.$1 == current,
-                trailing: entry.$1 == current
-                    ? Icon(
-                        CupertinoIcons.checkmark,
-                        size: 15,
-                        color: SpecTokens.ink,
-                      )
-                    : null,
-                onTap: () => Navigator.of(sheetContext).pop(entry.$1),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (picked == null || !mounted) return;
-    _setMode(picked);
-  }
-
   bool _dayHasEntries(
     DateTime day,
     List<CalendaEventAdapter> events,
@@ -187,6 +197,17 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     return null;
   }
 
+  /// The drag and resize gestures both write a shifted span. A drop that would
+  /// leave the original day, or collapse the span, must not reach the database:
+  /// it is a failed gesture, not a silent edit behind the user's back.
+  bool _spanStaysValid(DateTime start, DateTime end) =>
+      end.isAfter(start) && calSameDay(start.toLocal(), end.toLocal());
+
+  void _rejectOutOfBounds() {
+    if (!mounted) return;
+    showSpecToast(context, AppLocalizations.of(context)!.actionFailedRetry);
+  }
+
   Future<void> _reschedule(CalBlockItem item, int minutes) async {
     if (minutes == 0) return;
     final shift = Duration(minutes: minutes);
@@ -196,12 +217,13 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       if (event != null) {
         final handler = widget.onEventChanged;
         if (handler == null) return;
-        await handler(
-          event.copyWithData(
-            start: event.start.add(shift),
-            end: event.end.add(shift),
-          ),
-        );
+        final start = event.start.add(shift);
+        final end = event.end.add(shift);
+        if (!_spanStaysValid(start, end)) {
+          _rejectOutOfBounds();
+          return;
+        }
+        await handler(event.copyWithData(start: start, end: end));
         return;
       }
       final allocation = item.allocation;
@@ -210,12 +232,15 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       if (handler == null) return;
       final original = _allocationById(allocation.id);
       if (original == null) return;
+      final start = original.allocation.startAt.add(shift);
+      final end = original.allocation.endAt.add(shift);
+      if (!_spanStaysValid(start, end)) {
+        _rejectOutOfBounds();
+        return;
+      }
       await handler(
         TaskAllocationCalendarItem(
-          allocation: original.allocation.copyWith(
-            startAt: original.allocation.startAt.add(shift),
-            endAt: original.allocation.endAt.add(shift),
-          ),
+          allocation: original.allocation.copyWith(startAt: start, endAt: end),
           todo: original.todo,
         ),
       );
@@ -236,9 +261,11 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         final handler = widget.onEventChanged;
         if (handler == null) return;
         final newEnd = event.end.add(shift);
-        if (newEnd.isAfter(event.start)) {
-          await handler(event.copyWithData(end: newEnd));
+        if (!_spanStaysValid(event.start, newEnd)) {
+          _rejectOutOfBounds();
+          return;
         }
+        await handler(event.copyWithData(end: newEnd));
         return;
       }
       final allocation = item.allocation;
@@ -248,14 +275,16 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       final original = _allocationById(allocation.id);
       if (original == null) return;
       final newEnd = original.allocation.endAt.add(shift);
-      if (newEnd.isAfter(original.allocation.startAt)) {
-        await handler(
-          TaskAllocationCalendarItem(
-            allocation: original.allocation.copyWith(endAt: newEnd),
-            todo: original.todo,
-          ),
-        );
+      if (!_spanStaysValid(original.allocation.startAt, newEnd)) {
+        _rejectOutOfBounds();
+        return;
       }
+      await handler(
+        TaskAllocationCalendarItem(
+          allocation: original.allocation.copyWith(endAt: newEnd),
+          todo: original.todo,
+        ),
+      );
     } on Object catch (error) {
       debugPrint('a2 calendar: resize failed: $error');
       if (!mounted) return;
@@ -329,11 +358,21 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     final failed =
         (widget.eventsAsync?.hasError ?? false) ||
         (widget.allocationsAsync?.hasError ?? false);
+    final failedWithoutValue =
+        ((widget.eventsAsync?.hasError ?? false) &&
+            !(widget.eventsAsync?.hasValue ?? false)) ||
+        ((widget.allocationsAsync?.hasError ?? false) &&
+            !(widget.allocationsAsync?.hasValue ?? false));
+    // A failed read that still carries the last data is a warning, not a
+    // failure page: the grid keeps drawing, the banner says it is stale. A
+    // read that never produced a value keeps the original error page.
+    final stale = failed && !failedWithoutValue;
+    final blockingFailure = failedWithoutValue;
     final loading =
         !failed &&
         (_initialLoading(widget.eventsAsync) ||
             _initialLoading(widget.allocationsAsync));
-    final status = failed
+    final status = blockingFailure
         ? _CalendarLoadError(onRetry: widget.onRetry)
         : loading
         ? const _CalendarLoading()
@@ -370,6 +409,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
         visibleAllocations,
         visibleDeadlines,
         status,
+        stale,
         weekEmpty,
         dayEmpty,
       );
@@ -388,6 +428,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
       visibleAllocations,
       visibleDeadlines,
       status,
+      stale,
       weekEmpty,
     );
   }
@@ -406,6 +447,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     List<TaskAllocationCalendarItem> visibleAllocations,
     List<CalendarDeadline> visibleDeadlines,
     Widget? status,
+    bool stale,
     bool weekEmpty,
   ) {
     final content = switch (mode) {
@@ -469,10 +511,16 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: _SpecViewSwitch(
-              key: const ValueKey('cal-view-switch'),
-              mode: mode,
-              onSelected: _setMode,
+            child: KeyedSubtree(
+              // The old 1×1 disclosure is gone; this key now names the
+              // visible segmented control it opened, so focus/keyboard
+              // helpers keep one stable handle.
+              key: const ValueKey('calendar-view-menu'),
+              child: _SpecViewSwitch(
+                key: const ValueKey('cal-view-switch'),
+                mode: mode,
+                onSelected: _setMode,
+              ),
             ),
           ),
         ),
@@ -485,29 +533,17 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
                 ref.read(calendarHiddenFilterProvider.notifier).state = const {},
             onShowCalendars: () => CalendarFilterSheet.show(context),
           ),
+        if (stale) _StaleDataBanner(onRetry: widget.onRetry),
         Expanded(
           child: Stack(
             children: [
               Positioned.fill(child: status ?? content),
-              if (mode == CalendarViewMode.month)
-                A2Fab(
-                  tooltip: l.newEvent,
-                  onPressed: () => _createAt(browse),
-                ),
-              Positioned(
-                left: 0,
-                top: 0,
-                width: 1,
-                height: 1,
-                child: SizedBox(
-                  width: 1,
-                  height: 1,
-                  child: GestureDetector(
-                    key: const ValueKey('calendar-view-menu'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _openViewMenu,
-                  ),
-                ),
+              // One create entry for all three views: month/day pass the
+              // browsed day, week passes the day group's day through
+              // onCreateAtDay. The slot tap below stays a separate gesture.
+              A2Fab(
+                tooltip: l.newEvent,
+                onPressed: () => _createAt(browse),
               ),
             ],
           ),
@@ -546,6 +582,21 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Spec mobileCalendar actions: search, "today", period arrows,
+              // then the calendar filter funnel.
+              _mIcon(
+                key: const ValueKey('cal-search'),
+                icon: CupertinoIcons.search,
+                tooltip: l.search,
+                onTap: () => widget.onSearch?.call(),
+              ),
+              const SizedBox(width: 5),
+              _mToday(
+                key: const ValueKey('cal-today'),
+                label: l.today,
+                onTap: _goToToday,
+              ),
+              const SizedBox(width: 5),
               _mIcon(
                 key: const ValueKey('cal-prev'),
                 icon: CupertinoIcons.chevron_left,
@@ -570,6 +621,40 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Spec `.m-today`: a 24px pill among the round header icons.
+  Widget _mToday({
+    Key? key,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return FocusableTap(
+      key: key,
+      onTap: onTap,
+      semanticsLabel: label,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 24,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          border: Border.all(color: SpecTokens.hair2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          maxLines: 1,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: SpecTokens.ink2,
+            fontFamilyFallback: AppTypography.fallback,
+          ),
+        ),
       ),
     );
   }
@@ -622,6 +707,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
     List<TaskAllocationCalendarItem> visibleAllocations,
     List<CalendarDeadline> visibleDeadlines,
     Widget? status,
+    bool stale,
     bool weekEmpty,
     bool dayEmpty,
   ) {
@@ -683,6 +769,7 @@ class _A2CalendarPageState extends ConsumerState<A2CalendarPage> {
                   ref.read(calendarHiddenFilterProvider.notifier).state = const {},
               onShowCalendars: () => CalendarFilterSheet.show(context),
             ),
+          if (stale) _StaleDataBanner(onRetry: widget.onRetry),
           Expanded(
             child:
                 status ??
@@ -912,7 +999,6 @@ class _CalendarLoading extends StatelessWidget {
 
 class _CalendarLoadError extends StatelessWidget {
   const _CalendarLoadError({this.onRetry});
-
   final VoidCallback? onRetry;
 
   @override
@@ -925,6 +1011,83 @@ class _CalendarLoadError extends StatelessWidget {
         children: [
           Text(l.error),
           TextButton(onPressed: onRetry, child: Text(l.retry)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Spec `m-banner.is-red`: a read failed but last-known data is still on
+/// screen. It does not replace the grid, and it keeps retry reachable.
+class _StaleDataBanner extends StatelessWidget {
+  const _StaleDataBanner({this.onRetry});
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Container(
+      key: const ValueKey('calendar-stale-banner'),
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+      padding: const EdgeInsets.fromLTRB(9, 8, 8, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDF0ED),
+        border: const Border(
+          left: BorderSide(color: Color(0xFFB03B2F), width: 3),
+        ),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.staleCalendarTitle,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                    color: Color(0xFF7C231B),
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                Text(
+                  l.staleCalendarBody,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    height: 1.5,
+                    color: Color(0xFF7C231B),
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(width: 8),
+            FocusableTap(
+              onTap: onRetry,
+              semanticsLabel: l.retry,
+              borderRadius: BorderRadius.circular(4),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Text(
+                  l.retry,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF7C231B),
+                    decoration: TextDecoration.underline,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

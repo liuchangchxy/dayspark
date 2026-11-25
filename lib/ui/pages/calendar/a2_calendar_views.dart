@@ -142,22 +142,24 @@ String _blockMeta(
   CalBlockItem item,
   Map<int, String> names,
   Map<int, TaskAllocationCalendarItem> allocationItems,
-  AppLocalizations l,
-) {
+  AppLocalizations l, {
+  bool outOfRange = false,
+}) {
   final time = calTimeRange(item.start, item.end);
   final event = item.event;
   final allocation = item.allocation;
   final isPlan = item.isAllocation;
   final prefix = isPlan ? '${l.planTagLabel} · ' : '';
+  final edge = outOfRange ? ' · ${l.outOfRangeNote}' : '';
 
   if (isPlan && allocation != null) {
     final original = allocationItems[allocation.id];
     final dueDate = original?.todo.dueDate;
     if (dueDate != null) {
       final dueStr = DateFormatters.formatDate(dueDate);
-      return '$prefix$time · ${l.deadline} $dueStr';
+      return '$prefix$time · ${l.deadline} $dueStr$edge';
     }
-    return '$prefix$time';
+    return '$prefix$time$edge';
   }
 
   final String name;
@@ -166,8 +168,65 @@ String _blockMeta(
   } else {
     name = '';
   }
-  if (name.isEmpty) return '$prefix$time';
-  return '$prefix$time · $name';
+  if (name.isEmpty) return '$prefix$time$edge';
+  return '$prefix$time · $name$edge';
+}
+
+bool _isCrossMidnightTimed(CalendaEventAdapter event) =>
+    !event.isAllDay && !calSameDay(event.start, event.end);
+
+/// The multi-day band names a span. A timed event that crosses midnight gets
+/// its two clocks with the next-day marker; an all-day/multi-day event keeps
+/// the date span and day count.
+String _spanEventLabel(CalendaEventAdapter event, AppLocalizations l) {
+  if (_isCrossMidnightTimed(event)) {
+    return '${event.title} · ${DateFormatters.formatTime(event.start)} → '
+        '${l.nextDay} ${DateFormatters.formatTime(event.end)}';
+  }
+  final days = math.max(
+    1,
+    calDayOf(event.end).difference(calDayOf(event.start)).inDays + 1,
+  );
+  final startFmt = '${event.start.month}/${event.start.day}';
+  final endFmt = '${event.end.month}/${event.end.day}';
+  return l.multiDayEventSpanSummary(event.title, startFmt, endFmt, days);
+}
+
+/// Month grids name only spans that touch the displayed month. The caller
+/// already has the expanded ±60-day window; this keeps the band scoped.
+bool _spanTouchesMonth(
+  CalendaEventAdapter event,
+  DateTime anchor,
+) {
+  final first = DateTime(anchor.year, anchor.month);
+  final next = DateTime(anchor.year, anchor.month + 1);
+  final startDay = calDayOf(event.start);
+  final endDay = event.end.isAfter(event.start)
+      ? calDayOf(event.end.subtract(const Duration(minutes: 1)))
+      : calDayOf(event.end);
+  return startDay.isBefore(next) && !endDay.isBefore(first);
+}
+
+List<CalendaEventAdapter> _monthSpanEvents(
+  List<CalendaEventAdapter> events,
+  DateTime anchor,
+) {
+  return [
+    for (final event in events)
+      if (!calSameDay(event.start, event.end) &&
+          _spanTouchesMonth(event, anchor))
+        event,
+  ];
+}
+
+/// The visible axis is 08:00–20:00. An event before that start or after that
+/// end is clamped for geometry, but its real time is still its real time; the
+/// block says so instead of pretending the clamp is the span.
+bool _blockOutOfRange(CalBlockItem item, DateTime day) {
+  final midnight = calDayOf(day);
+  final startMinutes = item.start.difference(midnight).inMinutes;
+  final endMinutes = item.end.difference(midnight).inMinutes;
+  return startMinutes < _a2StartMinute || endMinutes > _a2EndHour * 60;
 }
 
 class A2MonthStrip extends StatelessWidget {
@@ -344,10 +403,7 @@ class A2PhoneMonthGrid extends StatelessWidget {
       );
     }
     final selectedEntries = _entriesFor(selected, events, allocations, deadlines);
-    final multiDayEvents = [
-      for (final e in events)
-        if (!calSameDay(e.start, e.end)) e,
-    ];
+    final multiDayEvents = _monthSpanEvents(events, anchor);
     final seriesEvent = _monthSeriesEvent(events, anchor);
     return ListView(
       padding: EdgeInsets.zero,
@@ -663,13 +719,7 @@ class _A2SpanChip extends StatelessWidget {
     final ds = context.ds;
     final l = AppLocalizations.of(context)!;
     final accent = ds.eventAccent(event.color ?? ds.primary);
-    final days = math.max(
-      1,
-      calDayOf(event.end).difference(calDayOf(event.start)).inDays + 1,
-    );
-    final startFmt = '${event.start.month}/${event.start.day}';
-    final endFmt = '${event.end.month}/${event.end.day}';
-    final label = l.multiDayEventSpanSummary(event.title, startFmt, endFmt, days);
+    final label = _spanEventLabel(event, l);
 
     final chip = Container(
       height: 22,
@@ -789,34 +839,12 @@ class _MobileSpanBand extends StatelessWidget {
                 for (final event in events) ...[
                   FocusableTap(
                     onTap: onEvent == null ? null : () => onEvent!(event),
-                    semanticsLabel: l.multiDayEventSpanSummary(
-                      event.title,
-                      '${event.start.month}/${event.start.day}',
-                      '${event.end.month}/${event.end.day}',
-                      math.max(
-                        1,
-                        calDayOf(event.end)
-                                .difference(calDayOf(event.start))
-                                .inDays +
-                            1,
-                      ),
-                    ),
+                    semanticsLabel: _spanEventLabel(event, l),
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 1),
                       child: Text(
-                        l.multiDayEventSpanSummary(
-                          event.title,
-                          '${event.start.month}/${event.start.day}',
-                          '${event.end.month}/${event.end.day}',
-                          math.max(
-                            1,
-                            calDayOf(event.end)
-                                    .difference(calDayOf(event.start))
-                                    .inDays +
-                                1,
-                          ),
-                        ),
+                        _spanEventLabel(event, l),
                         style: _a2Text(9, FontWeight.w400, SpecTokens.ink),
                       ),
                     ),
@@ -910,10 +938,7 @@ class A2DesktopMonthGrid extends StatelessWidget {
         ),
       );
     }
-    final multiDayEvents = [
-      for (final e in events)
-        if (!calSameDay(e.start, e.end)) e,
-    ];
+    final multiDayEvents = _monthSpanEvents(events, anchor);
     final seriesEvent = _monthSeriesEvent(events, anchor);
     return Column(
       children: [
@@ -1561,6 +1586,11 @@ class A2TimeGridView extends StatelessWidget {
               if (!calSameDay(event.start, event.end)) event,
           ]
         : const <CalendaEventAdapter>[];
+    final hasOutOfRange = days.any((day) {
+      final key = calDayOf(day);
+      return (blocks[key] ?? const <CalBlockItem>[])
+          .any((item) => _blockOutOfRange(item, key));
+    });
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1645,6 +1675,24 @@ class A2TimeGridView extends StatelessWidget {
             ),
           ),
         ),
+        // Spec cal-day:out-of-range: the axis is fixed; say so under the grid.
+        if (hasOutOfRange)
+          Container(
+            key: const ValueKey('calendar-out-of-range-note'),
+            padding: const EdgeInsets.fromLTRB(54, 7, 10, 7),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: SpecTokens.hair)),
+            ),
+            child: Text(
+              l.outOfRangeNote,
+              style: const TextStyle(
+                fontSize: 9,
+                height: 1.5,
+                color: SpecTokens.faint,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -2397,7 +2445,13 @@ class A2TimeGridView extends StatelessWidget {
 
           final meta = isShort
               ? null
-              : _blockMeta(item, calendarNames, allocationItems, l);
+              : _blockMeta(
+                  item,
+                  calendarNames,
+                  allocationItems,
+                  l,
+                  outOfRange: _blockOutOfRange(item, day),
+                );
 
           final canDrag = item.canDrag &&
               (item.isAllocation ? onAllocation != null : onEvent != null);
@@ -2421,6 +2475,7 @@ class A2TimeGridView extends StatelessWidget {
                 isRecurring:
                     item.event != null && calEventIsRecurring(item.event!),
                 compact: laneWidth < 50,
+                outOfRange: _blockOutOfRange(item, day),
                 onTap: () => _openBlock(item, allocationItems),
                 onReschedule: canDrag && onReschedule != null
                     ? (minutes) => onReschedule!(item, minutes)
@@ -2447,6 +2502,9 @@ class A2TimeGridView extends StatelessWidget {
               title: deadline.title,
               time: DateFormatters.formatTime(deadline.due),
               isOverdue: isOverdue,
+              onTap: onDeadline == null
+                  ? null
+                  : () => onDeadline!(deadline),
             ),
           );
         }
@@ -2790,6 +2848,7 @@ class _A2TimeBlock extends StatefulWidget {
     this.onReschedule,
     this.onResize,
     this.compact = false,
+    this.outOfRange = false,
   });
 
   final String title;
@@ -2806,6 +2865,7 @@ class _A2TimeBlock extends StatefulWidget {
   final VoidCallback onTap;
   final ValueChanged<int>? onReschedule;
   final ValueChanged<int>? onResize;
+  final bool outOfRange;
 
   @override
   State<_A2TimeBlock> createState() => _A2TimeBlockState();
@@ -2889,6 +2949,18 @@ class _A2TimeBlockState extends State<_A2TimeBlock> {
               ],
             ),
           ),
+          if (widget.outOfRange)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: const _DashedBoxPainter(
+                    color: SpecTokens.hair2,
+                    strokeWidth: 1,
+                    radius: 4,
+                  ),
+                ),
+              ),
+            ),
           if (widget.hasOverdueDot)
             Positioned(
               top: 3,
@@ -3240,71 +3312,83 @@ class _A2DeadlineMarker extends StatelessWidget {
     required this.title,
     required this.time,
     required this.isOverdue,
+    this.onTap,
   });
 
   final double top;
   final String title;
   final String time;
   final bool isOverdue;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
     final l = AppLocalizations.of(context)!;
     final color = isOverdue ? ds.danger : ds.warn;
+    final labelText = l.deadlineMarkerLabel(time, title);
+    final marker = SizedBox(
+      height: 16,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 1.5px horizontal line
+          Positioned(
+            left: 3,
+            right: 0,
+            top: 2.25,
+            child: IgnorePointer(child: Container(height: 1.5, color: color)),
+          ),
+          // 6px dot
+          Positioned(
+            left: 0,
+            top: 0,
+            child: IgnorePointer(
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+            ),
+          ),
+          // 8px white-background label with fine border. Spec: the timed
+          // deadline is a point you can open; it does not own the axis.
+          Positioned(
+            right: 3,
+            top: -6,
+            child: Container(
+              height: 14,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: ds.lineSoft),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Center(
+                child: Text(
+                  labelText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _a2Text(8.0, FontWeight.w400, color, height: 1.2),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
     return Positioned(
       top: top - 2.25,
       left: -3,
       right: 0,
-      child: IgnorePointer(
-        child: SizedBox(
-          height: 16,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // 1.5px horizontal line
-              Positioned(
-                left: 3,
-                right: 0,
-                top: 2.25,
-                child: Container(height: 1.5, color: color),
-              ),
-              // 6px dot
-              Positioned(
-                left: 0,
-                top: 0,
-                child: Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                ),
-              ),
-              // 8px white-background label with fine border
-              Positioned(
-                right: 3,
-                top: -6,
-                child: Container(
-                  height: 14,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: ds.lineSoft),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Center(
-                    child: Text(
-                      l.deadlineMarkerLabel(time, title),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: _a2Text(8.0, FontWeight.w400, color, height: 1.2),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      child: onTap == null
+          ? marker
+          : FocusableTap(
+              onTap: onTap,
+              semanticsLabel: labelText,
+              borderRadius: BorderRadius.circular(3),
+              child: marker,
+            ),
     );
   }
 }
@@ -3498,10 +3582,10 @@ class _A2PhoneWeekDay extends StatelessWidget {
         (a, b) => a.allocation.startAt.compareTo(b.allocation.startAt),
       );
     final dayDeadlines = [
+      // Spec cal-week:deadline lists the timed ones too, with their clock and
+      // the "timed" tag; the row still opens the todo.
       for (final deadline in deadlines)
-        if (!calDeadlineHasTime(deadline.due) &&
-            calSameDay(deadline.due, day))
-          deadline,
+        if (calSameDay(deadline.due, day)) deadline,
     ]..sort((a, b) => a.due.compareTo(b.due));
     final count = dayEvents.length + dayAllocations.length + dayDeadlines.length;
     final headLabel =
@@ -3625,10 +3709,15 @@ class _A2PhoneWeekDay extends StatelessWidget {
               builder: (context) {
                 final isOverdue =
                     calDayOf(deadline.due).isBefore(calDayOf(today));
+                final timed = calDeadlineHasTime(deadline.due);
+                final timePrefix = timed
+                    ? '${DateFormatters.formatTime(deadline.due)} '
+                    : '';
+                final timedTag = timed ? ' · ${l.timedDeadline}' : '';
                 return _A2PhoneWeekItem(
                   color: isOverdue ? SpecTokens.red : SpecTokens.amber,
                   label: TextSpan(
-                    text: '${l.deadline} ${deadline.title}',
+                    text: '$timePrefix${l.deadline} ${deadline.title}$timedTag',
                     style: TextStyle(
                       color: isOverdue ? SpecTokens.red : SpecTokens.amber,
                     ),

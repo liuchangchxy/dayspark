@@ -57,6 +57,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   IcsImportPreview? _importPreview;
   String? _importResultSummary;
   String? _importError;
+  int _importFailedCount = 0;
   List<IcsPreviewItem> _importFailedRows = const [];
   List<Calendar> _availableCalendars = [];
 
@@ -132,7 +133,10 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                 label: l.startImport,
                 tone: DsButtonTone.primary,
                 loading: _importBusy,
-                onPressed: (_fileContent != null && _targetCalendarId != null && !_importBusy)
+                onPressed:
+                    (_fileContent != null &&
+                        _targetCalendarId != null &&
+                        !_importBusy)
                     ? _executeImport
                     : null,
               ),
@@ -148,12 +152,16 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                     ),
                   ),
           ),
-          if (_importResultSummary != null)
+          if (_importResultSummary != null && _importFailedCount == 0)
             InlineAlert(message: _importResultSummary!),
-          if (_importError != null || _importFailedRows.isNotEmpty)
+          if (_importError != null ||
+              _importFailedCount > 0 ||
+              _importFailedRows.isNotEmpty)
             ImportFailurePanel(
               error: _importError,
               skipped: _importFailedRows,
+              failedCount: _importFailedCount > 0 ? _importFailedCount : null,
+              summary: _importFailedCount > 0 ? _importResultSummary : null,
               onReport: () => _showImportReport(l),
               onSkip: _importError != null ? null : _skipErrorRows,
             ),
@@ -170,6 +178,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                 _importPreview = null;
                 _importResultSummary = null;
                 _importError = null;
+                _importFailedCount = 0;
                 _importFailedRows = const [];
               }),
             ),
@@ -252,7 +261,8 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
         if (!_backupBusy && !_backupFailed && _backupCounts != null)
           IoCard(
             title: l.backupDoneTitle,
-            description: '${_backupFileName!} · ${_formatBytes(_backupBytes ?? 0)}',
+            description:
+                '${_backupFileName!} · ${_formatBytes(_backupBytes ?? 0)}',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -456,6 +466,10 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       _availableCalendars = calendars;
       _targetCalendarId ??= calendars.first.id;
       _targetCalendarName ??= calendars.first.name;
+      _importResultSummary = null;
+      _importError = null;
+      _importFailedCount = 0;
+      _importFailedRows = const [];
     });
     await _pickIcsFile();
   }
@@ -487,6 +501,8 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       _pickedFile = file;
       _fileContent = content;
       _importError = null;
+      _importResultSummary = null;
+      _importFailedCount = 0;
       _importFailedRows = const [];
     });
     await _updatePreview();
@@ -497,12 +513,17 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     final db = ref.read(databaseProvider);
     setState(() => _importBusy = true);
     try {
-      final preview = await IcsService(db).previewIcs(_fileContent!, _targetCalendarId!);
+      final preview = await IcsService(
+        db,
+      ).previewIcs(_fileContent!, _targetCalendarId!);
       if (mounted) {
         setState(() {
           _importPreview = preview;
           _importError = null;
           _importBusy = false;
+          _importResultSummary = null;
+          _importFailedCount = 0;
+          _importFailedRows = const [];
         });
       }
     } catch (e) {
@@ -518,25 +539,34 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   }
 
   Future<void> _executeImport() async {
-    if (_fileContent == null || _targetCalendarId == null || _importBusy) return;
+    if (_fileContent == null || _targetCalendarId == null || _importBusy) {
+      return;
+    }
     final l = AppLocalizations.of(context)!;
     final db = ref.read(databaseProvider);
     setState(() {
       _importBusy = true;
       _importError = null;
+      _importResultSummary = null;
+      _importFailedCount = 0;
+      _importFailedRows = const [];
     });
     try {
-      final imported = await IcsService(db).importIcsDetailed(
-        _fileContent!,
-        _targetCalendarId!,
-      );
+      final imported = await IcsService(
+        db,
+      ).importIcsDetailed(_fileContent!, _targetCalendarId!);
       final created = imported.events + imported.todos - imported.updated;
-      final summary = l.importResultSummary(created, imported.updated, imported.failed);
+      final summary = l.importResultSummary(
+        created,
+        imported.updated,
+        imported.failed,
+      );
       if (!mounted) return;
       setState(() {
         _importBusy = false;
         _importResultSummary = summary;
         _importFailedRows = _importPreview?.skipped ?? const [];
+        _importFailedCount = imported.failed;
       });
     } catch (error) {
       debugPrint('ics: import failed: $error');
@@ -590,7 +620,9 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
               )
             else if (skipped.isEmpty)
               Text(
-                l.importReportEmpty,
+                _importFailedCount > 0
+                    ? l.importFailedRows(_importFailedCount)
+                    : l.importReportEmpty,
                 style: const TextStyle(
                   fontSize: 11,
                   height: 1.55,
@@ -632,9 +664,7 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        row.kind == IcsPreviewKind.event
-                            ? l.events
-                            : l.todos,
+                        row.kind == IcsPreviewKind.event ? l.events : l.todos,
                         style: const TextStyle(
                           fontSize: 10,
                           color: SpecTokens.faint,
@@ -650,8 +680,6 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       ),
     );
   }
-
-
 
   /// Export always writes every calendar: a partial export that silently
   /// skipped calendars would look complete and not be.
@@ -711,6 +739,8 @@ class ImportFailurePanel extends StatelessWidget {
     required this.skipped,
     required this.onReport,
     required this.onSkip,
+    this.failedCount,
+    this.summary,
   });
 
   final String? error;
@@ -718,20 +748,30 @@ class ImportFailurePanel extends StatelessWidget {
   final VoidCallback onReport;
   final VoidCallback? onSkip;
 
+  /// Rows the import actually failed on. When the importer fails rows that
+  /// the preview could not flag, [skipped] may be shorter — the count still
+  /// has to tell the truth.
+  final int? failedCount;
+
+  /// Created / updated / skipped summary, retained on a partial failure so
+  /// the red surface also says what did get written.
+  final String? summary;
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final count = failedCount ?? skipped.length;
+    final message = error != null
+        ? l.importReportError(error!)
+        : [
+            if (summary != null && summary!.isNotEmpty) summary!,
+            l.importFailedRows(count),
+          ].join('\n');
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InlineAlert(
-          title: l.importErrorTitle,
-          isRed: true,
-          message: error != null
-              ? l.importReportError(error!)
-              : l.importFailedRows(skipped.length),
-        ),
+        InlineAlert(title: l.importErrorTitle, isRed: true, message: message),
         if (onSkip == null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
@@ -756,11 +796,7 @@ class ImportFailurePanel extends StatelessWidget {
               small: true,
               onPressed: onReport,
             ),
-            DsButton(
-              label: l.importSkipRows,
-              small: true,
-              onPressed: onSkip,
-            ),
+            DsButton(label: l.importSkipRows, small: true, onPressed: onSkip),
           ],
         ),
       ],
@@ -964,7 +1000,10 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                                 ),
                                 child: Text(
                                   c.table,
-                                  style: TextStyle(fontSize: 10, color: ds.ink3),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: ds.ink3,
+                                  ),
                                 ),
                               ),
                             ],
@@ -990,9 +1029,8 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                                 onSelected: (val) {
                                   if (val) {
                                     setState(
-                                      () =>
-                                          _choices[c.key] =
-                                              BackupConflictResolution.keepLocal,
+                                      () => _choices[c.key] =
+                                          BackupConflictResolution.keepLocal,
                                     );
                                   }
                                 },
@@ -1005,9 +1043,8 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                                 onSelected: (val) {
                                   if (val) {
                                     setState(
-                                      () =>
-                                          _choices[c.key] =
-                                              BackupConflictResolution.keepRemote,
+                                      () => _choices[c.key] =
+                                          BackupConflictResolution.keepRemote,
                                     );
                                   }
                                 },
@@ -1020,9 +1057,8 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                                 onSelected: (val) {
                                   if (val) {
                                     setState(
-                                      () =>
-                                          _choices[c.key] =
-                                              BackupConflictResolution.merge,
+                                      () => _choices[c.key] =
+                                          BackupConflictResolution.merge,
                                     );
                                   }
                                 },
@@ -1042,7 +1078,9 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                                   BackupConflictResolution.keepLocal) ...[
                             const SizedBox(height: 4),
                             Text(
-                              l.backupConflictSkipAssociated(c.associatedSkippedCount),
+                              l.backupConflictSkipAssociated(
+                                c.associatedSkippedCount,
+                              ),
                               style: TextStyle(
                                 fontSize: 11,
                                 color: ds.danger,

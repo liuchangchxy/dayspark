@@ -115,9 +115,7 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
                     label: l.syncConflicts,
                     subtitle: latestConflict == null
                         ? null
-                        : l.syncConflictLast(
-                            _shortId(latestConflict.recordId),
-                          ),
+                        : l.syncConflictLast(_shortId(latestConflict.recordId)),
                     value: l.syncConflictCount(conflicts),
                     chevron: SettingsChevron.right,
                     onTap: () => setState(() => _showConflicts = true),
@@ -163,13 +161,29 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
           ),
         ),
       ),
-      error: (error, _) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          l.accountLoadFailed,
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
-        ),
-      ),
+      error: (error, _) {
+        debugPrint('sync: account state error: $error');
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l.accountLoadFailed,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+              const SizedBox(width: 8),
+              DsButton(
+                label: l.retry,
+                tone: DsButtonTone.secondary,
+                small: true,
+                onPressed: () => ref.invalidate(accountAuthProvider),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -252,11 +266,11 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: _ConflictCard(
               conflict: conflict,
-              choice: _choices[conflict.recordId] ??
+              choice:
+                  _choices[conflict.recordId] ??
                   SyncConflictResolution.keepLocal,
-              onChoice: (choice) => setState(
-                () => _choices[conflict.recordId] = choice,
-              ),
+              onChoice: (choice) =>
+                  setState(() => _choices[conflict.recordId] = choice),
             ),
           ),
         Padding(
@@ -307,7 +321,9 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
   static String _statusText(AppLocalizations l, SyncStatus status) {
     return switch (status.phase) {
       SyncPhase.idle =>
-        status.lastSyncAt == null ? l.notSynced : l.syncedAt(_format(status.lastSyncAt!)),
+        status.lastSyncAt == null
+            ? l.notSynced
+            : l.syncedAt(_format(status.lastSyncAt!)),
       SyncPhase.pushing => l.syncing,
       SyncPhase.pulling => l.syncPulling,
       SyncPhase.error => l.syncPhaseError,
@@ -330,15 +346,15 @@ class _SyncSectionState extends ConsumerState<SyncSection> {
     final reason = status.lastError ?? l.syncFailedBanner;
     final when = failedAt == null
         ? reason
-        : l.syncFailedAt(DateFormatters.formatRelativeTime(failedAt, l), reason);
-    final pendingLine = pending > 0
-        ? '\n${l.syncPendingUploads(pending)}'
-        : '';
+        : l.syncFailedAt(
+            DateFormatters.formatRelativeTime(failedAt, l),
+            reason,
+          );
+    final pendingLine = pending > 0 ? '\n${l.syncPendingUploads(pending)}' : '';
     return '$when$pendingLine';
   }
 
-  static String _shortId(String id) =>
-      id.length <= 8 ? id : id.substring(0, 8);
+  static String _shortId(String id) => id.length <= 8 ? id : id.substring(0, 8);
 
   static Future<void> _confirmLogout(
     BuildContext context,
@@ -469,8 +485,7 @@ class _ConflictCard extends StatelessWidget {
     );
   }
 
-  static String _shortId(String id) =>
-      id.length <= 8 ? id : id.substring(0, 8);
+  static String _shortId(String id) => id.length <= 8 ? id : id.substring(0, 8);
 
   static String _describe(
     AppLocalizations l,
@@ -487,7 +502,9 @@ class _ConflictCard extends StatelessWidget {
     String? time(Object? value) {
       if (value is! String) return null;
       final parsed = DateTime.tryParse(value);
-      return parsed == null ? value : DateFormatters.formatDateTime(parsed.toLocal());
+      return parsed == null
+          ? value
+          : DateFormatters.formatDateTime(parsed.toLocal());
     }
 
     switch (type) {

@@ -24,6 +24,7 @@ Future<void> _pumpNotificationsSection(
   WidgetTester tester,
   TargetPlatform platform, {
   bool? exactAlarmsAllowed,
+  Completer<bool>? exactAlarmsPending,
   bool? initialAlarm,
   AlarmToggle? alarmToggle,
   NotificationPermissionStatus? permissionStatus,
@@ -43,6 +44,10 @@ Future<void> _pumpNotificationsSection(
         if (exactAlarmsAllowed != null)
           NotificationsSection.canScheduleExactProvider.overrideWith(
             (ref) async => exactAlarmsAllowed,
+          ),
+        if (exactAlarmsPending != null)
+          NotificationsSection.canScheduleExactProvider.overrideWith(
+            (ref) => exactAlarmsPending.future,
           ),
         if (initialAlarm != null)
           NotificationsSection.systemAlarmProvider.overrideWith(
@@ -160,17 +165,38 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('macOS：精确提醒是状态行，不再只属于 Android 的授权入口', (tester) async {
+  testWidgets('android 且精确闹钟状态读取中：不提前画成已允许', (tester) async {
+    final gate = Completer<bool>();
     await _pumpNotificationsSection(
       tester,
-      TargetPlatform.macOS,
-      exactAlarmsAllowed: false,
+      TargetPlatform.android,
+      exactAlarmsPending: gate,
+      permissionStatus: NotificationPermissionStatus.unknown,
     );
     await tester.pump();
     expect(find.text('Exact alarm permission'), findsOneWidget);
-    expect(find.text('Not active'), findsOneWidget);
+    expect(find.text('Allowed'), findsNothing);
+    expect(find.text('Unknown'), findsWidgets);
     debugDefaultTargetPlatformOverride = null;
+    gate.complete(true);
   });
+
+  for (final platform in <TargetPlatform>[
+    TargetPlatform.iOS,
+    TargetPlatform.macOS,
+  ]) {
+    testWidgets('$platform：不渲染 Android 专属的精确提醒行', (tester) async {
+      await _pumpNotificationsSection(
+        tester,
+        platform,
+        exactAlarmsAllowed: false,
+      );
+      await tester.pump();
+      expect(find.text('Exact alarm permission'), findsNothing);
+      expect(find.text('Not active'), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+  }
 
   for (final platform in <TargetPlatform>[
     TargetPlatform.windows,
@@ -189,6 +215,44 @@ void main() {
     });
   }
 
+  testWidgets('returning from system settings re-reads permission status', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    var reads = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          NotificationsSection.permissionStatusProvider.overrideWith((
+            ref,
+          ) async {
+            reads++;
+            return NotificationPermissionStatus.granted;
+          }),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
+            body: SingleChildScrollView(child: NotificationsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(reads, greaterThan(1));
+    expect(find.text('Allowed'), findsWidgets);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('权限被拒：显示解释横幅、状态行和系统设置入口', (tester) async {
     await _pumpNotificationsSection(
       tester,
@@ -203,7 +267,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('System notifications'), findsOneWidget);
-    expect(find.text('Not active'), findsOneWidget);
     expect(find.text('In-app Reminders'), findsOneWidget);
     expect(find.text('Open System Settings'), findsWidgets);
     debugDefaultTargetPlatformOverride = null;
