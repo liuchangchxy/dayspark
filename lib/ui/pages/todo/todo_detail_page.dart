@@ -2366,7 +2366,10 @@ class _PaneButton extends StatelessWidget {
     final bg = primary ? SpecTokens.ink : ds.surface;
     final fg = primary ? Colors.white : (danger ? ds.danger : ds.ink2);
     final enabled = onPressed != null;
-    final visual = Ink(
+    // A plain Container, not Ink: these footers sit on an opaque paper
+    // surface with no Material for the ink layer, so Ink's fill and border
+    // never painted and the primary button's white label vanished.
+    final visual = Container(
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
