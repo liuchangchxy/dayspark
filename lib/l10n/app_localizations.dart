@@ -7198,6 +7198,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not apply every choice: {error}'**
   String syncConflictApplyFailed(String error);
+
+  /// No description provided for @saveSeriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to the whole series?'**
+  String get saveSeriesTitle;
+
+  /// No description provided for @saveSeriesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This edit is written to the series anchor and updates every occurrence. To skip only this one, use Delete · This event.'**
+  String get saveSeriesBody;
+
+  /// No description provided for @saveSeriesConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Save whole series'**
+  String get saveSeriesConfirm;
+
+  /// No description provided for @timedDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed deadline'**
+  String get timedDeadline;
+
+  /// No description provided for @outOfRangeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The axis is fixed 08:00–20:00. Earlier or later events stick to the edge; open the detail for the real time. Cross-midnight events stay in the multi-day band.'**
+  String get outOfRangeNote;
+
+  /// No description provided for @staleCalendarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the server'**
+  String get staleCalendarTitle;
+
+  /// No description provided for @staleCalendarBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the last data you saw. Retry to replace it.'**
+  String get staleCalendarBody;
+
+  /// No description provided for @trashedItemTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This item is in Trash'**
+  String get trashedItemTitle;
+
+  /// No description provided for @trashedItemBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The link points to an item that was moved to Trash. Restore it to keep editing.'**
+  String get trashedItemBody;
+
+  /// No description provided for @goToTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Trash'**
+  String get goToTrash;
+
+  /// No description provided for @startupFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark couldn\'t open'**
+  String get startupFailedTitle;
+
+  /// No description provided for @startupFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The local database did not open. Your data is still on disk. Retry, or export diagnostics first.'**
+  String get startupFailedBody;
+
+  /// No description provided for @exportDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Export diagnostics'**
+  String get exportDiagnostics;
+
+  /// No description provided for @endDateOfEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get endDateOfEvent;
+
+  /// No description provided for @dayCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Days'**
+  String get dayCountLabel;
+
+  /// No description provided for @syncOfflineShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline. Changes waiting to upload.'**
+  String get syncOfflineShort;
+
+  /// No description provided for @syncFailedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed. Local data is safe.'**
+  String get syncFailedShort;
+
+  /// No description provided for @syncConflictShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts found. Review them in Sync.'**
+  String get syncConflictShort;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

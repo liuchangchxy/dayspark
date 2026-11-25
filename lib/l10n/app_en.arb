@@ -2553,5 +2553,23 @@
         "type": "String"
       }
     }
-  }
+  },
+  "saveSeriesTitle": "Save to the whole series?",
+  "saveSeriesBody": "This edit is written to the series anchor and updates every occurrence. To skip only this one, use Delete · This event.",
+  "saveSeriesConfirm": "Save whole series",
+  "timedDeadline": "Timed deadline",
+  "outOfRangeNote": "The axis is fixed 08:00–20:00. Earlier or later events stick to the edge; open the detail for the real time. Cross-midnight events stay in the multi-day band.",
+  "staleCalendarTitle": "Couldn't reach the server",
+  "staleCalendarBody": "Showing the last data you saw. Retry to replace it.",
+  "trashedItemTitle": "This item is in Trash",
+  "trashedItemBody": "The link points to an item that was moved to Trash. Restore it to keep editing.",
+  "goToTrash": "Go to Trash",
+  "startupFailedTitle": "DaySpark couldn't open",
+  "startupFailedBody": "The local database did not open. Your data is still on disk. Retry, or export diagnostics first.",
+  "exportDiagnostics": "Export diagnostics",
+  "endDateOfEvent": "End date",
+  "dayCountLabel": "Days",
+  "syncOfflineShort": "Offline. Changes waiting to upload.",
+  "syncFailedShort": "Sync failed. Local data is safe.",
+  "syncConflictShort": "Conflicts found. Review them in Sync."
 }

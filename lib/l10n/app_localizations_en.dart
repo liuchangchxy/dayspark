@@ -3983,4 +3983,58 @@ class AppLocalizationsEn extends AppLocalizations {
   String syncConflictApplyFailed(String error) {
     return 'Could not apply every choice: $error';
   }
+
+  @override
+  String get saveSeriesTitle => 'Save to the whole series?';
+
+  @override
+  String get saveSeriesBody => 'This edit is written to the series anchor and updates every occurrence. To skip only this one, use Delete · This event.';
+
+  @override
+  String get saveSeriesConfirm => 'Save whole series';
+
+  @override
+  String get timedDeadline => 'Timed deadline';
+
+  @override
+  String get outOfRangeNote => 'The axis is fixed 08:00–20:00. Earlier or later events stick to the edge; open the detail for the real time. Cross-midnight events stay in the multi-day band.';
+
+  @override
+  String get staleCalendarTitle => 'Couldn\'t reach the server';
+
+  @override
+  String get staleCalendarBody => 'Showing the last data you saw. Retry to replace it.';
+
+  @override
+  String get trashedItemTitle => 'This item is in Trash';
+
+  @override
+  String get trashedItemBody => 'The link points to an item that was moved to Trash. Restore it to keep editing.';
+
+  @override
+  String get goToTrash => 'Go to Trash';
+
+  @override
+  String get startupFailedTitle => 'DaySpark couldn\'t open';
+
+  @override
+  String get startupFailedBody => 'The local database did not open. Your data is still on disk. Retry, or export diagnostics first.';
+
+  @override
+  String get exportDiagnostics => 'Export diagnostics';
+
+  @override
+  String get endDateOfEvent => 'End date';
+
+  @override
+  String get dayCountLabel => 'Days';
+
+  @override
+  String get syncOfflineShort => 'Offline. Changes waiting to upload.';
+
+  @override
+  String get syncFailedShort => 'Sync failed. Local data is safe.';
+
+  @override
+  String get syncConflictShort => 'Conflicts found. Review them in Sync.';
 }

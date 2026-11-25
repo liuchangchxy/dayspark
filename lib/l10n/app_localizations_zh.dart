@@ -3923,4 +3923,58 @@ class AppLocalizationsZh extends AppLocalizations {
   String syncConflictApplyFailed(String error) {
     return '没能应用全部选择：$error';
   }
+
+  @override
+  String get saveSeriesTitle => '保存到整个系列？';
+
+  @override
+  String get saveSeriesBody => '这次修改会写入系列锚点，所有实例一起更新。只想跳过这一次，请用“删除 · 仅此次”。';
+
+  @override
+  String get saveSeriesConfirm => '保存整个系列';
+
+  @override
+  String get timedDeadline => '定时截止';
+
+  @override
+  String get outOfRangeNote => '时间轴固定 08:00–20:00；更早或更晚的事件贴在两端，点开详情看真实时间。跨午夜事件留在跨天条目里。';
+
+  @override
+  String get staleCalendarTitle => '没读到服务器上的日历';
+
+  @override
+  String get staleCalendarBody => '下面仍是上次看到的数据；重试成功后再替换。';
+
+  @override
+  String get trashedItemTitle => '这一项已在回收站';
+
+  @override
+  String get trashedItemBody => '链接对应的条目已移入回收站；恢复后才能继续编辑。';
+
+  @override
+  String get goToTrash => '去回收站';
+
+  @override
+  String get startupFailedTitle => 'DaySpark 没能打开';
+
+  @override
+  String get startupFailedBody => '本地数据库没有打开，数据仍在磁盘上。先重试，或导出诊断后再处理。';
+
+  @override
+  String get exportDiagnostics => '导出诊断';
+
+  @override
+  String get endDateOfEvent => '结束日期';
+
+  @override
+  String get dayCountLabel => '天数';
+
+  @override
+  String get syncOfflineShort => '离线，改动等待上传。';
+
+  @override
+  String get syncFailedShort => '同步失败，本地数据没有丢。';
+
+  @override
+  String get syncConflictShort => '发现冲突，去同步里逐项选择。';
 }
