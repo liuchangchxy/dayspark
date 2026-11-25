@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/about_section.dart';
+import 'package:dayspark/ui/pages/settings/settings_sections/account_section.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/appearance_section.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/calendar_settings_section.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/data_section.dart';
@@ -50,22 +51,29 @@ void main() {
   });
 
   testWidgets(
-    'mobile index shows 6 spec rows and subpage navigation reusing shared sections',
+    'mobile index shows the spec home rows including account and AI',
     (tester) async {
       await _pumpSettings(tester);
 
-      // Home index has the 6 spec rows
+      // SPEC 2447: eight rows, Account first and AI between Data and Notify.
+      expect(find.widgetWithText(SettingsRow, 'Account'), findsOneWidget);
       expect(find.widgetWithText(SettingsRow, 'General'), findsOneWidget);
       expect(
         find.widgetWithText(SettingsRow, 'Manage Calendars'),
         findsOneWidget,
       );
       expect(find.widgetWithText(SettingsRow, 'Data'), findsOneWidget);
+      expect(find.widgetWithText(SettingsRow, 'AI Assistant'), findsOneWidget);
       expect(find.widgetWithText(SettingsRow, 'Notifications'), findsOneWidget);
       expect(find.widgetWithText(SettingsRow, 'Sync'), findsOneWidget);
       expect(find.widgetWithText(SettingsRow, 'About'), findsOneWidget);
-      expect(find.widgetWithText(SettingsRow, 'Account'), findsNothing);
-      expect(find.widgetWithText(SettingsRow, 'AI Assistant'), findsNothing);
+
+      // Account opens its section and lands.
+      await tester.tap(find.widgetWithText(SettingsRow, 'Account'));
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byType(AccountSection), findsOneWidget);
+      await tester.tap(find.byType(DsIconButton));
+      await tester.pump(const Duration(milliseconds: 350));
 
       // Tap General -> opens General subpage reusing AppearanceSection
       await tester.tap(find.widgetWithText(SettingsRow, 'General'));
@@ -177,7 +185,7 @@ void main() {
   });
 
   testWidgets(
-    'desktop shows left navigation with exact 9 spec items and single section',
+    'desktop shows left navigation with all 11 spec items and single section',
     (tester) async {
       tester.view.physicalSize = const Size(1200, 800);
       tester.view.devicePixelRatio = 1.0;
@@ -195,28 +203,24 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pump(const Duration(milliseconds: 350));
 
-      // Nav items are rendered in EXACT spec order (9 items, no Account or AI)
+      // SPEC 2407-2409: the nav owns both Account and AI, in this order.
       final navItemWidgets = tester.widgetList<SettingsNavItem>(
         find.byType(SettingsNavItem),
       );
       final labels = navItemWidgets.map((item) => item.label).toList();
       expect(labels, [
-        'Settings',
+        'Account',
         'General',
         'Manage Calendars',
         'Data',
         'Tags',
         'Trash',
         'Import & Backup',
+        'AI Assistant',
         'Notifications',
         'Sync',
         'About',
       ]);
-      expect(find.widgetWithText(SettingsNavItem, 'Account'), findsNothing);
-      expect(
-        find.widgetWithText(SettingsNavItem, 'AI Assistant'),
-        findsNothing,
-      );
 
       for (var i = 0; i < labels.length - 1; i++) {
         expect(
@@ -237,6 +241,16 @@ void main() {
       await tester.pump(const Duration(milliseconds: 350));
       expect(find.byType(AppearanceSection), findsOneWidget);
 
+      // Account has a real landing, not only a form behind the sync row.
+      await tester.tap(find.widgetWithText(SettingsNavItem, 'Account'));
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.byType(AccountSection), findsOneWidget);
+
+      // AI is a first-class nav destination too.
+      await tester.tap(find.widgetWithText(SettingsNavItem, 'AI Assistant'));
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(find.text('Enable AI assistant'), findsOneWidget);
+
       // Clicking nav item switches section
       await tester.tap(
         find.widgetWithText(SettingsNavItem, 'Manage Calendars'),
@@ -247,6 +261,46 @@ void main() {
       expect(find.byType(CalendarSettingsSection), findsOneWidget);
     },
   );
+
+  testWidgets('general shows one read-only warm-gray accent value', (
+    tester,
+  ) async {
+    await _pumpSettings(tester);
+
+    await tester.tap(find.widgetWithText(SettingsRow, 'General'));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // SPEC 2475: accent is a single read-only value, not seven swatches.
+    expect(find.text('Warm Gray'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(AppearanceSection),
+        matching: find.byType(ChoiceChip),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('calendars section lists immediately without a duplicate row', (
+    tester,
+  ) async {
+    await _pumpSettings(tester);
+
+    await tester.tap(find.widgetWithText(SettingsRow, 'Manage Calendars'));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // SPEC 2477-2480: the heading is followed by the list, not by another
+    // collapsed "Manage Calendars" row.
+    expect(find.byType(CalendarSettingsSection), findsOneWidget);
+    expect(find.text('New Calendar'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(CalendarSettingsSection),
+        matching: find.widgetWithText(SettingsRow, 'Manage Calendars'),
+      ),
+      findsNothing,
+    );
+  });
 
   testWidgets(
     'desktop geometry matches spec: nav 176, gap 46, content 700, and row >= 55 zero padding',
@@ -287,14 +341,15 @@ void main() {
             )
             .first,
       );
-      final contentTopLeft = tester.getTopLeft(find.byType(SettingsGroupBlock));
+      final homeContent = find.byKey(const ValueKey('home'));
+      final contentTopLeft = tester.getTopLeft(homeContent);
       expect(contentTopLeft.dx - navTopRight.dx, 46.0);
 
       // Content max-width is 700
       final constrainedBox = tester.widget<ConstrainedBox>(
         find
             .ancestor(
-              of: find.byType(SettingsGroupBlock),
+              of: homeContent,
               matching: find.byType(ConstrainedBox),
             )
             .first,
@@ -321,16 +376,10 @@ void main() {
       final rowRect = tester.getRect(rowFinder);
       expect(rowRect.height, greaterThanOrEqualTo(55.0));
 
-      // Row width spans the full width of SettingsGroupBlock card (zero horizontal padding)
-      final groupCardFinder = find
-          .descendant(
-            of: find.byType(SettingsGroupBlock),
-            matching: find.byType(Container),
-          )
-          .first;
-      final groupCardRect = tester.getRect(groupCardFinder);
-      expect(rowRect.left, equals(groupCardRect.left));
-      expect(rowRect.right, equals(groupCardRect.right));
+      // Row width spans the full content width (zero horizontal padding)
+      final homeRect = tester.getRect(homeContent);
+      expect(rowRect.left, equals(homeRect.left));
+      expect(rowRect.right, equals(homeRect.right));
     },
   );
 
@@ -447,10 +496,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
-    // Default section is Home (0)
+    // Default section is Home (-1), no section body yet
     expect(find.byType(AppearanceSection), findsNothing);
 
-    // Down arrow moves from Home (0) to General (1)
+    // Down arrow moves from Home to Account (0)
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(milliseconds: 350));
+
+    expect(find.byType(AccountSection), findsOneWidget);
+
+    // Down arrow moves from Account (0) to General (1)
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump(const Duration(milliseconds: 350));
 

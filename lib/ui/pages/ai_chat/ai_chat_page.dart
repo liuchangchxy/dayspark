@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
@@ -124,6 +125,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
     _controller.clear();
     setState(() => _sending = true);
+    _scrollToBottom();
 
     await ref.read(aiChatProvider.notifier).sendMessage(text);
 
@@ -155,39 +157,59 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final messages = ref.watch(aiChatProvider);
     final configured = ref.watch(isAiConfiguredProvider);
     final flags = ref.watch(featureFlagsProvider);
+    final aiConfig = ref.watch(aiConfigProvider).value;
     final enabled =
         flags.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? false;
     final loading = flags.isLoading || configured.isLoading;
+    final ready = enabled && configured.valueOrNull == true;
+    final subtitle = ready && aiConfig != null
+        ? l.aiConnectedModel(aiConfig.model)
+        : l.aiChatSubtitleFallback;
 
     return WorkspacePage(
       title: l.aiAssistant,
+      subtitle: subtitle,
       maxContentWidth: 860,
       actions: [
-        if (messages.isNotEmpty)
-          DsIconButton(
+        if (ready && messages.isNotEmpty)
+          DsButton(
+            label: l.chatClearAction,
             icon: CupertinoIcons.delete,
-            size: 18,
-            compact: true,
+            tone: DsButtonTone.ghost,
+            small: true,
             // Clearing is not undoable, so it asks once.
             onPressed: () => _confirmClear(l),
-            tooltip: l.clearChat,
           ),
+        const SizedBox(width: AppSpacing.s1),
+        DsButton(
+          label: l.chatModelAction,
+          icon: CupertinoIcons.slider_horizontal_3,
+          tone: DsButtonTone.ghost,
+          small: true,
+          onPressed: () => showAiConfigDialog(context, ref),
+        ),
       ],
       child: loading
           ? const Center(child: CircularProgressIndicator())
           : !enabled
           ? DsEmpty(
               icon: CupertinoIcons.chat_bubble_2,
-              title: l.aiNotConfigured,
-              message: l.aiNotConfiguredHint,
+              title: l.aiDisabledTitle,
+              message: l.aiDisabledHint,
+              action: DsButton(
+                label: l.aiOpenSettings,
+                icon: CupertinoIcons.settings,
+                small: true,
+                onPressed: () => context.push('/settings?section=ai'),
+              ),
             )
           : configured.valueOrNull != true
           ? DsEmpty(
               icon: CupertinoIcons.chat_bubble_2,
-              title: l.aichatNoKeyTitle,
-              message: l.aichatNoKeyHint,
+              title: l.aiNotConfiguredTitle,
+              message: l.aiChatNotConfiguredHint,
               action: DsButton(
-                label: l.aichatSetupKey,
+                label: l.aiConfigureModel,
                 icon: CupertinoIcons.settings,
                 small: true,
                 onPressed: () => showAiConfigDialog(context, ref),
@@ -210,8 +232,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                             AppSpacing.s4,
                             AppSpacing.s2,
                           ),
-                          itemCount: messages.length,
+                          itemCount: messages.length + (_sending ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == messages.length) {
+                              return const _ReplyingBubble();
+                            }
                             final msg = messages[index];
                             final isUser = msg.role == 'user';
                             return Align(
@@ -990,6 +1015,48 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     } finally {
       if (mounted) setState(() => _writing = false);
     }
+  }
+}
+
+class _ReplyingBubble extends StatelessWidget {
+  const _ReplyingBubble();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s3 + 2,
+          vertical: AppSpacing.s3,
+        ),
+        decoration: BoxDecoration(
+          color: SpecTokens.paper,
+          borderRadius: BorderRadius.circular(SpecTokens.r8),
+          border: Border.all(color: SpecTokens.hair2, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.6,
+                color: SpecTokens.muted,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              l.aiReplyInProgress,
+              style: AppTypography.small.copyWith(color: SpecTokens.muted),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

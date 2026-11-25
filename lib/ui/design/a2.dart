@@ -588,6 +588,9 @@ class A2CaptureBar extends StatefulWidget {
     this.isShifted,
     this.onExpand,
     this.onParsedSubmit,
+    this.typeLabel,
+    this.contextLabel,
+    this.isEvent = false,
   });
 
   final String placeholder;
@@ -600,6 +603,12 @@ class A2CaptureBar extends StatefulWidget {
   final ValueChanged<String>? onDraftChanged;
   final bool? isShifted;
   final VoidCallback? onExpand;
+
+  /// The type and date chips are facts, not decoration: a capture opened on
+  /// a browsed day writes that day, and an event capture says so.
+  final String? typeLabel;
+  final String? contextLabel;
+  final bool isEvent;
 
   /// A typed capture that already contains a time is only a suggestion: the
   /// bar must not write the raw sentence before the user has seen it. Returning
@@ -718,8 +727,14 @@ class A2CaptureBarState extends State<A2CaptureBar> {
   Widget build(BuildContext context) {
     final active = _focus.hasFocus;
     final l = AppLocalizations.of(context);
-    final typeText = l?.captureTypeTodo ?? 'Task';
-    final subText = l?.captureDefaultDate ?? 'No date · Personal';
+    final typeText =
+        widget.typeLabel ??
+        (widget.isEvent
+            ? (l?.eventLabel ?? 'Event')
+            : (l?.captureTypeTodo ?? 'Task'));
+    final subText =
+        widget.contextLabel ??
+        (l?.captureDefaultDate ?? 'No date · Personal');
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 500;
@@ -780,7 +795,9 @@ class A2CaptureBarState extends State<A2CaptureBar> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                CupertinoIcons.checkmark,
+                widget.isEvent
+                    ? CupertinoIcons.calendar
+                    : CupertinoIcons.checkmark,
                 size: isNarrow ? 9 : 10,
                 color: SpecTokens.muted,
               ),
@@ -1452,6 +1469,7 @@ class A2CaptureDraft {
     this.reminderOffset,
     this.planStart,
     this.planEnd,
+    this.rrule,
   });
 
   final DateTime? dueDate;
@@ -1460,12 +1478,17 @@ class A2CaptureDraft {
   final DateTime? planStart;
   final DateTime? planEnd;
 
+  /// Only the event capture path reads this; a todo's plan never carries a
+  /// recurrence and the draft keeps the two facts apart.
+  final String? rrule;
+
   bool get isEmpty =>
       dueDate == null &&
       calendarId == null &&
       reminderOffset == null &&
       planStart == null &&
-      planEnd == null;
+      planEnd == null &&
+      rrule == null;
 
   A2CaptureDraft withDueDate(DateTime? value) {
     return A2CaptureDraft(
@@ -1474,6 +1497,7 @@ class A2CaptureDraft {
       reminderOffset: reminderOffset,
       planStart: planStart,
       planEnd: planEnd,
+      rrule: rrule,
     );
   }
 
@@ -1484,6 +1508,7 @@ class A2CaptureDraft {
       reminderOffset: reminderOffset,
       planStart: planStart,
       planEnd: planEnd,
+      rrule: rrule,
     );
   }
 
@@ -1494,6 +1519,7 @@ class A2CaptureDraft {
       reminderOffset: value,
       planStart: planStart,
       planEnd: planEnd,
+      rrule: rrule,
     );
   }
 
@@ -1504,8 +1530,34 @@ class A2CaptureDraft {
       reminderOffset: reminderOffset,
       planStart: start,
       planEnd: end,
+      rrule: rrule,
     );
   }
+
+  A2CaptureDraft withRrule(String? value) {
+    return A2CaptureDraft(
+      dueDate: dueDate,
+      calendarId: calendarId,
+      reminderOffset: reminderOffset,
+      planStart: planStart,
+      planEnd: planEnd,
+      rrule: value,
+    );
+  }
+}
+
+/// One block already on the plan date, reduced to what the capture panel's
+/// "当天已有" line needs to print.
+class A2CaptureDayBlock {
+  const A2CaptureDayBlock({
+    required this.start,
+    required this.end,
+    required this.title,
+  });
+
+  final DateTime start;
+  final DateTime end;
+  final String title;
 }
 
 DateTime _captureDay(DateTime value) =>
@@ -1553,6 +1605,8 @@ class A2CapturePanel extends StatelessWidget {
     this.calendarColor,
     this.reminderLabel,
     this.calendarChoices = const <A2CaptureCalendarChoice>[],
+    this.planDayBlocks = const <A2CaptureDayBlock>[],
+    this.suggestionLabel,
     this.selectedCalendarId,
     this.selectedReminderOffset,
     this.onChooseDueDate,
@@ -1579,6 +1633,8 @@ class A2CapturePanel extends StatelessWidget {
     this.onCyclePriority,
     this.onSwitchToEvent,
     this.onSwitchToTodo,
+    this.onCycleEventRepeat,
+    this.eventRepeat,
   });
 
   final A2CaptureState state;
@@ -1591,6 +1647,8 @@ class A2CapturePanel extends StatelessWidget {
   final Color? calendarColor;
   final String? reminderLabel;
   final List<A2CaptureCalendarChoice> calendarChoices;
+  final List<A2CaptureDayBlock> planDayBlocks;
+  final String? suggestionLabel;
   final int? selectedCalendarId;
   final Duration? selectedReminderOffset;
   final ValueChanged<DateTime?>? onChooseDueDate;
@@ -1617,6 +1675,11 @@ class A2CapturePanel extends StatelessWidget {
   final VoidCallback? onCyclePriority;
   final VoidCallback? onSwitchToEvent;
   final VoidCallback? onSwitchToTodo;
+  final VoidCallback? onCycleEventRepeat;
+
+  /// The event's current recurrence rule, so the read row and the cycle action
+  /// cannot disagree about what is selected.
+  final String? eventRepeat;
 
   @override
   Widget build(BuildContext context) {
@@ -1690,13 +1753,21 @@ class A2CapturePanel extends StatelessWidget {
         sub = l?.captureSubExpanded ?? 'Expand when needed; no date by default.';
       case A2CaptureState.event:
         title = l?.captureTitleEvent ?? 'New Event';
-        sub = l?.captureSubEvent ?? 'Event · Work';
+        sub = calendarName == null
+            ? (l?.captureSubEvent ?? 'Event')
+            : '${l?.eventLabel ?? 'Event'} · $calendarName';
       case A2CaptureState.date:
         title = l?.captureChoiceTitleDate ?? 'Select Date';
         sub = l?.captureSubDate ?? 'Task · Personal (default)';
       case A2CaptureState.plan:
-        title = l?.captureChoiceTitlePlan ?? 'Select Planned Execution';
-        sub = l?.captureSubPlan ?? 'Sets plan only, does not change deadline.';
+        title = isEvent
+            ? (l?.pickTimeTitle ?? 'Choose a time')
+            : (l?.captureChoiceTitlePlan ?? 'Select Planned Execution');
+        sub = isEvent
+            ? (calendarName == null
+                  ? (l?.eventLabel ?? 'Event')
+                  : '${l?.eventLabel ?? 'Event'} · $calendarName')
+            : (l?.captureSubPlan ?? 'Sets plan only, does not change deadline.');
       case A2CaptureState.calendar:
         title = l?.captureChoiceTitleCalendar ?? 'Select Calendar';
         sub = l?.captureHintCalendar ?? 'Default calendar comes from settings; no "uncategorized".';
@@ -1904,7 +1975,9 @@ class A2CapturePanel extends StatelessWidget {
                         Text(
                           suggestionRemoved
                               ? (l?.captureParsedSuggestRemoved ?? 'Time suggestion removed')
-                              : (l?.captureParsedSuggestTitle ?? 'Suggested Plan'),
+                              : (suggestionLabel ??
+                                    l?.captureParsedSuggestTitle ??
+                                    'Suggested Plan'),
                           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                         Text(
@@ -1936,18 +2009,18 @@ class A2CapturePanel extends StatelessWidget {
         );
 
       case A2CaptureState.event:
-        final timeStr = planStart != null
-            ? '${planStart!.month}/${planStart!.day} ${planStart!.hour.toString().padLeft(2, '0')}:${planStart!.minute.toString().padLeft(2, '0')}'
-                '–${planEnd != null ? "${planEnd!.hour.toString().padLeft(2, '0')}:${planEnd!.minute.toString().padLeft(2, '0')}" : ""}'
-            : '11/21 10:00–11:00';
+        final timeStr = planStart == null
+            ? (l?.captureFieldNotFilled ?? 'Not filled')
+            : '${planStart!.month}/${planStart!.day} ${_captureClock(planStart!)}'
+                  '–${planEnd != null ? _captureClock(planEnd!) : ""}';
         return Column(
           children: [
             _fieldRow(l?.captureFieldEventTitle ?? 'Title', titleController.text.isNotEmpty ? titleController.text : (l?.captureFieldNotFilled ?? 'Not filled'), onTap: null),
             _fieldRow(l?.captureFieldEventTime ?? 'Time', timeStr, onTap: onPickPlan),
             _fieldRow(l?.captureFieldEventAllDay ?? 'All-day', l?.captureFieldNo ?? 'No', onTap: null),
             _fieldRow(l?.captureFieldCalendar ?? 'Calendar', calendarName ?? (l?.captureCalWork ?? 'Work'), dotColor: calendarColor ?? SpecTokens.work, onTap: onPickCalendar),
-            _fieldRow(l?.captureFieldEventRepeat ?? 'Repeat', l?.captureFieldNoRepeat ?? 'Does not repeat', onTap: null),
-            _fieldRow(l?.captureFieldReminder ?? 'Reminder', reminderLabel ?? (l?.captureReminder15mBefore ?? '15 minutes before'), onTap: onPickReminder),
+            _fieldRow(l?.captureFieldEventRepeat ?? 'Repeat', _repeatLabel(l), onTap: onCycleEventRepeat),
+            _fieldRow(l?.captureFieldReminder ?? 'Reminder', reminderLabel ?? (l?.captureFieldNoReminder ?? 'No reminder'), onTap: onPickReminder),
           ],
         );
 
@@ -2028,7 +2101,11 @@ class A2CapturePanel extends StatelessWidget {
               l?.planDurationMinutes(duration) ?? '$duration minutes',
               onTap: null,
             ),
-            _fieldRow(l?.captureFieldDayExisting ?? 'Schedule on day', l?.captureFieldNoOverlap ?? 'No overlap', onTap: null),
+            _fieldRow(
+              l?.captureFieldDayExisting ?? 'Schedule on day',
+              _planDayLabel(l),
+              onTap: null,
+            ),
           ],
         );
 
@@ -2155,6 +2232,41 @@ class A2CapturePanel extends StatelessWidget {
           ],
         );
     }
+  }
+
+  String _repeatLabel(AppLocalizations? l) {
+    final value = eventRepeat;
+    if (value == null || value.isEmpty) {
+      return l?.captureFieldNoRepeat ?? 'Does not repeat';
+    }
+    if (value.startsWith('FREQ=DAILY')) return l?.repeatDaily ?? 'Every day';
+    if (value.startsWith('FREQ=WEEKLY')) return l?.repeatWeekly ?? 'Every week';
+    if (value.startsWith('FREQ=MONTHLY')) {
+      return l?.repeatMonthly ?? 'Every month';
+    }
+    return value;
+  }
+
+  String _planDayLabel(AppLocalizations? l) {
+    if (planDayBlocks.isEmpty) {
+      return l?.capturePlanDayEmpty ?? 'Nothing scheduled that day';
+    }
+    final parts = planDayBlocks
+        .take(3)
+        .map((block) => '${_captureClock(block.start)} ${block.title}')
+        .join(' · ');
+    final start = planStart;
+    final end = planEnd;
+    if (start == null || end == null) return parts;
+    final startMinute = start.hour * 60 + start.minute;
+    final endMinute = end.hour * 60 + end.minute;
+    final overlaps = planDayBlocks.where((block) {
+      final blockStart = block.start.hour * 60 + block.start.minute;
+      final blockEnd = block.end.hour * 60 + block.end.minute;
+      return blockStart < endMinute && blockEnd > startMinute;
+    }).length;
+    if (overlaps == 0) return parts;
+    return '$parts · ${l?.capturePlanOverlapCount(overlaps) ?? '$overlaps overlapping'}';
   }
 
   Widget _choiceRow(String label, String value, {bool isSelected = false, String? selectedLabel, Color? dotColor, VoidCallback? onTap}) {

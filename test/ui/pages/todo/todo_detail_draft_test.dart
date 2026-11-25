@@ -9,7 +9,6 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 
 /// Editing tags, reminders or planned time in the detail surface is a draft:
@@ -181,7 +180,7 @@ void main() {
     await tester.ensureVisible(find.text('Add execution time'));
     await tester.tap(find.text('Add execution time'));
     await _settle(tester);
-    await tester.tap(find.widgetWithText(DsButton, 'Save'));
+    await tester.tap(find.text('Schedule'));
     await _settle(tester);
     expect(
       await db.select(db.taskAllocations).get(),
@@ -199,7 +198,7 @@ void main() {
     await tester.ensureVisible(find.text('Add execution time'));
     await tester.tap(find.text('Add execution time'));
     await _settle(tester);
-    await tester.tap(find.widgetWithText(DsButton, 'Save'));
+    await tester.tap(find.text('Schedule'));
     await _settle(tester);
     expect(await db.select(db.taskAllocations).get(), isEmpty);
 

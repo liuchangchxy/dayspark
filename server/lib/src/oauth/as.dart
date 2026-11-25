@@ -89,7 +89,7 @@ Response _html(int status, String body) => Response(
 Response _redirect(String location, {required int status}) =>
     Response(status, headers: {'location': location});
 
-Response _redirectError(
+String _errorRedirectUrl(
   String redirectUri,
   String error,
   String description,
@@ -102,8 +102,18 @@ Response _redirectError(
     'error_description': description,
     if (state != null && state.isNotEmpty) 'state': state,
   };
-  return _redirect(base.replace(queryParameters: params).toString(), status: 302);
+  return base.replace(queryParameters: params).toString();
 }
+
+Response _redirectError(
+  String redirectUri,
+  String error,
+  String description,
+  String? state,
+) => _redirect(
+  _errorRedirectUrl(redirectUri, error, description, state),
+  status: 302,
+);
 
 String _sha256Hex(String value) =>
     sha256.convert(utf8.encode(value)).toString();
@@ -740,6 +750,64 @@ void registerOauthRoutes(
       },
     );
     return _redirect(location.toString(), status: 303);
+  });
+
+  // Deny is a first-class consent outcome, not an error page: it renders the
+  // master's designed `denied` state and pins the standard OAuth
+  // `access_denied` response behind 返回客户端. No code is minted, no token
+  // is issued, and the CSRF token is consumed exactly like an allow.
+  router.post('/oauth/deny', (Request request) async {
+    final contentType = request.headers['content-type'] ?? '';
+    if (!contentType.contains('application/x-www-form-urlencoded')) {
+      return _page(400, 'expected an application/x-www-form-urlencoded body');
+    }
+    final Map<String, String> form;
+    try {
+      form = Uri.splitQueryString(utf8.decode(await readBodyBytes(request)));
+    } on FormatException {
+      return _page(400, 'malformed form body');
+    }
+    if (!formTokens.consume(form['csrf'])) {
+      return _page(
+        400,
+        'missing, invalid or already-used form token — '
+            'reload the authorization page',
+      );
+    }
+
+    // The redirect target and client are the only two values that decide
+    // where an access_denied response may go, so they get the same strict
+    // re-validation as the allow path. Hidden fields are untrusted.
+    final clientId = form['client_id'];
+    if (clientId == null || clientId.isEmpty) {
+      return _page(400, 'client_id is required');
+    }
+    final client = await (db.select(db.oauthClients)
+          ..where((t) => t.id.equals(clientId)))
+        .getSingleOrNull();
+    if (client == null) {
+      return _page(400, 'unknown client_id');
+    }
+    final redirectUri = form['redirect_uri'];
+    if (redirectUri == null || !_redirectList(client).contains(redirectUri)) {
+      return _page(
+        400,
+        'redirect_uri does not exactly match a registered redirect URI',
+      );
+    }
+    final state = form['state'];
+    return _html(
+      200,
+      renderOAuthDeniedPage(
+        clientName: client.clientName,
+        returnUrl: _errorRedirectUrl(
+          redirectUri,
+          'access_denied',
+          'The user denied the authorization request',
+          state,
+        ),
+      ),
+    );
   });
 
   router.post(

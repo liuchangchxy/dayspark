@@ -454,7 +454,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('a missed series renders one card with its missed count', (
+  testWidgets('a missed series renders as an overdue row with its missed count', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -486,28 +486,19 @@ void main() {
     );
     await _settle(tester);
 
-    final card = find.byKey(ValueKey('missed-card-$seriesId'));
-    expect(card, findsOneWidget);
+    // The spec's normal Today shows a missed series in the overdue group, with
+    // the missed count beside it, not as a separate card.
+    final row = find.byKey(ValueKey('overdue-$seriesId'));
+    expect(row, findsOneWidget);
     expect(
-      find.descendant(of: card, matching: find.text('Daily Plan')),
+      find.descendant(of: row, matching: find.text('Daily Plan')),
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: card,
-        matching: find.text(
-          'Every day · Missed 5 times · Completing affects only this one',
-        ),
-      ),
+      find.descendant(of: row, matching: find.text('· Missed 5')),
       findsOneWidget,
     );
-    expect(
-      find.descendant(
-        of: card,
-        matching: find.text('Complete This Occurrence'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.byKey(ValueKey('missed-card-$seriesId')), findsNothing);
     expect(find.text('Missed'), findsNothing);
     expect(find.textContaining('Show all'), findsNothing);
 
@@ -515,7 +506,7 @@ void main() {
   });
 
   testWidgets(
-    'an earlier missed series renders a card even when the recent window is empty',
+    'an earlier missed series renders an overdue row even when the recent window is empty',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -546,24 +537,24 @@ void main() {
       );
       await _settle(tester);
 
-      // 9/6–10/5 is the recent 30-day window; the card aggregates every
-      // occurrence the projection can still name.
-      final card = find.byKey(ValueKey('missed-card-$seriesId'));
-      expect(card, findsOneWidget);
+      // The row says it was missed; how many can't be counted past the recent
+      // window, so the pill names the fact without a count.
+      final row = find.byKey(ValueKey('overdue-$seriesId'));
+      expect(row, findsOneWidget);
       expect(
-        find.descendant(of: card, matching: find.text('Long Streak')),
+        find.descendant(of: row, matching: find.text('Long Streak')),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: card,
-          matching: find.text(
-            'Every day · Missed 30 times · Completing affects only this one',
+          of: row,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Text && (widget.data ?? '').contains('Missed'),
           ),
         ),
         findsOneWidget,
       );
-      expect(find.text('Missed'), findsNothing);
+      expect(find.byKey(ValueKey('missed-card-$seriesId')), findsNothing);
       expect(find.text('Earlier missed…'), findsNothing);
 
       await _unmount(tester);
@@ -571,7 +562,7 @@ void main() {
   );
 
   testWidgets(
-    'a missed card completes one occurrence, leaves overdue, and disappears',
+    'a missed row completes one occurrence, leaves overdue, and disappears',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -614,30 +605,26 @@ void main() {
       );
       await _settle(tester);
 
-      final card = find.byKey(ValueKey('missed-card-$seriesId'));
-      expect(card, findsOneWidget);
+      final row = find.byKey(ValueKey('overdue-$seriesId'));
+      expect(row, findsOneWidget);
       expect(
-        find.descendant(
-          of: card,
-          matching: find.text(
-            'Every day · Missed 1 times · Completing affects only this one',
-          ),
-        ),
+        find.descendant(of: row, matching: find.text('· Missed 1')),
         findsOneWidget,
       );
-      expect(find.byKey(ValueKey('overdue-$seriesId')), findsNothing);
+      expect(find.byKey(ValueKey('missed-card-$seriesId')), findsNothing);
       expect(find.byKey(ValueKey('overdue-${overdueId.id}')), findsOneWidget);
 
-      await tester.tap(
-        find.descendant(
-          of: card,
-          matching: find.text('Complete This Occurrence'),
+      final check = find.descendant(
+        of: row,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is DsCheck && widget.label == 'Weekly notes',
         ),
       );
+      await tester.tap(check);
       await _settle(tester);
 
       expect(calls, [(seriesId, 'v2:DATE:2026-10-05', true)]);
-      expect(find.byKey(ValueKey('missed-card-$seriesId')), findsNothing);
+      expect(find.byKey(ValueKey('overdue-$seriesId')), findsNothing);
       expect(find.byKey(ValueKey('overdue-${overdueId.id}')), findsOneWidget);
 
       await _unmount(tester);
@@ -1263,6 +1250,84 @@ void main() {
         matching: find.byType(SpecTaskRow),
       );
       expect(unplannedRowFinder, findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'desktop Today: the time column keeps a plan\'s overdue deadline and an event\'s location',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final overdueId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Overdue plan',
+              dueDate: Value(DateTime(2026, 10, 4, 18)),
+            ),
+          );
+      await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Site visit',
+          startDt: DateTime(2026, 10, 6, 16),
+          endDt: DateTime(2026, 10, 6, 17),
+          location: const Value('Container yard'),
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      await container.read(createTaskAllocationProvider)(
+        todoId: overdueId,
+        startAt: DateTime(2026, 10, 6, 17),
+        endAt: DateTime(2026, 10, 6, 18),
+      );
+      container.dispose();
+
+      await tester.pumpWidget(
+        _app(
+          now: DateTime(2026, 10, 6, 14),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+        ),
+      );
+      await _settle(tester);
+
+      // A plan is a block but its deadline is still a fact: the row says it is
+      // overdue instead of dropping the pill. The event keeps its location.
+      final planBlock = find.ancestor(
+        of: find.text('Overdue plan'),
+        matching: find.byType(SpecTimeBlock),
+      );
+      expect(planBlock, findsOneWidget);
+      expect(
+        find.descendant(
+          of: planBlock,
+          matching: find.textContaining('Overdue · Deadline: 10/4'),
+        ),
+        findsOneWidget,
+      );
+      final eventBlock = find.ancestor(
+        of: find.text('Site visit'),
+        matching: find.byType(SpecTimeBlock),
+      );
+      expect(eventBlock, findsOneWidget);
+      expect(
+        find.descendant(
+          of: eventBlock,
+          matching: find.textContaining('Container yard'),
+        ),
+        findsOneWidget,
+      );
 
       await _unmount(tester);
     },

@@ -1,22 +1,34 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_toast.dart';
+import 'package:dayspark/ui/pages/settings/settings_ui.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 
-class FeedbackPage extends StatefulWidget {
+/// Opens the GitHub issue composer. A seam so a widget test can prove the
+/// inline failure state without depending on a browser.
+typedef FeedbackLinkOpener = Future<bool> Function(Uri uri);
+
+final feedbackLinkOpenerProvider = Provider<FeedbackLinkOpener>(
+  (ref) => (uri) => launchUrl(uri, mode: LaunchMode.externalApplication),
+);
+
+class FeedbackPage extends ConsumerStatefulWidget {
   const FeedbackPage({super.key});
 
   @override
-  State<FeedbackPage> createState() => _FeedbackPageState();
+  ConsumerState<FeedbackPage> createState() => _FeedbackPageState();
 }
 
-class _FeedbackPageState extends State<FeedbackPage> {
+class _FeedbackPageState extends ConsumerState<FeedbackPage> {
   final _controller = TextEditingController();
   bool _copied = false;
+  bool _linkError = false;
 
   @override
   void dispose() {
@@ -42,29 +54,35 @@ class _FeedbackPageState extends State<FeedbackPage> {
     if (text.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
-    setState(() => _copied = true);
+    setState(() {
+      _copied = true;
+      _linkError = false;
+    });
     showSpecToast(context, l.feedbackCopied);
   }
 
   Future<void> _openOnGitHub() async {
-    final l = AppLocalizations.of(context)!;
     final text = _controller.text.trim();
     final body = text.isEmpty ? '' : Uri.encodeComponent(text);
     final uri = Uri.parse(
       'https://github.com/liuchangchxy/dayspark/issues/new?body=$body',
     );
+    var opened = false;
     try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      opened = await ref.read(feedbackLinkOpenerProvider)(uri);
     } catch (error) {
       debugPrint('feedback: launch failed: $error');
-      if (!mounted) return;
-      showSpecToast(context, l.couldNotOpenLink);
+      opened = false;
     }
+    if (!mounted) return;
+    setState(() => _linkError = !opened);
   }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final text = _controller.text;
+    final hasText = text.trim().isNotEmpty;
     return WorkspacePage(
       title: l.feedback,
       maxContentWidth: 640,
@@ -77,14 +95,35 @@ class _FeedbackPageState extends State<FeedbackPage> {
         ),
         children: [
           DsField(
-            label: l.feedback,
+            label: l.feedbackWriteLabel,
             child: DsTextField(
               controller: _controller,
-              hint: l.feedbackHint,
+              hint: l.feedbackPlaceholder,
               maxLines: 8,
               onChanged: _onChanged,
             ),
           ),
+          const SizedBox(height: AppSpacing.s2),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l.feedbackCharCount(text.runes.length),
+                  style: AppTypography.caption,
+                ),
+              ),
+              Text(
+                hasText ? l.feedbackMetaReady : l.feedbackMetaEmpty,
+                style: AppTypography.caption,
+              ),
+            ],
+          ),
+          if (_linkError)
+            InlineAlert(
+              title: l.feedbackLinkErrorTitle,
+              message: l.feedbackLinkErrorBody,
+              isRed: true,
+            ),
           const SizedBox(height: AppSpacing.s4),
           // The primary button says what it does. "Submit" implied the text
           // left the device; it only ever reached the clipboard.
@@ -96,7 +135,7 @@ class _FeedbackPageState extends State<FeedbackPage> {
             expand: true,
             // Empty text has nothing to copy; copied text stays copyable so a
             // second copy does not become a dead button.
-            onPressed: _controller.text.trim().isEmpty ? null : _copy,
+            onPressed: hasText ? _copy : null,
           ),
           const SizedBox(height: AppSpacing.s2),
           DsButton(
@@ -105,6 +144,11 @@ class _FeedbackPageState extends State<FeedbackPage> {
             tone: DsButtonTone.secondary,
             expand: true,
             onPressed: _openOnGitHub,
+          ),
+          const SizedBox(height: AppSpacing.s3),
+          Text(
+            l.feedbackNoSilentSubmit,
+            style: AppTypography.caption.copyWith(height: 1.6),
           ),
         ],
       ),

@@ -156,7 +156,7 @@ void main() {
     );
     await _settle(tester);
 
-    await tester.tap(find.widgetWithText(DsButton, 'Save'));
+    await tester.tap(find.text('Schedule'));
     await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
     await _settle(tester);

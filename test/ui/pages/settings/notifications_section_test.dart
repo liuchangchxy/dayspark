@@ -148,25 +148,27 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('android 且已授权：精确闹钟入口不出现', (tester) async {
+  testWidgets('android 且已授权：精确提醒仍是状态行且显示已允许', (tester) async {
     await _pumpNotificationsSection(
       tester,
       TargetPlatform.android,
       exactAlarmsAllowed: true,
     );
     await tester.pump();
-    expect(find.text('Exact alarm permission'), findsNothing);
+    expect(find.text('Exact alarm permission'), findsOneWidget);
+    expect(find.text('Allowed'), findsWidgets);
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('macOS 且未授权：精确闹钟入口也不出现（只有 Android 有）', (tester) async {
+  testWidgets('macOS：精确提醒是状态行，不再只属于 Android 的授权入口', (tester) async {
     await _pumpNotificationsSection(
       tester,
       TargetPlatform.macOS,
       exactAlarmsAllowed: false,
     );
     await tester.pump();
-    expect(find.text('Exact alarm permission'), findsNothing);
+    expect(find.text('Exact alarm permission'), findsOneWidget);
+    expect(find.text('Not active'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -181,7 +183,7 @@ void main() {
         permissionStatus: NotificationPermissionStatus.granted,
       );
       expect(find.text('Notification permission'), findsOneWidget);
-      expect(find.text('Allowed'), findsOneWidget);
+      expect(find.text('Allowed'), findsWidgets);
       expect(find.byType(Switch), findsNothing);
       debugDefaultTargetPlatformOverride = null;
     });
@@ -200,10 +202,10 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Notification permission'), findsOneWidget);
-    expect(find.text('Off'), findsOneWidget);
+    expect(find.text('System notifications'), findsOneWidget);
+    expect(find.text('Not active'), findsOneWidget);
     expect(find.text('In-app Reminders'), findsOneWidget);
-    expect(find.text('Open System Settings'), findsOneWidget);
+    expect(find.text('Open System Settings'), findsWidgets);
     debugDefaultTargetPlatformOverride = null;
   });
 }

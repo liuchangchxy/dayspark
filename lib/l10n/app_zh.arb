@@ -2024,5 +2024,19 @@
   "settingsDefaultCalSavedPlaceholder": "保存默认日历",
   "chatModelAction": "模型",
   "chatClearAction": "清空对话",
-  "settingsBetaBadge": "候选版本"
+  "settingsBetaBadge": "候选版本",
+  "aiPrivacyFooter": "对话只在本机保存；模型请求直接发往你填的服务商。DaySpark 服务器不参与，也不保存 Key。",
+  "aiKeyChecking": "正在校验 Key…",
+  "aiKeyMissing": "先填写 API Key 再保存。",
+  "syncConflictTitle": "同步冲突",
+  "syncConflictLocal": "本地",
+  "syncConflictServer": "服务器",
+  "backupDoneTitle": "备份完成",
+  "backupMergeHint": "合并保留两边：本机条目不动，备份里的版本作为新条目导入。",
+  "aiNotConfiguredTitle": "还没有配置模型",
+  "aiChatNotConfiguredHint": "填一个 OpenAI 兼容的 Base URL 和 API Key；Key 只保存在本机，不会上传到 DaySpark 服务器。",
+  "feedbackWriteLabel": "写点什么",
+  "feedbackPlaceholder": "发生了什么、你期望什么；如果方便，写上机型和版本。",
+  "syncConflictApplied": "已应用选择。",
+  "syncConflictApplyFailed": "没能应用全部选择：{error}"
 }

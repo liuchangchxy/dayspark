@@ -90,6 +90,84 @@ void main() {
 
     expect(find.text('Sync error'), findsWidgets);
     expect(find.textContaining('SocketException: timeout'), findsOneWidget);
-    expect(find.text('3 pending uploads'), findsWidgets);
+    expect(find.textContaining('3 pending uploads'), findsWidgets);
+
+    // SPEC 2553: unreachable, local priority and a working retry entry.
+    expect(find.text('Unreachable'), findsOneWidget);
+    expect(find.text('Local Priority'), findsOneWidget);
+    expect(find.text('Retry Now'), findsWidgets);
+  });
+
+  testWidgets('conflicts open a per-record screen with real local/server data', (
+    tester,
+  ) async {
+    final choices = <(String, SyncConflictResolution)>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          syncTokenStoreProvider.overrideWithValue(
+            MemoryTokenStore(access: 'a', refresh: 'r'),
+          ),
+          syncEngineProvider.overrideWith((ref) => null),
+          pendingSyncOpsProvider.overrideWith((ref) => Stream.value(1)),
+          resolveSyncConflictProvider.overrideWithValue((recordId, choice) async {
+            choices.add((recordId, choice));
+          }),
+          syncStatusProvider.overrideWith(
+            () => _FixedStatusNotifier(
+              SyncStatus(
+                conflicts: [
+                  SyncConflict(
+                    recordId: 'evt-123456789',
+                    type: RecordType.event,
+                    code: 'conflict',
+                    at: DateTime(2026, 11, 22, 14, 58),
+                    localPayload: const {
+                      'summary': '提交周报给林总',
+                      'startDt': '2026-11-22T15:15:00Z',
+                    },
+                    serverPayload: const {
+                      'summary': '提交周报给林总',
+                      'startDt': '2026-11-22T16:00:00Z',
+                    },
+                    serverRev: 4,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: const Scaffold(
+            body: SingleChildScrollView(child: SyncSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Conflicts'));
+    await tester.pumpAndSettle();
+
+    // SPEC 2554: each record carries its own choice row.
+    expect(find.text('Sync conflict'), findsOneWidget);
+    expect(find.text('提交周报给林总'), findsOneWidget);
+    expect(find.textContaining('Local:'), findsOneWidget);
+    expect(find.textContaining('Server:'), findsOneWidget);
+    expect(find.text('Keep Local'), findsOneWidget);
+    expect(find.text('Keep Server'), findsOneWidget);
+    expect(find.text('Merge'), findsOneWidget);
+
+    await tester.tap(find.text('Keep Server'));
+    await tester.pump();
+    await tester.tap(find.text('Apply choices'));
+    await tester.pumpAndSettle();
+
+    expect(choices, [
+      ('evt-123456789', SyncConflictResolution.keepRemote),
+    ]);
   });
 }

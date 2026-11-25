@@ -7,10 +7,9 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 
 /// The one write path behind both desktop capture surfaces: a todo, then the
-/// optional allocation and reminder its draft asked for. A reminder is only
-/// written when a due date exists, because the reconciler derives every todo
-/// reminder's reference from `todos.dueDate`; a plan-only reminder would never
-/// fire.
+/// optional allocation and reminder its draft asked for. The reminder is
+/// anchored to the deadline when there is one, otherwise to the planned start,
+/// exactly like the composer does; either fact can carry a reminder.
 Future<int> writeCapturedTodo(
   WidgetRef ref, {
   required int calendarId,
@@ -35,12 +34,15 @@ Future<int> writeCapturedTodo(
         endAt: planEnd,
       );
     }
-    if (reminderOffset != null && dueDate != null) {
-      await ref.read(createReminderProvider)(
-        parentType: 'todo',
-        parentId: todoId,
-        triggerTime: dueDate.subtract(reminderOffset),
-      );
+    if (reminderOffset != null) {
+      final anchor = dueDate ?? planStart;
+      if (anchor != null) {
+        await ref.read(createReminderProvider)(
+          parentType: 'todo',
+          parentId: todoId,
+          triggerTime: anchor.subtract(reminderOffset),
+        );
+      }
     }
     return todoId;
   });

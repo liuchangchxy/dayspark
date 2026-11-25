@@ -48,9 +48,10 @@ class NotificationsSection extends ConsumerWidget {
         !kIsWeb &&
         (platform == TargetPlatform.android || platform == TargetPlatform.iOS);
     final showsPermission = !kIsWeb;
-    final showsExactAlarm = !kIsWeb && platform == TargetPlatform.android;
     final status = ref.watch(permissionStatusProvider).valueOrNull;
     final denied = status == NotificationPermissionStatus.denied;
+    final exactAllowed = ref.watch(canScheduleExactProvider).valueOrNull;
+    final alarmOn = ref.watch(systemAlarmProvider);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -71,14 +72,16 @@ class NotificationsSection extends ConsumerWidget {
           ),
         SettingsRows(
           children: [
-            // The alarm plugin only ships Android and iOS implementations, so on
-            // Windows the switch would flip a preference nothing reads.
+            // SPEC 2504-2507: three status rows. The alarm switch is the one
+            // place the user can change a value rather than just read it, and
+            // only where the alarm plugin really schedules (Android / iOS).
             if (showsAlarm)
               SettingsRow(
                 label: l.systemAlarm,
                 subtitle: l.systemAlarmDesc,
+                value: alarmOn ? l.notificationAllowed : l.notificationOff,
                 trailing: Switch(
-                  value: ref.watch(systemAlarmProvider),
+                  value: alarmOn,
                   onChanged: (v) {
                     // Flip the visual state first: stopAll takes 190-335 ms with 12
                     // alarms and must not hold the switch hostage.
@@ -88,33 +91,47 @@ class NotificationsSection extends ConsumerWidget {
                 ),
               ),
             if (showsPermission)
-              SettingsRow(
-                label: l.notificationPermission,
-                subtitle: l.notificationPermissionDesc,
-                value: _statusLabel(l, status),
-                chevron: status == NotificationPermissionStatus.granted
-                    ? SettingsChevron.none
-                    : SettingsChevron.right,
-                onTap: status == NotificationPermissionStatus.granted
-                    ? null
-                    : () => _requestPermission(context, ref, l, status),
-              ),
+              if (denied)
+                SettingsRow(
+                  label: l.systemNotification,
+                  value: l.openSystemSettings,
+                  chevron: SettingsChevron.right,
+                  onTap: () => NotificationService().openSystemSettings(),
+                )
+              else
+                SettingsRow(
+                  label: l.notificationPermission,
+                  subtitle: l.notificationPermissionDesc,
+                  value: _statusLabel(l, status),
+                  chevron: status == NotificationPermissionStatus.granted
+                      ? SettingsChevron.none
+                      : SettingsChevron.right,
+                  onTap: status == NotificationPermissionStatus.granted
+                      ? null
+                      : () => _requestPermission(context, ref, l, status),
+                ),
+            SettingsRow(
+              label: l.exactAlarmTitle,
+              subtitle: l.exactAlarmDesc,
+              value: exactAllowed == false || denied
+                  ? l.exactAlarmNotActive
+                  : l.notificationAllowed,
+              chevron: exactAllowed == false && !denied
+                  ? SettingsChevron.right
+                  : SettingsChevron.none,
+              onTap: exactAllowed == false && !denied
+                  ? () async {
+                      await NotificationService()
+                          .requestExactAlarmsPermission();
+                      ref.invalidate(canScheduleExactProvider);
+                    }
+                  : null,
+            ),
             if (denied)
               SettingsRow(
                 label: l.inAppReminders,
                 subtitle: l.inAppRemindersDesc,
                 value: l.available,
-              ),
-            if (showsExactAlarm &&
-                ref.watch(canScheduleExactProvider).valueOrNull == false)
-              SettingsRow(
-                label: l.exactAlarmTitle,
-                subtitle: l.exactAlarmDesc,
-                chevron: SettingsChevron.right,
-                onTap: () async {
-                  await NotificationService().requestExactAlarmsPermission();
-                  ref.invalidate(canScheduleExactProvider);
-                },
               ),
           ],
         ),

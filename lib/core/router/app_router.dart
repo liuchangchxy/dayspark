@@ -271,8 +271,11 @@ abstract final class AppRouter {
           GoRoute(
             path: '/settings',
             name: 'settings',
-            pageBuilder: (context, state) =>
-                _pageTransition(const SettingsPage()),
+            pageBuilder: (context, state) => _pageTransition(
+              SettingsPage(
+                initialSection: state.uri.queryParameters['section'],
+              ),
+            ),
           ),
           GoRoute(
             path: '/event/new',

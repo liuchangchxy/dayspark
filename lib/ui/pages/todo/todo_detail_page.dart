@@ -775,6 +775,17 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
           height: rowHeight,
           value: plan,
           leading: Icon(CupertinoIcons.clock, size: 12, color: ds.ink3),
+          // The spec makes 计划执行 a row that opens the one plan picker: date,
+          // start/end, duration and the chosen day's blocks in one surface.
+          // Finished or deleted work has nothing schedulable to edit.
+          onTap: live.deletedAt == null &&
+                  live.status != 'COMPLETED' &&
+                  live.status != 'CANCELLED'
+              ? () => _scheduleWithPlanPicker(live)
+              : null,
+          showChevron: live.deletedAt == null &&
+              live.status != 'COMPLETED' &&
+              live.status != 'CANCELLED',
         ),
         _PaneFieldRow(
           key: const ValueKey('todo-summary-repeat'),

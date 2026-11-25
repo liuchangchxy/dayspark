@@ -3879,4 +3879,48 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsBetaBadge => '候选版本';
+
+  @override
+  String get aiPrivacyFooter => '对话只在本机保存；模型请求直接发往你填的服务商。DaySpark 服务器不参与，也不保存 Key。';
+
+  @override
+  String get aiKeyChecking => '正在校验 Key…';
+
+  @override
+  String get aiKeyMissing => '先填写 API Key 再保存。';
+
+  @override
+  String get syncConflictTitle => '同步冲突';
+
+  @override
+  String get syncConflictLocal => '本地';
+
+  @override
+  String get syncConflictServer => '服务器';
+
+  @override
+  String get backupDoneTitle => '备份完成';
+
+  @override
+  String get backupMergeHint => '合并保留两边：本机条目不动，备份里的版本作为新条目导入。';
+
+  @override
+  String get aiNotConfiguredTitle => '还没有配置模型';
+
+  @override
+  String get aiChatNotConfiguredHint => '填一个 OpenAI 兼容的 Base URL 和 API Key；Key 只保存在本机，不会上传到 DaySpark 服务器。';
+
+  @override
+  String get feedbackWriteLabel => '写点什么';
+
+  @override
+  String get feedbackPlaceholder => '发生了什么、你期望什么；如果方便，写上机型和版本。';
+
+  @override
+  String get syncConflictApplied => '已应用选择。';
+
+  @override
+  String syncConflictApplyFailed(String error) {
+    return '没能应用全部选择：$error';
+  }
 }

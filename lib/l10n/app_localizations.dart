@@ -7114,6 +7114,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Beta'**
   String get settingsBetaBadge;
+
+  /// No description provided for @aiPrivacyFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations stay on this device; model requests go directly to the provider you configured. DaySpark servers never see the key.'**
+  String get aiPrivacyFooter;
+
+  /// No description provided for @aiKeyChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking key…'**
+  String get aiKeyChecking;
+
+  /// No description provided for @aiKeyMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an API key before saving.'**
+  String get aiKeyMissing;
+
+  /// No description provided for @syncConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync conflict'**
+  String get syncConflictTitle;
+
+  /// No description provided for @syncConflictLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get syncConflictLocal;
+
+  /// No description provided for @syncConflictServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get syncConflictServer;
+
+  /// No description provided for @backupDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup complete'**
+  String get backupDoneTitle;
+
+  /// No description provided for @backupMergeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge keeps both: the local item stays, and the backup version is imported as a new item.'**
+  String get backupMergeHint;
+
+  /// No description provided for @aiNotConfiguredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No model configured yet'**
+  String get aiNotConfiguredTitle;
+
+  /// No description provided for @aiChatNotConfiguredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in an OpenAI-compatible Base URL and API key. The key stays on this device and is never uploaded to DaySpark servers.'**
+  String get aiChatNotConfiguredHint;
+
+  /// No description provided for @feedbackWriteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something'**
+  String get feedbackWriteLabel;
+
+  /// No description provided for @feedbackPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'What happened, and what did you expect? Include device and version if you can.'**
+  String get feedbackPlaceholder;
+
+  /// No description provided for @syncConflictApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Choices applied.'**
+  String get syncConflictApplied;
+
+  /// No description provided for @syncConflictApplyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not apply every choice: {error}'**
+  String syncConflictApplyFailed(String error);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

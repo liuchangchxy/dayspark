@@ -2532,5 +2532,26 @@
   "settingsDefaultCalSavedPlaceholder": "Save default calendar",
   "chatModelAction": "Model",
   "chatClearAction": "Clear chat",
-  "settingsBetaBadge": "Beta"
+  "settingsBetaBadge": "Beta",
+  "aiPrivacyFooter": "Conversations stay on this device; model requests go directly to the provider you configured. DaySpark servers never see the key.",
+  "aiKeyChecking": "Checking key…",
+  "aiKeyMissing": "Enter an API key before saving.",
+  "syncConflictTitle": "Sync conflict",
+  "syncConflictLocal": "Local",
+  "syncConflictServer": "Server",
+  "backupDoneTitle": "Backup complete",
+  "backupMergeHint": "Merge keeps both: the local item stays, and the backup version is imported as a new item.",
+  "aiNotConfiguredTitle": "No model configured yet",
+  "aiChatNotConfiguredHint": "Fill in an OpenAI-compatible Base URL and API key. The key stays on this device and is never uploaded to DaySpark servers.",
+  "feedbackWriteLabel": "Write something",
+  "feedbackPlaceholder": "What happened, and what did you expect? Include device and version if you can.",
+  "syncConflictApplied": "Choices applied.",
+  "syncConflictApplyFailed": "Could not apply every choice: {error}",
+  "@syncConflictApplyFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  }
 }

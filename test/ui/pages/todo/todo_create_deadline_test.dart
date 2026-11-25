@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_pickers.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
@@ -165,16 +164,14 @@ void main() {
     await tester.pump();
 
     // Scheduling is offered while the todo is still a draft; the old flow
-    // forced a save, a reopen, and a second trip to this same sheet.
+    // forced a save, a reopen, and a second trip to this same picker.
     await tester.tap(find.text('Add execution time'));
     await _settle(tester);
 
-    final sheetSave = find.descendant(
-      of: find.byType(BottomSheet),
-      matching: find.widgetWithText(DsButton, 'Save'),
-    );
-    expect(sheetSave, findsOneWidget);
-    await tester.tap(sheetSave);
+    // The spec plan picker shows date, start/end, duration and the day's
+    // existing blocks; its primary action is "Schedule".
+    expect(find.text('Schedule'), findsOneWidget);
+    await tester.tap(find.text('Schedule'));
     await _settle(tester);
 
     await tester.tap(find.text('Save'));

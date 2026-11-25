@@ -61,6 +61,73 @@ Future<List<String>> fetchModels(String baseUrl, String apiKey) async {
   return models;
 }
 
+/// What a credential probe learned. Saving must distinguish "the provider
+/// rejected this key" (401) from "we could not ask" — both stop the save, but
+/// only one of them means the key is wrong.
+class AiKeyCheck {
+  const AiKeyCheck({this.statusCode, this.error});
+
+  final int? statusCode;
+  final String? error;
+
+  bool get ok =>
+      error == null && statusCode != null && statusCode! >= 200 && statusCode! < 300;
+
+  bool get unauthorized => statusCode == 401;
+
+  /// Short, non-secret value for the inline alert.
+  String get failureLabel => statusCode?.toString() ?? error ?? 'unknown';
+}
+
+typedef ValidateAiKey = Future<AiKeyCheck> Function({
+  required String baseUrl,
+  required String apiKey,
+});
+
+/// Probe the provider before persisting a key. A 401 is definitive; a network
+/// failure is reported as such and also stops the save, because "unvalidated"
+/// must not look like "saved".
+Future<AiKeyCheck> validateAiKey({
+  required String baseUrl,
+  required String apiKey,
+}) async {
+  final dio = Dio()
+    ..options.connectTimeout = const Duration(seconds: 8)
+    ..options.receiveTimeout = const Duration(seconds: 8);
+  try {
+    final response = await dio.get<List<dynamic>>(
+      '$baseUrl/models',
+      options: Options(
+        headers: {
+          'Authorization': 'Bearer $apiKey',
+          'Content-Type': 'application/json',
+        },
+      ),
+    );
+    return AiKeyCheck(statusCode: response.statusCode ?? 200);
+  } on DioException catch (error) {
+    if (error.response?.statusCode != null) {
+      return AiKeyCheck(statusCode: error.response!.statusCode);
+    }
+    return AiKeyCheck(error: error.type.name);
+  } catch (error) {
+    return AiKeyCheck(error: error.runtimeType.toString());
+  }
+}
+
+/// Seam for tests: the dialog never calls the network directly.
+final validateAiKeyProvider = Provider<ValidateAiKey>(
+  (ref) => validateAiKey,
+);
+
+/// The only part of a stored key the settings surface may render.
+String maskApiKey(String key) {
+  if (key.isEmpty) return '';
+  final last4 = key.length <= 4 ? key : key.substring(key.length - 4);
+  final prefix = key.startsWith('sk-') ? 'sk-' : '';
+  return '$prefix••••$last4';
+}
+
 /// AI configuration state.
 class AiConfig {
   final String apiKey;
@@ -250,7 +317,6 @@ class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
     _cancelToken = CancelToken();
 
     state = [...state, AiChatMessage(role: 'user', content: message)];
-    state = [...state, AiChatMessage(role: 'assistant', content: '...')];
 
     try {
       final systemPrompt = buildChatSystemPrompt(
@@ -262,14 +328,14 @@ class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
         userPrompt: message,
         cancelToken: _cancelToken,
       );
-      _replacePlaceholder(AiChatMessage(role: 'assistant', content: response));
+      _append(AiChatMessage(role: 'assistant', content: response));
     } on DioException catch (e) {
       if (CancelToken.isCancel(e)) return;
       debugPrint('ai: chat request failed: $e');
-      _failPlaceholder();
+      _fail();
     } catch (e) {
       debugPrint('ai: chat error: $e');
-      _failPlaceholder();
+      _fail();
     }
   }
 
@@ -288,17 +354,14 @@ class AiChatNotifier extends StateNotifier<List<AiChatMessage>> {
     await sendMessage(message);
   }
 
-  void _replacePlaceholder(AiChatMessage message) {
-    if (!mounted || state.isEmpty) return;
-    state = [...state.sublist(0, state.length - 1), message];
+  void _append(AiChatMessage message) {
+    if (!mounted) return;
+    state = [...state, message];
   }
 
-  void _failPlaceholder() {
-    if (!mounted || state.isEmpty) return;
-    state = [
-      ...state.sublist(0, state.length - 1),
-      AiChatMessage(role: 'assistant', content: '', isError: true),
-    ];
+  void _fail() {
+    if (!mounted) return;
+    state = [...state, AiChatMessage(role: 'assistant', content: '', isError: true)];
   }
 
   void clear() => state = [];

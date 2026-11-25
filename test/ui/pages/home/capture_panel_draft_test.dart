@@ -238,7 +238,72 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('plan-only capture refuses a reminder', (tester) async {
+  testWidgets(
+    'parsed capture on Today writes its plan in one tap instead of re-parsing',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(_app(db));
+      await _settle(tester);
+
+      // "明天下午三点交报告": the panel shows a preselected plan; its primary
+      // must write it, not bounce back into the same parsed panel.
+      await _openPanel(tester, '明天下午三点交报告');
+      expect(find.byType(A2CapturePanel), findsOneWidget);
+      expect(_inPanel('Save task'), findsOneWidget);
+      await tester.tap(_inPanel('Save task'));
+      await _settle(tester);
+
+      final todo = (await db.select(db.todos).get()).single;
+      expect(todo.summary, '交报告');
+      expect(todo.dueDate, isNull, reason: 'a time suggestion is not a deadline');
+      final allocation = (await db.select(db.taskAllocations).get()).single;
+      expect(allocation.todoId, todo.id);
+      expect(find.byType(A2CapturePanel), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'event capture on Today writes an event with the chosen repeat',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(_app(db));
+      await _settle(tester);
+
+      await _openPanel(tester, '明天下午三点和设计团队评审方案');
+      await tester.tap(_inPanel('Change to Event'));
+      await _settle(tester);
+      expect(_inPanel('New Event'), findsOneWidget);
+
+      await tester.tap(_inPanel('Repeat'));
+      await _settle(tester);
+      await tester.tap(_inPanel('Repeat'));
+      await _settle(tester);
+      expect(_inPanel('Every week'), findsOneWidget);
+
+      await tester.tap(_inPanel('Create Event'));
+      await _settle(tester);
+
+      final event = (await db.select(db.events).get()).single;
+      expect(event.summary, '和设计团队评审方案');
+      expect(event.rrule, 'FREQ=WEEKLY');
+      expect(await db.select(db.todos).get(), isEmpty);
+      expect(find.byType(A2CapturePanel), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets('plan-only capture anchors a reminder to the plan start', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -259,12 +324,19 @@ void main() {
       find.text(
         'Set a deadline or start time first, then reminders can be relative to it.',
       ),
-      findsOneWidget,
+      findsNothing,
     );
     await _submitPanel(tester);
 
     expect(await db.select(db.taskAllocations).get(), hasLength(1));
-    expect(await db.select(db.reminders).get(), isEmpty);
+    final allocation = (await db.select(db.taskAllocations).get()).single;
+    final reminder = (await db.select(db.reminders).get()).single;
+    expect(reminder.parentType, 'todo');
+    expect(reminder.parentId, allocation.todoId);
+    expect(
+      reminder.triggerTime,
+      allocation.startAt.toLocal().subtract(const Duration(minutes: 15)),
+    );
 
     await _unmount(tester);
   });

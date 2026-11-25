@@ -10,6 +10,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
@@ -207,6 +208,52 @@ void main() {
     final rows = await db.select(db.todos).get();
     expect(rows.single.summary, 'Write the final report');
     expect(find.byType(TodoFormPage), findsNothing);
+    await _unmount(tester);
+  });
+
+  testWidgets('the summary plan row opens the spec plan picker', (tester) async {
+    tester.view.physicalSize = const Size(1280, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(db)],
+        child: MaterialApp(
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: Scaffold(
+            body: TodoDetailPane(todo: todo, inlineSummary: true),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    await tester.tap(find.byKey(const ValueKey('todo-summary-plan')));
+    await _settle(tester);
+
+    // The one plan surface: date, start/end, duration and the day's context,
+    // not the reduced sheet.
+    expect(find.byType(SpecPlanPickerDialog), findsOneWidget);
+    final picker = tester.widget<SpecPlanPicker>(find.byType(SpecPlanPicker));
+    expect(picker.contextText, contains('Nothing scheduled that day'));
+    expect(picker.startLabel.isNotEmpty, isTrue);
+    expect(picker.endLabel.isNotEmpty, isTrue);
+    expect(picker.durationLabel, '0 h 45 min');
+    expect(picker.submitLabel ?? 'Schedule', 'Schedule');
+
+    await tester.tap(find.text('Cancel'));
+    await _settle(tester);
+    expect(find.byType(SpecPlanPickerDialog), findsNothing);
+    expect(await db.select(db.taskAllocations).get(), isEmpty);
+
     await _unmount(tester);
   });
 

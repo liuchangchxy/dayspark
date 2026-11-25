@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
@@ -174,6 +175,138 @@ void main() {
     expect(await db.select(db.taskAllocations).get(), isEmpty);
     expect(await db.select(db.reminders).get(), isEmpty);
     expect(drafts.single.isEmpty, isTrue);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('parsed capture writes the parsed title and its preselected plan', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final drafts = <A2CaptureDraft>[];
+    await tester.pumpWidget(_app(db: db, recorded: drafts));
+    await _settle(tester);
+
+    // Entering a sentence with a time opens the parsed panel; its primary must
+    // write the plan it showed, not merely re-open the same panel.
+    await _openPanel(tester, '明天下午三点交报告');
+    expect(find.byType(A2CapturePanel), findsOneWidget);
+    expect(_inPanel('Save task'), findsOneWidget);
+    await tester.tap(_inPanel('Save task'));
+    await _settle(tester);
+
+    final todo = (await db.select(db.todos).get()).single;
+    expect(todo.summary, '交报告');
+    final allocation = (await db.select(db.taskAllocations).get()).single;
+    expect(allocation.todoId, todo.id);
+    expect(drafts.single.planStart, isNotNull);
+    expect(drafts.single.planEnd, isNotNull);
+    expect(find.byType(A2CapturePanel), findsNothing);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('parsed capture can drop its time suggestion and writes no plan', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final drafts = <A2CaptureDraft>[];
+    await tester.pumpWidget(_app(db: db, recorded: drafts));
+    await _settle(tester);
+
+    await _openPanel(tester, '明天下午三点交报告');
+    await tester.tap(_inPanel('Remove'));
+    await _settle(tester);
+    await tester.tap(_inPanel('Save task'));
+    await _settle(tester);
+
+    final todo = (await db.select(db.todos).get()).single;
+    expect(todo.summary, '交报告');
+    expect(await db.select(db.taskAllocations).get(), isEmpty);
+    expect(drafts.single.planStart, isNull);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('event capture creates an event with the chosen time and repeat', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db: db));
+    await _settle(tester);
+
+    await _openPanel(tester, '明天下午三点和设计团队评审方案');
+    await tester.tap(_inPanel('Change to Event'));
+    await _settle(tester);
+    expect(_inPanel('New Event'), findsOneWidget);
+
+    // The repeat row cycles through real rules; changing it must not bounce
+    // the panel back to Todo mode.
+    await tester.tap(_inPanel('Repeat'));
+    await _settle(tester);
+    await tester.tap(_inPanel('Repeat'));
+    await _settle(tester);
+    expect(_inPanel('Every week'), findsOneWidget);
+    expect(_inPanel('New Event'), findsOneWidget);
+
+    await tester.tap(_inPanel('Create Event'));
+    await _settle(tester);
+
+    final event = (await db.select(db.events).get()).single;
+    expect(event.summary, '和设计团队评审方案');
+    expect(event.rrule, 'FREQ=WEEKLY');
+    expect(await db.select(db.todos).get(), isEmpty);
+    expect(find.byType(A2CapturePanel), findsNothing);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('capture on a browsed day writes that day\'s plan', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final browsed = DateTime(2026, 11, 20);
+    final drafts = <A2CaptureDraft>[];
+    await tester.pumpWidget(
+      _app(
+        db: db,
+        recorded: drafts,
+        overrides: [
+          todosViewProvider.overrideWith((ref) => const TodosDayView()),
+          viewedDateProvider.overrideWith((ref) => browsed),
+        ],
+      ),
+    );
+    await _settle(tester);
+
+    // The bar promises "Plan on 11/20"; a quick capture must land there.
+    expect(find.textContaining('Plan on 11/20'), findsWidgets);
+    final field = find.descendant(
+      of: find.byType(A2CaptureBar),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(field, 'Browsed-day task');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await _settle(tester);
+
+    final todo = (await db.select(db.todos).get()).single;
+    final allocation = (await db.select(db.taskAllocations).get()).single;
+    expect(allocation.todoId, todo.id);
+    final start = allocation.startAt.toLocal();
+    expect(start.year, browsed.year);
+    expect(start.month, browsed.month);
+    expect(start.day, browsed.day);
+    expect(drafts.single.planStart, isNotNull);
 
     await _unmount(tester);
   });

@@ -38,6 +38,7 @@ import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
 import 'a2_composer.dart';
+import 'capture_panel_submit.dart';
 import 'month_year_picker.dart';
 
 /// 待办: unplanned, every task, or one browsed day. The three modes share the
@@ -88,15 +89,19 @@ class A2TodoPage extends ConsumerStatefulWidget {
 }
 
 class _A2TodoPageState extends ConsumerState<A2TodoPage> {
-  static const Duration _undoWindow = Duration(seconds: 5);
+  static const Duration _undoWindow = Duration(seconds: 4);
 
   bool _captureFocused = false;
   bool _completedOpen = false;
   A2CaptureState _desktopCaptureState = A2CaptureState.compact;
+  A2CaptureState _captureChoiceReturnState = A2CaptureState.expanded;
   A2CaptureDraft _desktopCaptureDraft = const A2CaptureDraft();
   A2CaptureDraft? _captureChoiceBaseline;
   DateTime? _planDraftStart;
   DateTime? _planDraftEnd;
+  DateTime? _suggestedPlanStart;
+  DateTime? _suggestedPlanEnd;
+  bool _suggestionRemoved = false;
   bool _capturing = false;
   bool _resetCaptureScheduled = false;
   final TextEditingController _desktopCaptureController = TextEditingController();
@@ -168,8 +173,9 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
 
   /// Undo goes back through the same callback, occurrence id included, so a
   /// recurring instance is reopened at the occurrence it was completed on.
-  /// A completion keeps the row in place for five seconds; that window is the
-  /// visible, unambiguous counterpart to the snackbar's undo.
+  /// A completion keeps the row in place for the spec's four-second undo
+  /// window; that window is the visible, unambiguous counterpart to the
+  /// snackbar's undo.
   Future<void> _setCompleted(
     Todo todo,
     String? occurrenceId,
@@ -325,11 +331,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
   void _openCaptureChoice(A2CaptureState state) {
     setState(() {
       _captureChoiceBaseline = _desktopCaptureDraft;
+      _captureChoiceReturnState = _desktopCaptureState;
       _desktopCaptureState = state;
     });
   }
 
   void _applyCaptureChoice() {
+    final returnState = _captureChoiceReturnState;
     setState(() {
       if (_desktopCaptureState == A2CaptureState.plan) {
         _desktopCaptureDraft = _desktopCaptureDraft.withPlan(
@@ -340,24 +348,29 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       _captureChoiceBaseline = null;
       _planDraftStart = null;
       _planDraftEnd = null;
-      _desktopCaptureState = A2CaptureState.expanded;
+      _captureChoiceReturnState = A2CaptureState.expanded;
+      _desktopCaptureState = returnState;
     });
   }
 
   void _cancelCaptureChoice() {
+    final returnState = _captureChoiceReturnState;
     setState(() {
       final baseline = _captureChoiceBaseline;
       if (baseline != null) _desktopCaptureDraft = baseline;
       _captureChoiceBaseline = null;
       _planDraftStart = null;
       _planDraftEnd = null;
-      _desktopCaptureState = A2CaptureState.expanded;
+      _captureChoiceReturnState = A2CaptureState.expanded;
+      _desktopCaptureState = returnState;
     });
   }
 
   void _chooseCaptureReminder(Duration? offset) {
     final l = AppLocalizations.of(context)!;
-    if (offset != null && _desktopCaptureDraft.dueDate == null) {
+    if (offset != null &&
+        _desktopCaptureDraft.dueDate == null &&
+        _desktopCaptureDraft.planStart == null) {
       showSpecToast(context, l.reminderNeedsAnchor);
       return;
     }
@@ -387,6 +400,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final now = DateTime.now();
     setState(() {
       _captureChoiceBaseline = _desktopCaptureDraft;
+      _captureChoiceReturnState = _desktopCaptureState;
       final start = _desktopCaptureDraft.planStart ??
           DateTime(now.year, now.month, now.day, 15, 15);
       _planDraftStart = start;
@@ -477,7 +491,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final text = draft?.trim() ?? '';
     final parsed = text.isEmpty
         ? emptyCaptureDraft
-        : parseCapture(text, DateTime.now());
+        : parseCapture(text, widget.now);
     return showA2Composer(
       context,
       contextDate: _scheduleContextDate(),
@@ -485,6 +499,148 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       initialStart: parsed.start,
       initialEnd: parsed.end,
     );
+  }
+
+  void _enterParsedCapture(String text) {
+    final parsed = parseCapture(text, widget.now);
+    if (parsed.start == null) {
+      setState(() => _desktopCaptureState = A2CaptureState.expanded);
+      return;
+    }
+    setState(() {
+      _suggestedPlanStart = parsed.start;
+      _suggestedPlanEnd = parsed.end;
+      _suggestionRemoved = false;
+      _desktopCaptureDraft = _desktopCaptureDraft.withPlan(
+        parsed.start,
+        parsed.end,
+      );
+      _desktopCaptureState = A2CaptureState.parsed;
+    });
+  }
+
+  void _toggleSuggestion() {
+    setState(() {
+      if (_suggestionRemoved) {
+        _desktopCaptureDraft = _desktopCaptureDraft.withPlan(
+          _suggestedPlanStart,
+          _suggestedPlanEnd,
+        );
+        _suggestionRemoved = false;
+      } else {
+        _desktopCaptureDraft = _desktopCaptureDraft.withPlan(null, null);
+        _suggestionRemoved = true;
+      }
+    });
+  }
+
+  /// While browsing a day the bar promises `计划到 <day>`, so a capture that
+  /// has no plan of its own lands on that day instead of becoming unplanned.
+  A2CaptureDraft _withBrowsedDay(
+    A2CaptureDraft draft,
+    TodosView view,
+    DateTime viewed,
+  ) {
+    if (draft.planStart != null || view is! TodosDayView) return draft;
+    final day = _dayOf(viewed);
+    final start = DateTime(day.year, day.month, day.day, 15, 15);
+    return draft.withPlan(
+      start,
+      start.add(const Duration(minutes: 45)),
+    );
+  }
+
+  DateTime _defaultEventStart() {
+    final view = ref.read(todosViewProvider);
+    if (view is TodosDayView) {
+      final day = _dayOf(ref.read(viewedDateProvider));
+      return DateTime(day.year, day.month, day.day, 10);
+    }
+    return DateTime(
+      widget.now.year,
+      widget.now.month,
+      widget.now.day,
+      widget.now.hour + 1,
+    );
+  }
+
+  void _enterEventCapture() {
+    setState(() {
+      final start = _desktopCaptureDraft.planStart ?? _defaultEventStart();
+      final end = _desktopCaptureDraft.planEnd != null &&
+              _desktopCaptureDraft.planEnd!.isAfter(start)
+          ? _desktopCaptureDraft.planEnd!
+          : start.add(const Duration(hours: 1));
+      _desktopCaptureDraft = _desktopCaptureDraft.withPlan(start, end);
+      _desktopCaptureState = A2CaptureState.event;
+    });
+  }
+
+  void _backToTodoCapture() {
+    setState(() {
+      final text = _desktopCaptureController.text.trim();
+      final parsed = text.isEmpty ? null : parseCapture(text, widget.now);
+      _desktopCaptureState = parsed?.start != null
+          ? A2CaptureState.parsed
+          : A2CaptureState.expanded;
+    });
+  }
+
+  void _cycleEventRepeat() {
+    const repeats = <String?>[
+      null,
+      'FREQ=DAILY',
+      'FREQ=WEEKLY',
+      'FREQ=MONTHLY',
+    ];
+    final current = _desktopCaptureDraft.rrule;
+    final index = repeats.indexOf(current);
+    final next = repeats[(index < 0 ? 0 : index + 1) % repeats.length];
+    setState(() {
+      _desktopCaptureDraft = _desktopCaptureDraft.withRrule(next);
+    });
+  }
+
+  String _eventRangeLabel(DateTime start, DateTime end) {
+    String clock(DateTime value) =>
+        '${value.hour.toString().padLeft(2, '0')}:'
+        '${value.minute.toString().padLeft(2, '0')}';
+    return '${start.month}/${start.day} ${clock(start)}–${clock(end)}';
+  }
+
+  String? _suggestionLabel() {
+    final start = _desktopCaptureDraft.planStart;
+    final end = _desktopCaptureDraft.planEnd;
+    if (start == null || end == null) return null;
+    return AppLocalizations.of(
+      context,
+    )!.captureSuggestionTitle(_eventRangeLabel(start, end));
+  }
+
+  Future<bool> _submitEventCapture(String text) async {
+    final l = AppLocalizations.of(context)!;
+    final start = _desktopCaptureDraft.planStart ?? _defaultEventStart();
+    final rawEnd = _desktopCaptureDraft.planEnd;
+    final end = rawEnd != null && rawEnd.isAfter(start)
+        ? rawEnd
+        : start.add(const Duration(hours: 1));
+    final parsed = parseCapture(text, widget.now);
+    final title = parsed.title.isEmpty ? text : parsed.title;
+    final saved = await submitEventCapture(
+      ref,
+      context,
+      title: title,
+      start: start,
+      end: end,
+      calendarId: _desktopCaptureDraft.calendarId,
+      rrule: _desktopCaptureDraft.rrule,
+      reminderOffset: _desktopCaptureDraft.reminderOffset,
+    );
+    if (!mounted) return saved;
+    if (saved) {
+      showSpecToast(context, l.captureEventCreatedToast(_eventRangeLabel(start, end)));
+    }
+    return saved;
   }
 
   void _selectMode(TodosView view) {
@@ -543,6 +699,56 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
       }
     }
     captureCalendar ??= captureDefaultCalendar;
+    final captureIsEvent = _desktopCaptureState == A2CaptureState.event;
+    final captureStart = _desktopCaptureDraft.planStart;
+    final captureEnd = _desktopCaptureDraft.planEnd;
+    final captureCalendarName = captureCalendar?.name;
+    final eventContextLabel = captureIsEvent && captureStart != null
+        ? '${_eventRangeLabel(captureStart, captureEnd ?? captureStart.add(const Duration(hours: 1)))}'
+              '${captureCalendarName == null ? '' : ' · $captureCalendarName'}'
+        : null;
+    final dateContextLabel = !captureIsEvent && view is TodosDayView
+        ? '${l.capturePlanTo('${viewed.month}/${viewed.day}')}'
+              '${captureCalendarName == null ? '' : ' · $captureCalendarName'}'
+        : null;
+    final captureContextLabel = eventContextLabel ?? dateContextLabel;
+    var planDayBlocks = const <A2CaptureDayBlock>[];
+    final planDayStart = _desktopCaptureState == A2CaptureState.plan
+        ? _planDraftStart
+        : null;
+    if (planDayStart != null) {
+      final dayStart = DateTime(
+        planDayStart.year,
+        planDayStart.month,
+        planDayStart.day,
+      );
+      final dayEnd = dayStart.add(const Duration(days: 1));
+      final rangeKey =
+          '${dayStart.millisecondsSinceEpoch}-${dayEnd.millisecondsSinceEpoch}';
+      final dayEvents =
+          ref.watch(eventCandidatesInDateRangeProvider(rangeKey)).valueOrNull ??
+          const [];
+      final dayAllocations =
+          ref
+              .watch(taskAllocationsInDateRangeProvider(rangeKey))
+              .valueOrNull ??
+          const <TaskAllocationCalendarItem>[];
+      planDayBlocks = <A2CaptureDayBlock>[
+        for (final event in dayEvents)
+          if (!event.isAllDay)
+            A2CaptureDayBlock(
+              start: event.startDt.toLocal(),
+              end: event.endDt.toLocal(),
+              title: event.summary,
+            ),
+        for (final item in dayAllocations)
+          A2CaptureDayBlock(
+            start: item.allocation.startAt.toLocal(),
+            end: item.allocation.endAt.toLocal(),
+            title: item.todo.summary,
+          ),
+      ]..sort((a, b) => a.start.compareTo(b.start));
+    }
     final hideCompleted = ref.watch(hideCompletedProvider).valueOrNull ?? false;
     final tagMap =
         ref.watch(todoTagIdsMapProvider).valueOrNull ?? const <int, Set<int>>{};
@@ -615,7 +821,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     final strip = view is TodosDayView
         ? _dateStrip(l, viewed, desktop: desktop)
         : null;
-    final footer = _footer(l, view, viewed);
+    final footer = _footer(
+      l,
+      view,
+      viewed,
+      contextLabel: captureContextLabel,
+      isEvent: captureIsEvent,
+    );
 
     final Widget body;
     if (view is TodosInboxView && unplannedAsync.hasError) {
@@ -746,12 +958,18 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 ? null
                                 : ColorUtils.parseHex(captureCalendar.color),
                             reminderLabel:
-                                _desktopCaptureDraft.dueDate == null
+                                _desktopCaptureDraft.dueDate == null &&
+                                    _desktopCaptureDraft.planStart == null
                                 ? null
                                 : _reminderLabel(
                                     l,
                                     _desktopCaptureDraft.reminderOffset,
                                   ),
+                            isEvent: captureIsEvent,
+                            suggestionRemoved: _suggestionRemoved,
+                            suggestionLabel: _suggestionLabel(),
+                            onToggleSuggestion: _toggleSuggestion,
+                            planDayBlocks: planDayBlocks,
                             calendarChoices: [
                               for (final calendar in calendars)
                                 A2CaptureCalendarChoice(
@@ -791,8 +1009,10 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 _openCaptureChoice(A2CaptureState.reminder),
                             onApplyChoice: _applyCaptureChoice,
                             onCancelChoice: _cancelCaptureChoice,
-                            onSwitchToEvent: () => setState(() => _desktopCaptureState = A2CaptureState.event),
-                            onSwitchToTodo: () => setState(() => _desktopCaptureState = A2CaptureState.expanded),
+                            onSwitchToEvent: _enterEventCapture,
+                            onSwitchToTodo: _backToTodoCapture,
+                            onCycleEventRepeat: _cycleEventRepeat,
+                            eventRepeat: _desktopCaptureDraft.rrule,
                             onSubmit: () async {
                               final text = _desktopCaptureController.text.trim();
                               if (text.isEmpty) {
@@ -800,13 +1020,39 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                                 return;
                               }
                               try {
-                                final saved = await _capture(
-                                  text,
-                                  draft: _desktopCaptureDraft,
-                                );
+                                final bool saved;
+                                if (_desktopCaptureState == A2CaptureState.event) {
+                                  saved = await _submitEventCapture(text);
+                                } else {
+                                  final parsed =
+                                      _desktopCaptureState == A2CaptureState.parsed;
+                                  final base = parsed
+                                      ? (_suggestionRemoved
+                                            ? _desktopCaptureDraft.withPlan(
+                                                null,
+                                                null,
+                                              )
+                                            : _desktopCaptureDraft)
+                                      : _desktopCaptureDraft;
+                                  final draft = parsed && _suggestionRemoved
+                                      ? base
+                                      : _withBrowsedDay(base, view, viewed);
+                                  saved = await _capture(
+                                    parsed
+                                        ? parseCapture(text, widget.now).title
+                                        : text,
+                                    draft: draft,
+                                  );
+                                }
                                 if (saved) {
                                   _desktopCaptureController.clear();
                                   setState(() {
+                                    _captureChoiceBaseline = null;
+                                    _planDraftStart = null;
+                                    _planDraftEnd = null;
+                                    _suggestedPlanStart = null;
+                                    _suggestedPlanEnd = null;
+                                    _suggestionRemoved = false;
                                     _desktopCaptureDraft =
                                         const A2CaptureDraft();
                                     _desktopCaptureState =
@@ -2173,7 +2419,13 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
 
   // ------------------------------------------------------------------ footer
 
-  Widget _footer(AppLocalizations l, TodosView view, DateTime viewed) {
+  Widget _footer(
+    AppLocalizations l,
+    TodosView view,
+    DateTime viewed, {
+    String? contextLabel,
+    bool isEvent = false,
+  }) {
     // The spec floats one 560x54 capture pill over the page, bottom 18.
     final desktop = isWorkspaceLayout(context);
     return Padding(
@@ -2185,6 +2437,8 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
           child: A2CaptureBar(
             controller: _desktopCaptureController,
             placeholder: l.capturePlaceholder,
+            contextLabel: contextLabel,
+            isEvent: isEvent,
             hint: _captureFocused
                 ? l.captureHintSubmit
                 : (desktop ? l.captureHintEnter : ''),
@@ -2195,50 +2449,79 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
                 }
                 return;
               }
-              final saved = await _capture(
-                text,
-                draft: desktop
-                    ? _desktopCaptureDraft
-                    : const A2CaptureDraft(),
-              );
-              if (saved) {
-                _desktopCaptureController.clear();
-                if (desktop) {
+              if (!desktop) {
+                await _capture(text, draft: const A2CaptureDraft());
+                return;
+              }
+              if (_desktopCaptureState == A2CaptureState.event) {
+                final saved = await _submitEventCapture(text);
+                if (saved) {
+                  _desktopCaptureController.clear();
                   setState(() {
                     _desktopCaptureDraft = const A2CaptureDraft();
                     _desktopCaptureState = A2CaptureState.compact;
                   });
                 }
-              } else if (desktop) {
+                return;
+              }
+              final draft = _withBrowsedDay(
+                _desktopCaptureDraft,
+                view,
+                viewed,
+              );
+              final saved = await _capture(text, draft: draft);
+              if (saved) {
+                _desktopCaptureController.clear();
+                setState(() {
+                  _captureChoiceBaseline = null;
+                  _planDraftStart = null;
+                  _planDraftEnd = null;
+                  _suggestedPlanStart = null;
+                  _suggestedPlanEnd = null;
+                  _suggestionRemoved = false;
+                  _desktopCaptureDraft = const A2CaptureDraft();
+                  _desktopCaptureState = A2CaptureState.compact;
+                });
+              } else {
                 setState(() => _desktopCaptureState = A2CaptureState.saveError);
               }
             },
             onExpand: () {
               if (desktop) {
-                setState(() {
-                  if (_desktopCaptureState == A2CaptureState.compact) {
-                    final text = _desktopCaptureController.text.trim();
-                    final parsed = text.isNotEmpty ? parseCapture(text, DateTime.now()) : null;
-                    if (parsed?.start != null) {
-                      _desktopCaptureState = A2CaptureState.parsed;
-                    } else {
-                      _desktopCaptureState = A2CaptureState.expanded;
-                    }
+                if (_desktopCaptureState == A2CaptureState.compact) {
+                  final text = _desktopCaptureController.text.trim();
+                  if (text.isEmpty) {
+                    setState(
+                      () => _desktopCaptureState = A2CaptureState.expanded,
+                    );
                   } else {
+                    _enterParsedCapture(text);
+                  }
+                } else {
+                  setState(() {
+                    _captureChoiceBaseline = null;
+                    _planDraftStart = null;
+                    _planDraftEnd = null;
+                    _suggestedPlanStart = null;
+                    _suggestedPlanEnd = null;
+                    _suggestionRemoved = false;
                     _desktopCaptureDraft = const A2CaptureDraft();
                     _desktopCaptureState = A2CaptureState.compact;
-                  }
-                });
+                  });
+                }
               } else {
                 _openCaptureComposer(_desktopCaptureController.text);
               }
             },
             onParsedSubmit: (draft) async {
-              if (desktop) {
-                setState(() => _desktopCaptureState = A2CaptureState.parsed);
-                return false;
+              if (!desktop) {
+                return _openCaptureComposer(draft);
               }
-              return _openCaptureComposer(draft);
+              if (_desktopCaptureState == A2CaptureState.event) {
+                return _submitEventCapture(draft);
+              }
+              _enterParsedCapture(draft);
+              return false;
             },
             onFocusChange: (focused) {
               if (_captureFocused == focused) return;
@@ -2360,11 +2643,40 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
     );
   }
 
+  String _filterCriteria(AppLocalizations l) {
+    final parts = <String>[];
+    final calendarId = ref.watch(todoCalendarFilterProvider);
+    if (calendarId != null) {
+      final calendar = _calendarMap[calendarId];
+      if (calendar != null) parts.add(calendar.name);
+    }
+    final tagIds = ref.watch(todoTagFilterProvider);
+    if (tagIds.isNotEmpty) {
+      final tags = ref.watch(tagsProvider).valueOrNull ?? const <Tag>[];
+      for (final tag in tags) {
+        if (tagIds.contains(tag.id)) parts.add(tag.name);
+      }
+    }
+    final priority = ref.watch(todoPriorityFilterProvider);
+    if (priority != null) {
+      parts.add(switch (priority) {
+        1 => l.priorityHigh,
+        5 => l.priorityMedium,
+        9 => l.priorityLow,
+        _ => l.priorityNone,
+      });
+    }
+    if (ref.watch(todoOverdueFilterProvider)) {
+      parts.add(l.filterOverdueOnly);
+    }
+    return parts.join(l.listSeparator);
+  }
+
   Widget _filterBanner(AppLocalizations l, int count, bool desktop) =>
       _bannerShell(
         key: const ValueKey('todos-filter-banner'),
         actionKey: const ValueKey('todos-filter-clear'),
-        label: l.filterAppliedCount(count),
+        label: l.filterAppliedSummary(_filterCriteria(l), count),
         action: l.clearFilters,
         onAction: _clearFilters,
         desktop: desktop,
@@ -2620,7 +2932,7 @@ class _A2TodoPageState extends ConsumerState<A2TodoPage> {
         ],
         if (pastDue.isNotEmpty) ...[
           _groupHead(
-            label: l.allPastDueSection,
+            label: l.pastDueOrMissedSection,
             count: pastDue.length,
             danger: true,
           ),

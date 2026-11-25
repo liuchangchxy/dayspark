@@ -11,6 +11,11 @@ import 'attachment_files.dart';
 enum BackupConflictResolution {
   keepLocal,
   keepRemote,
+
+  /// Keep both: the local row stays and the backup's version is imported as
+  /// a new, local-only row (its sync identity is cleared). Nothing is
+  /// overwritten, and no field-level merge is invented.
+  merge,
 }
 
 class BackupConflictItem {
@@ -200,27 +205,34 @@ class BackupService {
   /// still holds. A row whose file is already gone is exported without
   /// bytes — restore leaves it fileless and the first open re-fetches it
   /// from the server, which is strictly better than failing the export.
-  Future<Uint8List> exportZip() async {
+  Future<Uint8List> exportZip({void Function(double)? onProgress}) async {
     final archive = Archive();
     final json = utf8.encode(await exportJson());
     archive.addFile(ArchiveFile(dbEntryName, json.length, json));
+    onProgress?.call(0.15);
     final attachments = await _db.select(_db.attachments).get();
-    for (final a in attachments) {
+    for (var i = 0; i < attachments.length; i++) {
+      final a = attachments[i];
       final bytes = await _files.read(a.filePath);
-      if (bytes == null) continue;
-      archive.addFile(
-        ArchiveFile(
-          attachmentEntryName(
-            id: a.id,
-            syncId: a.syncId,
-            fileName: a.fileName,
+      if (bytes != null) {
+        archive.addFile(
+          ArchiveFile(
+            attachmentEntryName(
+              id: a.id,
+              syncId: a.syncId,
+              fileName: a.fileName,
+            ),
+            bytes.length,
+            bytes,
           ),
-          bytes.length,
-          bytes,
-        ),
-      );
+        );
+      }
+      onProgress?.call(0.15 + 0.75 * (i + 1) / attachments.length);
     }
-    return ZipEncoder().encodeBytes(archive);
+    onProgress?.call(0.9);
+    final encoded = ZipEncoder().encodeBytes(archive);
+    onProgress?.call(1);
+    return encoded;
   }
 
   /// Parses a zip package into its decoded data map and archive.
@@ -608,12 +620,14 @@ class BackupService {
         final isConflict = hasIdCollision ||
             (match != null && match.name != name);
 
+        var mergeAsNew = false;
         if (isConflict) {
           final res = resolutions?[conflictKey];
           if (res == null || res == BackupConflictResolution.keepLocal) {
             skippedCalendarIds.add(oldId);
             continue;
           }
+          mergeAsNew = res == BackupConflictResolution.merge;
         }
 
         final companion = CalendarsCompanion(
@@ -625,7 +639,12 @@ class BackupService {
           syncId: Value(syncId),
         );
 
-        if (match != null) {
+        if (mergeAsNew) {
+          final newId = await _db.into(_db.calendars).insert(
+            companion.copyWith(syncId: const Value(null)),
+          );
+          calendarIdMap[oldId] = newId;
+        } else if (match != null) {
           calendarIdMap[oldId] = match.id;
           await (_db.update(_db.calendars)..where((tbl) => tbl.id.equals(match!.id)))
               .write(
@@ -687,12 +706,14 @@ class BackupService {
         final isConflict = hasIdCollision ||
             (match != null && match.name != name);
 
+        var mergeAsNew = false;
         if (isConflict) {
           final res = resolutions?[conflictKey];
           if (res == null || res == BackupConflictResolution.keepLocal) {
             skippedTagIds.add(oldId);
             continue;
           }
+          mergeAsNew = res == BackupConflictResolution.merge;
         }
 
         final companion = TagsCompanion(
@@ -701,7 +722,12 @@ class BackupService {
           syncId: Value(syncId),
         );
 
-        if (match != null) {
+        if (mergeAsNew) {
+          final newId = await _db.into(_db.tags).insert(
+            companion.copyWith(syncId: const Value(null)),
+          );
+          tagIdMap[oldId] = newId;
+        } else if (match != null) {
           tagIdMap[oldId] = match.id;
           await (_db.update(_db.tags)..where((tbl) => tbl.id.equals(match!.id)))
               .write(
@@ -770,12 +796,14 @@ class BackupService {
         final isConflict = hasIdCollision ||
             (match != null && match.summary != e['summary']);
 
+        var mergeAsNew = false;
         if (isConflict) {
           final res = resolutions?[conflictKey];
           if (res == null || res == BackupConflictResolution.keepLocal) {
             skippedEventIds.add(oldId);
             continue;
           }
+          mergeAsNew = res == BackupConflictResolution.merge;
         }
 
         final targetCalId = calendarIdMap[rawCalId] ?? rawCalId;
@@ -799,7 +827,16 @@ class BackupService {
           icsUid: Value(icsUid),
         );
 
-        if (match != null) {
+        if (mergeAsNew) {
+          final newId = await _db.into(_db.events).insert(
+            companion.copyWith(
+              syncId: const Value(null),
+              icsUid: const Value(null),
+            ),
+          );
+          eventIdMap[oldId] = newId;
+          tx.applied(RecordType.event, newId);
+        } else if (match != null) {
           eventIdMap[oldId] = match.id;
           await (_db.update(_db.events)..where((tbl) => tbl.id.equals(match!.id)))
               .write(companion);
@@ -870,12 +907,14 @@ class BackupService {
         final isConflict = hasIdCollision ||
             (match != null && match.summary != t['summary']);
 
+        var mergeAsNew = false;
         if (isConflict) {
           final res = resolutions?[conflictKey];
           if (res == null || res == BackupConflictResolution.keepLocal) {
             skippedTodoIds.add(oldId);
             continue;
           }
+          mergeAsNew = res == BackupConflictResolution.merge;
         }
 
         final targetCalId = calendarIdMap[rawCalId] ?? rawCalId;
@@ -923,7 +962,17 @@ class BackupService {
         );
 
         final int targetTodoId;
-        if (match != null) {
+        if (mergeAsNew) {
+          final newId = await _db.into(_db.todos).insert(
+            companion.copyWith(
+              syncId: const Value(null),
+              icsUid: const Value(null),
+            ),
+          );
+          todoIdMap[oldId] = newId;
+          targetTodoId = newId;
+          tx.applied(RecordType.todo, newId);
+        } else if (match != null) {
           todoIdMap[oldId] = match.id;
           targetTodoId = match.id;
           await (_db.update(_db.todos)..where((tbl) => tbl.id.equals(match!.id)))
@@ -995,6 +1044,8 @@ class BackupService {
               ..where((tbl) => tbl.id.equals(oldId)))
             .getSingleOrNull();
         final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isMerge =
+            resolutions?[conflictKey] == BackupConflictResolution.merge;
         if (hasIdCollision) {
           final res = resolutions?[conflictKey];
           if (res == null || res == BackupConflictResolution.keepLocal) {
@@ -1011,15 +1062,17 @@ class BackupService {
           parentSyncId: Value(r['parentSyncId'] as String?),
         );
 
-        if (match != null) {
+        if (match != null && !isMerge) {
           await (_db.update(_db.reminders)
                 ..where((tbl) => tbl.id.equals(match!.id)))
               .write(companion);
-        } else if (localById != null) {
-          // Id collision without a shared syncId: the local row is a
-          // different reminder. Import the remote as a new row instead of
-          // overwriting it.
-          await _db.into(_db.reminders).insert(companion);
+        } else if (localById != null || isMerge) {
+          // Id collision without a shared syncId, or an explicit merge: the
+          // local row is a different reminder. Import the remote as a new row
+          // instead of overwriting it. A merge copy is local-only.
+          await _db.into(_db.reminders).insert(
+            isMerge ? companion.copyWith(syncId: const Value(null)) : companion,
+          );
         } else {
           await _db.into(_db.reminders).insert(companion.copyWith(id: Value(oldId)));
         }
@@ -1133,6 +1186,8 @@ class BackupService {
               ..where((tbl) => tbl.id.equals(id)))
             .getSingleOrNull();
         final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isMerge =
+            resolutions?[conflictKey] == BackupConflictResolution.merge;
         if (hasIdCollision) {
           final res = resolutions?[conflictKey];
           if (res == null || res == BackupConflictResolution.keepLocal) {
@@ -1141,8 +1196,8 @@ class BackupService {
         }
 
         final int targetId;
-        final importAsNewRow = match == null && localById != null;
-        if (match != null) {
+        final importAsNewRow = (match == null && localById != null) || isMerge;
+        if (match != null && !isMerge) {
           targetId = match.id;
         } else if (importAsNewRow) {
           // Id collision without a shared syncId/parent identity: the local
@@ -1156,7 +1211,7 @@ class BackupService {
               fileName: Value(fileName),
               fileSize: Value(a['fileSize'] as int? ?? 0),
               mimeType: Value(a['mimeType'] as String?),
-              syncId: Value(syncId),
+              syncId: Value(isMerge ? null : syncId),
               parentSyncId: Value(parentSyncId),
               serverFileRef: Value(a['serverFileRef'] as String?),
             ),
@@ -1204,7 +1259,7 @@ class BackupService {
           fileName: Value(fileName),
           fileSize: Value(targetSize),
           mimeType: Value(a['mimeType'] as String?),
-          syncId: Value(syncId),
+          syncId: Value(isMerge ? null : syncId),
           parentSyncId: Value(parentSyncId),
           serverFileRef: Value(a['serverFileRef'] as String?),
         );

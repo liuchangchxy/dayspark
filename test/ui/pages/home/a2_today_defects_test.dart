@@ -827,7 +827,7 @@ void main() {
   );
 
   testWidgets(
-    'P1: Earlier missed series is visible as a card when the 30-day window has no missed items',
+    'P1: Earlier missed series is visible as an overdue row when the 30-day window has no missed items',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -862,21 +862,33 @@ void main() {
       );
       await _settle(tester);
 
-      final card = find.byKey(ValueKey('missed-card-${earlierTodo.id}'));
-      expect(card, findsOneWidget);
-      expect(find.text('Missed'), findsNothing);
-      expect(find.text('Earlier missed…'), findsNothing);
+      final row = find.byKey(ValueKey('overdue-${earlierTodo.id}'));
+      expect(row, findsOneWidget);
       expect(
         find.descendant(
-          of: card,
-          matching: find.text('Complete This Occurrence'),
+          of: row,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Text && (widget.data ?? '').contains('Missed'),
+          ),
         ),
         findsOneWidget,
       );
+      expect(find.byKey(ValueKey('missed-card-${earlierTodo.id}')), findsNothing);
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is DsCheck && widget.label == 'Ancient recurring task',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Earlier missed…'), findsNothing);
 
       await tester.tap(
         find.descendant(
-          of: card,
+          of: row,
           matching: find.text('Ancient recurring task'),
         ),
       );

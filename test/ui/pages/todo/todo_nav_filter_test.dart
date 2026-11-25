@@ -109,13 +109,21 @@ void main() {
         .insert(
           TodosCompanion.insert(calendarId: calendarId, summary: 'Buy milk'),
         );
+    final homeId = await db
+        .into(db.calendars)
+        .insert(
+          CalendarsCompanion.insert(
+            name: 'Home',
+            color: const Value('#E39A3B'),
+          ),
+        );
 
     await tester.pumpWidget(
       _todoApp(
         overrides: [
           databaseProvider.overrideWithValue(db),
           todosViewProvider.overrideWith((ref) => const TodosInboxView()),
-          todoCalendarFilterProvider.overrideWith((ref) => 999999),
+          todoCalendarFilterProvider.overrideWith((ref) => homeId),
         ],
         now: now,
       ),
@@ -123,7 +131,8 @@ void main() {
     await _settle(tester);
 
     expect(find.byKey(const ValueKey('todos-filter-banner')), findsOneWidget);
-    expect(find.text('Filtered · 0 items'), findsOneWidget);
+    // The banner restates the criteria, not just the count.
+    expect(find.text('Filtered: Home · 0 items'), findsOneWidget);
     expect(find.text('No matching tasks'), findsOneWidget);
     expect(find.text('Buy milk'), findsNothing);
 
@@ -221,6 +230,55 @@ void main() {
 
     await _unmount(tester);
   });
+
+  testWidgets(
+    'All names the past-due group by fact: overdue and missed, never a bare deadline',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Late report',
+              dueDate: Value(DateTime(2026, 11, 10)),
+            ),
+          );
+      // A recurring series with no deadline that was missed: 已过截止 would be
+      // false for it, so the group states both facts it actually groups.
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Daily notes',
+              rrule: const Value('FREQ=DAILY;COUNT=10'),
+              startDate: Value(DateTime(2026, 1, 1)),
+            ),
+          );
+
+      await tester.pumpWidget(
+        _todoApp(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            todosViewProvider.overrideWith((ref) => const TodosAllView()),
+          ],
+          now: now,
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('Overdue / Missed'), findsOneWidget);
+      expect(find.text('Past due'), findsNothing);
+      expect(find.text('Late report'), findsOneWidget);
+      expect(find.text('Daily notes'), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
 
   testWidgets('View unplanned opens Inbox narrowed to undated tasks', (
     tester,

@@ -1,15 +1,11 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
-import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import '../settings_ui.dart';
 
 class AppearanceSection extends ConsumerWidget {
@@ -20,11 +16,8 @@ class AppearanceSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final currentAccent = ref.watch(themeColorProvider);
     final locale = ref.watch(localeProvider);
     final defaultTab = ref.watch(defaultTabProvider);
-    final brightness = Theme.of(context).brightness;
-    final mobile = !isWorkspaceLayout(context);
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
     final defaultCalId = ref.watch(defaultCalendarIdProvider);
     final defaultCal = calendars.isEmpty
@@ -33,19 +26,6 @@ class AppearanceSection extends ConsumerWidget {
             (c) => c.id == defaultCalId,
             orElse: () => calendars.first,
           );
-
-    final swatches = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final accent in AppAccent.values)
-          _Swatch(
-            color: accent.resolve(brightness),
-            label: accent.nameFor(Localizations.localeOf(context)),
-            selected: currentAccent == accent,
-            onTap: () => ref.read(themeColorProvider.notifier).setAccent(accent),
-          ),
-      ],
-    );
 
     return SettingsRows(
       children: [
@@ -84,40 +64,13 @@ class AppearanceSection extends ConsumerWidget {
           chevron: SettingsChevron.none,
           onTap: null,
         ),
-        // Accent color
-        if (mobile)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l.themeColor,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: SpecTokens.ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  l.accentColorDesc,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: SpecTokens.faint,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                swatches,
-              ],
-            ),
-          )
-        else
-          SettingsRow(
-            label: l.themeColor,
-            subtitle: l.accentColorDesc,
-            trailing: swatches,
-          ),
+        // Accent: the frozen spec defines one value (暖灰). It only affects
+        // selection and actions, so there is nothing to pick here.
+        SettingsRow(
+          label: l.themeColor,
+          subtitle: l.accentColorDesc,
+          value: l.accentWarmGray,
+        ),
         // Language
         SettingsRow(
           label: l.language,
@@ -188,60 +141,6 @@ class AppearanceSection extends ConsumerWidget {
       ],
       onSelected: (tab) =>
           ref.read(defaultTabProvider.notifier).setDefaultTab(tab),
-    );
-  }
-}
-
-class _Swatch extends StatelessWidget {
-  const _Swatch({
-    required this.color,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Color color;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: label,
-      selected: selected,
-      button: true,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: SizedBox(
-            width: 44,
-            height: 44,
-            child: Center(
-              child: Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                  border: selected
-                      ? Border.all(color: SpecTokens.ink, width: 1.5)
-                      : null,
-                ),
-                child: selected
-                    ? const Icon(
-                        CupertinoIcons.checkmark,
-                        size: 10,
-                        color: Colors.white,
-                      )
-                    : null,
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

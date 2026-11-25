@@ -41,7 +41,6 @@ enum _CalSubpage { list, newCal, editCal, deleteCal }
 
 class _CalendarSettingsSectionState
     extends ConsumerState<CalendarSettingsSection> {
-  bool _expanded = false;
   _CalSubpage _subpage = _CalSubpage.list;
   Calendar? _targetCalendar;
   final TextEditingController _nameController = TextEditingController();
@@ -161,19 +160,11 @@ class _CalendarSettingsSectionState
 
     return SettingsRows(
       children: [
-        SettingsRow(
-          label: l.manageCalendars,
-          subtitle: l.calendarManagementDesc,
-          value: l.categoryCount(calendars.length),
-          chevron: _expanded ? SettingsChevron.down : SettingsChevron.right,
-          onTap: () {
-            setState(() => _expanded = !_expanded);
-          },
-        ),
-        if (_expanded) ...[
-          ...calendarRows,
-          notice,
-        ],
+        // SPEC 2477-2480: the group heading is already "日历管理"; the list
+        // starts immediately. A collapsed row repeating the heading would be
+        // a second entry for the same thing.
+        ...calendarRows,
+        notice,
       ],
     );
   }

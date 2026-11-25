@@ -3939,4 +3939,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsBetaBadge => 'Beta';
+
+  @override
+  String get aiPrivacyFooter => 'Conversations stay on this device; model requests go directly to the provider you configured. DaySpark servers never see the key.';
+
+  @override
+  String get aiKeyChecking => 'Checking key…';
+
+  @override
+  String get aiKeyMissing => 'Enter an API key before saving.';
+
+  @override
+  String get syncConflictTitle => 'Sync conflict';
+
+  @override
+  String get syncConflictLocal => 'Local';
+
+  @override
+  String get syncConflictServer => 'Server';
+
+  @override
+  String get backupDoneTitle => 'Backup complete';
+
+  @override
+  String get backupMergeHint => 'Merge keeps both: the local item stays, and the backup version is imported as a new item.';
+
+  @override
+  String get aiNotConfiguredTitle => 'No model configured yet';
+
+  @override
+  String get aiChatNotConfiguredHint => 'Fill in an OpenAI-compatible Base URL and API key. The key stays on this device and is never uploaded to DaySpark servers.';
+
+  @override
+  String get feedbackWriteLabel => 'Write something';
+
+  @override
+  String get feedbackPlaceholder => 'What happened, and what did you expect? Include device and version if you can.';
+
+  @override
+  String get syncConflictApplied => 'Choices applied.';
+
+  @override
+  String syncConflictApplyFailed(String error) {
+    return 'Could not apply every choice: $error';
+  }
 }

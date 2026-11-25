@@ -15,8 +15,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-// Calendar / 月历: current month plus the selected day's items. Tapping a day
-// only moves `selectedDate` inside the widget; it never opens the App.
+// Calendar / 月历: a read-only snapshot of the current month. Tapping a day
+// deep-links into the App at that date; nothing in the widget changes state.
 class CalendarWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(
     context: Context,
@@ -114,8 +114,9 @@ class CalendarWidgetProvider : AppWidgetProvider() {
 
       val now = Calendar.getInstance()
       val todayIso = WidgetStateStore.todayIso()
-      val state = WidgetStateStore.read(context, appWidgetId)
-      val selectedIso = WidgetStateStore.normalizedSelectedDate(state)
+      // The snapshot always speaks about today. There is no in-widget date
+      // selection any more, so the list under the grid is today's.
+      val selectedIso = todayIso
       val selectedDate = parseIso(selectedIso) ?: Date()
 
       val snapshotMonth = snapshot?.month()
@@ -143,8 +144,6 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       } else {
         emptyMap()
       }
-      val compact = !large && height > 0 && height < 230
-      val dayMode = compact && state.calendarMode == "day"
 
       views.setTextViewText(R.id.calendar_title, WidgetSupport.monthTitle(year, monthNumber))
       WidgetSupport.textColor(views, R.id.calendar_title, theme, "accent", accent)
@@ -168,20 +167,10 @@ class CalendarWidgetProvider : AppWidgetProvider() {
       )
       WidgetSupport.textColor(views, R.id.calendar_add, theme, "accent", accent)
 
-      views.setTextViewText(R.id.calendar_today, ui?.today ?: context.getString(R.string.widget_today))
-      WidgetSupport.textColor(views, R.id.calendar_today, theme, "accent", accent)
-      views.setViewVisibility(
-        R.id.calendar_today,
-        if (selectedIso != todayIso) View.VISIBLE else View.GONE,
-      )
-      views.setOnClickPendingIntent(
-        R.id.calendar_today,
-        WidgetSupport.stateIntent(
-          context,
-          appWidgetId,
-          WidgetActionReceiver.ACTION_CALENDAR_TODAY,
-        ),
-      )
+      // "Today" was a reset for the in-widget date selection. The list is
+      // always today now, so the control is retired instead of leaving a dead
+      // tap target.
+      views.setViewVisibility(R.id.calendar_today, View.GONE)
 
       views.removeAllViews(R.id.calendar_weekdays)
       views.addView(R.id.calendar_weekdays, weekdayHeader(context, theme, secondary))
@@ -237,19 +226,11 @@ class CalendarWidgetProvider : AppWidgetProvider() {
 
             cell.setOnClickPendingIntent(
               R.id.calendar_cell,
-              WidgetSupport.stateIntent(
+              WidgetSupport.openUri(
                 context,
-                appWidgetId,
-                WidgetActionReceiver.ACTION_SET_CALENDAR_DATE,
-                WidgetActionReceiver.EXTRA_CALENDAR_DATE,
-                dateIso,
-              ).let { intent ->
-                if (compact && !dayMode) {
-                  stateIntentEnterDay(context, appWidgetId, dateIso)
-                } else {
-                  intent
-                }
-              },
+                WidgetSupport.calendarUri(dateIso),
+                (appWidgetId * 149 + dateIso.hashCode()) and 0x7FFFFFFF,
+              ),
             )
           } else {
             cell.setTextViewText(R.id.calendar_day, "")
@@ -262,70 +243,31 @@ class CalendarWidgetProvider : AppWidgetProvider() {
         row++
       }
 
-      val dayBarVisible = dayMode
-      views.setViewVisibility(
-        R.id.calendar_month_page,
-        if (dayMode) View.GONE else View.VISIBLE,
-      )
-      if (large) {
-        views.setViewVisibility(R.id.calendar_day_bar, View.GONE)
-      } else {
-        views.setViewVisibility(
-          R.id.calendar_day_bar,
-          if (dayBarVisible) View.VISIBLE else View.GONE,
-        )
-        if (dayBarVisible) {
-          val back = WidgetSupport.stateIntent(
-            context,
-            appWidgetId,
-            WidgetActionReceiver.ACTION_SET_CALENDAR_MODE,
-            WidgetActionReceiver.EXTRA_CALENDAR_MODE,
-            "month",
-          )
-          views.setTextViewText(
-            R.id.calendar_back_month,
-            "‹ ${ui?.backToMonth ?: context.getString(R.string.widget_back_to_month)}",
-          )
-          WidgetSupport.textColor(views, R.id.calendar_back_month, theme, "accent", accent)
-          views.setOnClickPendingIntent(R.id.calendar_back_month, back)
-          views.setTextViewText(
-            R.id.calendar_day_title,
-            WidgetSupport.formatDayTitle(selectedIso) + staleSuffix,
-          )
-          WidgetSupport.textColor(views, R.id.calendar_day_title, theme, "textPrimary", primary)
-        }
-      }
+      // The compact card used to flip between a month page and a day page.
+      // That was in-widget date switching; the grid is always the month now.
+      views.setViewVisibility(R.id.calendar_month_page, View.VISIBLE)
+      views.setViewVisibility(R.id.calendar_day_bar, View.GONE)
 
-      val showSummaryTitle = !dayMode
-      views.setViewVisibility(
-        R.id.calendar_summary_title,
-        if (showSummaryTitle) View.VISIBLE else View.GONE,
-      )
+      views.setViewVisibility(R.id.calendar_summary_title, View.VISIBLE)
       views.removeAllViews(R.id.calendar_summary)
 
       val selectedDay = Calendar.getInstance().apply { time = selectedDate }.get(Calendar.DAY_OF_MONTH)
       val dayMark = marks[selectedDay]
       // Exactly the rows the card can hold: the old nominal 2/6 rows were added
       // regardless and the overflow was silently clipped by the launcher.
-      val maxRows = if (dayMode) {
-        WidgetSupport.calendarDayRows(height)
-      } else {
-        WidgetSupport.calendarSummaryRows(height, cellDp, weekRows, large)
-      }
+      val maxRows = WidgetSupport.calendarSummaryRows(height, cellDp, weekRows, large)
       val showEmpty = dayMark == null || dayMark.items.isEmpty()
-      if (!dayMode) {
-        views.setTextViewText(
-          R.id.calendar_summary_title,
-          WidgetSupport.formatDayTitle(selectedIso) + staleSuffix,
-        )
-        WidgetSupport.textColor(
-          views,
-          R.id.calendar_summary_title,
-          theme,
-          "textSecondary",
-          secondary,
-        )
-      }
+      views.setTextViewText(
+        R.id.calendar_summary_title,
+        WidgetSupport.formatDayTitle(selectedIso) + staleSuffix,
+      )
+      WidgetSupport.textColor(
+        views,
+        R.id.calendar_summary_title,
+        theme,
+        "textSecondary",
+        secondary,
+      )
 
       val openCalendar = WidgetSupport.openUri(context, calendarUri, appWidgetId + 803)
       if (maxRows == 0) {
@@ -477,26 +419,6 @@ class CalendarWidgetProvider : AppWidgetProvider() {
         WidgetSupport.textColor(header, WEEKDAY_IDS[i], theme, "textSecondary", secondary)
       }
       return header
-    }
-
-    private fun stateIntentEnterDay(
-      context: Context,
-      appWidgetId: Int,
-      dateIso: String,
-    ): android.app.PendingIntent {
-      val intent = Intent(context, WidgetActionReceiver::class.java).apply {
-        action = WidgetActionReceiver.ACTION_SET_CALENDAR_DATE
-        data = android.net.Uri.parse("dayspark://widget-state/$appWidgetId/day/$dateIso")
-        putExtra(WidgetActionReceiver.EXTRA_APP_WIDGET_ID, appWidgetId)
-        putExtra(WidgetActionReceiver.EXTRA_CALENDAR_DATE, dateIso)
-        putExtra(WidgetActionReceiver.EXTRA_ENTER_DAY, true)
-      }
-      return android.app.PendingIntent.getBroadcast(
-        context,
-        (appWidgetId * 149 + dateIso.hashCode()) and 0x7FFFFFFF,
-        intent,
-        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
-      )
     }
 
     private fun parseIso(iso: String): Date? = runCatching {

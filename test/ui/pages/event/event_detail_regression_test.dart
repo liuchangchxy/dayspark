@@ -160,7 +160,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('scheduling a time turns an all-day event into a timed event', (
+  testWidgets('the read drawer footer offers only edit and delete', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1400, 1000);
@@ -186,24 +186,32 @@ void main() {
 
     await tester.pumpWidget(
       _app(
-        EventDetailPane(event: allDay, inlineSummary: true),
+        Scaffold(
+          body: EventDetailPane(event: allDay, inlineSummary: true),
+        ),
         overrides: [databaseProvider.overrideWithValue(db)],
       ),
     );
     await _settle(tester);
-    await tester.tap(find.byKey(const ValueKey('event-detail-schedule')));
-    await _settle(tester);
-    await tester.tap(find.text('Schedule'));
-    await _settle(tester);
 
-    final saved = await (db.select(
-      db.events,
-    )..where((row) => row.id.equals(allDayId))).getSingle();
+    // Spec: the read drawer is 编辑 / 删除. Time is an editable field, so the
+    // shortcut that silently wrote start/end without marking the form dirty is
+    // gone.
+    expect(find.byKey(const ValueKey('event-detail-edit')), findsOneWidget);
     expect(
-      saved.isAllDay,
-      isFalse,
-      reason: 'giving an all-day event a time makes it a timed event',
+      find.byKey(const ValueKey('event-detail-delete-summary')),
+      findsOneWidget,
     );
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Delete'), findsOneWidget);
+    expect(find.byKey(const ValueKey('event-detail-schedule')), findsNothing);
+    expect(find.text('Add execution time'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('event-detail-edit')));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('event-detail-save')), findsOneWidget);
+    expect(find.byKey(const ValueKey('event-detail-title')), findsOneWidget);
+
     await _unmount(tester);
   });
 }

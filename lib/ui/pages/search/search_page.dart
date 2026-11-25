@@ -269,7 +269,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               _openTarget(path, null);
             }
           case _CmdActionKind.goSettings:
-            _openTarget('/settings', null);
+            _openTarget('/settings?section=general', null);
         }
     }
   }

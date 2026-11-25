@@ -194,6 +194,26 @@ final syncConflictCountProvider = Provider<int>(
   (ref) => ref.watch(syncStatusProvider).conflicts.length,
 );
 
+typedef ResolveSyncConflict =
+    Future<void> Function(String recordId, SyncConflictResolution resolution);
+
+/// Resolves one conflict through the live engine. Kept as a seam so the
+/// settings surface can be tested without constructing a full engine.
+final resolveSyncConflictProvider = Provider<ResolveSyncConflict>((ref) {
+  final engine = ref.watch(syncEngineProvider);
+  return (recordId, resolution) async {
+    if (engine == null) {
+      throw StateError('sync is not configured');
+    }
+    switch (resolution) {
+      case SyncConflictResolution.keepLocal:
+        await engine.resolveConflictKeepLocal(recordId);
+      case SyncConflictResolution.keepRemote:
+        await engine.resolveConflictKeepRemote(recordId);
+    }
+  };
+});
+
 final syncRejectedCountProvider = Provider<int>(
   (ref) => ref.watch(syncStatusProvider).rejectedCount,
 );

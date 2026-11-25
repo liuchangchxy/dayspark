@@ -161,6 +161,34 @@ String _codeFromLocation(String location) {
   return code!;
 }
 
+String _htmlDecode(String value) => value
+    .replaceAll('&amp;', '&')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>');
+
+Map<String, String> _consentFields(String html) => <String, String>{
+  'client_id': _hiddenField(html, 'client_id'),
+  'redirect_uri': _hiddenField(html, 'redirect_uri'),
+  'response_type': _hiddenField(html, 'response_type'),
+  'scope': _hiddenField(html, 'scope'),
+  if (html.contains('name="state"')) 'state': _hiddenField(html, 'state'),
+  'code_challenge': _hiddenField(html, 'code_challenge'),
+  'code_challenge_method': _hiddenField(html, 'code_challenge_method'),
+};
+
+Future<Response> _denyPost(
+  AppServer app, {
+  required Map<String, String> oauthParams,
+  String? csrf,
+}) => _request(
+  app,
+  'POST',
+  '/oauth/deny',
+  form: {...oauthParams, if (csrf != null) 'csrf': csrf},
+);
+
 class _Flow {
   _Flow({
     required this.client,
@@ -537,7 +565,7 @@ void main() {
   });
 
   group('authorize endpoint', () {
-    test('consent page lists the client and the requested scopes', () async {
+    test('consent page renders human scope rows and both actions', () async {
       final client = await _registerClient(app);
       final response = await _authorizeGet(
         app,
@@ -550,11 +578,176 @@ void main() {
       final html = await response.readAsString();
       expect(response.headers['content-type'], contains('text/html'));
       expect(html, contains('ChatGPT Connector'));
-      expect(html, contains('mcp:read'));
-      expect(html, contains('mcp:write'));
+      // The master replaces the raw scope codes with human rows; `mcp:read`
+      // must not leak back into the browser surface as a <code> token.
+      expect(html, isNot(contains('<code>')));
+      expect(html, contains('允许「ChatGPT Connector」访问你的 DaySpark？'));
+      expect(html, contains('读取日历、待办和日程'));
+      expect(html, contains('创建和修改待办、日程'));
+      expect(html, contains('读取账号邮箱'));
+      expect(html, contains('不会读取其他设备上的本地数据；不会访问附件内容'));
+      // The card has a fixed reading order: read, write, account, privacy —
+      // not whatever order the client put in `scope`.
+      final readAt = html.indexOf('读取日历、待办和日程');
+      final writeAt = html.indexOf('创建和修改待办、日程');
+      final accountAt = html.indexOf('读取账号邮箱');
+      final privacyAt = html.indexOf('不会读取其他设备上的本地数据');
+      expect(
+        readAt < writeAt && writeAt < accountAt && accountAt < privacyAt,
+        isTrue,
+        reason: 'scope rows must follow the master order',
+      );
+      expect(html, contains('<span class="mark">D</span>DaySpark'));
+      // Both footer actions are present: deny is a submit with formaction.
+      expect(html, contains('拒绝'));
+      expect(html, contains('允许访问'));
+      expect(html, contains('formaction="/oauth/deny"'));
       expect(html, contains('name="csrf"'));
       expect(html, contains('name="email"'));
       expect(html, contains('name="password"'));
+    });
+
+    test('deny renders the designed denied state and carries access_denied',
+        () async {
+      final client = await _registerClient(app);
+      final get = await _authorizeGet(
+        app,
+        clientId: client['client_id'] as String,
+        redirectUri: _redirect,
+        scope: 'mcp:read',
+        state: 'xyz-123',
+        challenge: _challengeFor(_verifier()),
+      );
+      final html = await get.readAsString();
+      final params = _consentFields(html);
+      final deny = await _denyPost(
+        app,
+        oauthParams: params,
+        csrf: _hiddenField(html, 'csrf'),
+      );
+      expect(deny.statusCode, 200);
+      expect(deny.headers['content-type'], contains('text/html'));
+      expect(deny.headers['location'], isNull);
+      final deniedHtml = await deny.readAsString();
+      expect(deniedHtml, contains('已拒绝授权'));
+      expect(deniedHtml, contains('ChatGPT Connector'));
+      expect(deniedHtml, contains('没有共享任何日历、待办或账号信息。'));
+      expect(deniedHtml, contains('返回客户端'));
+      expect(deniedHtml, isNot(contains('code=')));
+      expect(
+        deniedHtml,
+        isNot(contains('formaction="/oauth/authorize"')),
+        reason: 'a denied consent must not retain an allow action',
+      );
+
+      final link = RegExp(
+        r'<a class="primary" href="([^"]+)">',
+      ).firstMatch(deniedHtml);
+      expect(link, isNotNull, reason: deniedHtml);
+      final returnUrl = Uri.parse(_htmlDecode(link!.group(1)!));
+      expect(returnUrl.toString(), startsWith(_redirect));
+      expect(returnUrl.queryParameters['error'], 'access_denied');
+      expect(
+        returnUrl.queryParameters['error_description'],
+        contains('denied'),
+      );
+      expect(returnUrl.queryParameters['state'], 'xyz-123');
+      expect(returnUrl.queryParameters.containsKey('code'), isFalse);
+
+      // Denial mints nothing.
+      expect(await app.db.select(app.db.oauthCodes).get(), isEmpty);
+    });
+
+    test('deny without a CSRF token is rejected and mints no code', () async {
+      final client = await _registerClient(app);
+      final get = await _authorizeGet(
+        app,
+        clientId: client['client_id'] as String,
+        redirectUri: _redirect,
+        scope: 'mcp:read',
+        challenge: _challengeFor(_verifier()),
+      );
+      final html = await get.readAsString();
+      final deny = await _denyPost(
+        app,
+        oauthParams: _consentFields(html),
+      );
+      expect(deny.statusCode, 400);
+      expect(deny.headers['location'], isNull);
+      expect(
+        (await deny.readAsString()).toLowerCase(),
+        contains('form token'),
+      );
+      expect(await app.db.select(app.db.oauthCodes).get(), isEmpty);
+    });
+
+    test('deny cannot redirect to an unregistered redirect_uri', () async {
+      final client = await _registerClient(app);
+      final get = await _authorizeGet(
+        app,
+        clientId: client['client_id'] as String,
+        redirectUri: _redirect,
+        scope: 'mcp:read',
+        challenge: _challengeFor(_verifier()),
+      );
+      final html = await get.readAsString();
+      final params = _consentFields(html)
+        ..['redirect_uri'] = 'https://evil.example.com/cb';
+      final deny = await _denyPost(
+        app,
+        oauthParams: params,
+        csrf: _hiddenField(html, 'csrf'),
+      );
+      expect(deny.statusCode, 400);
+      expect(deny.headers['location'], isNull);
+      expect(await deny.readAsString(), isNot(contains('access_denied')));
+    });
+
+    test('a fresh consent after a denial still allows and issues a code',
+        () async {
+      final client = await _registerClient(app);
+      final user = await _registerUser(app, 'after-deny@example.com');
+      final verifier = _verifier();
+      final challenge = _challengeFor(verifier);
+
+      // First consent: deny, consuming that form's CSRF token.
+      final firstGet = await _authorizeGet(
+        app,
+        clientId: client['client_id'] as String,
+        redirectUri: _redirect,
+        scope: 'mcp:read',
+        challenge: challenge,
+      );
+      final firstHtml = await firstGet.readAsString();
+      await _denyPost(
+        app,
+        oauthParams: _consentFields(firstHtml),
+        csrf: _hiddenField(firstHtml, 'csrf'),
+      );
+
+      // Reload the authorization URL: a new form token, then allow.
+      final secondGet = await _authorizeGet(
+        app,
+        clientId: client['client_id'] as String,
+        redirectUri: _redirect,
+        scope: 'mcp:read',
+        state: 'after-deny',
+        challenge: challenge,
+      );
+      final secondHtml = await secondGet.readAsString();
+      final allow = await _authorizePost(
+        app,
+        oauthParams: _consentFields(secondHtml),
+        email: 'after-deny@example.com',
+        password: 'password123',
+        csrf: _hiddenField(secondHtml, 'csrf'),
+      );
+      expect(allow.statusCode, 303, reason: await allow.readAsString());
+      final location = allow.headers['location']!;
+      expect(location, startsWith(_redirect));
+      expect(Uri.parse(location).queryParameters['state'], 'after-deny');
+      expect(_codeFromLocation(location), isNotEmpty);
+      expect(user['userId'], isNotEmpty);
     });
 
     test('redirect_uri mismatch renders an error page with no code', () async {

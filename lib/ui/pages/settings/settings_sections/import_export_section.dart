@@ -21,6 +21,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/design/spec_toast.dart';
 
@@ -43,6 +44,10 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   bool _importBusy = false;
   bool _backupFailed = false;
   String? _backupResult;
+  double _backupProgress = 0;
+  String? _backupFileName;
+  int? _backupBytes;
+  _BackupCounts? _backupCounts;
 
   bool _importMode = false;
   PlatformFile? _pickedFile;
@@ -51,6 +56,8 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   String? _targetCalendarName;
   IcsImportPreview? _importPreview;
   String? _importResultSummary;
+  String? _importError;
+  List<IcsPreviewItem> _importFailedRows = const [];
   List<Calendar> _availableCalendars = [];
 
   @override
@@ -143,6 +150,13 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
           ),
           if (_importResultSummary != null)
             InlineAlert(message: _importResultSummary!),
+          if (_importError != null || _importFailedRows.isNotEmpty)
+            ImportFailurePanel(
+              error: _importError,
+              skipped: _importFailedRows,
+              onReport: () => _showImportReport(l),
+              onSkip: _importError != null ? null : _skipErrorRows,
+            ),
           const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerLeft,
@@ -155,6 +169,8 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
                 _fileContent = null;
                 _importPreview = null;
                 _importResultSummary = null;
+                _importError = null;
+                _importFailedRows = const [];
               }),
             ),
           ),
@@ -202,14 +218,99 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
             ],
           ),
         ],
-        if (_backupBusy || _backupResult != null)
+        if (_backupBusy && _backupFileName != null)
+          IoCard(
+            title: l.backupProgressPercent((_backupProgress * 100).round()),
+            description: l.backupProgressWriting(_backupFileName!),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                minHeight: 4,
+                value: _backupProgress,
+                backgroundColor: const Color(0xFFECECE6),
+                color: SpecTokens.ink,
+              ),
+            ),
+          )
+        else if (_backupBusy)
+          InlineAlert(message: l.backupInProgress),
+        if (_backupFailed && _backupFileName != null)
           InlineAlert(
-            message: _backupBusy ? l.backupInProgress : _backupResult!,
-            isRed: !_backupBusy && _backupFailed,
-            action: _backupBusy
-                ? const LinearProgressIndicator(minHeight: 3)
-                : null,
+            title: l.backupFailedTitle,
+            message: l.backupNoPartial,
+            isRed: true,
+            action: Align(
+              alignment: Alignment.centerLeft,
+              child: DsButton(
+                label: l.retry,
+                small: true,
+                tone: DsButtonTone.secondary,
+                onPressed: _exportBackup,
+              ),
+            ),
           ),
+        if (!_backupBusy && !_backupFailed && _backupCounts != null)
+          IoCard(
+            title: l.backupDoneTitle,
+            description: '${_backupFileName!} · ${_formatBytes(_backupBytes ?? 0)}',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l.backupIncludes,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: SpecTokens.ink,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  l.backupIncludesCounts(
+                    _backupCounts!.calendars,
+                    _backupCounts!.todos,
+                    _backupCounts!.events,
+                    _backupCounts!.attachments,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    height: 1.55,
+                    color: SpecTokens.muted,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: SpecTokens.wash,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    l.backupSavedLocation,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: SpecTokens.ink2,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (_backupFailed && _backupFileName == null && _backupResult != null)
+          InlineAlert(message: _backupResult!, isRed: true),
+        if (!_backupBusy &&
+            !_backupFailed &&
+            _backupCounts == null &&
+            _backupResult != null)
+          InlineAlert(message: _backupResult!),
         if (_importBusy) InlineAlert(message: l.importInProgress),
       ],
     );
@@ -218,15 +319,24 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
   Future<void> _exportBackup() async {
     if (_backupBusy) return;
     final l = AppLocalizations.of(context)!;
+    final filename =
+        'dayspark-backup-${DateTime.now().millisecondsSinceEpoch}.zip';
     setState(() {
       _backupBusy = true;
       _backupFailed = false;
       _backupResult = null;
+      _backupProgress = 0;
+      _backupFileName = filename;
+      _backupBytes = null;
+      _backupCounts = null;
     });
-    var filename = '';
     try {
-      final bytes = await BackupService(ref.read(databaseProvider)).exportZip();
-      filename = 'dayspark-backup-${DateTime.now().millisecondsSinceEpoch}.zip';
+      final service = BackupService(ref.read(databaseProvider));
+      final bytes = await service.exportZip(
+        onProgress: (progress) {
+          if (mounted) setState(() => _backupProgress = progress);
+        },
+      );
       if (ref.read(isWebProvider)) {
         ref.read(webBytesDownloaderProvider)(
           bytes: bytes,
@@ -243,8 +353,13 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
           if (mounted) showSpecToast(context, l.exportedTo(path));
         }
       }
+      final counts = await _loadBackupCounts();
       if (!mounted) return;
-      setState(() => _backupResult = l.backupComplete(filename));
+      setState(() {
+        _backupBytes = bytes.length;
+        _backupCounts = counts;
+        _backupResult = l.backupComplete(filename);
+      });
     } catch (e) {
       debugPrint('backup: export failed: $e');
       if (mounted) showSpecToast(context, l.exportFailed);
@@ -258,6 +373,22 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     }
   }
 
+  Future<_BackupCounts> _loadBackupCounts() async {
+    final db = ref.read(databaseProvider);
+    return _BackupCounts(
+      calendars: (await db.select(db.calendars).get()).length,
+      todos: (await db.select(db.todos).get()).length,
+      events: (await db.select(db.events).get()).length,
+      attachments: (await db.select(db.attachments).get()).length,
+    );
+  }
+
+  static String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   /// Restoring is an upsert, so it is offered as a merge and says so: nothing
   /// on this device is removed by it.
   Future<void> _mergeBackup() async {
@@ -267,6 +398,10 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       _backupBusy = true;
       _backupFailed = false;
       _backupResult = null;
+      _backupFileName = null;
+      _backupBytes = null;
+      _backupCounts = null;
+      _backupProgress = 0;
     });
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -351,6 +486,8 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     setState(() {
       _pickedFile = file;
       _fileContent = content;
+      _importError = null;
+      _importFailedRows = const [];
     });
     await _updatePreview();
   }
@@ -364,13 +501,18 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       if (mounted) {
         setState(() {
           _importPreview = preview;
+          _importError = null;
           _importBusy = false;
         });
       }
     } catch (e) {
       debugPrint('ics: preview failed: $e');
       if (mounted) {
-        setState(() => _importBusy = false);
+        setState(() {
+          _importBusy = false;
+          _importError = '$e';
+          _importPreview = null;
+        });
       }
     }
   }
@@ -379,7 +521,10 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
     if (_fileContent == null || _targetCalendarId == null || _importBusy) return;
     final l = AppLocalizations.of(context)!;
     final db = ref.read(databaseProvider);
-    setState(() => _importBusy = true);
+    setState(() {
+      _importBusy = true;
+      _importError = null;
+    });
     try {
       final imported = await IcsService(db).importIcsDetailed(
         _fileContent!,
@@ -391,15 +536,119 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       setState(() {
         _importBusy = false;
         _importResultSummary = summary;
+        _importFailedRows = _importPreview?.skipped ?? const [];
       });
     } catch (error) {
       debugPrint('ics: import failed: $error');
       if (!mounted) return;
       setState(() {
         _importBusy = false;
-        _importResultSummary = l.importFailed;
+        _importResultSummary = null;
+        _importError = '$error';
       });
     }
+  }
+
+  /// The importer already skips rows it cannot parse and keeps going. This
+  /// retries the write for the rows that can be written; a whole-file parse
+  /// failure has no rows to skip and stays disabled.
+  Future<void> _skipErrorRows() async {
+    if (_importError != null) return;
+    await _executeImport();
+  }
+
+  Future<void> _showImportReport(AppLocalizations l) async {
+    final skipped = _importFailedRows.isEmpty && _importPreview != null
+        ? _importPreview!.skipped
+        : _importFailedRows;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.importReportTitle,
+        width: 460,
+        actions: [
+          const Spacer(),
+          DsButton(
+            label: l.close,
+            tone: DsButtonTone.ghost,
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+        ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_importError != null)
+              Text(
+                l.importReportError(_importError!),
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.55,
+                  color: SpecTokens.red,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              )
+            else if (skipped.isEmpty)
+              Text(
+                l.importReportEmpty,
+                style: const TextStyle(
+                  fontSize: 11,
+                  height: 1.55,
+                  color: SpecTokens.muted,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              )
+            else ...[
+              Text(
+                l.importReportSkipped(skipped.length),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: SpecTokens.ink,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final row in skipped)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          row.summary.isEmpty
+                              ? (row.kind == IcsPreviewKind.event
+                                    ? l.events
+                                    : l.todos)
+                              : row.summary,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: SpecTokens.ink2,
+                            fontFamilyFallback: AppTypography.fallback,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        row.kind == IcsPreviewKind.event
+                            ? l.events
+                            : l.todos,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: SpecTokens.faint,
+                          fontFamilyFallback: AppTypography.fallback,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
 
@@ -436,6 +685,86 @@ class _ImportExportSectionState extends ConsumerState<ImportExportSection> {
       debugPrint('ics: export failed: $error');
       if (context.mounted) showSpecToast(context, l.exportFailed);
     }
+  }
+}
+
+class _BackupCounts {
+  const _BackupCounts({
+    required this.calendars,
+    required this.todos,
+    required this.events,
+    required this.attachments,
+  });
+
+  final int calendars;
+  final int todos;
+  final int events;
+  final int attachments;
+}
+
+/// The failure surface for an .ics import. Public so the two actions can be
+/// tested without driving the file picker.
+class ImportFailurePanel extends StatelessWidget {
+  const ImportFailurePanel({
+    super.key,
+    required this.error,
+    required this.skipped,
+    required this.onReport,
+    required this.onSkip,
+  });
+
+  final String? error;
+  final List<IcsPreviewItem> skipped;
+  final VoidCallback onReport;
+  final VoidCallback? onSkip;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InlineAlert(
+          title: l.importErrorTitle,
+          isRed: true,
+          message: error != null
+              ? l.importReportError(error!)
+              : l.importFailedRows(skipped.length),
+        ),
+        if (onSkip == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              l.importCannotSkip,
+              style: const TextStyle(
+                fontSize: 10.5,
+                height: 1.5,
+                color: SpecTokens.faint,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            DsButton(
+              label: l.importSeeReport,
+              tone: DsButtonTone.secondary,
+              small: true,
+              onPressed: onReport,
+            ),
+            DsButton(
+              label: l.importSkipRows,
+              small: true,
+              onPressed: onSkip,
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
@@ -649,7 +978,9 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                             ),
                           ],
                           const SizedBox(height: 6),
-                          Row(
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
                             children: [
                               ChoiceChip(
                                 label: Text(l.backupKeepLocal),
@@ -666,7 +997,6 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                                   }
                                 },
                               ),
-                              const SizedBox(width: 8),
                               ChoiceChip(
                                 label: Text(l.backupKeepRemote),
                                 selected:
@@ -682,8 +1012,31 @@ class _BackupConflictDialogState extends State<_BackupConflictDialog> {
                                   }
                                 },
                               ),
+                              ChoiceChip(
+                                label: Text(l.mergeConflict),
+                                selected:
+                                    _choices[c.key] ==
+                                    BackupConflictResolution.merge,
+                                onSelected: (val) {
+                                  if (val) {
+                                    setState(
+                                      () =>
+                                          _choices[c.key] =
+                                              BackupConflictResolution.merge,
+                                    );
+                                  }
+                                },
+                              ),
                             ],
                           ),
+                          if (_choices[c.key] ==
+                              BackupConflictResolution.merge) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              l.backupMergeHint,
+                              style: TextStyle(fontSize: 10, color: ds.ink3),
+                            ),
+                          ],
                           if (c.associatedSkippedCount > 0 &&
                               _choices[c.key] ==
                                   BackupConflictResolution.keepLocal) ...[

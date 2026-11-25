@@ -10,7 +10,10 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/domain/providers/account_provider.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/tags/tags_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
@@ -29,7 +32,11 @@ import 'settings_sections/sync_section.dart';
 import 'settings_ui.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.initialSection});
+
+  /// Section key to open directly, e.g. `general` for `/settings?section=general`.
+  /// Plain `/settings` (null) still lands on the settings home.
+  final String? initialSection;
 
   @override
   ConsumerState<SettingsPage> createState() => _SettingsPageState();
@@ -52,9 +59,10 @@ class _SettingsSectionItem {
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   static bool _loaded = false;
   static String? _cachedVersion;
-  int _section = 0;
+  // -1 is the settings home: the spec nav has no home item, but `/settings`
+  // opens the overview.
+  int _section = -1;
   String? _mobileSection;
-  String? _customSectionKey;
   final ScrollController _contentScroll = ScrollController();
   final FocusNode _navFocusNode = FocusNode();
   bool _showingDefaultCalendar = false;
@@ -74,6 +82,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             debugPrint('settings: package info unavailable: $error');
           });
     }
+    if (widget.initialSection != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialSection());
+    }
+  }
+
+  /// Deep entry from `/settings?section=<key>`. The router passes the query
+  /// value here; plain `/settings` has no key and stays on home.
+  void _applyInitialSection() {
+    if (!mounted) return;
+    final key = widget.initialSection;
+    if (key == null || key.isEmpty || key == 'home') return;
+    if (isWorkspaceLayout(context)) {
+      final sections = _desktopSections(AppLocalizations.of(context)!);
+      final index = sections.indexWhere((s) => s.key == key);
+      if (index >= 0 && mounted) {
+        setState(() {
+          _section = index;
+          _showingDefaultCalendar = false;
+        });
+      }
+    } else if (_mobileTitle(AppLocalizations.of(context)!, key) !=
+        AppLocalizations.of(context)!.settings) {
+      setState(() => _mobileSection = key);
+    }
   }
 
   @override
@@ -84,14 +116,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _selectSection(int index) {
-    if (_section == index &&
-        _customSectionKey == null &&
-        !_showingDefaultCalendar) {
+    if (_section == index && !_showingDefaultCalendar) {
       return;
     }
     setState(() {
       _section = index;
-      _customSectionKey = null;
       _showingDefaultCalendar = false;
     });
     if (_contentScroll.hasClients) {
@@ -100,138 +129,112 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _goToSectionKey(String key) {
-    final sections = _desktopSections(AppLocalizations.of(context)!);
-    final index = sections.indexWhere((s) => s.key == key);
-    if (index >= 0) {
-      _selectSection(index);
-    } else if (key == 'account' || key == 'ai' || key == 'home') {
+    if (!isWorkspaceLayout(context)) {
       setState(() {
-        _customSectionKey = key;
+        _mobileSection = key == 'home' ? null : key;
         _showingDefaultCalendar = false;
       });
-      if (_contentScroll.hasClients) {
-        _contentScroll.jumpTo(0);
-      }
+      return;
     }
+    if (key == 'home') {
+      _selectSection(-1);
+      return;
+    }
+    final sections = _desktopSections(AppLocalizations.of(context)!);
+    final index = sections.indexWhere((s) => s.key == key);
+    if (index >= 0) _selectSection(index);
   }
 
-  _SettingsSectionItem? _customSection(AppLocalizations l, String key) {
-    if (key == 'home') {
-      final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
-      return _SettingsSectionItem(
-        key: 'home',
-        label: l.settings,
-        subtitle: l.settingsSubtitle,
-        widget: SettingsRows(
-          children: [
-            SettingsRow(
-              label: l.general,
-              subtitle: l.mobileGeneralDesc,
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('general'),
-            ),
-            SettingsRow(
-              label: l.manageCalendars,
-              subtitle: l.mobileCalendarsDesc(calCount),
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('calendars'),
-            ),
-            SettingsRow(
-              label: l.data,
-              subtitle: l.mobileDataDesc,
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('data'),
-            ),
-            if (hasNotificationSettings)
-              SettingsRow(
-                label: l.notify,
-                subtitle: l.mobileNotifyDesc,
-                chevron: SettingsChevron.right,
-                onTap: () => _goToSectionKey('notify'),
-              ),
-            SettingsRow(
-              label: l.sync,
-              subtitle: l.mobileSyncDesc,
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('sync'),
-            ),
-            SettingsRow(
-              label: l.about,
-              subtitle: l.mobileAboutDesc,
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('about'),
-            ),
-          ],
+  /// The spec's settings home (SPEC:2447): eight rows, each naming what the
+  /// section owns and what the row will do. Account and AI are first-class
+  /// sections, not a hidden form behind a sync row.
+  Widget _settingsHomeBody(AppLocalizations l) {
+    final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
+    final email = ref.watch(accountAuthProvider).valueOrNull?.email;
+    final aiEnabled =
+        ref.watch(featureFlagsProvider).valueOrNull?.isEnabled(
+          FeatureFlag.aiAssistant,
+        ) ??
+        true;
+    final aiConfigured = ref.watch(isAiConfiguredProvider).valueOrNull ?? false;
+    final aiModel = ref.watch(aiConfigProvider).value?.model;
+    final aiValue = aiEnabled
+        ? (aiConfigured
+              ? (aiModel == null
+                    ? l.aiConfigured
+                    : l.aiConfiguredWithModel(aiModel))
+              : l.aiNotConfiguredShort)
+        : l.aiOffValue;
+    return SettingsRows(
+      children: [
+        SettingsRow(
+          label: l.userAccount,
+          subtitle: l.settingsHomeAccountDesc,
+          value: email ?? l.accountNotLoggedIn,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('account'),
         ),
-      );
-    }
-    if (key == 'account') {
-      return _SettingsSectionItem(
+        SettingsRow(
+          label: l.general,
+          subtitle: l.settingsHomeGeneralDesc,
+          value: l.settingsValueEnter,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('general'),
+        ),
+        SettingsRow(
+          label: l.manageCalendars,
+          subtitle: l.settingsHomeCalendarsDesc(calCount),
+          value: l.settingsValueManage,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('calendars'),
+        ),
+        SettingsRow(
+          label: l.data,
+          subtitle: l.settingsHomeDataDesc,
+          value: l.settingsValueOpen,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('data'),
+        ),
+        SettingsRow(
+          label: l.aiAssistant,
+          subtitle: l.settingsHomeAiDesc,
+          value: aiValue,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('ai'),
+        ),
+        if (hasNotificationSettings)
+          SettingsRow(
+            label: l.notify,
+            subtitle: l.settingsHomeNotifyDesc,
+            value: l.settingsValueView,
+            chevron: SettingsChevron.right,
+            onTap: () => _goToSectionKey('notify'),
+          ),
+        SettingsRow(
+          label: l.sync,
+          subtitle: l.settingsHomeSyncDesc,
+          value: l.settingsValueView,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('sync'),
+        ),
+        SettingsRow(
+          label: l.about,
+          subtitle: l.settingsHomeAboutDesc,
+          value: l.settingsValueView,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('about'),
+        ),
+      ],
+    );
+  }
+
+  List<_SettingsSectionItem> _desktopSections(AppLocalizations l) {
+    return [
+      _SettingsSectionItem(
         key: 'account',
         label: l.userAccount,
         subtitle: l.accountSectionDesc,
         widget: const AccountSection(),
-      );
-    }
-    if (key == 'ai') {
-      return _SettingsSectionItem(
-        key: 'ai',
-        label: l.aiAssistant,
-        subtitle: l.aiSectionDesc,
-        widget: const AiSection(),
-      );
-    }
-    return null;
-  }
-
-  List<_SettingsSectionItem> _desktopSections(AppLocalizations l) {
-    final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
-    return [
-      _SettingsSectionItem(
-        key: 'home',
-        label: l.settings,
-        subtitle: l.settingsSubtitle,
-        widget: SettingsRows(
-          children: [
-            SettingsRow(
-              label: l.general,
-              subtitle: l.mobileGeneralDesc,
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('general'),
-            ),
-            SettingsRow(
-              label: l.manageCalendars,
-              subtitle: l.mobileCalendarsDesc(calCount),
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('calendars'),
-            ),
-            SettingsRow(
-              label: l.data,
-              subtitle: l.mobileDataDesc,
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('data'),
-            ),
-            if (hasNotificationSettings)
-              SettingsRow(
-                label: l.notify,
-                subtitle: l.mobileNotifyDesc,
-                chevron: SettingsChevron.right,
-                onTap: () => _goToSectionKey('notify'),
-              ),
-            SettingsRow(
-              label: l.sync,
-              subtitle: l.mobileSyncDesc,
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('sync'),
-            ),
-            SettingsRow(
-              label: l.about,
-              subtitle: l.mobileAboutDesc,
-              chevron: SettingsChevron.right,
-              onTap: () => _goToSectionKey('about'),
-            ),
-          ],
-        ),
       ),
       _SettingsSectionItem(
         key: 'general',
@@ -276,6 +279,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       label: l.importAndBackup,
       subtitle: l.ioSectionDesc,
       widget: const ImportExportSection(),
+    ),
+    _SettingsSectionItem(
+      key: 'ai',
+      label: l.aiAssistant,
+      subtitle: l.aiSectionDesc,
+      widget: const AiSection(),
     ),
     if (hasNotificationSettings)
       _SettingsSectionItem(
@@ -440,8 +449,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final desktop = isWorkspaceLayout(context);
 
     if (!desktop) {
-      final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
-
       if (_mobileSection == null) {
         return _mobilePopScope(
           Scaffold(
@@ -460,49 +467,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               children: [
                 Container(
                   color: SpecTokens.paper,
-                  child: SettingsRows(
-                    children: [
-                      SettingsRow(
-                        label: l.general,
-                        subtitle: l.mobileGeneralDesc,
-                        chevron: SettingsChevron.right,
-                        onTap: () => setState(() => _mobileSection = 'general'),
-                      ),
-                      SettingsRow(
-                        label: l.manageCalendars,
-                        subtitle: l.mobileCalendarsDesc(calCount),
-                        chevron: SettingsChevron.right,
-                        onTap: () =>
-                            setState(() => _mobileSection = 'calendars'),
-                      ),
-                      SettingsRow(
-                        label: l.data,
-                        subtitle: l.mobileDataDesc,
-                        chevron: SettingsChevron.right,
-                        onTap: () => setState(() => _mobileSection = 'data'),
-                      ),
-                      if (hasNotificationSettings)
-                        SettingsRow(
-                          label: l.notify,
-                          subtitle: l.mobileNotifyDesc,
-                          chevron: SettingsChevron.right,
-                          onTap: () =>
-                              setState(() => _mobileSection = 'notify'),
-                        ),
-                      SettingsRow(
-                        label: l.sync,
-                        subtitle: l.mobileSyncDesc,
-                        chevron: SettingsChevron.right,
-                        onTap: () => setState(() => _mobileSection = 'sync'),
-                      ),
-                      SettingsRow(
-                        label: l.about,
-                        subtitle: l.mobileAboutDesc,
-                        chevron: SettingsChevron.right,
-                        onTap: () => setState(() => _mobileSection = 'about'),
-                      ),
-                    ],
-                  ),
+                  child: _settingsHomeBody(l),
                 ),
               ],
             ),
@@ -551,10 +516,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
 
     final sections = _desktopSections(l);
-    final selected = _section.clamp(0, sections.length - 1);
-    final currentSection = _customSectionKey != null
-        ? _customSection(l, _customSectionKey!)!
-        : sections[selected];
+    final onHome = _section < 0 && !_showingDefaultCalendar;
+    final selected = onHome
+        ? -1
+        : _section.clamp(0, sections.length - 1);
+    final currentSection = onHome ? null : sections[selected];
 
     return Scaffold(
       backgroundColor: SpecTokens.paper,
@@ -577,14 +543,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         if (event is KeyDownEvent) {
                           if (event.logicalKey ==
                               LogicalKeyboardKey.arrowDown) {
-                            if (_section < sections.length - 1) {
-                              _selectSection(_section + 1);
+                            if (selected < sections.length - 1) {
+                              _selectSection(selected + 1);
                               return KeyEventResult.handled;
                             }
                           } else if (event.logicalKey ==
                               LogicalKeyboardKey.arrowUp) {
-                            if (_section > 0) {
-                              _selectSection(_section - 1);
+                            if (selected > 0) {
+                              _selectSection(selected - 1);
                               return KeyEventResult.handled;
                             }
                           }
@@ -598,9 +564,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             for (var i = 0; i < sections.length; i++)
                               SettingsNavItem(
                                 label: sections[i].label,
-                                selected: (_customSectionKey == null &&
-                                        !_showingDefaultCalendar &&
-                                        selected == i) ||
+                                selected: !_showingDefaultCalendar &&
+                                    selected == i ||
                                     (_showingDefaultCalendar &&
                                         sections[i].key == 'general'),
                                 onTap: () => _selectSection(i),
@@ -627,14 +592,57 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 ),
                               )
                             : SingleChildScrollView(
-                                key: ValueKey(currentSection.key),
+                                key: ValueKey(
+                                  onHome ? 'home' : currentSection!.key,
+                                ),
                                 controller: _contentScroll,
                                 padding: const EdgeInsets.only(bottom: 80),
-                                child: SettingsGroupBlock(
-                                  title: currentSection.label,
-                                  subtitle: currentSection.subtitle,
-                                  child: currentSection.widget,
-                                ),
+                                child: onHome
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 2,
+                                              bottom: 4,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  l.settings,
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: SpecTokens.ink,
+                                                    fontFamilyFallback:
+                                                        AppTypography.fallback,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  l.settingsHomeDesc,
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    height: 1.55,
+                                                    color: SpecTokens.faint,
+                                                    fontFamilyFallback:
+                                                        AppTypography.fallback,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          _settingsHomeBody(l),
+                                        ],
+                                      )
+                                    : SettingsGroupBlock(
+                                        title: currentSection!.label,
+                                        subtitle: currentSection.subtitle,
+                                        child: currentSection.widget,
+                                      ),
                               ),
                       ),
                     ),
