@@ -2056,5 +2056,7 @@
   "dayCountLabel": "天数",
   "syncOfflineShort": "离线，改动等待上传。",
   "syncFailedShort": "同步失败，本地数据没有丢。",
-  "syncConflictShort": "发现冲突，去同步里逐项选择。"
+  "syncConflictShort": "发现冲突，去同步里逐项选择。",
+  "relatedLoading": "正在读取标签、提醒与安排…",
+  "relatedPartial": "部分关联内容没读到。"
 }

@@ -379,21 +379,71 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final rightDate = startLabel == null ? null : dueLabel;
     final recurring = live.rrule != null || live.recurrenceRule != null;
     final isSummary = (widget.inlineSummary || widget.embedded) && !_editing;
-    final summaryTags = isSummary
-        ? ref.watch(todoTagsProvider(live.id)).valueOrNull
+    final summaryTagsAsync = isSummary
+        ? ref.watch(todoTagsProvider(live.id))
         : null;
-    final summaryReminders = isSummary
-        ? ref.watch(todoRemindersProvider(live.id)).valueOrNull
+    final summaryRemindersAsync = isSummary
+        ? ref.watch(todoRemindersProvider(live.id))
         : null;
-    final allocations = isSummary
-        ? ref.watch(taskAllocationsForTodoProvider(live.id)).valueOrNull
+    final allocationsAsync = isSummary
+        ? ref.watch(taskAllocationsForTodoProvider(live.id))
         : null;
+    final summaryTags = summaryTagsAsync?.valueOrNull;
+    final summaryReminders = summaryRemindersAsync?.valueOrNull;
+    final allocations = allocationsAsync?.valueOrNull;
+    final relatedLoading =
+        isSummary &&
+        [summaryTagsAsync, summaryRemindersAsync, allocationsAsync].any(
+          (state) => state != null && state.isLoading && !state.hasValue,
+        );
+    final relatedError =
+        isSummary &&
+        [summaryTagsAsync, summaryRemindersAsync, allocationsAsync].any(
+          (state) => state != null && state.hasError && !state.hasValue,
+        );
 
     final pageContent = isSummary
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _drawerHead(context, l),
+              if (relatedLoading || relatedError)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: relatedError
+                        ? context.ds.dangerSoft
+                        : context.ds.surface2,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          relatedError ? l.relatedPartial : l.relatedLoading,
+                          style: AppTypography.small.copyWith(
+                            color: context.ds.ink2,
+                          ),
+                        ),
+                      ),
+                      if (relatedError)
+                        TextButton(
+                          onPressed: () {
+                            ref.invalidate(todoTagsProvider(live.id));
+                            ref.invalidate(todoRemindersProvider(live.id));
+                            ref.invalidate(
+                              taskAllocationsForTodoProvider(live.id),
+                            );
+                          },
+                          child: Text(l.retry),
+                        ),
+                    ],
+                  ),
+                ),
               Expanded(
                 child: _summaryBody(
                   context,

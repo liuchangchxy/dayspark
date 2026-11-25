@@ -4037,4 +4037,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get syncConflictShort => 'Conflicts found. Review them in Sync.';
+
+  @override
+  String get relatedLoading => 'Loading tags, reminders and schedule…';
+
+  @override
+  String get relatedPartial => 'Some related content didn\'t load.';
 }

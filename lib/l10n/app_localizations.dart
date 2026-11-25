@@ -7306,6 +7306,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Conflicts found. Review them in Sync.'**
   String get syncConflictShort;
+
+  /// No description provided for @relatedLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading tags, reminders and schedule…'**
+  String get relatedLoading;
+
+  /// No description provided for @relatedPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Some related content didn\'t load.'**
+  String get relatedPartial;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

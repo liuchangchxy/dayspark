@@ -3977,4 +3977,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get syncConflictShort => '发现冲突，去同步里逐项选择。';
+
+  @override
+  String get relatedLoading => '正在读取标签、提醒与安排…';
+
+  @override
+  String get relatedPartial => '部分关联内容没读到。';
 }

@@ -2571,5 +2571,7 @@
   "dayCountLabel": "Days",
   "syncOfflineShort": "Offline. Changes waiting to upload.",
   "syncFailedShort": "Sync failed. Local data is safe.",
-  "syncConflictShort": "Conflicts found. Review them in Sync."
+  "syncConflictShort": "Conflicts found. Review them in Sync.",
+  "relatedLoading": "Loading tags, reminders and schedule…",
+  "relatedPartial": "Some related content didn't load."
 }
