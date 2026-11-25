@@ -1655,6 +1655,7 @@ class _PaneButton extends StatelessWidget {
     // surface with no Material for the ink layer, so Ink's fill and border
     // never painted and the primary button's white label vanished.
     final visual = Container(
+      key: const ValueKey('pane-button-visual'),
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(

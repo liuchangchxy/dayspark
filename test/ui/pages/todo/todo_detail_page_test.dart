@@ -299,10 +299,12 @@ void main() {
     );
     expect(primary.width, greaterThanOrEqualTo(48));
     expect(primary.height, greaterThanOrEqualTo(48));
+    // The visual is a plain Container now (Ink never painted on this opaque
+    // paper surface), so measure the same box by its widget type.
     final primaryVisual = tester.getSize(
       find.descendant(
         of: find.byKey(const ValueKey('todo-detail-save')),
-        matching: find.byType(Ink),
+        matching: find.byKey(const ValueKey('pane-button-visual')),
       ),
     );
     expect(primaryVisual.height, 36);
