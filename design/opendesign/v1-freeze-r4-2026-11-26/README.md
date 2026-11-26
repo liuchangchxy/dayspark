@@ -16,6 +16,7 @@
 | 7 | `dayspark-coverage-map.md` | 覆盖映射表 + 第四轮 17 项缺陷结论 |
 | 8 | `prototype-src/` | 原型源码（15 个脚本；在本目录运行 `python3 prototype-src/build.py` 可复现产物） |
 | 9 | `evidence/` | 真实 Chrome + CDP 操作脚本与输出；`backup_roundtrip.py` 走真实导出文件→清空→重载→合并 |
+| 10 | `REVIEWER_ROUND4.md` | 独立 Reviewer 对最终产物 `65fdf776` / `fe3aa531…9333` 的复验：D1–D5 PASS，最终 PASS；未执行的边角项明确标 SKIPPED |
 
 ## 在线试用
 

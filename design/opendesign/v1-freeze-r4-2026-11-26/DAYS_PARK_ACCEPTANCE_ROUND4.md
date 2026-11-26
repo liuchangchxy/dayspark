@@ -95,4 +95,4 @@ python3 backup_roundtrip.py
 ## 4. 说明
 
 - 拖动探针早期在 1000px 高窗口把块拖到视口外会导致下一次按不到块；`drag_delta.txt` 使用块内可点击点并做 +30/−30 回归，产品坐标计算本身固定起点。
-- 独立 Reviewer 的复验记录见 `REVIEWER_ROUND4.md`（若评审包中存在）。
+- 独立 Reviewer 对最终产物的复验见 `REVIEWER_ROUND4.md`：最终 **PASS**；D1–D5 全部 PASS，另验证拖动/缩放与手机重复实例；AI 重复安排、完整备份字段矩阵等边角项明确标记 SKIPPED，未当作 PASS。
