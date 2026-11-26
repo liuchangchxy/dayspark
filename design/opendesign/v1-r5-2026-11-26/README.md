@@ -27,7 +27,7 @@ open http://127.0.0.1:8137/dayspark-prototype.html
 | `DAYS_PARK_UI_R5_SPEC.md` | R5 视觉与体验契约 |
 | `DAYS_PARK_ACCEPTANCE_ROUND5.md` | 真实操作结果、截图索引、已知边界 |
 | `dayspark-coverage-map.md` | 能力与 surface 覆盖表 |
-| `evidence-r5/` | 22 张最终截图、`scripts/capture.py`、`probe-results.txt` |
+| `evidence-r5/` | 24 张最终截图、`scripts/capture.py`、`probe-results.txt` |
 
 ## 构建
 
