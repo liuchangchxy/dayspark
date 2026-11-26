@@ -18,8 +18,8 @@
 
 ## 在线试用
 
-- 原型 <https://raw.githack.com/liuchangchxy/dayspark/design/v1-freeze-r3-2026-11-26/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-prototype.html>
-- 母版 <https://raw.githack.com/liuchangchxy/dayspark/design/v1-freeze-r3-2026-11-26/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-spec.html>
+- 原型 <https://raw.githack.com/liuchangchxy/dayspark/80ea16e2/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-prototype.html>
+- 母版 <https://raw.githack.com/liuchangchxy/dayspark/80ea16e2/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-spec.html>
 
 ## 这轮真正改变的产品语义
 
