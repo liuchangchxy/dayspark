@@ -50,5 +50,5 @@ python3 prototype-src/build.py /tmp/dayspark-r4
 
 - 原型 `dayspark-prototype.html` SHA-256：`348084f9888c855d15e2c00ac70214215d87e6d75e4a5741d836b733af686f27`
 - 母版 `dayspark-spec.html` SHA-256：`42e78999741aff78032d16f64b4735b56ef0532cfcd7c76f339282f4fd2481f1`
-- 原型由 15 个脚本构建，产物 923,621 bytes。
+- 原型由 15 个脚本构建，产物 1,019,847 bytes（UTF-8；构建器报告 923,621 字符）。
 - 评审包提交：`b2467339`
