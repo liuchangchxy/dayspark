@@ -1,46 +1,75 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/domain/providers/account_provider.dart';
+import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/feature_flags_provider.dart';
 import 'package:dayspark/ui/design/ds.dart';
-import 'package:dayspark/ui/shell/workspace_page.dart';
+import 'package:dayspark/ui/pages/tags/tags_page.dart';
+import 'package:dayspark/ui/pages/trash/trash_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+
+import 'default_calendar_view.dart';
 import 'settings_sections/about_section.dart';
 import 'settings_sections/account_section.dart';
 import 'settings_sections/ai_section.dart';
 import 'settings_sections/appearance_section.dart';
 import 'settings_sections/calendar_settings_section.dart';
 import 'settings_sections/data_section.dart';
+import 'settings_sections/import_export_section.dart';
 import 'settings_sections/notifications_section.dart';
+import 'settings_sections/sync_section.dart';
 import 'settings_ui.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.initialSection});
+
+  /// Section key to open directly, e.g. `general` for `/settings?section=general`.
+  /// Plain `/settings` (null) still lands on the settings home.
+  final String? initialSection;
 
   @override
   ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
+class _SettingsSectionItem {
+  const _SettingsSectionItem({
+    required this.key,
+    required this.label,
+    this.subtitle,
+    required this.widget,
+  });
+
+  final String key;
+  final String label;
+  final String? subtitle;
+  final Widget widget;
+}
+
 class _SettingsPageState extends ConsumerState<SettingsPage> {
   static bool _loaded = false;
   static String? _cachedVersion;
-  int _section = 0;
-  final ScrollController _scroll = ScrollController();
-  final List<GlobalKey> _groupKeys = [];
-  bool _jumping = false;
+  // -1 is the settings home: the spec nav has no home item, but `/settings`
+  // opens the overview.
+  int _section = -1;
+  String? _mobileSection;
+  final ScrollController _contentScroll = ScrollController();
+  final FocusNode _navFocusNode = FocusNode();
+  bool _showingDefaultCalendar = false;
 
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(_syncSectionToScroll);
     if (!_loaded) {
       _loaded = true;
       Future.microtask(() => NotificationsSection.loadSystemAlarmSetting(ref));
@@ -53,176 +82,579 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             debugPrint('settings: package info unavailable: $error');
           });
     }
+    if (widget.initialSection != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _applyInitialSection(),
+      );
+    }
+  }
+
+  /// Deep entry from `/settings?section=<key>`. The router passes the query
+  /// value here; plain `/settings` has no key and stays on home.
+  void _applyInitialSection() {
+    if (!mounted) return;
+    final key = widget.initialSection;
+    if (key == null || key.isEmpty || key == 'home') return;
+    if (isWorkspaceLayout(context)) {
+      final sections = _desktopSections(AppLocalizations.of(context)!);
+      final index = sections.indexWhere((s) => s.key == key);
+      if (index >= 0 && mounted) {
+        setState(() {
+          _section = index;
+          _showingDefaultCalendar = false;
+        });
+      }
+    } else if (_mobileTitle(AppLocalizations.of(context)!, key) !=
+        AppLocalizations.of(context)!.settings) {
+      setState(() => _mobileSection = key);
+    }
   }
 
   @override
   void dispose() {
-    _scroll.dispose();
+    _contentScroll.dispose();
+    _navFocusNode.dispose();
     super.dispose();
   }
 
-  GlobalKey _keyFor(int index) {
-    while (_groupKeys.length <= index) {
-      _groupKeys.add(GlobalKey());
+  void _selectSection(int index) {
+    if (_section == index && !_showingDefaultCalendar) {
+      return;
     }
-    return _groupKeys[index];
-  }
-
-  void _syncSectionToScroll() {
-    if (_jumping || !_scroll.hasClients) return;
-    var current = 0;
-    for (var i = 0; i < _groupKeys.length; i++) {
-      final render = _groupKeys[i].currentContext?.findRenderObject();
-      if (render is! RenderBox) continue;
-      final target = RenderAbstractViewport.of(
-        render,
-      ).getOffsetToReveal(render, 0).offset;
-      if (target <= _scroll.offset + 32) current = i;
+    setState(() {
+      _section = index;
+      _showingDefaultCalendar = false;
+    });
+    if (_contentScroll.hasClients) {
+      _contentScroll.jumpTo(0);
     }
-    if (current != _section) setState(() => _section = current);
   }
 
-  void _goTo(int index) {
-    setState(() => _section = index);
-    final target = _keyFor(index).currentContext;
-    if (target == null) return;
-    _jumping = true;
-    Scrollable.ensureVisible(
-      target,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      alignment: 0,
-    ).whenComplete(() => _jumping = false);
+  void _goToSectionKey(String key) {
+    if (!isWorkspaceLayout(context)) {
+      setState(() {
+        _mobileSection = key == 'home' ? null : key;
+        _showingDefaultCalendar = false;
+      });
+      return;
+    }
+    if (key == 'home') {
+      _selectSection(-1);
+      return;
+    }
+    final sections = _desktopSections(AppLocalizations.of(context)!);
+    final index = sections.indexWhere((s) => s.key == key);
+    if (index >= 0) _selectSection(index);
   }
 
-  List<(String, Widget)> _sections(AppLocalizations l) => [
-    (l.appearance, const AppearanceSection()),
-    (l.calendar, const CalendarSettingsSection()),
-    (l.account, const AccountSection()),
-    (l.data, const DataSection()),
-    (l.aiAssistant, const AiSection()),
-    if (hasNotificationSettings) (l.notifications, const NotificationsSection()),
-    (l.about, AboutSection(version: _cachedVersion ?? '')),
-  ];
+  /// The spec's settings home (SPEC:2447): eight rows, each naming what the
+  /// section owns and what the row will do. Account and AI are first-class
+  /// sections, not a hidden form behind a sync row.
+  Widget _settingsHomeBody(AppLocalizations l) {
+    final calCount = ref.watch(calendarsProvider).valueOrNull?.length ?? 1;
+    final account = ref.watch(accountAuthProvider);
+    // Reading the account is not the same as being signed out: while the read
+    // is in flight the row shows a neutral skeleton instead of "not signed in".
+    final accountLoading = account.isLoading && !account.hasValue;
+    final accountValue = account.hasValue
+        ? (account.value!.email ?? l.accountNotLoggedIn)
+        : account.hasError
+        ? l.accountLoadFailed
+        : null;
+    final aiEnabled =
+        ref
+            .watch(featureFlagsProvider)
+            .valueOrNull
+            ?.isEnabled(FeatureFlag.aiAssistant) ??
+        true;
+    final aiConfigured = ref.watch(isAiConfiguredProvider).valueOrNull ?? false;
+    final aiModel = ref.watch(aiConfigProvider).value?.model;
+    final aiValue = aiEnabled
+        ? (aiConfigured
+              ? (aiModel == null
+                    ? l.aiConfigured
+                    : l.aiConfiguredWithModel(aiModel))
+              : l.aiNotConfiguredShort)
+        : l.aiOffValue;
+    return SettingsRows(
+      children: [
+        SettingsRow(
+          label: l.userAccount,
+          subtitle: l.settingsHomeAccountDesc,
+          value: accountValue,
+          trailing: accountLoading
+              ? const _AccountValueSkeleton(
+                  key: ValueKey('account-summary-loading'),
+                )
+              : null,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('account'),
+        ),
+        SettingsRow(
+          label: l.general,
+          subtitle: l.settingsHomeGeneralDesc,
+          value: l.settingsValueEnter,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('general'),
+        ),
+        SettingsRow(
+          label: l.manageCalendars,
+          subtitle: l.settingsHomeCalendarsDesc(calCount),
+          value: l.settingsValueManage,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('calendars'),
+        ),
+        SettingsRow(
+          label: l.data,
+          subtitle: l.settingsHomeDataDesc,
+          value: l.settingsValueOpen,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('data'),
+        ),
+        SettingsRow(
+          label: l.aiAssistant,
+          subtitle: l.settingsHomeAiDesc,
+          value: aiValue,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('ai'),
+        ),
+        if (hasNotificationSettings)
+          SettingsRow(
+            label: l.notify,
+            subtitle: l.settingsHomeNotifyDesc,
+            value: l.settingsValueView,
+            chevron: SettingsChevron.right,
+            onTap: () => _goToSectionKey('notify'),
+          ),
+        SettingsRow(
+          label: l.sync,
+          subtitle: l.settingsHomeSyncDesc,
+          value: l.settingsValueView,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('sync'),
+        ),
+        SettingsRow(
+          label: l.about,
+          subtitle: l.settingsHomeAboutDesc,
+          value: l.settingsValueView,
+          chevron: SettingsChevron.right,
+          onTap: () => _goToSectionKey('about'),
+        ),
+      ],
+    );
+  }
+
+  List<_SettingsSectionItem> _desktopSections(AppLocalizations l) {
+    return [
+      _SettingsSectionItem(
+        key: 'account',
+        label: l.userAccount,
+        subtitle: l.accountSectionDesc,
+        widget: const AccountSection(),
+      ),
+      _SettingsSectionItem(
+        key: 'general',
+        label: l.general,
+        subtitle: l.generalDesc,
+        widget: AppearanceSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
+      ),
+      _SettingsSectionItem(
+        key: 'calendars',
+        label: l.manageCalendars,
+        subtitle: l.calendarManagementDesc,
+        widget: CalendarSettingsSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
+      ),
+      _SettingsSectionItem(
+        key: 'data',
+        label: l.data,
+        subtitle: l.dataSectionDesc,
+        widget: DataSection(onSelectSection: _goToSectionKey),
+      ),
+      _SettingsSectionItem(
+        key: 'tags',
+        label: l.tags,
+        subtitle: l.tagManagementDesc,
+        widget: const TagsPage(embedded: true),
+      ),
+      _SettingsSectionItem(
+        key: 'trash',
+        label: l.trash,
+        subtitle: l.trashDesc,
+        widget: const TrashPage(embedded: true),
+      ),
+      _SettingsSectionItem(
+        key: 'io',
+        label: l.importAndBackup,
+        subtitle: l.ioSectionDesc,
+        widget: const ImportExportSection(),
+      ),
+      _SettingsSectionItem(
+        key: 'ai',
+        label: l.aiAssistant,
+        subtitle: l.aiSectionDesc,
+        widget: const AiSection(),
+      ),
+      if (hasNotificationSettings)
+        _SettingsSectionItem(
+          key: 'notify',
+          label: l.notify,
+          subtitle: l.notifySectionDesc,
+          widget: const NotificationsSection(),
+        ),
+      _SettingsSectionItem(
+        key: 'sync',
+        label: l.sync,
+        subtitle: l.syncSectionDesc,
+        widget: SyncSection(onGoToAccount: () => _goToSectionKey('account')),
+      ),
+      _SettingsSectionItem(
+        key: 'about',
+        label: l.about,
+        subtitle: l.aboutDesc,
+        widget: AboutSection(version: _cachedVersion ?? ''),
+      ),
+    ];
+  }
+
+  String _mobileTitle(AppLocalizations l, String section) => switch (section) {
+    'general' => l.general,
+    'calendars' => l.manageCalendars,
+    'data' => l.data,
+    'tags' => l.tags,
+    'trash' => l.trash,
+    'io' => l.importAndBackup,
+    'notify' => l.notify,
+    'sync' => l.sync,
+    'account' => l.userAccount,
+    'ai' => l.aiAssistant,
+    'about' => l.about,
+    _ => l.settings,
+  };
+
+  String? _mobileSubtitle(AppLocalizations l, String section) =>
+      switch (section) {
+        'general' => l.generalDesc,
+        'calendars' => l.calendarManagementDesc,
+        'data' => l.dataSectionDesc,
+        'tags' => l.tagManagementDesc,
+        'trash' => l.trashDesc,
+        'io' => l.ioSectionDesc,
+        'notify' => l.notifySectionDesc,
+        'sync' => l.syncSectionDesc,
+        'account' => l.accountSectionDesc,
+        'ai' => l.aiSectionDesc,
+        'about' => l.aboutDesc,
+        _ => null,
+      };
+
+  Widget _mobileSectionWidget(AppLocalizations l, String section) =>
+      switch (section) {
+        'general' => AppearanceSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
+        'calendars' => CalendarSettingsSection(
+          onOpenDefaultCalendar: () {
+            setState(() => _showingDefaultCalendar = true);
+          },
+        ),
+        'data' => DataSection(
+          onSelectSection: (key) => setState(() => _mobileSection = key),
+        ),
+        'tags' => const TagsPage(embedded: true),
+        'trash' => const TrashPage(embedded: true),
+        'io' => const ImportExportSection(),
+        'notify' => const NotificationsSection(),
+        'sync' => SyncSection(
+          onGoToAccount: () => setState(() => _mobileSection = 'account'),
+        ),
+        'account' => const AccountSection(),
+        'ai' => const AiSection(),
+        'about' => AboutSection(version: _cachedVersion ?? ''),
+        _ => const SizedBox.shrink(),
+      };
+
+  void _mobileBack() {
+    if (_showingDefaultCalendar) {
+      setState(() => _showingDefaultCalendar = false);
+      return;
+    }
+    final section = _mobileSection;
+    if (section == null) {
+      _leave(context);
+      return;
+    }
+    if (section == 'tags' || section == 'trash' || section == 'io') {
+      setState(() => _mobileSection = 'data');
+      return;
+    }
+    setState(() => _mobileSection = null);
+  }
+
+  Widget _mobilePopScope(Widget child) {
+    return PopScope(
+      canPop: _mobileSection == null && !_showingDefaultCalendar,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _mobileBack();
+      },
+      child: child,
+    );
+  }
+
+  Widget _settingsHead(AppLocalizations l) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 13),
+      decoration: const BoxDecoration(
+        color: SpecTokens.paper,
+        border: Border(bottom: BorderSide(color: SpecTokens.hair, width: 1)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Semantics(
+            button: true,
+            label: l.settings,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(4),
+              onTap: () => _goToSectionKey('home'),
+              child: Text(
+                l.settings,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                  height: 1.22,
+                  color: SpecTokens.ink,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              l.settingsSubtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11.5,
+                color: SpecTokens.muted,
+                fontFamilyFallback: AppTypography.fallback,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final desktop = isWorkspaceLayout(context);
-    final sections = _sections(l);
 
     if (!desktop) {
-      return Scaffold(
-        backgroundColor: context.ds.bg,
-        appBar: DsTopBar(
-          title: l.settings,
-          leading: DsIconButton(
-            icon: CupertinoIcons.back,
-            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: () => _leave(context),
-          ),
-        ),
-        body: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.s8),
-          children: [
-            for (final section in sections)
-              SettingsGroupBlock(
-                title: section.$1,
-                mobile: true,
-                child: section.$2,
+      if (_mobileSection == null) {
+        return _mobilePopScope(
+          Scaffold(
+            backgroundColor: SpecTokens.wash,
+            appBar: DsTopBar(
+              title: l.settings,
+              subtitle: l.settingsSubtitle,
+              leading: DsIconButton(
+                icon: CupertinoIcons.back,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onPressed: () => _leave(context),
               ),
-          ],
+            ),
+            body: ListView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+              children: [
+                Container(color: SpecTokens.paper, child: _settingsHomeBody(l)),
+              ],
+            ),
+          ),
+        );
+      }
+
+      return _mobilePopScope(
+        Scaffold(
+          backgroundColor: SpecTokens.wash,
+          appBar: DsTopBar(
+            title: _showingDefaultCalendar
+                ? l.defaultCalendar
+                : _mobileTitle(l, _mobileSection!),
+            subtitle: _showingDefaultCalendar
+                ? l.defaultCalendarDesc
+                : _mobileSubtitle(l, _mobileSection!),
+            leading: DsIconButton(
+              icon: CupertinoIcons.back,
+              tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+              onPressed: _showingDefaultCalendar
+                  ? () => setState(() => _showingDefaultCalendar = false)
+                  : _mobileBack,
+            ),
+          ),
+          body: _showingDefaultCalendar
+              ? Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: DefaultCalendarView(
+                    onBack: () =>
+                        setState(() => _showingDefaultCalendar = false),
+                  ),
+                )
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+                  child: SettingsGroupBlock(
+                    title: _mobileTitle(l, _mobileSection!),
+                    subtitle: _mobileSubtitle(l, _mobileSection!),
+                    mobile: true,
+                    showHeader: false,
+                    child: _mobileSectionWidget(l, _mobileSection!),
+                  ),
+                ),
         ),
       );
     }
 
-    final selected = _section.clamp(0, sections.length - 1);
-    return WorkspacePage(
-      // The title belongs to the nav it names, not to the top bar: the bar is
-      // pinned to the window edge, so on a wide screen it sat half a window
-      // away from the column it introduced and the page read as two.
-      title: '',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s6),
-        child: Center(
-          child: ConstrainedBox(
-            // The nav and the column are one object: sizing the pair (not the
-            // page) keeps the empty space even on both sides instead of
-            // stacking it all to the right of the form.
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: SizedBox(
-              height: double.infinity,
+    final sections = _desktopSections(l);
+    final onHome = _section < 0 && !_showingDefaultCalendar;
+    final selected = onHome ? -1 : _section.clamp(0, sections.length - 1);
+    final currentSection = onHome ? null : sections[selected];
+
+    return Scaffold(
+      backgroundColor: SpecTokens.paper,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _settingsHead(l),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(30, 24, 30, 0),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      0,
-                      AppSpacing.s1,
-                      AppSpacing.s1,
-                      AppSpacing.s6,
-                    ),
-                    child: SizedBox(
-                      width: 200,
+                  SizedBox(
+                    width: 176,
+                    child: Focus(
+                      focusNode: _navFocusNode,
+                      autofocus: true,
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent) {
+                          if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowDown) {
+                            if (selected < sections.length - 1) {
+                              _selectSection(selected + 1);
+                              return KeyEventResult.handled;
+                            }
+                          } else if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowUp) {
+                            if (selected > 0) {
+                              _selectSection(selected - 1);
+                              return KeyEventResult.handled;
+                            }
+                          }
+                        }
+                        return KeyEventResult.ignored;
+                      },
                       child: SingleChildScrollView(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Padding(
-                              // 2 + 12 puts the title on the same left edge as
-                              // the nav labels under it.
-                              padding: const EdgeInsets.fromLTRB(
-                                AppSpacing.s3 + 2,
-                                0,
-                                0,
-                                AppSpacing.s4,
-                              ),
-                              child: Text(
-                                l.settings,
-                                style: AppTypography.title.copyWith(
-                                  color: context.ds.ink,
-                                ),
-                              ),
-                            ),
                             for (var i = 0; i < sections.length; i++)
-                              _NavItem(
-                                label: sections[i].$1,
-                                selected: selected == i,
-                                onTap: () => _goTo(i),
+                              SettingsNavItem(
+                                label: sections[i].label,
+                                selected:
+                                    !_showingDefaultCalendar && selected == i ||
+                                    (_showingDefaultCalendar &&
+                                        sections[i].key == 'general'),
+                                onTap: () => _selectSection(i),
                               ),
                           ],
                         ),
                       ),
                     ),
                   ),
-                  Container(width: 1, color: context.ds.line),
+                  const SizedBox(width: 46),
                   Expanded(
-                    child: SingleChildScrollView(
-                      controller: _scroll,
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.s6 + AppSpacing.s3,
-                        AppSpacing.s1,
-                        AppSpacing.s6,
-                        AppSpacing.s8,
-                      ),
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 640),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              for (var i = 0; i < sections.length; i++)
-                                KeyedSubtree(
-                                  key: _keyFor(i),
-                                  child: SettingsGroupBlock(
-                                    title: sections[i].$1,
-                                    child: sections[i].$2,
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 700),
+                        child: _showingDefaultCalendar
+                            ? SingleChildScrollView(
+                                controller: _contentScroll,
+                                padding: const EdgeInsets.only(bottom: 80),
+                                child: DefaultCalendarView(
+                                  onBack: () => setState(
+                                    () => _showingDefaultCalendar = false,
                                   ),
                                 ),
-                            ],
-                          ),
-                        ),
+                              )
+                            : SingleChildScrollView(
+                                key: ValueKey(
+                                  onHome ? 'home' : currentSection!.key,
+                                ),
+                                controller: _contentScroll,
+                                padding: const EdgeInsets.only(bottom: 80),
+                                child: onHome
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 2,
+                                              bottom: 4,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  l.settings,
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: SpecTokens.ink,
+                                                    fontFamilyFallback:
+                                                        AppTypography.fallback,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  l.settingsHomeDesc,
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    height: 1.55,
+                                                    color: SpecTokens.faint,
+                                                    fontFamilyFallback:
+                                                        AppTypography.fallback,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          _settingsHomeBody(l),
+                                        ],
+                                      )
+                                    : SettingsGroupBlock(
+                                        title: currentSection!.label,
+                                        subtitle: currentSection.subtitle,
+                                        child: currentSection.widget,
+                                      ),
+                              ),
                       ),
                     ),
                   ),
@@ -230,7 +662,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -245,8 +677,9 @@ void _leave(BuildContext context) {
   router?.go('/');
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
+class SettingsNavItem extends StatefulWidget {
+  const SettingsNavItem({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -257,47 +690,72 @@ class _NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<SettingsNavItem> createState() => _SettingsNavItemState();
+}
+
+class _SettingsNavItemState extends State<SettingsNavItem> {
+  bool _hovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
+    final bg = widget.selected
+        ? SpecTokens.wash
+        : _hovered
+        ? SpecTokens.wash
+        : Colors.transparent;
+
+    final fg = widget.selected
+        ? SpecTokens.ink
+        : _hovered
+        ? SpecTokens.ink2
+        : SpecTokens.muted;
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: Semantics(
-        button: true,
-        selected: selected,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            hoverColor: ds.surface2,
-            child: SizedBox(
-              height: 44,
-              child: Row(
-                children: [
-                  Container(
-                    width: 2,
-                    height: 16,
-                    color: selected ? ds.primary : Colors.transparent,
-                  ),
-                  const SizedBox(width: AppSpacing.s3),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(
-                        fontSize: 13,
-                        color: selected ? ds.ink : ds.ink3,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: Container(
+          height: 31,
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          margin: const EdgeInsets.symmetric(vertical: 1),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(5),
+          ),
+          alignment: Alignment.centerLeft,
+          child: Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
+              color: fg,
+              fontFamilyFallback: AppTypography.fallback,
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Neutral placeholder for the account row while its state is being read.
+/// It must not read as either "signed in" or "not signed in".
+class _AccountValueSkeleton extends StatelessWidget {
+  const _AccountValueSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 9,
+      decoration: BoxDecoration(
+        color: SpecTokens.hair2,
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }
@@ -309,4 +767,6 @@ bool get hasNotificationSettings =>
     !kIsWeb &&
     (defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS ||
-        defaultTargetPlatform == TargetPlatform.macOS);
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux);

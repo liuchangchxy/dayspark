@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_today_name">Action</string>
-    <string name="widget_today_description">See and complete what is happening today.</string>
+    <string name="widget_today_description">See today at a glance. Tap a row to open it.</string>
     <string name="widget_todos_name">Tasks</string>
-    <string name="widget_todos_description">Your task list, ready to check off.</string>
+    <string name="widget_todos_description">See your tasks at a glance. Tap a row to open it.</string>
     <string name="widget_calendar_name">Calendar</string>
     <string name="widget_calendar_description">See any day in this month at a glance.</string>
     <string name="widget_open_app">Open DaySpark</string>

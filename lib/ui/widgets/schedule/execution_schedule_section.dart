@@ -2,15 +2,21 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 
 /// A scheduled block the user has proposed but not saved yet.
 ///
@@ -146,9 +152,7 @@ class ExecutionScheduleSection extends ConsumerWidget {
     String? occurrenceId;
     if (row != null && row.rrule != null && row.rrule!.isNotEmpty) {
       if (!_isConfirmableOccurrence(row)) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.unsupportedRecurrence)));
+        showSpecToast(context, l.unsupportedRecurrence);
         return;
       }
       final selected = await TodoOccurrencePickerSheet.show(
@@ -163,15 +167,21 @@ class ExecutionScheduleSection extends ConsumerWidget {
     final suggested = deadline != null && deadline!.isAfter(now)
         ? deadline!
         : now.add(const Duration(hours: 1));
-    final result = await showExecutionSheet(context, initial: suggested);
-    if (result == null || !context.mounted) return;
+    final picked = await SpecPlanPickerDialog.show(
+      context,
+      title: row?.summary ?? l.executionSchedule,
+      initialStart: suggested,
+      initialEnd: suggested.add(const Duration(minutes: 45)),
+      existingBlocks: (day) => _existingBlocks(ref, day, excludeTodoId: row?.id),
+    );
+    if (picked == null || !context.mounted) return;
 
     if (_deferred) {
       onDraftChanged!([
         ...draft,
         DraftExecution(
-          start: result.start,
-          end: result.end,
+          start: picked.$1,
+          end: picked.$2,
           occurrenceId: occurrenceId,
         ),
       ]);
@@ -180,21 +190,52 @@ class ExecutionScheduleSection extends ConsumerWidget {
     try {
       await ref.read(createTaskAllocationProvider)(
         todoId: row!.id,
-        startAt: result.start,
-        endAt: result.end,
+        startAt: picked.$1,
+        endAt: picked.$2,
         occurrenceId: occurrenceId,
       );
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
+        showSpecToast(context, l.schedulingFailed);
       }
     }
   }
 
+  /// The plan picker shows what already occupies the chosen day, so it has to
+  /// read the same two sources the calendar does.
+  Future<List<SpecPlanBlock>> _existingBlocks(
+    WidgetRef ref,
+    DateTime day, {
+    int? excludeTodoId,
+  }) async {
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+    final db = ref.read(databaseProvider);
+    final events = await db.eventsDao.getEventCandidates(start, end);
+    final allocations = await fetchTaskAllocationsInDateRange(db, start, end);
+    final blocks = calDayBlocks(
+      day: start,
+      events: [
+        for (final event in events) CalendaEventAdapter.fromDrift(event),
+      ],
+      allocations: [
+        for (final item in allocations)
+          if (item.todo.id != excludeTodoId)
+            TaskAllocationCalendarAdapter.fromItem(item),
+      ],
+    );
+    return [
+      for (final block in blocks)
+        SpecPlanBlock(
+          start: block.start,
+          end: block.end,
+          title: block.title,
+        ),
+    ];
+  }
+
   /// Moving an existing block is the same question as adding one, so it reuses
-  /// the same sheet instead of making the user cancel and re-create it.
+  /// the same spec picker instead of making the user cancel and re-create it.
   Future<void> _reschedule(
     BuildContext context,
     WidgetRef ref,
@@ -203,25 +244,27 @@ class ExecutionScheduleSection extends ConsumerWidget {
   ) async {
     final id = item.id;
     if (id == null) return;
-    // The sheet formats with `formatMoment`, which does not localize; the row
-    // value comes from storage in UTC, so hand it the local wall time it
-    // already shows.
-    final result = await showExecutionSheet(
+    // Storage is UTC; the row already shows the local wall time.
+    final start = item.start.toLocal();
+    final end = item.end.toLocal();
+    final picked = await SpecPlanPickerDialog.show(
       context,
-      initial: item.start.toLocal(),
+      title: todo?.summary ?? l.executionSchedule,
+      initialStart: start,
+      initialEnd: end,
+      existingBlocks: (day) => _existingBlocks(ref, day, excludeTodoId: todo?.id),
+      isEditing: true,
     );
-    if (result == null || !context.mounted) return;
+    if (picked == null || !context.mounted) return;
     try {
       await ref.read(rescheduleTaskAllocationProvider)(
         id: id,
-        startAt: result.start,
-        endAt: result.end,
+        startAt: picked.$1,
+        endAt: picked.$2,
       );
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
+        showSpecToast(context, l.schedulingFailed);
       }
     }
   }
@@ -242,18 +285,15 @@ class ExecutionScheduleSection extends ConsumerWidget {
     if (id == null) return;
     await ref.read(cancelTaskAllocationProvider)(id);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.cancelledTaskAllocation),
-        action: SnackBarAction(
-          label: l.undo,
-          onPressed: () => ref.read(createTaskAllocationProvider)(
-            todoId: todo!.id,
-            startAt: item.start,
-            endAt: item.end,
-            occurrenceId: item.occurrenceId,
-          ),
-        ),
+    showUndoBar(
+      context,
+      message: l.cancelledTaskAllocation,
+      undoLabel: l.undo,
+      onUndo: () => ref.read(createTaskAllocationProvider)(
+        todoId: todo!.id,
+        startAt: item.start,
+        endAt: item.end,
+        occurrenceId: item.occurrenceId,
       ),
     );
   }
@@ -287,98 +327,4 @@ class _AddButton extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Pick a start and a length. Length is a choice, not an end time the user has
-/// to compute.
-Future<DraftExecution?> showExecutionSheet(
-  BuildContext context, {
-  required DateTime initial,
-}) async {
-  var start = initial;
-  var length = kExecutionLengths[1];
-  final l = AppLocalizations.of(context)!;
-  return showModalBottomSheet<DraftExecution>(
-    context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setSheetState) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  0,
-                  AppSpacing.sm,
-                  AppSpacing.xs,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l.executionSchedule,
-                        style: AppTypography.title,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.xmark, size: 18),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      tooltip: l.close,
-                    ),
-                  ],
-                ),
-              ),
-              ScheduleRow(
-                label: l.executionWhen,
-                value: formatMoment(ctx, start),
-                onTap: () async {
-                  final picked = await pickDateTime(ctx, initial: start);
-                  if (picked != null) setSheetState(() => start = picked);
-                },
-              ),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                ),
-                child: Wrap(
-                  spacing: AppSpacing.sm,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      l.lengthLabel,
-                      style: AppTypography.caption.copyWith(
-                        color: context.semantic.textSecondary,
-                      ),
-                    ),
-                    for (final option in kExecutionLengths)
-                      ChoiceChip(
-                        label: Text(formatExecutionLength(ctx, option)),
-                        selected: length == option,
-                        onSelected: (_) => setSheetState(() => length = option),
-                      ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: FilledButton(
-                  onPressed: () => Navigator.of(
-                    ctx,
-                  ).pop(DraftExecution(start: start, end: start.add(length))),
-                  child: Text(l.save),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
 }

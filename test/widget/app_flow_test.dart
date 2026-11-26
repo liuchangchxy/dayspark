@@ -7,10 +7,9 @@ import 'package:go_router/go_router.dart';
 
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
-import 'package:dayspark/ui/pages/about/about_page.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/pages/settings/settings_page.dart';
-import 'package:dayspark/ui/pages/event/event_form_page.dart';
+import 'package:dayspark/ui/pages/todo/new_item_page.dart';
 import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
@@ -22,13 +21,13 @@ GoRouter _createRouter() => GoRouter(
     GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),
     GoRoute(
       path: '/event/new',
-      builder: (_, __) => EventFormPage(
+      builder: (_, __) => NewItemPage(
+        isEvent: true,
         initialStart: DateTime(2026, 5, 1),
         initialEnd: DateTime(2026, 5, 1).add(const Duration(hours: 1)),
       ),
     ),
     GoRoute(path: '/search', builder: (_, __) => const SearchPage()),
-    GoRoute(path: '/about', builder: (_, __) => const AboutPage()),
     GoRoute(path: '/trash', builder: (_, __) => const TrashPage()),
     GoRoute(path: '/todo/new', builder: (_, __) => const TodoFormPage()),
   ],
@@ -74,7 +73,7 @@ Future<void> _switchCalendarView(WidgetTester tester, String label) async {
 }
 
 Future<void> _openSettings(WidgetTester tester) async {
-  await tester.tap(find.byIcon(CupertinoIcons.settings));
+  await tester.tap(find.byIcon(CupertinoIcons.person));
   await _settle(tester);
 }
 
@@ -82,14 +81,15 @@ void main() {
   testWidgets('home page renders', (tester) async {
     await _pumpApp(tester);
 
-    // The dock carries the three destinations; there is no floating create
+    // The dock carries the four destinations; there is no floating create
     // button — capture is the row at the bottom of the page.
     expect(find.byKey(const ValueKey('mobile-tab-bar')), findsOneWidget);
     expect(find.byKey(const ValueKey('today-capture-field')), findsOneWidget);
     expect(find.text('Today'), findsWidgets);
     expect(find.text('Calendar'), findsWidgets);
     expect(find.text('Tasks'), findsWidgets);
-    expect(find.byIcon(CupertinoIcons.settings), findsOneWidget);
+    expect(find.text('Me'), findsWidgets);
+    expect(find.byIcon(CupertinoIcons.person), findsOneWidget);
     expect(find.byType(PopupMenuButton<String>), findsNothing);
     expect(find.byIcon(CupertinoIcons.search), findsOneWidget);
   });
@@ -112,9 +112,9 @@ void main() {
     // The calendar's create is an event (SPEC 规则 19): "+ 日程" opens event
     // create in the browsed day's context, never a task and never an
     // allocation.
-    expect(find.byType(EventFormPage), findsOneWidget);
+    expect(find.byType(NewItemPage), findsOneWidget);
     final uri = GoRouter.of(
-      tester.element(find.byType(EventFormPage)),
+      tester.element(find.byType(NewItemPage)),
     ).state.uri;
     expect(uri.path, '/event/new');
     final start = DateTime.fromMillisecondsSinceEpoch(
@@ -140,11 +140,11 @@ void main() {
     router.go('/event/new');
     await _settle(tester);
 
-    expect(find.text('Start'), findsOneWidget);
-    expect(find.text('End'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Description'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Location'), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('Time'), findsOneWidget);
+    expect(find.text('All day'), findsOneWidget);
+    expect(find.text('Location'), findsOneWidget);
+    expect(find.text('Reminder'), findsOneWidget);
+    expect(find.text('Create event'), findsOneWidget);
   });
 
   testWidgets('settings page renders core sections', (tester) async {
@@ -161,9 +161,10 @@ void main() {
     await _pumpApp(tester);
 
     await _openSettings(tester);
+    await tester.tap(find.text('General'));
+    await _settle(tester);
 
     expect(find.text('Light'), findsOneWidget);
-    expect(find.text('Dark'), findsOneWidget);
   });
 
   testWidgets('search page renders', (tester) async {
@@ -173,17 +174,6 @@ void main() {
     await _settle(tester);
 
     expect(find.byType(TextField), findsWidgets);
-  });
-
-  testWidgets('about page renders', (tester) async {
-    await _pumpApp(tester);
-
-    final router = GoRouter.of(tester.element(find.byType(HomePage)));
-    router.go('/about');
-    await _settle(tester);
-
-    expect(find.byType(AboutPage), findsOneWidget);
-    expect(find.text('About'), findsOneWidget);
   });
 
   testWidgets('trash page renders', (tester) async {

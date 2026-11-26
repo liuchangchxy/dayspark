@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -15,7 +16,9 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
+import 'package:dayspark/ui/pages/calendar/a2_calendar_views.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_filter_sheet.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 
@@ -89,6 +92,12 @@ Future<void> _switchView(WidgetTester tester, String label) async {
   await _settle(tester);
 }
 
+Finder _glyphText(String text) => find.byWidgetPredicate(
+  (widget) =>
+      widget is Text &&
+      widget.textSpan?.toPlainText(includeSemanticsLabels: false) == text,
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -150,19 +159,20 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
-    // A week block carries only the title: the column already says when.
-    expect(find.text('整理周会纪要并发群'), findsOneWidget);
-    // The axis is a full day. With nothing in 00:00–06:00 that band folds to
-    // one row, so 00:00 is gone but every drawn hour after it remains.
-    expect(find.text('00:00'), findsNothing);
-    expect(find.text('06:00'), findsOneWidget);
-    expect(find.text('23:00'), findsOneWidget);
+    // The phone week is a grouped list, so the entry carries its own time.
+    expect(find.textContaining('整理周会纪要并发群'), findsOneWidget);
+    expect(find.text('08:00'), findsNothing);
 
-    // Day view prints the span, in local time.
+    // The phone day view is the spec's stacked list: the selected day's rows,
+    // not the desktop 08:00–20:00 axis.
     await _switchView(tester, 'Day');
     await _settle(tester);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.byType(A2TimeGridView), findsNothing);
     expect(find.text('整理周会纪要并发群'), findsOneWidget);
-    expect(find.textContaining('16:00 – 17:00'), findsOneWidget);
+    expect(find.textContaining('16:00–17:00'), findsOneWidget);
+    expect(find.text('08:00'), findsNothing);
+    expect(find.text('20:00'), findsNothing);
 
     // Every view stays reachable from every other one: the menu lists all
     // three whichever mode is current.
@@ -196,7 +206,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     final text = tester.renderObject<RenderParagraph>(
-      find.textContaining('提交周报给林总'),
+      find.textContaining('提交周报给林总').first,
     );
     expect(text.size.width, lessThanOrEqualTo(390));
     await tester.pumpWidget(const SizedBox.shrink());
@@ -355,8 +365,8 @@ void main() {
     await tester.pump(Duration.zero);
   });
 
-  testWidgets('the time axis opens at 08:00', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
+  testWidgets('the desktop day axis opens at 08:00', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -367,13 +377,15 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
+    await tester.tap(find.text('Day'));
+    await _settle(tester);
 
-    final scroll = tester.widget<SingleChildScrollView>(
-      find.byType(SingleChildScrollView),
-    );
-    // 08:00 sits one folded dawn row below the top: the empty 00:00–06:00
-    // band costs 28px, not 6 * 88.
-    expect(scroll.controller!.offset, 28 + 2 * 88);
+    // Authoritative frozen spec: 08:00–20:00 scale with 2-hour increments
+    expect(find.byType(A2TimeGridView), findsOneWidget);
+    expect(find.text('08:00'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
+    expect(find.text('07:00'), findsNothing);
+    expect(find.text('21:00'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -398,13 +410,13 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
+    // The phone day list has no axis; an early item still gets its own row.
+    await _switchView(tester, 'Day');
+    await _settle(tester);
 
-    final scroll = tester.widget<SingleChildScrollView>(
-      find.byType(SingleChildScrollView),
-    );
-    // 07:00 is outside the folded band, so the band stays one row and the
-    // viewport still opens at 06:00, the first drawn hour.
-    expect(scroll.controller!.offset, 28);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.text('整理周会纪要并发群'), findsOneWidget);
+    expect(find.textContaining('07:00–08:00'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -429,13 +441,15 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
+    // Dawn-band clamping is a time-axis contract; the phone day is a list.
+    await _switchView(tester, 'Day');
+    await _settle(tester);
 
-    final scroll = tester.widget<SingleChildScrollView>(
-      find.byType(SingleChildScrollView),
-    );
-    expect(scroll.controller!.offset, 2 * 88);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
     expect(find.text('03:00'), findsOneWidget);
-    expect(find.textContaining('00:00–06:00'), findsNothing);
+    expect(find.textContaining('03:00–04:00'), findsOneWidget);
+    expect(find.text('08:00'), findsNothing);
+    expect(find.text('09:00'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -456,7 +470,8 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
-    expect(find.textContaining('00:00–06:00'), findsOneWidget);
+    // Under frozen spec, dawn fold is removed in favor of 08:00-20:00 648px grid
+    expect(find.textContaining('00:00–06:00'), findsNothing);
     expect(find.text('01:00'), findsNothing);
     expect(find.text('05:00'), findsNothing);
 
@@ -478,36 +493,12 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
-
-    // Now is 15:00; the viewport opens at 08:00, so the line is still in
-    // place and nothing is pinned over the axis.
-    expect(find.byKey(const ValueKey('calendar-sticky-now')), findsNothing);
-
-    final scrollable = find.byType(SingleChildScrollView);
-    final controller = tester
-        .widget<SingleChildScrollView>(scrollable)
-        .controller!;
-    // Scroll past 15:00: the line leaves the viewport, the clock stays.
-    controller.jumpTo(28 + 10 * 88);
+    // The now line belongs to the desktop grid; the phone day is a list.
+    await _switchView(tester, 'Day');
     await _settle(tester);
 
-    expect(find.byKey(const ValueKey('calendar-sticky-now')), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('calendar-sticky-now')),
-        matching: find.text('15:00'),
-      ),
-      findsOneWidget,
-    );
-    // Within one screen of now, the jump-back key stays hidden.
-    expect(find.byKey(const ValueKey('calendar-back-to-now')), findsNothing);
-
-    // More than a screen away (here: the top of the axis, before dawn), the
-    // key appears and the sticky reading hides because now is below again.
-    controller.jumpTo(0);
-    await _settle(tester);
-    expect(find.byKey(const ValueKey('calendar-back-to-now')), findsOneWidget);
-    expect(find.byKey(const ValueKey('calendar-sticky-now')), findsNothing);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.byKey(const ValueKey('calendar-now-line')), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -540,21 +531,25 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('month-day-2026-11-15')));
     await _settle(tester);
     expect(container.read(calendarViewModeProvider), CalendarViewMode.day);
-    expect(find.textContaining('16:00 – 17:00'), findsOneWidget);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.textContaining('16:00–17:00'), findsOneWidget);
 
-    // A day with nothing on it stays on the month grid.
+    // Spec mobileCalendar('month'): a cell always enters cal-day, content or
+    // not. The day view is where an empty day is explained (and where capture
+    // starts), so an empty cell must not be a dead end on the grid.
     await _switchView(tester, 'Month');
     await _settle(tester);
     await tester.tap(find.byKey(const ValueKey('month-day-2026-11-16')));
     await _settle(tester);
-    expect(container.read(calendarViewModeProvider), CalendarViewMode.month);
+    expect(container.read(calendarViewModeProvider), CalendarViewMode.day);
     expect(container.read(viewedDateProvider), DateTime(2026, 11, 16));
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
   });
 
-  testWidgets('week and day views expose their own create entry', (
+  testWidgets('month view exposes create entry via FAB, and phone header carries no plus button', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -571,15 +566,244 @@ void main() {
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
 
+    // In week and day views, the header does not carry a '+' button per spec
+    final topBar = find.byKey(const ValueKey('m-top'));
+    expect(
+      find.descendant(of: topBar, matching: find.byIcon(CupertinoIcons.add)),
+      findsNothing,
+    );
+
+    // In month view, the create entry is exposed via A2Fab
+    await tester.tap(find.text('Month'));
+    await _settle(tester);
     await tester.tap(find.byTooltip('New Event'));
     await _settle(tester);
     expect(days, [DateTime(2026, 11, 15)]);
 
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the phone week is a grouped day list, not a 7-column grid', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Standup',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    // Spec mobileCalendar('week') is .m-week-list: one group per day with a
+    // date head, not the compressed 7-column desktop grid.
+    expect(find.byKey(const ValueKey('phone-week-list')), findsOneWidget);
+    expect(find.byType(A2TimeGridView), findsNothing);
+    expect(find.text('Sun · 15'), findsOneWidget);
+    expect(find.textContaining('10:00 Standup'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the phone calendar header keeps the spec title, not the range', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Standup',
+          start: DateTime(2026, 11, 11, 10),
+          end: DateTime(2026, 11, 11, 11),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    // Spec mobileShell('日历'): the top bar is the title, prev/next and the
+    // filter; the range and "本周 · 7 天" are the scrolling body's m-date/m-sub.
+    expect(find.text('Calendar'), findsOneWidget);
+    expect(find.text('15:00'), findsNothing);
+    expect(find.text('Week 46'), findsNothing);
+    expect(find.byTooltip('Previous'), findsOneWidget);
+    expect(find.byTooltip('Next'), findsOneWidget);
+    expect(find.text('Nov 9 – Nov 15'), findsOneWidget);
+    expect(find.text('This week · 7 days'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('tapping an empty phone week day opens its slot', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final ranges = <DateTimeRange>[];
+    final page = A2CalendarPage(
+      // One entry on Tuesday keeps the week out of the empty state, so the
+      // empty Monday still renders its day group and its slot target.
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Tuesday review',
+          start: DateTime(2026, 11, 10, 10),
+          end: DateTime(2026, 11, 10, 11),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+      onTimeSlotTapped: ranges.add,
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    // The spec list has no time axis, so the empty day itself is the slot:
+    // its first hour is handed to the same slot sheet the grid used.
+    await tester.tap(find.text('No schedule').first);
+    await _settle(tester);
+    expect(ranges, hasLength(1));
+    expect(ranges.single.start, DateTime(2026, 11, 9, 9));
+    expect(ranges.single.end, DateTime(2026, 11, 9, 10));
+
+    // The date head is the same slot target, since the spec head carries no
+    // trailing "+" button of its own.
+    await tester.tap(find.text('Mon · 9'));
+    await _settle(tester);
+    expect(ranges, hasLength(2));
+    expect(ranges.last.start, DateTime(2026, 11, 9, 9));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the phone day view hides an empty deadline row and keeps 08:00 whole', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
     await _switchView(tester, 'Day');
     await _settle(tester);
-    await tester.tap(find.byTooltip('New Event'));
+
+    // Spec mobileCalendar draws no empty 截止 row.
+    expect(find.text('Deadline'), findsNothing);
+    // The phone day is the stacked list, so there is no hour axis to clip.
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.text('08:00'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the desktop week keeps its fixed deadline lane when empty', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
-    expect(days.last, DateTime(2026, 11, 15));
+
+    // The desktop lane is a 30px alignment row even with nothing in it.
+    expect(find.text('Deadline'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the calendars control uses the spec funnel icon', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    expect(find.byIcon(Icons.filter_alt_outlined), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('dragging a phone week row shifts the plan by half-hours', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final captured = <TaskAllocationCalendarItem>[];
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: [
+        _allocation(
+          start: DateTime(2026, 11, 15, 16),
+          end: DateTime(2026, 11, 15, 17),
+        ),
+      ],
+      deadlines: const [],
+      onAllocationChanged: (item) async => captured.add(item),
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final row = find.textContaining('整理周会纪要并发群');
+    expect(row, findsOneWidget);
+    final gesture = await tester.startGesture(tester.getCenter(row));
+    await tester.pump(const Duration(milliseconds: 600));
+    await gesture.moveBy(const Offset(0, 54));
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(captured, hasLength(1));
+    expect(captured.single.allocation.startAt.toLocal().hour, 17);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
@@ -602,7 +826,9 @@ void main() {
     await _switchView(tester, 'Day');
     await _settle(tester);
 
-    expect(find.textContaining('Deadline: Nov 15'), findsOneWidget);
+    // The mobile day list shows the date-only chip without inventing a clock.
+    expect(find.text('提交周报'), findsOneWidget);
+    expect(find.textContaining('00:00'), findsNothing);
 
     await _switchView(tester, 'Month');
     await _settle(tester);
@@ -635,7 +861,7 @@ void main() {
     await tester.tap(find.text('Month'));
     await _settle(tester);
 
-    expect(find.text('Deadline'), findsOneWidget);
+    expect(find.textContaining('Deadline'), findsOneWidget);
     expect(find.textContaining('00:00'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -645,7 +871,9 @@ void main() {
   testWidgets('a full week deadline lane folds the overflow into +N', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    // Desktop week grid: the phone week list spells out every deadline row
+    // instead of folding them into a lane.
+    tester.view.physicalSize = const Size(800, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -656,17 +884,17 @@ void main() {
         CalendarDeadline(
           todoId: 1,
           title: 'A',
-          due: DateTime(2026, 11, 15, 12),
+          due: DateTime(2026, 11, 15),
         ),
         CalendarDeadline(
           todoId: 2,
           title: 'B',
-          due: DateTime(2026, 11, 15, 18),
+          due: DateTime(2026, 11, 15),
         ),
         CalendarDeadline(
           todoId: 3,
           title: 'C',
-          due: DateTime(2026, 11, 15, 20),
+          due: DateTime(2026, 11, 15),
         ),
       ],
     );
@@ -682,7 +910,8 @@ void main() {
   testWidgets('an all-day event gets its own lane, not an hour block', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    // The all-day lane is a grid structure: desktop week and both day views.
+    tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -727,7 +956,7 @@ void main() {
     expect(chipTop, lessThan(gridTop));
 
     // Day view keeps the same lane, one column wide.
-    await _switchView(tester, 'Day');
+    await tester.tap(find.text('Day').last);
     await _settle(tester);
     expect(find.text('All day'), findsOneWidget);
     expect(find.text('Company offsite'), findsOneWidget);
@@ -774,7 +1003,8 @@ void main() {
   });
 
   testWidgets('the week all-day lane folds a busy day into +N', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
+    // The phone week list shows every all-day row; only the desktop lane folds.
+    tester.view.physicalSize = const Size(800, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -785,7 +1015,7 @@ void main() {
             drifId: i + 1,
             calendarId: 1,
             title: 'Day off $i',
-            start: DateTime(2026, 11, 15),
+            start: DateTime(2026, 11, 15, i),
             end: DateTime(2026, 11, 16),
             isAllDay: true,
           ),
@@ -798,6 +1028,990 @@ void main() {
 
     // Same +N contract as the month cell and the deadline lane.
     expect(find.text('+1'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('calendar filter hides events and shows restore banner', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final cals = await db.select(db.calendars).get();
+    final workCal = cals.firstWhere((c) => c.name == 'Work');
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: workCal.id,
+          title: 'Filtered event',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    expect(find.text('Display Calendars'), findsOneWidget);
+    expect(find.text('Filtered event'), findsOneWidget);
+
+    // Open filter dialog
+    await tester.tap(find.text('Display Calendars'));
+    await _settle(tester);
+
+    expect(find.byType(CalendarFilterSheet), findsOneWidget);
+
+    // Toggle calendar 1 off
+    await tester.tap(find.text('Work'));
+    await _settle(tester);
+
+    // Close dialog
+    await tester.tap(find.text('Done'));
+    await _settle(tester);
+
+    // Event is hidden, banner appears
+    expect(find.text('Filtered event'), findsNothing);
+    expect(find.text('Hidden 1 calendars'), findsOneWidget);
+    expect(find.text('Restore All'), findsOneWidget);
+
+    // Restore all
+    await tester.tap(find.text('Restore All'));
+    await _settle(tester);
+
+    expect(find.text('Filtered event'), findsOneWidget);
+    expect(find.text('Hidden 1 calendars'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('desktop calendar title matches .ph-title 26/650 wght and subtitle is 11.5', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final titleFinder = find.text('Calendar');
+    expect(titleFinder, findsOneWidget);
+    final titleWidget = tester.widget<Text>(titleFinder);
+    expect(titleWidget.style?.fontSize, 26);
+    expect(titleWidget.style?.fontWeight, FontWeight.w600);
+    expect(
+      titleWidget.style?.fontVariations?.any(
+        (v) => v.axis == 'wght' && v.value == 650,
+      ),
+      isTrue,
+    );
+
+    final rowFinder = find.ancestor(of: titleFinder, matching: find.byType(Row)).first;
+    final textWidgets = tester.widgetList<Text>(
+      find.descendant(of: rowFinder, matching: find.byType(Text)),
+    );
+    expect(textWidgets.length, greaterThanOrEqualTo(2));
+    final subtitleWidget = textWidgets.elementAt(1);
+    expect(subtitleWidget.style?.fontSize, 11.5);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('mobile calendar header matches m-top 50h, 15px title, actions prev/next/filter, and persistent view switch', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final topBarFinder = find.byKey(const ValueKey('m-top'));
+    expect(topBarFinder, findsOneWidget);
+    expect(tester.getSize(topBarFinder).height, 50.0);
+
+    final titleFinder = find.descendant(
+      of: topBarFinder,
+      matching: find.text('Calendar'),
+    );
+    expect(titleFinder, findsOneWidget);
+    final titleWidget = tester.widget<Text>(titleFinder);
+    expect(titleWidget.style?.fontSize, 15);
+    expect(
+      titleWidget.style?.fontVariations?.any(
+        (v) => v.axis == 'wght' && v.value == 650,
+      ),
+      isTrue,
+    );
+
+    expect(find.byKey(const ValueKey('cal-prev')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cal-next')), findsOneWidget);
+    expect(find.byKey(const ValueKey('calendar-filter-button')), findsOneWidget);
+
+    expect(find.text('Month'), findsOneWidget);
+    expect(find.text('Week'), findsOneWidget);
+    expect(find.text('Day'), findsOneWidget);
+
+    await tester.tap(find.text('Month'));
+    await _settle(tester);
+    expect(find.byType(A2PhoneMonthGrid), findsOneWidget);
+
+    await tester.tap(find.text('Day'));
+    await _settle(tester);
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+
+    await tester.tap(find.text('Week'));
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('phone-week-list')), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('mobile 390 week and day views have no horizontal overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Morning Sync',
+          start: DateTime(2026, 11, 15, 8),
+          end: DateTime(2026, 11, 15, 9),
+        ),
+        CalendaEventAdapter(
+          drifId: 2,
+          calendarId: 1,
+          title: 'Evening Wrap',
+          start: DateTime(2026, 11, 15, 20),
+          end: DateTime(2026, 11, 15, 21),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final weekList = find.byKey(const ValueKey('phone-week-list'));
+    expect(weekList, findsOneWidget);
+    expect(tester.getSize(weekList).width, lessThanOrEqualTo(390.0));
+
+    await tester.tap(find.text('Day'));
+    await _settle(tester);
+
+    final dayView = find.byType(A2PhoneDayList);
+    expect(dayView, findsOneWidget);
+    expect(tester.getSize(dayView).width, lessThanOrEqualTo(390.0));
+
+    expect(find.text('Morning Sync'), findsOneWidget);
+    expect(find.text('Evening Wrap'), findsOneWidget);
+    expect(find.text('08:00'), findsOneWidget);
+    expect(find.text('20:00'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('mobile 365 width has no horizontal overflow on top bar and view switcher', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(365, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final topBar = find.byKey(const ValueKey('m-top'));
+    expect(topBar, findsOneWidget);
+    expect(tester.getSize(topBar).width, lessThanOrEqualTo(365.0));
+    expect(tester.getSize(topBar).height, 50.0);
+
+    final viewSwitch = find.byKey(const ValueKey('cal-view-switch'));
+    expect(viewSwitch, findsOneWidget);
+    expect(tester.getSize(viewSwitch).width, lessThan(365.0));
+
+    expect(find.text('Month'), findsOneWidget);
+    expect(find.text('Week'), findsOneWidget);
+    expect(find.text('Day'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('the phone day view lists the browsed day under its date strip', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(
+      _app(page, db: db, browse: DateTime(2026, 11, 16)),
+    );
+    await _settle(tester);
+    await _switchView(tester, 'Day');
+    await _settle(tester);
+
+    // The phone day is the spec list, not the desktop time grid.
+    expect(find.byType(A2PhoneDayList), findsOneWidget);
+    expect(find.byType(A2TimeGridView), findsNothing);
+    expect(
+      find.byKey(const ValueKey('phone-day-strip-2026-11-16')),
+      findsOneWidget,
+    );
+    // The headbar names the browsed day instead of "today" or the year-month.
+    expect(find.text('Nov 16'), findsOneWidget);
+    expect(find.text('November 2026'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a timed deadline is a row on the phone week view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: [
+        CalendarDeadline(
+          todoId: 7,
+          title: 'Dentist call',
+          due: DateTime(2026, 11, 15, 18),
+        ),
+        CalendarDeadline(
+          todoId: 8,
+          title: 'Date only',
+          due: DateTime(2026, 11, 15),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Week'));
+    await _settle(tester);
+
+    // The phone week lists a timed deadline in its day group with the time in
+    // the left column; a date-only deadline stays a row of its own.
+    expect(find.textContaining('Dentist call'), findsOneWidget);
+    expect(find.textContaining('Date only'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a timed deadline stays out of the desktop deadline lane', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: [
+        CalendarDeadline(
+          todoId: 7,
+          title: 'Timed',
+          due: DateTime(2026, 11, 15, 18),
+        ),
+        CalendarDeadline(
+          todoId: 8,
+          title: 'Date only',
+          due: DateTime(2026, 11, 15),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    expect(find.text('Deadline'), findsOneWidget);
+    expect(find.text('Date only'), findsOneWidget);
+    expect(find.text('Timed'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a desktop month cell selects its day and opens the day view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Month'));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2CalendarPage)),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('desktop-month-day-2026-11-16')),
+    );
+    await _settle(tester);
+
+    expect(container.read(calendarViewModeProvider), CalendarViewMode.day);
+    expect(container.read(viewedDateProvider), DateTime(2026, 11, 16));
+    expect(find.byType(A2TimeGridView), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a desktop week day head selects its day and opens the day view', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(A2CalendarPage)),
+    );
+    await tester.tap(find.byKey(const ValueKey('day-head-2026-11-9')));
+    await _settle(tester);
+
+    expect(container.read(calendarViewModeProvider), CalendarViewMode.day);
+    expect(container.read(viewedDateProvider), DateTime(2026, 11, 9));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('double tapping a desktop month cell invents no time slot', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final ranges = <DateTimeRange>[];
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+      onTimeSlotTapped: ranges.add,
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Month'));
+    await _settle(tester);
+
+    final location = tester.getCenter(
+      find.byKey(const ValueKey('desktop-month-day-2026-11-16')),
+    );
+    await tester.tapAt(location);
+    await tester.tapAt(location);
+    await _settle(tester);
+
+    // A month cell has no time axis: a double tap must not save a made-up span.
+    expect(ranges, isEmpty);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets(
+    'the desktop week marks a repeating block and shows its series strip',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final page = A2CalendarPage(
+        events: [
+          CalendaEventAdapter(
+            drifId: 1,
+            calendarId: 1,
+            title: 'Standup',
+            start: DateTime(2026, 11, 15, 10),
+            end: DateTime(2026, 11, 15, 11),
+            rrule: 'FREQ=WEEKLY',
+          ),
+          CalendaEventAdapter(
+            drifId: 2,
+            calendarId: 1,
+            title: 'One-off',
+            start: DateTime(2026, 11, 15, 13),
+            end: DateTime(2026, 11, 15, 14),
+          ),
+        ],
+        allocations: const [],
+        deadlines: const [],
+      );
+      await tester.pumpWidget(_app(page, db: db));
+      await _settle(tester);
+
+      expect(_glyphText('Standup ↻'), findsOneWidget);
+      expect(_glyphText('One-off ↻'), findsNothing);
+      expect(find.text('↻ Every week'), findsOneWidget);
+      expect(
+        find.text('Repeating event · open an item for details'),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(Duration.zero);
+    },
+  );
+
+  testWidgets(
+    'the desktop day marks a repeating block and shows its series strip',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final page = A2CalendarPage(
+        events: [
+          CalendaEventAdapter(
+            drifId: 1,
+            calendarId: 1,
+            title: 'Standup',
+            start: DateTime(2026, 11, 15, 10),
+            end: DateTime(2026, 11, 15, 11),
+            rrule: 'FREQ=WEEKLY',
+          ),
+          CalendaEventAdapter(
+            drifId: 2,
+            calendarId: 1,
+            title: 'One-off',
+            start: DateTime(2026, 11, 15, 13),
+            end: DateTime(2026, 11, 15, 14),
+          ),
+        ],
+        allocations: const [],
+        deadlines: const [],
+      );
+      await tester.pumpWidget(_app(page, db: db));
+      await _settle(tester);
+      await tester.tap(find.text('Day').last);
+      await _settle(tester);
+
+      expect(_glyphText('Standup ↻'), findsOneWidget);
+      expect(_glyphText('One-off ↻'), findsNothing);
+      expect(find.text('↻ Every week'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(Duration.zero);
+    },
+  );
+
+  testWidgets('the desktop month marks a repeating chip', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Standup',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+          rrule: 'FREQ=WEEKLY',
+        ),
+        CalendaEventAdapter(
+          drifId: 2,
+          calendarId: 1,
+          title: 'One-off',
+          start: DateTime(2026, 11, 15, 13),
+          end: DateTime(2026, 11, 15, 14),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Month').last);
+    await _settle(tester);
+
+    expect(_glyphText('Standup ↻'), findsOneWidget);
+    expect(_glyphText('One-off ↻'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a desktop day draws the dashed overlap zone and its count', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'A',
+          start: DateTime(2026, 11, 15, 15, 15),
+          end: DateTime(2026, 11, 15, 16, 15),
+        ),
+        CalendaEventAdapter(
+          drifId: 2,
+          calendarId: 1,
+          title: 'B',
+          start: DateTime(2026, 11, 15, 15, 30),
+          end: DateTime(2026, 11, 15, 16, 30),
+        ),
+        CalendaEventAdapter(
+          drifId: 3,
+          calendarId: 1,
+          title: 'C',
+          start: DateTime(2026, 11, 15, 16),
+          end: DateTime(2026, 11, 15, 17),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Day').last);
+    await _settle(tester);
+
+    expect(
+      find.byKey(const ValueKey('calendar-overlap-zone')),
+      findsOneWidget,
+    );
+    expect(find.text('3 items overlap'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a phone day replaces the overlap run with the three-lane band', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'A',
+          start: DateTime(2026, 11, 15, 15, 15),
+          end: DateTime(2026, 11, 15, 16, 15),
+        ),
+        CalendaEventAdapter(
+          drifId: 2,
+          calendarId: 1,
+          title: 'B',
+          start: DateTime(2026, 11, 15, 15, 30),
+          end: DateTime(2026, 11, 15, 16, 30),
+        ),
+        CalendaEventAdapter(
+          drifId: 3,
+          calendarId: 1,
+          title: 'C',
+          start: DateTime(2026, 11, 15, 16),
+          end: DateTime(2026, 11, 15, 17),
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await _switchView(tester, 'Day');
+    await _settle(tester);
+
+    expect(find.byKey(const ValueKey('mobile-overlap-band')), findsOneWidget);
+    expect(find.text('3 items overlap'), findsOneWidget);
+    expect(find.text('15:15 – 17:00'), findsOneWidget);
+    expect(
+      find.text('Side by side, never merged or covered; tap one to open it.'),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a phone month shows the recurring series card', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Standup',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+          rrule: 'FREQ=WEEKLY',
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await _switchView(tester, 'Month');
+    await _settle(tester);
+
+    expect(find.text('↻ Every week'), findsOneWidget);
+    expect(find.text('Standup'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a desktop month shows the series strip above its header', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Standup',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+          rrule: 'FREQ=WEEKLY',
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Month').last);
+    await _settle(tester);
+
+    expect(find.text('↻ Every week'), findsOneWidget);
+    expect(find.text('Repeating event · open an item for details'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a folded all-day run opens its hidden events', (tester) async {
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        for (var i = 0; i < 3; i++)
+          CalendaEventAdapter(
+            drifId: i + 1,
+            calendarId: 1,
+            title: 'Day off $i',
+            start: DateTime(2026, 11, 15, i),
+            end: DateTime(2026, 11, 16),
+            isAllDay: true,
+          ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    expect(find.text('Day off 2'), findsNothing);
+    // At 800px the desktop week is narrower than its 820px minimum, so the
+    // grid scrolls sideways and the Sunday +N starts clipped. Bring it into
+    // the viewport the way a reader would before tapping it.
+    final overflow = find.byKey(
+      const ValueKey('all-day-overflow-2026-11-15'),
+    );
+    await tester.ensureVisible(overflow);
+    await _settle(tester);
+    await tester.tap(overflow);
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('all-day-overflow-sheet')), findsOneWidget);
+    expect(find.text('Day off 2'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 300));
+  });
+
+  testWidgets('a phone day labels its all-day and deadline lanes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Offsite',
+          start: DateTime(2026, 11, 15),
+          end: DateTime(2026, 11, 16),
+          isAllDay: true,
+        ),
+      ],
+      allocations: const [],
+      deadlines: [
+        CalendarDeadline(
+          todoId: 7,
+          title: 'Submit',
+          due: DateTime(2026, 11, 15),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await _switchView(tester, 'Day');
+    await _settle(tester);
+
+    expect(find.text('All day'), findsOneWidget);
+    expect(find.text('Deadline'), findsOneWidget);
+    expect(find.text('Offsite'), findsOneWidget);
+    expect(find.textContaining('Submit'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a phone month cell appends the overflow count', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        for (var i = 0; i < 3; i++)
+          CalendaEventAdapter(
+            drifId: i + 1,
+            calendarId: 1,
+            title: 'Event $i',
+            start: DateTime(2026, 11, 15, 9 + i),
+            end: DateTime(2026, 11, 15, 10 + i),
+          ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await _switchView(tester, 'Month');
+    await _settle(tester);
+
+    expect(
+      find.byKey(const ValueKey('month-overflow-2026-11-15')),
+      findsOneWidget,
+    );
+    expect(find.text('+1'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('an empty phone week is the empty state, not seven groups', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+
+    expect(find.text('Nothing this week.'), findsOneWidget);
+    expect(find.text('No schedule'), findsNothing);
+    expect(find.text('This week · 7 days'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a timed deadline on the phone is a dashed point with a note', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: const <CalendaEventAdapter>[],
+      allocations: const [],
+      deadlines: [
+        CalendarDeadline(
+          todoId: 7,
+          title: 'Report',
+          due: DateTime(2026, 11, 15, 18),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await _switchView(tester, 'Day');
+    await _settle(tester);
+
+    expect(find.text('Deadline · Report'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('phone-deadline-point-note')),
+      findsOneWidget,
+    );
+    expect(find.text('A point marker, it occupies no time.'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a desktop month sorts all-day first, then by start time', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Review',
+          start: DateTime(2026, 11, 15, 10),
+          end: DateTime(2026, 11, 15, 11),
+        ),
+        CalendaEventAdapter(
+          drifId: 2,
+          calendarId: 1,
+          title: 'Offsite',
+          start: DateTime(2026, 11, 15),
+          end: DateTime(2026, 11, 16),
+          isAllDay: true,
+        ),
+      ],
+      allocations: const [],
+      deadlines: [
+        CalendarDeadline(
+          todoId: 7,
+          title: 'Submit',
+          due: DateTime(2026, 11, 15, 9),
+        ),
+      ],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Month').last);
+    await _settle(tester);
+
+    // The cell holds two of three: the all-day chip and the 09:00 deadline.
+    // The old append-deadlines-last order would have shown Review instead.
+    expect(find.text('Offsite'), findsOneWidget);
+    expect(find.text('Deadline 09:00 Submit'), findsOneWidget);
+    expect(find.text('Review'), findsNothing);
+    expect(find.text('+1'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(Duration.zero);
+  });
+
+  testWidgets('a desktop day keeps the multi-day span band under all-day', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final page = A2CalendarPage(
+      events: [
+        CalendaEventAdapter(
+          drifId: 1,
+          calendarId: 1,
+          title: 'Design sprint',
+          start: DateTime(2026, 11, 15),
+          end: DateTime(2026, 11, 18),
+          isAllDay: true,
+        ),
+      ],
+      allocations: const [],
+      deadlines: const [],
+    );
+    await tester.pumpWidget(_app(page, db: db));
+    await _settle(tester);
+    await tester.tap(find.text('Day').last);
+    await _settle(tester);
+
+    expect(find.text('Span'), findsOneWidget);
+    expect(find.textContaining('11/15–11/18'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);

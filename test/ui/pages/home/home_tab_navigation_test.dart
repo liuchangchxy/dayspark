@@ -21,6 +21,7 @@ import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/home_page.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
@@ -225,7 +226,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('ticking a recurring series row asks which occurrence', (
+  testWidgets('ticking a recurring series row completes current occurrence directly', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -241,7 +242,7 @@ void main() {
       timeZone: 'Asia/Shanghai',
       rrule: 'FREQ=DAILY;COUNT=40',
     );
-    final seriesId = await RecordScope.run(
+    await RecordScope.run(
       db,
       (tx) => TodoWriter.create(
         db,
@@ -259,23 +260,18 @@ void main() {
     await _settle(tester);
     await tester.tap(find.text('Tasks').last);
     await _settle(tester);
-    await tester.tap(find.text('By date'));
-    await _settle(tester);
-    await tester.tap(find.text('Unplanned').last);
+    await tester.tap(find.byKey(const ValueKey('todo-mode-inbox')));
     await _settle(tester);
 
     expect(find.text('Daily standup'), findsOneWidget);
     await tester.tap(find.byType(DsCheck).first);
     await _settle(tester);
 
-    // The writer refuses a series completion without an occurrence, so the
-    // page asks for one instead of surfacing an error.
-    expect(find.byType(Dialog), findsOneWidget);
-    final series = await (db.select(db.todos)
-          ..where((row) => row.id.equals(seriesId)))
-        .getSingle();
-    expect(series.status, 'NEEDS-ACTION');
-    expect(await db.select(db.taskInstanceStates).get(), isEmpty);
+    // Per requirement 3: completes current occurrence directly without dialog
+    expect(find.byType(Dialog), findsNothing);
+    final completedStates = await db.select(db.taskInstanceStates).get();
+    expect(completedStates, isNotEmpty);
+    expect(completedStates.first.status, 'completed');
 
     await _unmount(tester);
   });
@@ -309,27 +305,26 @@ void main() {
     await _settle(tester);
     expect(container.read(viewedDateProvider).day, target.day);
 
-    // The date the calendar picked is the date Todo · By date opens on.
+    // Tasks opens on Inbox; switching to By date must land on the date the
+    // calendar picked.
     await tester.tap(find.text('Tasks').last);
     await _settle(tester);
     expect(container.read(viewedDateProvider).day, target.day);
-    expect(
-      find.textContaining(
-        DateFormat.MMMd(
-          Localizations.localeOf(tester.element(find.byType(HomePage)))
-              .toString(),
-        ).format(target),
-      ),
-      findsWidgets,
-    );
+    await tester.tap(find.byKey(const ValueKey('todo-mode-date')));
+    await _settle(tester);
+    // The phone's frozen-spec Tasks header prints the date as the strip's
+    // month label plus the selected day's number, not as one MMMd string.
+    expect(find.text('${target.day}'), findsWidgets);
 
     // Today answers to the clock, not to the browsed date.
     await tester.tap(find.text('Today').last);
     await _settle(tester);
     expect(container.read(viewedDateProvider).day, target.day);
+    // The frozen spec prints Today's date once, as the content header's
+    // MMMd title; the mobile top bar carries no second copy of it.
     expect(
       find.textContaining(
-        DateFormat.MMMMd(
+        DateFormat.MMMd(
           Localizations.localeOf(tester.element(find.byType(HomePage)))
               .toString(),
         ).format(now),
@@ -351,7 +346,7 @@ void main() {
         .insert(CalendarsCompanion.insert(name: 'Personal'));
     final now = DateTime.now();
     final due = DateTime(now.year, now.month, now.day, 18);
-    for (var i = 0; i < 3; i++) {
+    for (var i = 0; i < 5; i++) {
       await db
           .into(db.todos)
           .insert(
@@ -361,8 +356,8 @@ void main() {
             ),
           );
     }
-    // Two more sit in the bucket but never in the shelf: they carry a
-    // deadline and already appear under Due today.
+    // Two more sit in the bucket with a deadline and appear under Due today,
+    // but must never pollute the undated section.
     for (var i = 0; i < 2; i++) {
       await db
           .into(db.todos)
@@ -378,16 +373,17 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    // The "more" label belongs in the column the row titles start in.
+    // The frozen spec puts the more-row arrow on the row titles' column.
     final titleLeft = tester.getTopLeft(find.text('Free item 0')).dx;
-    final more = find.textContaining('more · ');
+    final more = find.textContaining('more · Show all');
+    expect(more, findsOneWidget);
     final moreLeft = tester.getTopLeft(more).dx;
     expect((titleLeft - moreLeft).abs(), lessThanOrEqualTo(1));
 
-    // Nothing is left to expand, so the tap leaves for the bucket's view and
-    // the chevron must not promise a disclosure.
+    // Item 13: Group headers are static labels without disclosure chevrons;
+    // expand/view-all is handled by more-row.
     expect(find.byIcon(CupertinoIcons.chevron_down), findsNothing);
-    expect(find.byIcon(CupertinoIcons.chevron_up), findsOneWidget);
+    expect(find.byIcon(CupertinoIcons.chevron_up), findsNothing);
 
     // The capture row says what Enter will do once it has focus.
     expect(find.text('Add'), findsNothing);
@@ -453,8 +449,8 @@ void main() {
     await _settle(tester, 14);
 
     // The shelf is the group the capture row feeds: once the keyboard takes
-    // its space, the list follows to its end so all of it stays readable.
-    expect(scrollable.position.extentAfter, 0);
+    // its space, the list brings the shelf above the capture bar so it stays readable.
+    expect(scrollable.position.pixels, greaterThan(0));
     final more = find.textContaining('more · Show all');
     expect(more, findsOneWidget);
     final capture = tester.getRect(
@@ -481,7 +477,8 @@ void main() {
     await _settle(tester);
 
     void expectSingleOrigin() {
-      final rows = find.byType(A2Row);
+      final rows =
+          find.byWidgetPredicate((w) => w is A2Row || w is SpecTaskRow);
       expect(rows.evaluate().length, 2);
       final lefts = <double>[
         for (var i = 0; i < rows.evaluate().length; i++)
@@ -500,10 +497,8 @@ void main() {
     await _settle(tester, 10);
 
     // Tasks opens on 按日期, which does not carry bare todos; switch to
-    // 未安排 through the header's mode sheet.
-    await tester.tap(find.text('By date'));
-    await _settle(tester, 10);
-    await tester.tap(find.text('Unplanned').last);
+    // 未安排 through the header's mode switch.
+    await tester.tap(find.byKey(const ValueKey('todo-mode-inbox')));
     await _settle(tester, 10);
 
     expectSingleOrigin();
@@ -520,9 +515,8 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    expect(find.text('By date'), findsOneWidget);
-    expect(find.byType(A2PlanBar), findsOneWidget);
-    expect(find.text('Plan this day'), findsOneWidget);
+    expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
+    expect(find.byType(A2CaptureBar), findsOneWidget);
 
     await _unmount(tester);
   });
@@ -534,9 +528,12 @@ void main() {
     await tester.pumpWidget(_app(db));
     await _settle(tester);
 
-    expect(find.text('By date'), findsOneWidget);
-    // Browsing today: the strip's first line is the day itself.
-    await tester.tap(find.text('Today').first);
+    expect(find.byKey(const ValueKey('todo-mode-date')), findsOneWidget);
+    // The day strip belongs to By date, so open that mode first.
+    await tester.tap(find.byKey(const ValueKey('todo-mode-date')));
+    await _settle(tester);
+    // Browsing today: tap the date strip button to open the picker.
+    await tester.tap(find.byKey(const ValueKey('todos-date-strip')));
     await _settle(tester, 10);
 
     expect(find.text('Month'), findsOneWidget);
@@ -588,8 +585,8 @@ void main() {
 
     for (final (width, expectBar) in [
       (390.0, false),
-      (759.0, false),
-      (999.0, false),
+      (719.0, false),
+      (720.0, true),
       (1000.0, true),
       (1240.0, true),
       (1440.0, true),

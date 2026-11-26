@@ -50,6 +50,13 @@ void main() {
       expect(theme.colorScheme.surface, AppColors.lightSurface);
     });
 
+    test('the default spec accent keeps actions and selections in ink', () {
+      final theme = AppTheme.light(accent: AppColors.lightAccent);
+      expect(theme.colorScheme.primary, AppColors.lightTextPrimary);
+      expect(theme.extension<DsColors>()!.primary, AppColors.lightTextPrimary);
+      expect(theme.colorScheme.error, AppColors.lightError);
+    });
+
     test('semantic extension is present on both themes', () {
       expect(AppTheme.light().extension<AppSemanticColors>(), isNotNull);
       expect(AppTheme.dark().extension<AppSemanticColors>(), isNotNull);

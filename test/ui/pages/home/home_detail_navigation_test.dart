@@ -25,10 +25,16 @@ import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 
-GoRouter _router(int initialTab) => GoRouter(
+GoRouter _router(int initialTab, {String? initialTodoView}) => GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(path: '/', builder: (_, __) => HomePage(initialTab: initialTab)),
+    GoRoute(
+      path: '/',
+      builder: (_, __) => HomePage(
+        initialTab: initialTab,
+        initialTodoView: initialTodoView,
+      ),
+    ),
     GoRoute(
       path: '/todo/detail',
       builder: (_, __) => const Scaffold(
@@ -103,7 +109,7 @@ void main() {
     await db.close();
   });
 
-  testWidgets('below the master-detail width a todo tap navigates', (
+  testWidgets('on narrow desktop (1000-1179) a todo tap opens 360 overlay drawer, below 1000 it navigates', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1100, 900);
@@ -119,13 +125,26 @@ void main() {
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
 
+    expect(find.byKey(const ValueKey('todo-detail-summary-title')), findsOneWidget);
+    expect(find.byKey(const ValueKey('stub-todo-detail')), findsNothing);
+    expect(container.read(workspaceSelectionProvider), isA<TodoSelection>());
+    expect(tester.getSize(find.byKey(const ValueKey('spec-drawer-overlay'))).width, equals(360.0));
+
+    // Below 1000, it navigates
+    container.read(workspaceSelectionProvider.notifier).state = null;
+    tester.view.physicalSize = const Size(880, 900);
+    await tester.pump();
+    await _settle(tester);
+
+    await tester.tap(find.text('Task 0'));
+    await _settle(tester);
+
     expect(find.byKey(const ValueKey('stub-todo-detail')), findsOneWidget);
-    expect(container.read(workspaceSelectionProvider), isNull);
 
     await _unmount(tester);
   });
 
-  testWidgets('on Today a todo tap navigates instead of writing a selection', (
+  testWidgets('on Today a todo tap opens overlay drawer on desktop and navigates on mobile', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1440, 900);
@@ -139,11 +158,39 @@ void main() {
       tester.element(find.byType(HomePage)),
     );
 
+    // Initial content width before drawer opens
+    final initialContentWidth = tester.getSize(_content(0)).width;
+    expect(initialContentWidth, equals(1440.0));
+
+    await tester.tap(find.text('Task 0'));
+    await _settle(tester);
+
+    // Desktop Today: opens 380 overlay drawer without squeezing content
+    expect(find.byKey(const ValueKey('todo-detail-summary-title')), findsOneWidget);
+    expect(find.byKey(const ValueKey('stub-todo-detail')), findsNothing);
+    expect(container.read(workspaceSelectionProvider), isA<TodoSelection>());
+    final drawerRect = tester.getRect(find.byKey(const ValueKey('spec-drawer-overlay')));
+    expect(drawerRect.width, equals(380.0));
+    expect(drawerRect.right, equals(1440.0));
+    expect(find.byKey(const ValueKey('spec-drawer-inline')), findsNothing);
+    expect(tester.getSize(_content(0)).width, equals(1440.0)); // List width unchanged!
+
+    // Tap blank space closes drawer
+    await tester.tapAt(const Offset(200, 300));
+    await tester.pump();
+    await _settle(tester);
+    expect(find.byKey(const ValueKey('todo-detail-summary-title')), findsNothing);
+    expect(container.read(workspaceSelectionProvider), isNull);
+
+    // Mobile: navigates
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pump();
+    await _settle(tester);
+
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
 
     expect(find.byKey(const ValueKey('stub-todo-detail')), findsOneWidget);
-    expect(container.read(workspaceSelectionProvider), isNull);
 
     await _unmount(tester);
   });
@@ -166,7 +213,9 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_app(db, _router(2)));
+    await tester.pumpWidget(
+      _app(db, _router(2, initialTodoView: 'date')),
+    );
     await _settle(tester);
 
     await tester.tap(find.text('Standup'));
@@ -182,6 +231,67 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('on wide Calendar an event tap opens a 380 inline column without overflow', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    await db.into(db.events).insert(
+      EventsCompanion.insert(
+        calendarId: calId,
+        summary: 'Team Sync',
+        startDt: DateTime(now.year, now.month, now.day, 14),
+        endDt: DateTime(now.year, now.month, now.day, 15),
+      ),
+    );
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, _router(1)));
+    await _settle(tester);
+    expect(_content(1), findsOneWidget);
+    expect(tester.getSize(_content(1)).width, equals(1440.0));
+
+    await tester.tap(find.text('Team Sync'));
+    await _settle(tester);
+
+    expect(find.byType(EventDetailPane), findsOneWidget);
+    expect(find.byKey(const ValueKey('stub-event-detail')), findsNothing);
+    expect(find.byKey(const ValueKey('spec-drawer-inline')), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-drawer-overlay')), findsNothing);
+    expect(tester.getSize(_content(1)).width, equals(1060.0));
+    expect(tester.takeException(), isNull);
+
+    // Close button X closes the inline column.
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pump();
+    await _settle(tester);
+
+    expect(find.byType(EventDetailPane), findsNothing);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(HomePage)),
+    );
+    expect(container.read(workspaceSelectionProvider), isNull);
+
+    // Narrow desktop keeps the 360 overlay and does not squeeze the grid.
+    tester.view.physicalSize = const Size(1100, 900);
+    await tester.pump();
+    await _settle(tester);
+    await tester.tap(find.text('Team Sync'));
+    await _settle(tester);
+
+    expect(find.byType(EventDetailPane), findsOneWidget);
+    expect(find.byKey(const ValueKey('spec-drawer-inline')), findsNothing);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('spec-drawer-overlay'))).width,
+      equals(360.0),
+    );
+    expect(tester.getSize(_content(1)).width, equals(1100.0));
+    expect(tester.takeException(), isNull);
+
+    await _unmount(tester);
+  });
+
   testWidgets('Escape closes the desktop detail pane', (tester) async {
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
@@ -192,12 +302,18 @@ void main() {
     await tester.tap(find.text('Task 0'));
     await _settle(tester);
 
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('todo-detail-summary-title')),
+      findsOneWidget,
+    );
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('todo-detail-title')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('todo-detail-summary-title')),
+      findsNothing,
+    );
     final container = ProviderScope.containerOf(
       tester.element(find.byType(HomePage)),
     );
@@ -305,21 +421,13 @@ void main() {
 
     final row = find.ancestor(
       of: find.text('Daily standup'),
-      matching: find.byType(A2Row),
+      matching: find.byWidgetPredicate(
+        (w) => w is A2Row || w.runtimeType.toString() == 'SpecTaskRow',
+      ),
     );
     await tester.tap(find.descendant(of: row, matching: find.byType(DsCheck)));
     await _settle(tester);
-    expect(find.text('Select occurrence'), findsOneWidget);
-
-    await tester.tap(
-      find
-          .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
-          )
-          .first,
-    );
-    await _settle(tester);
+    expect(find.text('Select occurrence'), findsNothing);
 
     final completed = (await db.select(db.taskInstanceStates).get())
         .where((state) => state.status == 'completed')
@@ -332,7 +440,12 @@ void main() {
     // to the SnackBar's, so the row's own key is the one to press.
     await tester.tap(
       find
-          .descendant(of: find.byType(A2Row), matching: find.text('Undo'))
+          .descendant(
+            of: find.byWidgetPredicate(
+              (w) => w is A2Row || w.runtimeType.toString() == 'SpecTaskRow',
+            ),
+            matching: find.text('Undo'),
+          )
           .first,
     );
     await _settle(tester);
@@ -354,7 +467,7 @@ void main() {
   testWidgets('a calendar slot opens the composer with that slot prefilled', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = const Size(1440, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
@@ -363,8 +476,8 @@ void main() {
     await tester.tap(find.text('Calendar').last);
     await _settle(tester);
 
-    // The week grid is the default view; every day column is one tap target
-    // that resolves to the half-hour slot under the pointer.
+    // Every day column is one tap target that resolves to the half-hour slot
+    // under the pointer.
     final grid = find.byType(A2TimeGridView);
     expect(grid, findsOneWidget);
     final rect = tester.getRect(grid);

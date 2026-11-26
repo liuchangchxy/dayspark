@@ -88,10 +88,17 @@ class TodayWidgetProvider : AppWidgetProvider() {
       val accent = context.getColor(R.color.widget_accent)
       val error = theme?.colors?.get("error") ?: context.getColor(R.color.widget_error)
 
-      val dateIso = snapshot.todayIso().ifEmpty { WidgetSupport.todayIso(context) }
-      val stale = dateIso != WidgetSupport.todayIso(context)
-      views.setTextViewText(R.id.action_date, WidgetSupport.formatDate(dateIso))
-      views.setTextViewText(R.id.action_weekday, WidgetSupport.formatWeekday(dateIso))
+      val snapshotTodayIso = snapshot.todayIso().ifEmpty { WidgetSupport.todayIso(context) }
+      val deviceTodayIso = WidgetSupport.todayIso(context)
+      val stale = snapshotTodayIso != deviceTodayIso
+      // A stale snapshot still describes another day. Creating from its `+`
+      // buttons would write the new item onto that wrong date, so both add
+      // links follow the device's today instead — the same rule as the Apple
+      // Action widget. The rows themselves stay hidden behind the "Open
+      // DaySpark to update" state.
+      val addDateIso = if (stale) deviceTodayIso else snapshotTodayIso
+      views.setTextViewText(R.id.action_date, WidgetSupport.formatDate(snapshotTodayIso))
+      views.setTextViewText(R.id.action_weekday, WidgetSupport.formatWeekday(snapshotTodayIso))
       WidgetSupport.textColor(views, R.id.action_date, theme, "textPrimary", primary)
       WidgetSupport.textColor(views, R.id.action_weekday, theme, "textSecondary", secondary)
 
@@ -120,7 +127,7 @@ class TodayWidgetProvider : AppWidgetProvider() {
         R.id.action_add_todo,
         WidgetSupport.openUri(
           context,
-          WidgetSupport.quickAddUri(dateIso),
+          WidgetSupport.quickAddUri(addDateIso),
           appWidgetId + 501,
         ),
       )
@@ -134,7 +141,7 @@ class TodayWidgetProvider : AppWidgetProvider() {
           R.id.action_add_event,
           WidgetSupport.openUri(
             context,
-            WidgetSupport.newEventUri(dateIso),
+            WidgetSupport.newEventUri(addDateIso),
             appWidgetId + 502,
           ),
         )
@@ -145,7 +152,6 @@ class TodayWidgetProvider : AppWidgetProvider() {
       }
 
       views.removeAllViews(R.id.action_rows)
-      val pending = WidgetSnapshot.readPendingTargets(context)
       val nowMs = Date().time
       val current = block.timeline
         .filter { it.startEpochMs <= nowMs && nowMs < it.endEpochMs }
@@ -158,23 +164,23 @@ class TodayWidgetProvider : AppWidgetProvider() {
       fun timelinePlanned(item: WidgetSnapshot.ActionTimelineRow): PlannedRow {
         val meta = WidgetSupport.formatTimeRange(item.start, item.end, item.isAllDay, allDayLabel)
         return PlannedRow(
-          timelineRow(context, item, pending, theme, allDayLabel),
+          timelineRow(context, item, theme, allDayLabel),
           WidgetSupport.timelineRowHeightDp(context, title = item.summary, meta = meta),
         )
       }
       val currentRows = current.map { timelinePlanned(it) }
       val laterRows = later.map { timelinePlanned(it) }
       val dueRows = block.dueToday.map {
-        PlannedRow(taskRow(context, it, pending, theme, error), taskRowHeight(context, it))
+        PlannedRow(taskRow(context, it, theme, error), taskRowHeight(context, it))
       }
       val overdueRows = block.overdue.map {
-        PlannedRow(taskRow(context, it, pending, theme, error), taskRowHeight(context, it))
+        PlannedRow(taskRow(context, it, theme, error), taskRowHeight(context, it))
       }
-      // Completed rows are the undo affordance. They come from their own
-      // snapshot key and are drawn only after every open group, so they can
-      // never take a row away from an open task.
+      // Completed rows remain as a read-only record of today's work; a tap
+      // opens the item like every other row. They come from their own snapshot
+      // key and are drawn only after every open group.
       val completedRows = block.completed.map {
-        PlannedRow(taskRow(context, it, pending, theme, error), taskRowHeight(context, it))
+        PlannedRow(taskRow(context, it, theme, error), taskRowHeight(context, it))
       }
       val allRows = currentRows + laterRows + dueRows + overdueRows
       val allRowsWithCompleted = allRows + completedRows
@@ -323,7 +329,6 @@ class TodayWidgetProvider : AppWidgetProvider() {
     internal fun timelineRow(
       context: Context,
       item: WidgetSnapshot.ActionTimelineRow,
-      pending: WidgetSnapshot.PendingTargets,
       theme: WidgetSnapshot.ThemeBlock?,
       allDayLabel: String,
     ): RemoteViews {
@@ -341,17 +346,13 @@ class TodayWidgetProvider : AppWidgetProvider() {
       if (item.kind == "taskAllocation" && todoId > 0) {
         row.setViewVisibility(R.id.timeline_marker, View.GONE)
         row.setViewVisibility(R.id.timeline_check, View.VISIBLE)
-        val target = if (!item.occurrenceId.isNullOrEmpty()) "taskInstance" else "todo"
-        val checked = item.completed ||
-          WidgetSupport.isPending(pending, target, todoId, item.occurrenceId)
+        // The circle is a state glyph, not a control: read-only snapshot.
         row.setImageViewResource(
           R.id.timeline_check,
-          if (checked) R.drawable.widget_check_on else R.drawable.widget_check_off,
+          if (item.completed) R.drawable.widget_check_on else R.drawable.widget_check_off,
         )
-        if (checked) {
-          WidgetSupport.tint(row, R.id.timeline_check, theme?.colors?.get("accent") ?: accent)
-        }
         if (item.completed) {
+          WidgetSupport.tint(row, R.id.timeline_check, theme?.colors?.get("accent") ?: accent)
           WidgetSupport.textColor(row, R.id.timeline_title, theme, "textSecondary", secondary)
           row.setInt(
             R.id.timeline_title,
@@ -359,27 +360,10 @@ class TodayWidgetProvider : AppWidgetProvider() {
             android.graphics.Paint.STRIKE_THRU_TEXT_FLAG,
           )
         }
-        row.setOnClickPendingIntent(
-          R.id.timeline_check,
-          WidgetSupport.togglePendingIntent(
-            context,
-            target,
-            todoId,
-            item.todoSyncId,
-            item.occurrenceId,
-            item.allocationId,
-            command = if (item.completed) {
-              WidgetSnapshot.ACTION_UNCOMPLETE
-            } else {
-              WidgetSnapshot.ACTION_COMPLETE
-            },
-          ),
-        )
-        WidgetSupport.bindOpen(
-          row,
-          WidgetRows.TIMELINE_OPEN_IDS,
-          WidgetSupport.openUri(context, WidgetSupport.todoUri(todoId), appWidgetIdSeed(todoId, 201)),
-        )
+        val open = WidgetSupport.openUri(context, WidgetSupport.todoUri(todoId), appWidgetIdSeed(todoId, 201))
+        WidgetSupport.bindOpen(row, WidgetRows.TIMELINE_OPEN_IDS, open)
+        // The check sits inside the row; bind it too so the whole row opens.
+        row.setOnClickPendingIntent(R.id.timeline_check, open)
       } else {
         row.setViewVisibility(R.id.timeline_marker, View.VISIBLE)
         row.setViewVisibility(R.id.timeline_check, View.GONE)
@@ -406,7 +390,6 @@ class TodayWidgetProvider : AppWidgetProvider() {
     internal fun taskRow(
       context: Context,
       action: WidgetSnapshot.ActionTaskRow,
-      pending: WidgetSnapshot.PendingTargets,
       theme: WidgetSnapshot.ThemeBlock?,
       error: Int,
     ): RemoteViews {
@@ -428,20 +411,12 @@ class TodayWidgetProvider : AppWidgetProvider() {
       )
       WidgetSupport.textColor(row, R.id.todo_meta, theme, "textSecondary", secondary)
 
-      val checked = action.completed || WidgetSupport.isPending(
-        pending,
-        action.target,
-        action.todoId,
-        action.occurrenceId,
-      )
       row.setImageViewResource(
         R.id.todo_check,
-        if (checked) R.drawable.widget_check_on else R.drawable.widget_check_off,
+        if (action.completed) R.drawable.widget_check_on else R.drawable.widget_check_off,
       )
-      if (checked) {
-        WidgetSupport.tint(row, R.id.todo_check, theme?.colors?.get("accent") ?: accent)
-      }
       if (action.completed) {
+        WidgetSupport.tint(row, R.id.todo_check, theme?.colors?.get("accent") ?: accent)
         WidgetSupport.textColor(row, R.id.todo_title, theme, "textSecondary", secondary)
         row.setInt(
           R.id.todo_title,
@@ -450,27 +425,14 @@ class TodayWidgetProvider : AppWidgetProvider() {
         )
       }
       if (action.todoId > 0) {
-        row.setOnClickPendingIntent(
-          R.id.todo_check,
-          WidgetSupport.togglePendingIntent(
-            context,
-            action.target,
-            action.todoId,
-            action.todoSyncId,
-            action.occurrenceId,
-            null,
-            command = if (action.completed) {
-              WidgetSnapshot.ACTION_UNCOMPLETE
-            } else {
-              WidgetSnapshot.ACTION_COMPLETE
-            },
-          ),
+        val open = WidgetSupport.openUri(
+          context,
+          WidgetSupport.todoUri(action.todoId),
+          appWidgetIdSeed(action.todoId, 203),
         )
-        WidgetSupport.bindOpen(
-          row,
-          WidgetRows.TODO_OPEN_IDS,
-          WidgetSupport.openUri(context, WidgetSupport.todoUri(action.todoId), appWidgetIdSeed(action.todoId, 203)),
-        )
+        WidgetSupport.bindOpen(row, WidgetRows.TODO_OPEN_IDS, open)
+        // Read-only: the checkbox is state, so the tap opens the item.
+        row.setOnClickPendingIntent(R.id.todo_check, open)
       } else {
         // A row without an id still has to be honest: no checkbox to press and
         // a tap that lands on the task list rather than doing nothing.

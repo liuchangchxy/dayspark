@@ -7,6 +7,7 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
@@ -137,7 +138,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Select occurrence'), findsOneWidget);
     expect(find.textContaining('next 90 days'), findsOneWidget);
-    expect(find.byType(SimpleDialogOption), findsWidgets);
+    expect(find.byType(DsSettingRow), findsWidgets);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 1));
   });

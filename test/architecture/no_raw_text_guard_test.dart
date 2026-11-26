@@ -22,9 +22,12 @@ const Map<String, String> _allowlist = {
   'lib/core/l10n/locale_aware_rrule_delegate.dart':
       'rrule_generator 的 RRuleTextDelegate 只收裸字符串（第三方接口限制），'
           '故中英两套在此内联并由 _isChinese 选取——见 docs/CONSTRAINTS.md',
-  'lib/ui/pages/todo/quick_add_page.dart':
+  'lib/domain/utils/capture_parser.dart':
       '自然语言解析器的中文匹配式（“半个?小时”“分钟”“明天”“下午”等）是输入语法，'
           '不是界面文案；它们要匹配的就是用户敲进来的中文，不能也不该走字典',
+  'lib/ui/pages/search/search_page.dart':
+      '命令框的中文动作词前缀（“新建/创建/添加/安排/去设置”等）是输入语法，'
+          '用于识别用户键入的动词，不是界面文案',
 };
 
 /// 违规行：非注释且含中文。

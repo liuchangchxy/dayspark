@@ -5,15 +5,15 @@
     <!-- Static fallbacks for the widget palette. The live values come from the
          snapshot theme block, which mirrors lib/core/theme/app_colors.dart; keep
          these in step so a widget without a snapshot still looks like DaySpark. -->
-    <color name="widget_background">#FCFCFA</color>
-    <color name="widget_surface">#FFFFFF</color>
-    <color name="widget_text_primary">#191A17</color>
-    <color name="widget_text_secondary">#3F413A</color>
-    <color name="widget_accent">#C2410C</color>
-    <color name="widget_border">#E8E7E1</color>
-    <color name="widget_button_bg">#14C2410C</color>
+    <color name="widget_background">#FFFFFF</color>
+    <color name="widget_surface">#F7F7F4</color>
+    <color name="widget_text_primary">#191918</color>
+    <color name="widget_text_secondary">#45453F</color>
+    <color name="widget_accent">#C92A1E</color>
+    <color name="widget_border">#ECECE6</color>
+    <color name="widget_button_bg">#14C92A1E</color>
     <color name="widget_error">#A8481E</color>
-    <color name="widget_warning">#7D5416</color>
+    <color name="widget_warning">#9A6A18</color>
     <color name="widget_check_border">#A5A79D</color>
 
     <!-- The root drawable must not read the tokens above: they are overridden in
@@ -21,8 +21,8 @@
          paint the paper from one theme and the ink from the other. These two light
          values have no night variant, and the dark pair below is chosen by the
          snapshot's own brightness. -->
-    <color name="widget_background_light">#FCFCFA</color>
-    <color name="widget_border_light">#E8E7E1</color>
+    <color name="widget_background_light">#FFFFFF</color>
+    <color name="widget_border_light">#ECECE6</color>
     <color name="widget_background_dark">#131311</color>
     <color name="widget_border_dark">#2C2D28</color>
 </resources>

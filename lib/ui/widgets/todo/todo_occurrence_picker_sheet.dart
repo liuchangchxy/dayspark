@@ -1,12 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dayspark/core/theme/app_spacing.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
+import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_occurrence.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 
@@ -47,9 +52,7 @@ class TodoOccurrencePickerSheet extends ConsumerStatefulWidget {
 
     if (TodoRecurrence.fromTodo(freshTodo).isUnknownLegacy) {
       if (!legacyRuleIsSupported(freshTodo.rrule ?? '')) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.unsupportedLegacyRecurrence)));
+        showSpecToast(context, l.unsupportedLegacyRecurrence);
         return null;
       }
       final confirmed = await confirmLegacyRecurrence(context, ref, freshTodo);
@@ -112,102 +115,94 @@ class _TodoOccurrencePickerSheetState
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
 
-    return AlertDialog(
-      title: Text(l.selectTodoOccurrence),
-      content: SizedBox(
-        width: 360,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                TextButton(
-                  onPressed: () => _changePage(_historyPage + 1),
-                  child: Text(l.earlierThirtyDays),
-                ),
-                if (_historyPage > 1)
-                  TextButton(
-                    onPressed: () => _changePage(_historyPage - 1),
-                    child: Text(l.newerOccurrences),
-                  ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(
-                l.occurrenceWindowHint,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-            Flexible(
-              child: FutureBuilder<List<ProjectedTaskInstance>>(
-                future: _pageFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    // A raw exception here names tables and types the user
-                    // never chose; the log keeps the detail.
-                    debugPrint(
-                      'occurrence picker: load error: ${snapshot.error}',
-                    );
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(l.error),
-                    );
-                  }
-                  final items = snapshot.data ?? const [];
-                  if (items.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(l.noOccurrencesAvailable),
-                    );
-                  }
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return SimpleDialogOption(
-                        padding: EdgeInsets.zero,
-                        onPressed: () => Navigator.of(context).pop(item),
-                        child: ListTile(
-                          title: Text(
-                            formatOccurrenceAnchor(
-                              context,
-                              item.occurrence.displayLabel,
-                            ),
-                          ),
-                          trailing: item.isCompleted
-                              ? Icon(
-                                  CupertinoIcons.checkmark,
-                                  size: 16,
-                                  color: Theme.of(context).colorScheme.primary,
-                                )
-                              : null,
-                          onTap: () => Navigator.of(context).pop(item),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+    return DsDialog(
+      title: l.selectTodoOccurrence,
+      width: 440,
       actions: [
-        TextButton(
+        const Spacer(),
+        DsButton(
+          label: l.cancel,
+          tone: DsButtonTone.ghost,
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(l.cancel),
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              DsButton(
+                label: l.earlierThirtyDays,
+                tone: DsButtonTone.ghost,
+                small: true,
+                onPressed: () => _changePage(_historyPage + 1),
+              ),
+              if (_historyPage > 1) ...[
+                const SizedBox(width: AppSpacing.s2),
+                DsButton(
+                  label: l.newerOccurrences,
+                  tone: DsButtonTone.ghost,
+                  small: true,
+                  onPressed: () => _changePage(_historyPage - 1),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l.occurrenceWindowHint,
+            style: AppTypography.caption.copyWith(color: context.ds.ink3),
+          ),
+          const SizedBox(height: 8),
+          FutureBuilder<List<ProjectedTaskInstance>>(
+            future: _pageFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError) {
+                // A raw exception here names tables and types the user
+                // never chose; the log keeps the detail.
+                debugPrint('occurrence picker: load error: ${snapshot.error}');
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(l.error),
+                );
+              }
+              final items = snapshot.data ?? const [];
+              if (items.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(l.noOccurrencesAvailable),
+                );
+              }
+              return Column(
+                children: [
+                  for (final item in items)
+                    DsSettingRow(
+                      label: formatOccurrenceAnchor(
+                        context,
+                        item.occurrence.displayLabel,
+                      ),
+                      trailing: item.isCompleted
+                          ? Icon(
+                              CupertinoIcons.checkmark,
+                              size: 16,
+                              color: context.ds.primary,
+                            )
+                          : null,
+                      onTap: () => Navigator.of(context).pop(item),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

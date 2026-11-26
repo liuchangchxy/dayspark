@@ -26,13 +26,53 @@ void main() {
       expect(AppColors.darkBorder, isA<Color>());
     });
 
-    test('accent values match the Direction C ember', () {
-      expect(AppColors.lightAccent, const Color(0xFFC2410C));
-      expect(AppColors.darkAccent, const Color(0xFFE0703C));
+    test('light tokens match the frozen spec', () {
+      expect(AppColors.lightBackground, const Color(0xFFFFFFFF));
+      expect(AppColors.lightSurface, const Color(0xFFFFFFFF));
+      expect(AppColors.lightSurfaceSecondary, const Color(0xFFF7F7F4));
+      expect(AppColors.lightFree, const Color(0xFFF7F7F4));
+      expect(AppColors.lightTextPrimary, const Color(0xFF191918));
+      expect(AppColors.lightTextSecondary, const Color(0xFF45453F));
+      expect(AppColors.lightTextTertiary, const Color(0xFF6E6E66));
+      expect(AppColors.lightTextFaint, const Color(0xFF8B8B82));
+      expect(AppColors.lightSeparator, const Color(0xFFECECE6));
+      expect(AppColors.lightAccent, const Color(0xFFC92A1E));
+      expect(AppColors.lightAccentHover, const Color(0xFFA82318));
+      expect(AppColors.lightAccentSoft, const Color(0xFFFDF3F1));
+      expect(AppColors.lightAccentTint, const Color(0xFFFDF3F1));
+      expect(AppColors.lightWarning, const Color(0xFF9A6A18));
+      expect(AppColors.lightWarningSoft, const Color(0xFFF7EEDB));
+      expect(AppColors.lightError, const Color(0xFFC92A1E));
+      expect(AppColors.lightErrorSoft, const Color(0xFFFDF3F1));
+      expect(AppColors.lightNavBg, const Color(0xFFFFFFFF));
+      expect(AppColors.lightNavActive, const Color(0xFFF7F7F4));
+      expect(AppColors.lightScrim, const Color(0x66191918));
+      expect(AppColors.lightWorkBg, const Color(0xFFF1F3F4));
+      expect(AppColors.lightDoneInk, const Color(0xFF8B8B82));
+      expect(AppColors.lightDoneBg, const Color(0xFFF7F7F4));
+      expect(AppColors.lightDoneLine, const Color(0xFFDEDED7));
     });
 
-    test('light background matches Direction C #FCFCFA', () {
-      expect(AppColors.lightBackground, const Color(0xFFFCFCFA));
+    test('light DsColors paints actions and selections in ink, red for danger', () {
+      expect(DsColors.light.primary, AppColors.lightTextPrimary);
+      expect(DsColors.light.primaryHover, AppColors.lightTextSecondary);
+      expect(DsColors.light.primarySoft, AppColors.lightSurfaceSecondary);
+      expect(DsColors.light.primaryTint, AppColors.lightSurfaceSecondary);
+      expect(DsColors.light.onPrimary, const Color(0xFFFFFFFF));
+      expect(DsColors.light.danger, AppColors.lightError);
+      expect(DsColors.light.dangerSoft, AppColors.lightErrorSoft);
+      expect(DsColors.light.warn, AppColors.lightWarning);
+      expect(DsColors.light.warm, AppColors.lightWarning);
+    });
+
+    test('the dark default accent matches the terracotta preset', () {
+      expect(AppColors.darkAccent, const Color(0xFFE8695B));
+      expect(AppColors.darkAccent, AppAccent.terracotta.dark);
+    });
+
+    test('the default presets are the spec palette', () {
+      expect(AppAccent.terracotta.light, const Color(0xFFC92A1E));
+      expect(AppAccent.terracotta.dark, const Color(0xFFE8695B));
     });
 
     test('dark background is #131311', () {

@@ -602,6 +602,68 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get importPreviewTitle => 'Import preview';
+
+  @override
+  String importPreviewSummary(int events, int todos, String fileName) {
+    return 'Read $events event(s) and $todos task(s) from $fileName.';
+  }
+
+  @override
+  String importPreviewCounts(int create, int duplicate, int skipped) {
+    return '$create new · $duplicate duplicate · $skipped skipped';
+  }
+
+  @override
+  String get importPreviewNew => 'New';
+
+  @override
+  String get importPreviewDuplicate => 'Duplicate';
+
+  @override
+  String get importPreviewSkipped => 'Skipped';
+
+  @override
+  String importPreviewMore(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String importFailedRows(int count) {
+    return '$count row(s) failed during import';
+  }
+
+  @override
+  String importFailureDetail(String fileName) {
+    return 'Nothing was written. File: $fileName';
+  }
+
+  @override
+  String get startImport => 'Start import';
+
+  @override
+  String get importInProgress => 'Reading and importing…';
+
+  @override
+  String get importResultTitle => 'Import result';
+
+  @override
+  String importResultSummary(int created, int updated, int skipped) {
+    return 'Created $created · updated $updated · skipped $skipped';
+  }
+
+  @override
+  String get importNothing => 'No events or tasks found in this file.';
+
+  @override
+  String get backupInProgress => 'Backing up…';
+
+  @override
+  String backupComplete(String filename) {
+    return 'Backup complete: $filename';
+  }
+
+  @override
   String get importExportDesc => 'Export calendar events and tasks to .ics, or import from a .ics file.';
 
   @override
@@ -762,6 +824,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String dateLabel(int month, int day) {
     return '$month/$day';
   }
+
+  @override
+  String calendarMonthDay(String month, String day) {
+    return '$month $day';
+  }
+
+  @override
+  String calendarDateRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
+  String get calendarWeekSummary => 'This week · 7 days';
+
+  @override
+  String get calendarWeekEmpty => 'Nothing this week.';
+
+  @override
+  String get calendarWeekEmptyHint => 'Start from capture or a calendar time slot.';
 
   @override
   String get openUpdatePage => 'View release';
@@ -1466,6 +1547,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get repeatAdvanced => 'Repeat options';
 
   @override
+  String get repeatField => 'Repeat';
+
+  @override
   String get seriesTimeZoneShort => 'Time zone for all repeats';
 
   @override
@@ -1951,7 +2035,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get other => 'Other';
 
   @override
-  String get capturePlaceholder => 'Capture · Enter files it unplanned';
+  String get capturePlaceholder => 'Capture a task, press Enter';
 
   @override
   String get captureHintEnter => '⏎ Unplanned';
@@ -2056,13 +2140,68 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDueSection => 'No deadline';
 
   @override
+  String get noDateGroupSection => 'No date';
+
+  @override
   String get datePlannedSection => 'Planned';
 
   @override
   String get dateDueSection => 'Deadline';
 
   @override
-  String get dateEventsSection => 'Events';
+  String get dateEventsSection => 'Day schedule';
+
+  @override
+  String dayEventsBgSub(int count) {
+    return '$count items · background timeline only';
+  }
+
+  @override
+  String todoAllActiveSummary(int active, int completed) {
+    return '$active pending · $completed completed';
+  }
+
+  @override
+  String viewNoDateCount(int count) {
+    return 'View $count unplanned';
+  }
+
+  @override
+  String get filter => 'Filter';
+
+  @override
+  String get filterEmptyHint => 'Clear filters to show all.';
+
+  @override
+  String get filterEmptyTitle => 'No matching tasks';
+
+  @override
+  String filterAppliedCount(int count) {
+    return 'Filtered · $count items';
+  }
+
+  @override
+  String get filterReset => 'Reset';
+
+  @override
+  String get filterApply => 'Apply';
+
+  @override
+  String get emptyInboxNoDateTitle => 'No undated tasks';
+
+  @override
+  String get emptyInboxNoDateHint => 'All unplanned tasks have a deadline.';
+
+  @override
+  String todoInboxNoDateContext(int count) {
+    return '$count items · undated';
+  }
+
+  @override
+  String get todoInboxNoDateBanner => 'From today · undated only';
+
+  @override
+  String get todoInboxViewAll => 'View all unplanned';
 
   @override
   String todoUnplannedContext(int count, int withDue) {
@@ -2210,4 +2349,1698 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get slotEmptyCreateHint => 'Nothing to schedule yet — create one and it lands in this slot.';
+
+  @override
+  String get navMe => 'Me';
+
+  @override
+  String get todayCleanTitle => 'Today is clear';
+
+  @override
+  String get todayCleanSub => 'Capture a task below, it will land in Unplanned.';
+
+  @override
+  String get todayEmptyTime => 'No time scheduled today.';
+
+  @override
+  String get todayEmptyTimeWithHint => 'No time scheduled today. You can schedule tasks onto time slots from Calendar.';
+
+  @override
+  String get captureInputPlaceholder => 'Capture a task, press Enter';
+
+  @override
+  String get captureTypeTodo => 'Task';
+
+  @override
+  String get captureDefaultDate => 'No date · Personal';
+
+  @override
+  String get captureTitle => 'Capture a task';
+
+  @override
+  String get captureSaveTodo => 'Save task';
+
+  @override
+  String plannedTodosMovedToTimeline(int count) {
+    return '$count planned items shown in timeline.';
+  }
+
+  @override
+  String deleteConfirmTitle(String title) {
+    return 'Delete \"$title\"?';
+  }
+
+  @override
+  String get deleteConfirmBody => 'Will be moved to Trash.';
+
+  @override
+  String todaySummary(int overdue, int due, int unplanned, int done) {
+    return '$overdue overdue · $due due today · $unplanned no date · $done completed';
+  }
+
+  @override
+  String get todaySummaryEmpty => 'No tasks scheduled today';
+
+  @override
+  String get todayCompletedGroup => 'Completed Today';
+
+  @override
+  String get todayEarlyGroup => 'Earlier Today';
+
+  @override
+  String get todayNowGroup => 'Now';
+
+  @override
+  String get todayUpcomingGroup => 'Next Up';
+
+  @override
+  String get todayOverdueGroup => 'Overdue';
+
+  @override
+  String get todayDueGroup => 'Due Today';
+
+  @override
+  String get todayUnplannedGroup => 'No Date';
+
+  @override
+  String expandTodayDone(int count) {
+    return 'Completed today $count · Expand';
+  }
+
+  @override
+  String expandTodayEarly(int count) {
+    return 'Earlier today $count · Expand';
+  }
+
+  @override
+  String collapseTodayEarly(int count) {
+    return 'Earlier today $count · Collapse';
+  }
+
+  @override
+  String viewAllNItems(int count) {
+    return 'View all $count items';
+  }
+
+  @override
+  String plannedBitsNote(String items) {
+    return '$items more items shown in the time section.';
+  }
+
+  @override
+  String plannedBitsOverdue(int count) {
+    return '$count overdue / missed';
+  }
+
+  @override
+  String plannedBitsDue(int count) {
+    return '$count due today';
+  }
+
+  @override
+  String get sortDeadline => 'Sort by deadline';
+
+  @override
+  String nItemsOverdue(int count) {
+    return '$count overdue';
+  }
+
+  @override
+  String markedCompleted(String title) {
+    return 'Marked completed · $title';
+  }
+
+  @override
+  String get tasksZoneLabel => 'TASKS';
+
+  @override
+  String get timeZoneLabel => 'TIME';
+
+  @override
+  String get captureDefaultSub => 'No date · Personal';
+
+  @override
+  String get planTagLabel => 'Plan';
+
+  @override
+  String todayDateSubtitle(String date, String weekday) {
+    return '$date · $weekday';
+  }
+
+  @override
+  String get showCalendars => 'Display Calendars';
+
+  @override
+  String get restoreAllCalendars => 'Restore All';
+
+  @override
+  String hiddenCalendarsSummary(int count) {
+    return 'Hidden $count calendars';
+  }
+
+  @override
+  String get selectAll => 'Select All';
+
+  @override
+  String get hiddenBadge => 'Hidden';
+
+  @override
+  String get repeatEndLabel => 'Ends';
+
+  @override
+  String get repeatNeverEnd => 'Never';
+
+  @override
+  String get repeatOnDate => 'On date';
+
+  @override
+  String get repeatAfterCount => 'After count';
+
+  @override
+  String get repeatEndDate => 'End date';
+
+  @override
+  String get repeatCount => 'Occurrences';
+
+  @override
+  String get repeatSeriesNotice => 'Updating frequency or end applies to the entire series.';
+
+  @override
+  String planTodoModalTitle(String title) {
+    return 'Schedule \"$title\"';
+  }
+
+  @override
+  String get planTodoSub => 'Sets planned execution only; does not change deadline.';
+
+  @override
+  String get planEditSub => 'Editing time; sets planned execution only.';
+
+  @override
+  String get planDate => 'Plan Date';
+
+  @override
+  String get planStartTime => 'Start';
+
+  @override
+  String get planEndTime => 'End';
+
+  @override
+  String get planDuration => 'Duration';
+
+  @override
+  String get planSubmitAction => 'Schedule';
+
+  @override
+  String get planSaveTimeAction => 'Save Time';
+
+  @override
+  String get planNoConflict => 'No time conflict';
+
+  @override
+  String planConflictWith(String title) {
+    return 'Overlaps with $title';
+  }
+
+  @override
+  String get planDayEmpty => 'Nothing scheduled that day';
+
+  @override
+  String get planDayExisting => 'Already on that day';
+
+  @override
+  String planOverlapBlocks(String range, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items overlap',
+      one: '1 item overlaps',
+    );
+    return '$range · $_temp0';
+  }
+
+  @override
+  String get planOverlapNote => 'Overlap is allowed; a deadline is not a time block.';
+
+  @override
+  String planDurationMinutes(int count) {
+    return '$count min';
+  }
+
+  @override
+  String planDurationHours(int hours) {
+    return '$hours hr';
+  }
+
+  @override
+  String planDurationHoursMinutes(int hours, int minutes) {
+    return '$hours hr $minutes min';
+  }
+
+  @override
+  String get detailEmptyTitle => 'No Task Selected';
+
+  @override
+  String get detailEmptyHint => 'Select a task from the list to view its details.';
+
+  @override
+  String get completeThisOccurrence => 'Complete This Occurrence';
+
+  @override
+  String get completedThisOccurrence => 'This Occurrence Completed';
+
+  @override
+  String missedOccurrencesNote(String date, int count) {
+    return 'Current instance $date · Missed $count times';
+  }
+
+  @override
+  String missedCardSubtitle(String repeat, int count) {
+    return '$repeat · Missed $count times · Completing affects only this one';
+  }
+
+  @override
+  String missedCardRepeatWeekly(String day) {
+    return 'Every $day';
+  }
+
+  @override
+  String get deleteToTrashAction => 'Move to Trash';
+
+  @override
+  String get cancelAction => 'Cancel';
+
+  @override
+  String get saveAction => 'Save';
+
+  @override
+  String get titleRequired => 'Title cannot be empty.';
+
+  @override
+  String get endTimeAfterStartTime => 'End time must be after start time.';
+
+  @override
+  String timeArrangementsCount(int count) {
+    return '$count scheduled items';
+  }
+
+  @override
+  String dayAgendaContextNotice(int count) {
+    return 'Day\'s events $count items · Time context only';
+  }
+
+  @override
+  String moreUnplannedItems(int count) {
+    return 'View $count undated items';
+  }
+
+  @override
+  String get defaultCalendar => 'Default Calendar';
+
+  @override
+  String get defaultCalendarDesc => 'Only decides where new items land by default; does not change existing items.';
+
+  @override
+  String get defaultCalendarSettingDesc => 'New tasks and captures land here by default; uses the first calendar if unset, no \"Uncategorized\".';
+
+  @override
+  String get defaultCalendarAlert => 'No \"Uncategorized\": if unset, the first calendar in the list is used.';
+
+  @override
+  String get saveDefaultCalendar => 'Save Default Calendar';
+
+  @override
+  String get defaultCalendarSaved => 'Default calendar saved';
+
+  @override
+  String get badgeDefault => 'Default';
+
+  @override
+  String get settingsSubtitle => 'Default calendar, data and preferences';
+
+  @override
+  String get settingsHomeDesc => 'Confirm the account and default calendar first, then data, AI and sync.';
+
+  @override
+  String get general => 'General';
+
+  @override
+  String get generalDesc => 'Decide where new tasks land and what to see on startup.';
+
+  @override
+  String get themeDesc => 'Warm paper surface, white content; ink for selection and actions.';
+
+  @override
+  String get accentColorDesc => 'Only affects actions and selection, not calendar colors.';
+
+  @override
+  String get accentWarmGray => 'Warm Gray';
+
+  @override
+  String get startupViewDesc => 'Which primary view to open on cold start.';
+
+  @override
+  String get languageDesc => 'Interface language.';
+
+  @override
+  String get calendarManagementDesc => 'Calendars are shared grouping and color spaces for events and tasks.';
+
+  @override
+  String get deleteCalendarNotice => 'When deleting a calendar, you must choose: migrate contents to another calendar, or delete them together.';
+
+  @override
+  String get newCalendarDesc => 'Choose name and color; new calendars do not become default automatically, select in \"Default Calendar\" after creation.';
+
+  @override
+  String editCalendarDesc(String name) {
+    return 'Editing \"$name\"; name, color. Change default calendar in separate setting.';
+  }
+
+  @override
+  String deleteCalendarHeader(String name, int count) {
+    return 'Before deleting \"$name\", you must decide where $count items go.';
+  }
+
+  @override
+  String get deleteCalendarWarning => 'Will not silently delete contents. Events and tasks must be migrated, or deleted together with the calendar.';
+
+  @override
+  String get migrateTo => 'Migrate to';
+
+  @override
+  String migrateItemCount(String name, int count) {
+    return '$name · migrate $count items';
+  }
+
+  @override
+  String deleteWithContents(int count) {
+    return 'Delete together with $count items (move to trash)';
+  }
+
+  @override
+  String get confirmMigrateAndDelete => 'Confirm Migration and Delete';
+
+  @override
+  String get calendarPlaceholder => 'e.g. Side project';
+
+  @override
+  String get tagPlaceholder => 'e.g. Waiting for reply';
+
+  @override
+  String get tagManagementDesc => 'Tags are not calendars; they are used for cross-calendar filtering.';
+
+  @override
+  String tagEditDesc(String name) {
+    return 'Editing \"$name\"; tags are cross-calendar, renaming does not alter items.';
+  }
+
+  @override
+  String get tagDeleteBanner => 'Deleting a tag only removes the tag, not the items.';
+
+  @override
+  String get trashDesc => 'Deleted tasks and events land here; restoring returns them to their original calendar.';
+
+  @override
+  String trashRestoredBanner(String title) {
+    return 'Restored \"$title\", returned to its original calendar.';
+  }
+
+  @override
+  String trashPermanentDeleteConfirm(String title) {
+    return 'Permanently delete \"$title\"? Cannot be undone, will not sync to other devices.';
+  }
+
+  @override
+  String trashDeletedBanner(String title) {
+    return 'Permanently deleted \"$title\", no longer kept in trash.';
+  }
+
+  @override
+  String get trashClearedBanner => 'Trash cleared, no items to restore.';
+
+  @override
+  String get ioSectionDesc => 'ICS is for exchanging with other calendars; backup is for restoring DaySpark.';
+
+  @override
+  String get ioCardImportDesc => 'Select target calendar; events and dated tasks are imported from ICS fields.';
+
+  @override
+  String get ioCardExportDesc => 'Export all calendars; none silently omitted.';
+
+  @override
+  String get ioCardBackupDesc => 'Contains all calendars, tasks, events, tags, reminders and attachment index.';
+
+  @override
+  String get notifySectionDesc => 'Reminders belong to each item; this manages system permissions only.';
+
+  @override
+  String get notifyDeniedBanner => 'System notification permission is off. Reminders are saved, but will not alert when due.';
+
+  @override
+  String get openSystemSettings => 'Open System Settings';
+
+  @override
+  String get notificationAllowed => 'Allowed';
+
+  @override
+  String get notificationOff => 'Off';
+
+  @override
+  String get notificationUnknown => 'Unknown';
+
+  @override
+  String get inAppReminders => 'In-app Reminders';
+
+  @override
+  String get inAppRemindersDesc => 'Displays in foreground';
+
+  @override
+  String get available => 'Available';
+
+  @override
+  String get syncSectionDesc => 'DaySpark self-hosted multi-device sync.';
+
+  @override
+  String get syncLoggedOutBanner => 'Not logged in yet. Local still works; login for multi-device sync.';
+
+  @override
+  String get syncFailedBanner => 'Sync failed. Server timed out; local changes pending retry.';
+
+  @override
+  String get syncOfflineBanner => 'Offline. Local changes are saved; sync retries when you are back online.';
+
+  @override
+  String syncOfflinePending(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Offline · $count local changes waiting to upload.',
+      one: 'Offline · 1 local change waiting to upload.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncPendingUploads(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pending uploads',
+      one: '1 pending upload',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncFailedAt(String time, String reason) {
+    return '$time · $reason';
+  }
+
+  @override
+  String get syncConflicts => 'Conflicts';
+
+  @override
+  String syncConflictCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count need review',
+      one: '1 needs review',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String syncConflictLast(String id) {
+    return 'Latest: $id';
+  }
+
+  @override
+  String get syncServerRejections => 'Server rejections';
+
+  @override
+  String syncRejectedTotal(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count rejected',
+      one: '1 rejected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get retryNow => 'Retry Now';
+
+  @override
+  String get localStatus => 'Local Status';
+
+  @override
+  String get localPriority => 'Local Priority';
+
+  @override
+  String get keepLocal => 'Keep Local';
+
+  @override
+  String get keepServer => 'Keep Server';
+
+  @override
+  String get mergeConflict => 'Merge';
+
+  @override
+  String get acceptDeletion => 'Accept Deletion';
+
+  @override
+  String get aboutDesc => 'DaySpark · Local-first personal time management tool.';
+
+  @override
+  String get dataLocation => 'Data';
+
+  @override
+  String get dataLocationDesc => 'Local-first · Self-hosted sync';
+
+  @override
+  String get license => 'License';
+
+  @override
+  String get viewLicense => 'View';
+
+  @override
+  String get commandPlaceholder => 'Search tasks, events, or type an action';
+
+  @override
+  String get commandHintRecent => 'Recent';
+
+  @override
+  String get commandHintActions => 'Actions';
+
+  @override
+  String get commandHintTodos => 'Tasks';
+
+  @override
+  String get commandHintEvents => 'Events';
+
+  @override
+  String get commandCreateTodo => 'New Task';
+
+  @override
+  String get commandCreateEvent => 'New Event';
+
+  @override
+  String get commandGoSettings => 'Go to Settings';
+
+  @override
+  String get commandGoSettingsDesc => 'Default calendar, data and preferences';
+
+  @override
+  String commandNotFound(String query) {
+    return 'No results found for \"$query\"';
+  }
+
+  @override
+  String get commandFootSelect => '↑↓ Navigate';
+
+  @override
+  String get commandFootOpen => '↵ Open';
+
+  @override
+  String get commandFootClose => 'esc Close';
+
+  @override
+  String get commandFootHint => 'Content first, actions after';
+
+  @override
+  String commandFootSelected(int index) {
+    return 'Item $index selected';
+  }
+
+  @override
+  String commandActionTitleQuery(String query) {
+    return 'Title \"$query\"';
+  }
+
+  @override
+  String get commandCaptureTodoDesc => 'Enter capture · task mode';
+
+  @override
+  String get commandCaptureEventDesc => 'Enter capture · event mode';
+
+  @override
+  String get commandSideAction => 'Action';
+
+  @override
+  String get commandSideTodo => 'Task';
+
+  @override
+  String get commandSideEvent => 'Event';
+
+  @override
+  String get currentCalendarIsDefault => 'This calendar is default';
+
+  @override
+  String get currentDefaultPrefix => 'Current default: ';
+
+  @override
+  String get goToSettings => 'Configure';
+
+  @override
+  String get orAlternative => 'Or';
+
+  @override
+  String get calendarColorLabel => 'Color';
+
+  @override
+  String get noSchedule => 'No schedule';
+
+  @override
+  String deadlineMarkerLabel(String time, String title) {
+    return 'Due $time · $title';
+  }
+
+  @override
+  String calendarTimeRowPlanned(String timeRange) {
+    return '$timeRange · Planned';
+  }
+
+  @override
+  String get calendarRepeatBadge => '↻';
+
+  @override
+  String get calendarRepeatBadgeSemantics => 'Repeats';
+
+  @override
+  String calendarSeriesCurrentInstance(String timeRange) {
+    return 'Current instance $timeRange';
+  }
+
+  @override
+  String get calendarSeriesHint => 'Repeating event · open an item for details';
+
+  @override
+  String get todaySummaryOverdue => 'Overdue';
+
+  @override
+  String get todayNoDateGroup => 'No date';
+
+  @override
+  String todayViewNoDate(int count) {
+    return 'View $count undated';
+  }
+
+  @override
+  String get importAndBackup => 'Import & Backup';
+
+  @override
+  String get userAccount => 'Account';
+
+  @override
+  String get dataSectionDesc => 'Tags, trash, import/export, and backups.';
+
+  @override
+  String get accountSectionDesc => 'Current account and device session management.';
+
+  @override
+  String get aiSectionDesc => 'Smart suggestions and assistant settings.';
+
+  @override
+  String get notify => 'Notifications';
+
+  @override
+  String get versionLabel => 'Version';
+
+  @override
+  String get versionDesc => 'Current build.';
+
+  @override
+  String get dataDesc => 'Storage location.';
+
+  @override
+  String get licenseDesc => 'Open source license.';
+
+  @override
+  String get mobileGeneralDesc => 'Default calendar, open on launch';
+
+  @override
+  String mobileCalendarsDesc(int count) {
+    return '$count calendars';
+  }
+
+  @override
+  String get mobileDataDesc => 'Tags / Trash / Import';
+
+  @override
+  String get mobileNotifyDesc => 'Permissions & reminders';
+
+  @override
+  String get mobileSyncDesc => 'Account, failure, conflict';
+
+  @override
+  String get sync => 'Sync';
+
+  @override
+  String get mobileAboutDesc => 'Version & license';
+
+  @override
+  String get captureParsedTypeTodoTitle => 'Type remains Task';
+
+  @override
+  String get captureParsedTypeTodoSub => 'Detected time is only a \"Planned execution\" suggestion, not an event or deadline.';
+
+  @override
+  String get captureParsedSuggestTitle => 'Suggested Plan';
+
+  @override
+  String get captureParsedSuggestEventTitle => 'Event Schedule';
+
+  @override
+  String get captureParsedSuggestRemoved => 'Time suggestion removed';
+
+  @override
+  String get captureParsedSuggestSub => 'Preselected; saved as \"Planned execution\". Can be removed.';
+
+  @override
+  String get captureParsedSuggestEventSub => 'Changed to Event; saved directly to calendar.';
+
+  @override
+  String get captureParsedSuggestSubRemoved => 'Saves title only; no date, no plan, no deadline.';
+
+  @override
+  String get captureActionRemove => 'Remove';
+
+  @override
+  String get captureActionRestore => 'Restore';
+
+  @override
+  String get captureActionChangeToEvent => 'Change to Event';
+
+  @override
+  String get captureActionChangeToTodo => 'Change to Task';
+
+  @override
+  String get captureActionExpandFields => 'Expand fields';
+
+  @override
+  String get captureActionBackToCompact => 'Back to compact';
+
+  @override
+  String get captureActionSaveLater => 'Save to Unplanned first';
+
+  @override
+  String get captureHintParsed => 'Default: Task · No date · Personal\nDeadline remains empty';
+
+  @override
+  String get captureHintExpanded => 'All facts visible before saving; untouched fields are not written.';
+
+  @override
+  String get captureHintEvent => 'Only explicit switch to \"Event\" or entering from Calendar slot creates an event.';
+
+  @override
+  String get captureHintDate => 'Writes date only, not time; will not become an event.';
+
+  @override
+  String get captureHintPlan => 'Overlaps allowed; will not modify deadline.';
+
+  @override
+  String get captureHintCalendar => 'Default calendar comes from settings; no \"uncategorized\".';
+
+  @override
+  String get captureHintReminder => 'Reminder is the item\'s own fact, does not affect deadline.';
+
+  @override
+  String get captureHintValidation => 'Validation error stays on field, no global popup.';
+
+  @override
+  String get captureHintSaveError => 'Failure state does not close Capture or drop input.';
+
+  @override
+  String get captureHintDiscard => 'Dangerous actions require confirmation.';
+
+  @override
+  String get captureHintKeyboard => 'Focus visible; Esc triggers discard confirmation.';
+
+  @override
+  String get captureValidationEmptyTitle => 'Title cannot be empty. Write an action you will understand tomorrow.';
+
+  @override
+  String get captureValidationAlert => 'Fill title before saving; other fields are preserved.';
+
+  @override
+  String get captureSaveErrorServer => 'Could not connect to server.';
+
+  @override
+  String captureSaveErrorDraftHint(String title) {
+    return '\"$title\" is still in this draft; you can retry or keep it in Unplanned.';
+  }
+
+  @override
+  String get captureDiscardTitle => 'Discard this input?';
+
+  @override
+  String captureDiscardSub(String title) {
+    return '\"$title\" has not been saved';
+  }
+
+  @override
+  String get captureDiscardLineTitle => 'Draft will be lost on close';
+
+  @override
+  String get captureDiscardLineSub => 'Keep editing will preserve title, date and reminders.';
+
+  @override
+  String get captureKeyboardTitle => 'Keyboard navigation';
+
+  @override
+  String get captureKeyboardSub => 'Desktop: Tab fields · Enter save · Esc discard';
+
+  @override
+  String get captureKeyboardHelp => 'Focus on title; Tab to deadline, plan, reminder.';
+
+  @override
+  String get captureChoiceTitleDate => 'Select Date';
+
+  @override
+  String get captureChoiceTitlePlan => 'Select Planned Execution';
+
+  @override
+  String get captureChoiceTitleCalendar => 'Select Calendar';
+
+  @override
+  String get captureChoiceTitleReminder => 'Reminder';
+
+  @override
+  String get captureChoiceSubCalendar => 'New tasks land here by default';
+
+  @override
+  String get captureChoiceFooter => 'Only modifies this field; other facts remain unchanged.';
+
+  @override
+  String get captureFieldDateToday => 'Today';
+
+  @override
+  String get captureFieldDateTomorrow => 'Tomorrow';
+
+  @override
+  String get captureFieldDateNextMonday => 'Next Monday';
+
+  @override
+  String get captureFieldDateOther => 'Other date';
+
+  @override
+  String get captureFieldDateOpenCalendar => 'Open calendar';
+
+  @override
+  String get captureSelectedTag => 'Selected';
+
+  @override
+  String get planPickerTitle => 'Schedule Task';
+
+  @override
+  String planPickerTarget(String title) {
+    return 'Schedule \"$title\"';
+  }
+
+  @override
+  String get planPickerEmpty => 'No schedulable tasks';
+
+  @override
+  String get planPickerEmptySub => 'Add a task from the capture bar first, then plan its execution.';
+
+  @override
+  String get planPickerContext => 'Existing today';
+
+  @override
+  String get saveFailedNotWritten => 'Save failed · not written';
+
+  @override
+  String get retrySave => 'Retry save';
+
+  @override
+  String deleteTodoConfirm(String title) {
+    return 'Delete \"$title\"?';
+  }
+
+  @override
+  String get deleteSeriesTrashNotice => 'This is a repeating task. The whole series will move to the trash and can be restored.';
+
+  @override
+  String get deleteTrashNotice => 'It will move to the trash and can be restored.';
+
+  @override
+  String backupConflictTitle(int count) {
+    return 'Data Conflicts ($count)';
+  }
+
+  @override
+  String get backupConflictDesc => 'Some records in the backup conflict with existing records on this device. Select a resolution for each item:';
+
+  @override
+  String get backupKeepLocal => 'Keep local';
+
+  @override
+  String get backupKeepRemote => 'Overwrite with backup';
+
+  @override
+  String get backupApplyResolutions => 'Apply resolutions';
+
+  @override
+  String get importStepFile => '1 · Choose File';
+
+  @override
+  String get importStepCalendar => '2 · Target Calendar';
+
+  @override
+  String get importStepPreview => '3 · Preview & Import';
+
+  @override
+  String get importFileHelp => 'Supports .ics files. Events with matching UIDs will not be duplicated.';
+
+  @override
+  String importCalendarHelp(int count) {
+    return 'Target calendar · currently $count items';
+  }
+
+  @override
+  String get importPreviewHelp => 'Review events and tasks that will be added or skipped.';
+
+  @override
+  String get importNextStep => 'Next step';
+
+  @override
+  String get importChangeFile => 'Change file';
+
+  @override
+  String get importChangeCalendar => 'Change calendar';
+
+  @override
+  String calendarHiddenSingleSummary(String name, int count) {
+    return 'Hidden \"$name\" · $count items';
+  }
+
+  @override
+  String calendarHiddenMultipleSummary(int calCount, int count) {
+    return 'Hidden $calCount calendars · $count items';
+  }
+
+  @override
+  String get multiDaySpanLabel => 'Span';
+
+  @override
+  String multiDayEventSpanSummary(String title, String start, String end, int days) {
+    return '$title · $start–$end · $days d';
+  }
+
+  @override
+  String get filterOverdueOnly => 'Overdue only';
+
+  @override
+  String filterMatchedCount(int count) {
+    return '$count matched';
+  }
+
+  @override
+  String get captureParsedDefaultTitle => 'Submit report at 3pm tomorrow';
+
+  @override
+  String get captureParsedDefaultSub => 'Task · No date · Personal (default)';
+
+  @override
+  String get captureSubExpanded => 'Expand when needed; no date by default.';
+
+  @override
+  String get captureTitleEvent => 'New Event';
+
+  @override
+  String get captureSubEvent => 'Event · Work';
+
+  @override
+  String get captureSubDate => 'Task · Personal (default)';
+
+  @override
+  String get captureSubPlan => 'Sets plan only, does not change deadline.';
+
+  @override
+  String get captureSubReminder => 'Reminders belong to the item, does not change deadline.';
+
+  @override
+  String get captureSaveErrorTitle => 'Save Failed';
+
+  @override
+  String get captureSaveErrorSub => 'Draft preserved, will not be lost';
+
+  @override
+  String get captureFieldTaskTitle => 'Task Title';
+
+  @override
+  String get captureFieldDeadline => 'Deadline';
+
+  @override
+  String get captureFieldPlanExecution => 'Planned execution';
+
+  @override
+  String get captureFieldCalendar => 'Calendar';
+
+  @override
+  String get captureFieldReminder => 'Reminder';
+
+  @override
+  String get captureFieldPriority => 'Priority';
+
+  @override
+  String get captureFieldEventTitle => 'Title';
+
+  @override
+  String get captureFieldEventTime => 'Time';
+
+  @override
+  String get captureFieldEventAllDay => 'All-day';
+
+  @override
+  String get captureFieldEventRepeat => 'Repeat';
+
+  @override
+  String get captureFieldDuration => 'Duration';
+
+  @override
+  String get captureFieldDayExisting => 'Schedule on day';
+
+  @override
+  String get captureFieldNotFilled => 'Not filled';
+
+  @override
+  String get captureFieldNoDeadline => 'No deadline';
+
+  @override
+  String get captureFieldNotScheduled => 'Not scheduled';
+
+  @override
+  String get captureFieldNoReminder => 'No reminder';
+
+  @override
+  String get captureFieldNoRepeat => 'Does not repeat';
+
+  @override
+  String get captureFieldNoOverlap => 'No overlap';
+
+  @override
+  String get captureFieldNone => 'None';
+
+  @override
+  String get captureFieldYes => 'Yes';
+
+  @override
+  String get captureFieldNo => 'No';
+
+  @override
+  String get captureFieldHigh => 'High';
+
+  @override
+  String get captureFieldMedium => 'Medium';
+
+  @override
+  String get captureActionCreateEvent => 'Create Event';
+
+  @override
+  String get captureActionApply => 'Apply';
+
+  @override
+  String get captureActionEnterSave => 'Enter to save';
+
+  @override
+  String get captureActionKeepEditing => 'Keep editing';
+
+  @override
+  String get captureActionDiscard => 'Discard';
+
+  @override
+  String get captureActionRetry => 'Retry';
+
+  @override
+  String get captureCalPersonal => 'Personal';
+
+  @override
+  String get captureCalPersonalDefault => 'Personal · Default';
+
+  @override
+  String get captureCalDefaultSelected => 'Default · Selected';
+
+  @override
+  String get captureCalWork => 'Work';
+
+  @override
+  String get captureCalWorkCalendar => 'Work calendar';
+
+  @override
+  String get captureCalHome => 'Home';
+
+  @override
+  String get captureCalHomeCalendar => 'Home calendar';
+
+  @override
+  String get captureCalHealth => 'Health';
+
+  @override
+  String get captureCalHealthCalendar => 'Health calendar';
+
+  @override
+  String get captureReminderNoReminder => 'No reminder';
+
+  @override
+  String get captureReminder5mBefore => '5 minutes before';
+
+  @override
+  String get captureReminder15mBefore => '15 minutes before';
+
+  @override
+  String get captureReminder1hBefore => '1 hour before';
+
+  @override
+  String get captureReminder1dBefore => '1 day before';
+
+  @override
+  String captureDateSelectedSuffix(String date) {
+    return '$date · Selected';
+  }
+
+  @override
+  String get captureDateNextWeek => 'Next week';
+
+  @override
+  String get closeTooltip => 'Close';
+
+  @override
+  String backupConflictSkipAssociated(int count) {
+    return 'Keeping local will skip $count associated items in backup';
+  }
+
+  @override
+  String get newTodoPageTitle => 'Capture a task';
+
+  @override
+  String get newItemPageSub => 'The full-page form of Capture: same fields as the floating panel; fields you do not open are not written.';
+
+  @override
+  String get createTodoAction => 'Add todo';
+
+  @override
+  String get createEventAction => 'Create event';
+
+  @override
+  String get newTodoPlaceholder => 'Write an action future-you can understand';
+
+  @override
+  String get newEventPlaceholder => 'Name this event';
+
+  @override
+  String get newTodoFootnote => 'Tags, subtasks and attachments can be added after creation; they are not part of capture.';
+
+  @override
+  String get newEventFootnote => 'Location and notes can be added after creation.';
+
+  @override
+  String get typeNoteTodo => 'A todo by default; only switching to event changes that.';
+
+  @override
+  String get typeNoteEvent => 'Opened from a time slot, so this is an event.';
+
+  @override
+  String get notFilled => 'Not set';
+
+  @override
+  String get itemTypeTodo => 'Todo';
+
+  @override
+  String get itemTypeEvent => 'Event';
+
+  @override
+  String get eventLocationUnset => 'Not set';
+
+  @override
+  String get newItemSaveFailedNote => 'This page still has your input. Check the connection and retry.';
+
+  @override
+  String get newItemRepeatLabel => 'Repeat';
+
+  @override
+  String get timePickerHint => 'Type the numbers; press Enter to confirm. No dial.';
+
+  @override
+  String get timePickerInvalid => 'Hour must be 00–23 and minute 00–59; fix it before confirming.';
+
+  @override
+  String get pickTimeHint => 'Pick a time';
+
+  @override
+  String calendarOverlapCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count items overlap',
+      one: '1 item overlaps',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get calendarOverlapNote => 'Side by side, never merged or covered; tap one to open it.';
+
+  @override
+  String calendarDragReleaseHint(String time) {
+    return 'Release · schedule at $time';
+  }
+
+  @override
+  String get deadlinePointNote => 'A point marker, it occupies no time.';
+
+  @override
+  String get slotCaptureFrom => 'From a time slot';
+
+  @override
+  String get slotCaptureHint => 'Same capture surface from every entry; the time is prefilled.';
+
+  @override
+  String get slotOtherWays => 'Other scheduling options';
+
+  @override
+  String monthItemsOverflow(int count) {
+    return '$count more items';
+  }
+
+  @override
+  String get savingLabel => 'Saving…';
+
+  @override
+  String get settingsHomeAccountDesc => 'Sign-in, server, and session status.';
+
+  @override
+  String get settingsHomeGeneralDesc => 'Default calendar, startup view, theme, and language.';
+
+  @override
+  String settingsHomeCalendarsDesc(int count) {
+    return '$count calendars · 1 default.';
+  }
+
+  @override
+  String get settingsHomeDataDesc => 'Tags, trash, import/export, and backups.';
+
+  @override
+  String get settingsHomeAiDesc => 'Optional; needs your own model key.';
+
+  @override
+  String get settingsHomeNotifyDesc => 'System alarms and permissions.';
+
+  @override
+  String get settingsHomeSyncDesc => 'Server, account, failures, and conflicts.';
+
+  @override
+  String get settingsHomeAboutDesc => 'Version, licenses, and feedback.';
+
+  @override
+  String get settingsValueEnter => 'Enter';
+
+  @override
+  String get settingsValueOpen => 'Open';
+
+  @override
+  String get settingsValueManage => 'Manage';
+
+  @override
+  String get settingsValueView => 'View';
+
+  @override
+  String get accountNotLoggedIn => 'Not signed in';
+
+  @override
+  String get aiEnableFull => 'Enable AI assistant';
+
+  @override
+  String get aiEnableDesc => 'Turning it off hides \"Open assistant\" and the chat entry; existing tasks are unaffected.';
+
+  @override
+  String get aiModelRow => 'Model configuration';
+
+  @override
+  String get aiKeyLocalOnly => 'Saved on this device only';
+
+  @override
+  String get aiModelDialogTitle => 'AI model';
+
+  @override
+  String get aiBaseUrlHelp => 'The key is saved only on this device; it is never synced to the server. Detection requests /models.';
+
+  @override
+  String get aiKeyCheckFailedTitle => 'Key check failed.';
+
+  @override
+  String get aiKeyCheck401Body => 'The server returned 401; this change was not saved.';
+
+  @override
+  String aiKeyCheckFailedBody(String status) {
+    return 'The provider request failed ($status); this change was not saved.';
+  }
+
+  @override
+  String get aiUnconfiguredAlertTitle => 'No usable model yet.';
+
+  @override
+  String get aiUnconfiguredAlertBody => 'Fill in the Base URL and key, save, and then you can send messages.';
+
+  @override
+  String get aiOffAlertBody => 'The AI assistant is off; this page stays so you can turn it back on.';
+
+  @override
+  String aiConfiguredWithModel(String model) {
+    return 'Configured · $model';
+  }
+
+  @override
+  String aiConnectedModel(String model) {
+    return 'Connected · model $model · key saved only on this device';
+  }
+
+  @override
+  String get aiChatSubtitleFallback => 'Chat is a content page, not search and not the command palette.';
+
+  @override
+  String get aiReplyInProgress => 'Replying…';
+
+  @override
+  String get syncConflictDesc => 'The same record changed on both this device and the server; choose per item.';
+
+  @override
+  String syncConflictRecord(String id, String type) {
+    return 'Conflict $id · $type';
+  }
+
+  @override
+  String get syncConflictLocalServer => 'Local: this device\'s change is still here. Server: the version changed, so the server rejected the overwrite.';
+
+  @override
+  String get syncConflictApply => 'Apply choices';
+
+  @override
+  String get syncConflictMergeHint => 'The sync layer has no field-level merge; choosing Merge will not rewrite either version.';
+
+  @override
+  String capturePlanTo(String date) {
+    return 'Plan on $date';
+  }
+
+  @override
+  String get syncConflictKeepLocalResult => 'Kept the local version; the next edit to this record will upload again as a new change.';
+
+  @override
+  String get capturePlanDayEmpty => 'Nothing scheduled that day';
+
+  @override
+  String get syncConflictRemoteUnavailable => 'The sync layer does not expose the server copy; the \"Keep server\" choices were not applied.';
+
+  @override
+  String capturePlanOverlapCount(int count) {
+    return '$count overlapping';
+  }
+
+  @override
+  String get syncConflictMergeUnavailable => 'The sync layer has no field-level merge; Merge choices were not applied and no merge result was invented.';
+
+  @override
+  String captureSuggestionTitle(String range) {
+    return '$range · Suggested';
+  }
+
+  @override
+  String get syncConflictBack => 'Back to sync';
+
+  @override
+  String get syncServerUnreachable => 'Unreachable';
+
+  @override
+  String syncPendingBoth(int uploads, int downloads) {
+    return '$uploads pending uploads · $downloads pending downloads';
+  }
+
+  @override
+  String get syncRetryDesc => 'Retry sync now.';
+
+  @override
+  String get backupProgressTitle => 'Backing up';
+
+  @override
+  String get backupProgressPacking => 'Packaging calendars, tasks, events, tags, and the attachment index.';
+
+  @override
+  String backupProgressWriting(String filename) {
+    return 'Writing $filename';
+  }
+
+  @override
+  String backupProgressPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get backupIncludes => 'Contains';
+
+  @override
+  String backupIncludesCounts(int calendars, int todos, int events, int attachments) {
+    return '$calendars calendars · $todos tasks · $events events · $attachments attachment entries';
+  }
+
+  @override
+  String get backupSavedLocation => 'The file was saved where you chose.';
+
+  @override
+  String captureEventCreatedToast(String range) {
+    return 'Event created · $range';
+  }
+
+  @override
+  String get backupFailedTitle => 'Backup failed';
+
+  @override
+  String overdueToolbarEarliest(String date) {
+    return 'Earliest $date';
+  }
+
+  @override
+  String get backupFailedBody => 'The destination is not writable.';
+
+  @override
+  String timelineMissedPill(int count) {
+    return 'Missed $count times';
+  }
+
+  @override
+  String get backupNoPartial => 'No partial file was produced.';
+
+  @override
+  String get pastDueOrMissedSection => 'Overdue / Missed';
+
+  @override
+  String get importErrorTitle => 'Import failed';
+
+  @override
+  String get importSeeReport => 'View report';
+
+  @override
+  String get importSkipRows => 'Skip error rows and continue';
+
+  @override
+  String get importCannotSkip => 'The whole file cannot be parsed, so error rows cannot be skipped; fix the file and retry.';
+
+  @override
+  String get importReportTitle => 'Import report';
+
+  @override
+  String importReportSkipped(int count) {
+    return '$count row(s) will be skipped';
+  }
+
+  @override
+  String get importReportEmpty => 'This file has no bad rows to report.';
+
+  @override
+  String importReportError(String error) {
+    return 'Parse error: $error';
+  }
+
+  @override
+  String get exactAlarmNotActive => 'Not active';
+
+  @override
+  String get systemNotification => 'System notifications';
+
+  @override
+  String feedbackCharCount(int count) {
+    return '$count characters · Logs are not attached automatically';
+  }
+
+  @override
+  String get feedbackMetaReady => 'You can copy it or take it to GitHub';
+
+  @override
+  String filterAppliedSummary(String criteria, int count) {
+    return 'Filtered: $criteria · $count items';
+  }
+
+  @override
+  String get feedbackMetaEmpty => 'Write something first';
+
+  @override
+  String get listSeparator => ', ';
+
+  @override
+  String get feedbackNoSilentSubmit => 'DaySpark never submits anything in the background. After copying, paste it anywhere; GitHub opens a blank issue with the body filled in.';
+
+  @override
+  String get pickTimeTitle => 'Choose a time';
+
+  @override
+  String get feedbackLinkErrorTitle => 'Could not open the browser.';
+
+  @override
+  String get feedbackLinkErrorBody => 'Your text is still here; retry, or copy it to the clipboard and open it manually.';
+
+  @override
+  String get aiOffValue => 'Off';
+
+  @override
+  String get aiDisabledTitle => 'The AI assistant is off';
+
+  @override
+  String get aiDisabledHint => 'This is an optional feature; turn it on and configure a model to get a chat entry.';
+
+  @override
+  String get aiOpenSettings => 'Open settings';
+
+  @override
+  String get aiConfigureModel => 'Configure model';
+
+  @override
+  String settingsCalendarsCountOne(int count) {
+    return '$count calendars · 1 default';
+  }
+
+  @override
+  String get defaultCalendarBadgeValue => 'Default';
+
+  @override
+  String settingsCurrentDefault(String name) {
+    return 'Current default: $name';
+  }
+
+  @override
+  String get settingsDefaultCalSavedPlaceholder => 'Save default calendar';
+
+  @override
+  String get chatModelAction => 'Model';
+
+  @override
+  String get chatClearAction => 'Clear chat';
+
+  @override
+  String get settingsBetaBadge => 'Beta';
+
+  @override
+  String get aiPrivacyFooter => 'Conversations stay on this device; model requests go directly to the provider you configured. DaySpark servers never see the key.';
+
+  @override
+  String get aiKeyChecking => 'Checking key…';
+
+  @override
+  String get aiKeyMissing => 'Enter an API key before saving.';
+
+  @override
+  String get syncConflictTitle => 'Sync conflict';
+
+  @override
+  String get syncConflictLocal => 'Local';
+
+  @override
+  String get syncConflictServer => 'Server';
+
+  @override
+  String get backupDoneTitle => 'Backup complete';
+
+  @override
+  String get backupMergeHint => 'Merge keeps both: the local item stays, and the backup version is imported as a new item.';
+
+  @override
+  String get aiNotConfiguredTitle => 'No model configured yet';
+
+  @override
+  String get aiChatNotConfiguredHint => 'Fill in an OpenAI-compatible Base URL and API key. The key stays on this device and is never uploaded to DaySpark servers.';
+
+  @override
+  String get feedbackWriteLabel => 'Write something';
+
+  @override
+  String get feedbackPlaceholder => 'What happened, and what did you expect? Include device and version if you can.';
+
+  @override
+  String get syncConflictApplied => 'Choices applied.';
+
+  @override
+  String syncConflictApplyFailed(String error) {
+    return 'Could not apply every choice: $error';
+  }
+
+  @override
+  String get saveSeriesTitle => 'Save to the whole series?';
+
+  @override
+  String get saveSeriesBody => 'This edit is written to the series anchor and updates every occurrence. To skip only this one, use Delete · This event.';
+
+  @override
+  String get saveSeriesConfirm => 'Save whole series';
+
+  @override
+  String get timedDeadline => 'Timed deadline';
+
+  @override
+  String get outOfRangeNote => 'The axis is fixed 08:00–20:00. Earlier or later events stick to the edge; open the detail for the real time. Cross-midnight events stay in the multi-day band.';
+
+  @override
+  String get staleCalendarTitle => 'Couldn\'t reach the server';
+
+  @override
+  String get staleCalendarBody => 'Showing the last data you saw. Retry to replace it.';
+
+  @override
+  String get trashedItemTitle => 'This item is in Trash';
+
+  @override
+  String get trashedItemBody => 'The link points to an item that was moved to Trash. Restore it to keep editing.';
+
+  @override
+  String get goToTrash => 'Go to Trash';
+
+  @override
+  String get startupFailedTitle => 'DaySpark couldn\'t open';
+
+  @override
+  String get startupFailedBody => 'The local database did not open. Your data is still on disk. Retry, or export diagnostics first.';
+
+  @override
+  String get exportDiagnostics => 'Export diagnostics';
+
+  @override
+  String get endDateOfEvent => 'End date';
+
+  @override
+  String get dayCountLabel => 'Days';
+
+  @override
+  String get syncOfflineShort => 'Offline. Changes waiting to upload.';
+
+  @override
+  String get syncFailedShort => 'Sync failed. Local data is safe.';
+
+  @override
+  String get syncConflictShort => 'Conflicts found. Review them in Sync.';
+
+  @override
+  String get relatedLoading => 'Loading tags, reminders and schedule…';
+
+  @override
+  String get relatedPartial => 'Some related content didn\'t load.';
 }

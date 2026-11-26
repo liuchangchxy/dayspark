@@ -748,3 +748,22 @@
 - **Why**: 2026-11-12 runner 侧静默变了两个值，代码一字未改而所有 PR 全红：stable 浮动到 Flutter 3.50.0，`package:flutter/material.dart` 被标 deprecated，`flutter analyze` 在 info 级 `deprecated_member_use` 上失败；`ubuntu-latest` 默认 JDK 变成 25.0.5，Gradle 8.14 拒绝，`build-android` 21 秒失败。根因在 runner，改业务代码解决不了
 - 升级 Flutter / Gradle / JDK 是显式改动：`pubspec` 环境、`gradle/wrapper`、两个 workflow 一起改，先普通 push 验证再打 tag
 - **Date**: 2026-11-13
+
+## 设计冻结与裁定（2026-11-26）
+
+### 2026-11-26 冻结母版是唯一视觉与交互权威
+- `docs/design/frozen/dayspark-spec.html`（SHA-256 `6c350167894af67cc31097ca5021bd340317248a17b22cd0e8fbad673f71f9bf`）与 `docs/design/frozen/dayspark-coverage-map.md` 是本轮实现依据。
+- 2026-11-25 及更早冻结母版不再作为参考；实现者不得按旧母版回退界面。
+- **Why**: 覆盖审计完成后设计母版已更新，旧冻结副本会引入已裁定修复的缺陷。
+- **Date**: 2026-11-26
+
+### 手机日历头部以冻结母版为准（取代 2026-11-16 单一菜单约束）
+- 手机日历头部：可见月/周/日分段、今天、搜索、上一期/下一期、过滤；新建统一为 FAB（三视图），时间槽点击仍打开捕获 sheet。
+- 2026-11-16 的“只留一个视图菜单、周/日才可新建”的旧约束不再适用；390dp 下以分段控件 + 短标题验证不挤压。
+- **Why**: 冻结母版是唯一权威；旧约束来自局部图标墙试验，不能反向限制新母版。
+- **Date**: 2026-11-26
+
+### 重复日程仍按系列编辑，不做实例级覆盖
+- 保存重复实例前弹出“保存整个系列”确认；删除仍提供仅此次/整个系列。不得写入实例级覆盖或 EXDATE 编辑。
+- **Why**: 保持 2026-10-19 的系列锚点约束与“不新增功能”边界；UI 只负责把范围说清楚。
+- **Date**: 2026-11-26

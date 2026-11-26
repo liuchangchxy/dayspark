@@ -14,6 +14,17 @@ DateTime calDayOf(DateTime value) =>
 bool calSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
+bool calEventIsRecurring(CalendaEventAdapter event) =>
+    event.rrule != null || event.isRecurringOccurrence;
+
+TextSpan calRepeatBadgeSpan(BuildContext context) {
+  final l = AppLocalizations.of(context)!;
+  return TextSpan(
+    text: ' ${l.calendarRepeatBadge}',
+    semanticsLabel: l.calendarRepeatBadgeSemantics,
+  );
+}
+
 DateTime calWeekStart(DateTime value) {
   final day = calDayOf(value);
   return day.subtract(Duration(days: day.weekday - 1));
@@ -26,6 +37,33 @@ String calWeekdayShort(String locale, DateTime date) {
   }
   return full;
 }
+
+// The spec's weekday() spelling is 周一…周日. calWeekdayShort stays for the
+// mobile month header, whose spec cells are single characters (一…日).
+String calWeekdayLong(String locale, DateTime date) =>
+    DateFormat.E(locale).format(date);
+
+// The spec's md() spelling is "11 月 16 日" (en uses the month name).
+String calMonthDayLabel(
+  AppLocalizations l,
+  String locale,
+  DateTime date,
+) {
+  final month = locale.startsWith('zh')
+      ? '${date.month}'
+      : DateFormat.MMM(locale).format(date);
+  return l.calendarMonthDay(month, '${date.day}');
+}
+
+String calDateRangeLabel(
+  AppLocalizations l,
+  String locale,
+  DateTime start,
+  DateTime end,
+) => l.calendarDateRange(
+  calMonthDayLabel(l, locale, start),
+  calMonthDayLabel(l, locale, end),
+);
 
 String calDuration(AppLocalizations l, Duration duration) {
   final minutes = duration.inMinutes;
@@ -151,6 +189,56 @@ List<CalLane> calPackLanes(List<CalBlockItem> items) {
     index = next;
   }
   return result;
+}
+
+/// One connected run of blocks whose spans overlap. The spec draws a dashed
+/// `.overlap-zone` over such a run and labels it with the number of blocks.
+/// `start`/`end` are the union of the run, so the box always covers every
+/// member; [items] keeps the members so a caller can list them.
+class CalOverlapCluster {
+  const CalOverlapCluster({
+    required this.start,
+    required this.end,
+    required this.items,
+  });
+
+  final DateTime start;
+  final DateTime end;
+  final List<CalBlockItem> items;
+
+  int get count => items.length;
+}
+
+/// Connected overlap runs, in start order. A run of one is not an overlap.
+///
+/// This uses the same connectivity rule as [calPackLanes] (next start before
+/// the running end), so a cluster whose lanes > 1 is exactly a cluster here.
+List<CalOverlapCluster> calOverlapClusters(List<CalBlockItem> items) {
+  final sorted = [...items]..sort((a, b) {
+    final byStart = a.start.compareTo(b.start);
+    return byStart != 0 ? byStart : a.end.compareTo(b.end);
+  });
+  final clusters = <CalOverlapCluster>[];
+  var index = 0;
+  while (index < sorted.length) {
+    var runEnd = sorted[index].end;
+    var next = index + 1;
+    while (next < sorted.length && sorted[next].start.isBefore(runEnd)) {
+      if (sorted[next].end.isAfter(runEnd)) runEnd = sorted[next].end;
+      next++;
+    }
+    if (next - index >= 2) {
+      clusters.add(
+        CalOverlapCluster(
+          start: sorted[index].start,
+          end: runEnd,
+          items: sorted.sublist(index, next),
+        ),
+      );
+    }
+    index = next;
+  }
+  return clusters;
 }
 
 class CalGap {
@@ -476,7 +564,7 @@ class _CalBlockTileState extends State<CalBlockTile> {
             style: TextStyle(
               fontSize: 10,
               height: 1.25,
-              color: ds.primary,
+              color: ds.danger,
               fontFeatures: AppTypography.tabular,
             ),
           )
@@ -538,7 +626,7 @@ class _CalBlockTileState extends State<CalBlockTile> {
             style: TextStyle(
               fontSize: 10.5,
               height: 1.25,
-              color: ds.primary,
+              color: ds.danger,
               fontFeatures: AppTypography.tabular,
             ),
           ),
@@ -576,3 +664,62 @@ class _CalDashedPainter extends CustomPainter {
   bool shouldRepaint(covariant _CalDashedPainter oldDelegate) =>
       oldDelegate.color != color;
 }
+
+class FrozenCalendarPalette {
+  const FrozenCalendarPalette({
+    required this.color,
+    required this.bg,
+    required this.ink,
+  });
+
+  final Color color;
+  final Color bg;
+  final Color ink;
+}
+
+const Map<String, FrozenCalendarPalette> kFrozenPalettes = {
+  '#8a8a82': FrozenCalendarPalette(
+    color: Color(0xFF8A8A82),
+    bg: Color(0xFFEFEFEA),
+    ink: Color(0xFF3B3B33),
+  ),
+  '#4f7bbf': FrozenCalendarPalette(
+    color: Color(0xFF4F7BBF),
+    bg: Color(0xFFDCE7F7),
+    ink: Color(0xFF1E3557),
+  ),
+  '#a98b4f': FrozenCalendarPalette(
+    color: Color(0xFFA98B4F),
+    bg: Color(0xFFF2EBDD),
+    ink: Color(0xFF4A3C22),
+  ),
+  '#c4794a': FrozenCalendarPalette(
+    color: Color(0xFFC4794A),
+    bg: Color(0xFFF7DCC8),
+    ink: Color(0xFF5E2F13),
+  ),
+  '#6a9464': FrozenCalendarPalette(
+    color: Color(0xFF6A9464),
+    bg: Color(0xFFDCEAD8),
+    ink: Color(0xFF2A4029),
+  ),
+  '#6c6fa8': FrozenCalendarPalette(
+    color: Color(0xFF6C6FA8),
+    bg: Color(0xFFE5E5F4),
+    ink: Color(0xFF33345A),
+  ),
+};
+
+FrozenCalendarPalette frozenPaletteFor(Color color) {
+  for (final p in kFrozenPalettes.values) {
+    if (p.color.toARGB32() == color.toARGB32()) {
+      return p;
+    }
+  }
+  return FrozenCalendarPalette(
+    color: color,
+    bg: color.withValues(alpha: 0.12),
+    ink: const Color(0xFF191918),
+  );
+}
+

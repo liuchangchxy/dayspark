@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dayspark/core/theme/app_colors.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
@@ -15,7 +16,7 @@ import 'package:dayspark/core/theme/app_typography.dart';
 
 // ---------------------------------------------------------------- top bar
 
-/// Mobile top bar: 54px, optional back, 26/600 title, quiet actions.
+/// Mobile top bar: 50px, optional back, 15/600 title, quiet actions.
 class DsTopBar extends StatelessWidget implements PreferredSizeWidget {
   const DsTopBar({
     super.key,
@@ -23,7 +24,7 @@ class DsTopBar extends StatelessWidget implements PreferredSizeWidget {
     this.subtitle,
     this.leading,
     this.actions = const [],
-    this.showDivider = false,
+    this.showDivider = true,
   });
 
   final String title;
@@ -33,26 +34,26 @@ class DsTopBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showDivider;
 
   @override
-  Size get preferredSize => const Size.fromHeight(54);
+  Size get preferredSize => const Size.fromHeight(50);
 
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
     // Scaffold already reserves [preferredSize] plus the status bar for the
     // app bar slot, so the bar has to fill that slot rather than sit at its
-    // top: a fixed 54 drew the title under the clock on a real phone.
+    // top: a fixed 50 drew the title under the clock on a real phone.
     final inset = MediaQuery.paddingOf(context).top;
     return Container(
-      height: 54 + inset,
+      height: 50 + inset,
       padding: EdgeInsets.only(
         top: inset,
-        left: leading == null ? AppSpacing.s4 : AppSpacing.s1,
-        right: AppSpacing.s2,
+        left: leading == null ? 14 : 4,
+        right: 14,
       ),
       decoration: BoxDecoration(
-        color: ds.bg,
+        color: ds.surface,
         border: showDivider
-            ? Border(bottom: BorderSide(color: ds.lineSoft))
+            ? Border(bottom: BorderSide(color: ds.line))
             : null,
       ),
       child: Row(
@@ -68,9 +69,13 @@ class DsTopBar extends StatelessWidget implements PreferredSizeWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.display.copyWith(
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.15,
+                      height: 1.3,
                       color: ds.ink,
-                      height: 1.05,
+                      fontFamilyFallback: AppTypography.fallback,
                     ),
                   ),
                 if (subtitle != null && subtitle!.isNotEmpty)
@@ -80,10 +85,11 @@ class DsTopBar extends StatelessWidget implements PreferredSizeWidget {
                       subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(
-                        color: ds.ink3,
-                        fontSize: 12,
-                        height: 1.2,
+                      style: TextStyle(
+                        fontSize: 10,
+                        height: 1.3,
+                        color: ds.faint,
+                        fontFamilyFallback: AppTypography.fallback,
                       ),
                     ),
                   ),
@@ -97,7 +103,7 @@ class DsTopBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-/// Desktop main bar: 54px on the page ground, 18/600 title, context text.
+/// Desktop main bar: the frozen page head, 26/600 title, context text.
 class DsMainBar extends StatelessWidget {
   const DsMainBar({
     super.key,
@@ -114,26 +120,43 @@ class DsMainBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final ds = context.ds;
     return Container(
-      height: 54,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s6),
+      padding: const EdgeInsets.fromLTRB(28, 20, 28, 13),
       decoration: BoxDecoration(
         color: ds.bg,
-        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+        border: Border(bottom: BorderSide(color: ds.line)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
             title,
-            style: AppTypography.title.copyWith(color: ds.ink),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.01,
+              height: 1.22,
+              color: ds.ink,
+              fontFamilyFallback: AppTypography.fallback,
+            ),
           ),
           if (contextLabel != null && contextLabel!.isNotEmpty) ...[
-            const SizedBox(width: AppSpacing.s2 + 2),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                contextLabel!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.small.copyWith(color: ds.ink3),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  contextLabel!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.3,
+                    color: ds.ink3,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
               ),
             ),
           ] else
@@ -232,7 +255,8 @@ class DsButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final ds = context.ds;
     final (bg, fg, border) = switch (tone) {
-      DsButtonTone.primary => (ds.primary, ds.onPrimary, Colors.transparent),
+      // The frozen spec paints every primary action in ink, never the accent.
+      DsButtonTone.primary => (SpecTokens.ink, Colors.white, Colors.transparent),
       DsButtonTone.secondary => (
         ds.surface,
         ds.ink,
@@ -572,6 +596,9 @@ class DsSectionLabel extends StatelessWidget {
       child: Text(
         label,
         style: AppTypography.overline.copyWith(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.04,
           color: color ?? context.ds.ink3,
         ),
       ),
@@ -720,14 +747,17 @@ class DsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final ds = context.ds;
     final body = Container(
-      constraints: BoxConstraints(minHeight: dense ? 40 : 52),
+      constraints: BoxConstraints(minHeight: dense ? 40 : 55),
       padding:
           padding ??
           EdgeInsets.symmetric(
             horizontal: AppSpacing.s4,
-            vertical: dense ? 7 : 10,
+            vertical: dense ? 7 : 8,
           ),
-      color: background,
+      decoration: BoxDecoration(
+        color: background,
+        border: Border(bottom: BorderSide(color: ds.lineSoft)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -744,13 +774,25 @@ class DsRow extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: (titleStyle ?? AppTypography.body).copyWith(
-                      color: done ? ds.ink3 : ds.ink,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
+                      color: done ? ds.faint : (titleStyle?.color ?? ds.ink),
                       decoration: done ? TextDecoration.lineThrough : null,
+                      decorationColor: ds.faint,
                     ),
                   ),
                   if (meta != null) ...[
                     const SizedBox(height: 2),
-                    meta!,
+                    DefaultTextStyle(
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: ds.faint,
+                        fontFeatures: AppTypography.tabular,
+                        fontFamilyFallback: AppTypography.fallback,
+                      ),
+                      child: meta!,
+                    ),
                   ],
                 ],
               ),
@@ -786,7 +828,7 @@ class DsRow extends StatelessWidget {
 
 /// 48px hit area around a 20–22px circle. The row itself is still the tap
 /// target for opening the item; this is the completion affordance.
-class DsCheck extends StatelessWidget {
+class DsCheck extends StatefulWidget {
   const DsCheck({
     super.key,
     required this.checked,
@@ -803,42 +845,74 @@ class DsCheck extends StatelessWidget {
   final bool compact;
 
   @override
+  State<DsCheck> createState() => _DsCheckState();
+}
+
+class _DsCheckState extends State<DsCheck> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final target = compact ? 36.0 : 48.0;
+    final target = widget.compact ? 36.0 : 48.0;
     return Semantics(
-      checked: checked,
-      label: label,
-      child: MouseRegion(
-        cursor: onChanged == null
+      checked: widget.checked,
+      label: widget.label,
+      button: true,
+      enabled: widget.onChanged != null,
+      child: FocusableActionDetector(
+        enabled: widget.onChanged != null,
+        onShowFocusHighlight: (value) => setState(() => _focused = value),
+        mouseCursor: widget.onChanged == null
             ? SystemMouseCursors.basic
             : SystemMouseCursors.click,
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) => widget.onChanged?.call(!widget.checked),
+          ),
+        },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: onChanged == null ? null : () => onChanged!(!checked),
+          onTap: widget.onChanged == null
+              ? null
+              : () => widget.onChanged!(!widget.checked),
           child: SizedBox(
             width: target,
             height: target,
             child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 140),
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: checked ? ds.primary : Colors.transparent,
-                  border: Border.all(
-                    color: checked ? ds.primary : ds.ink3,
-                    width: 1.5,
-                  ),
-                ),
-                child: checked
-                    ? Icon(
-                        CupertinoIcons.checkmark,
-                        size: size * 0.62,
-                        color: ds.onPrimary,
+              child: Container(
+                width: widget.size + 8,
+                height: widget.size + 8,
+                decoration: _focused
+                    ? BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: ds.ink, width: 2),
                       )
                     : null,
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    width: widget.size,
+                    height: widget.size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.checked ? ds.ink : Colors.transparent,
+                      border: Border.all(
+                        color: widget.checked
+                            ? ds.ink
+                            : const Color(0xFFCFCFC7),
+                        width: 1.4,
+                      ),
+                    ),
+                    child: widget.checked
+                        ? Icon(
+                            CupertinoIcons.checkmark,
+                            size: widget.size * 0.62,
+                            color: Colors.white,
+                          )
+                        : null,
+                  ),
+                ),
               ),
             ),
           ),
@@ -881,37 +955,50 @@ class DsEmpty extends StatelessWidget {
     final ds = context.ds;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.s7,
-          vertical: AppSpacing.s7,
-        ),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 28, color: ds.ink3),
-              const SizedBox(height: AppSpacing.s2),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: ds.surface2,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 22, color: ds.faint),
+              ),
+              const SizedBox(height: 12),
             ],
-            if (title != null)
+            if (title != null) ...[
               Text(
                 title!,
                 textAlign: TextAlign.center,
-                style: AppTypography.bodyStrong.copyWith(color: ds.ink2),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: ds.ink2,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
               ),
-            if (title != null) const SizedBox(height: AppSpacing.s1),
+              const SizedBox(height: 4),
+            ],
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 300),
               child: Text(
                 message,
                 textAlign: TextAlign.center,
-                style: AppTypography.caption.copyWith(
-                  color: ds.ink3,
+                style: TextStyle(
+                  fontSize: 11.5,
                   height: 1.5,
+                  color: ds.faint,
+                  fontFamilyFallback: AppTypography.fallback,
                 ),
               ),
             ),
             if (action != null) ...[
-              const SizedBox(height: AppSpacing.s3),
+              const SizedBox(height: 12),
               action!,
             ],
           ],
@@ -930,14 +1017,21 @@ class DsGroupLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(
-      AppSpacing.s5,
-      AppSpacing.s5 + 2,
-      AppSpacing.s5,
+      AppSpacing.s4,
+      2,
+      AppSpacing.s4,
       AppSpacing.s2,
     ),
     child: Text(
       label,
-      style: AppTypography.overline.copyWith(color: context.ds.ink3),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: context.ds.ink,
+        fontFamilyFallback: AppTypography.fallback,
+      ),
     ),
   );
 }
@@ -953,7 +1047,7 @@ class DsGroup extends StatelessWidget {
     final rows = <Widget>[];
     for (var i = 0; i < children.length; i++) {
       if (i > 0) {
-        rows.add(Container(height: 1, color: ds.lineSoft));
+        rows.add(Container(height: 1, color: ds.line));
       }
       rows.add(children[i]);
     }
@@ -961,8 +1055,10 @@ class DsGroup extends StatelessWidget {
       margin: margin ?? const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
       decoration: BoxDecoration(
         color: ds.surface,
-        borderRadius: AppRadii.card,
-        border: Border.all(color: ds.lineSoft),
+        border: Border(
+          top: BorderSide(color: ds.line, width: 1),
+          bottom: BorderSide(color: ds.line, width: 1),
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: rows),
@@ -974,31 +1070,44 @@ class DsSettingRow extends StatelessWidget {
   const DsSettingRow({
     super.key,
     required this.label,
+    this.subtitle,
     this.value,
     this.leading,
     this.trailing,
     this.onTap,
     this.danger = false,
     this.selected = false,
+    this.chevron = false,
+    this.padding,
   });
 
   final String label;
+  final String? subtitle;
   final String? value;
   final Widget? leading;
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool danger;
   final bool selected;
+  final bool chevron;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
+    final desktop = MediaQuery.sizeOf(context).width >= 720;
+    final effectivePadding =
+        padding ??
+        (desktop
+            ? const EdgeInsets.symmetric(vertical: 8)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 8));
+    final showChevron =
+        chevron || (onTap != null && trailing == null);
+
+
     final body = Container(
-      constraints: const BoxConstraints(minHeight: 50),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s4,
-        vertical: AppSpacing.s2,
-      ),
+      constraints: const BoxConstraints(minHeight: 55),
+      padding: effectivePadding,
       color: selected ? ds.surface2 : Colors.transparent,
       child: Row(
         children: [
@@ -1007,13 +1116,37 @@ class DsSettingRow extends StatelessWidget {
             const SizedBox(width: AppSpacing.s3),
           ],
           Expanded(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.body.copyWith(
-                color: danger ? ds.danger : ds.ink,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: danger ? ds.danger : ds.ink,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      height: 1.45,
+                      color: ds.faint,
+                      fontFamilyFallback: AppTypography.fallback,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           if (value != null) ...[
@@ -1024,25 +1157,31 @@ class DsSettingRow extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.right,
-                style: AppTypography.caption.copyWith(color: ds.ink3),
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: ds.ink2,
+                  fontFamilyFallback: AppTypography.fallback,
+                ),
               ),
             ),
           ],
           if (trailing != null) ...[
-            const SizedBox(width: AppSpacing.s1),
+            const SizedBox(width: AppSpacing.s2),
             trailing!,
-          ] else if (onTap != null) ...[
-            const SizedBox(width: AppSpacing.s1),
-            Icon(CupertinoIcons.chevron_right, size: 15, color: ds.ink3),
+          ],
+          if (showChevron) ...[
+            const SizedBox(width: 6),
+            Icon(CupertinoIcons.chevron_right, size: 11, color: ds.faint),
           ],
         ],
       ),
     );
+
     if (onTap == null) return body;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: Material(
-        color: Colors.transparent,
+        color: selected ? ds.surface2 : Colors.transparent,
         child: InkWell(
           onTap: onTap,
           hoverColor: ds.surface2,
@@ -1109,6 +1248,7 @@ class DsTextField extends StatelessWidget {
     this.enabled = true,
     this.obscureText = false,
     this.style,
+    this.error = false,
   });
 
   final TextEditingController controller;
@@ -1123,6 +1263,10 @@ class DsTextField extends StatelessWidget {
   final bool enabled;
   final bool obscureText;
   final TextStyle? style;
+
+  /// Paints the field's border red. The frozen spec's invalid-number state uses
+  /// a red hairline instead of an error sublabel on the field itself.
+  final bool error;
 
   @override
   Widget build(BuildContext context) {
@@ -1152,15 +1296,15 @@ class DsTextField extends StatelessWidget {
         ),
         border: OutlineInputBorder(
           borderRadius: AppRadii.control,
-          borderSide: BorderSide(color: ds.line),
+          borderSide: BorderSide(color: error ? SpecTokens.red : ds.line),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppRadii.control,
-          borderSide: BorderSide(color: ds.line),
+          borderSide: BorderSide(color: error ? SpecTokens.red : ds.line),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppRadii.control,
-          borderSide: BorderSide(color: ds.primary),
+          borderSide: BorderSide(color: error ? SpecTokens.red : ds.primary),
         ),
       ),
     );
@@ -1168,6 +1312,76 @@ class DsTextField extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------- overlays
+
+/// Shared overlay chrome: grabber plus one hairline title row, so the sheet
+/// and dialog surfaces cannot drift apart. Public for picker sheets that need
+/// a fixed height or a custom body but still want the same header.
+class DsSheetChrome extends StatelessWidget {
+  const DsSheetChrome({
+    super.key,
+    required this.title,
+    this.headerAction,
+    this.showGrabber = true,
+    this.padding = const EdgeInsets.fromLTRB(
+      AppSpacing.s4,
+      AppSpacing.s3,
+      AppSpacing.s2,
+      AppSpacing.s2,
+    ),
+  });
+
+  final String title;
+  final Widget? headerAction;
+  final bool showGrabber;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final ds = context.ds;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showGrabber)
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(top: 8, bottom: 4),
+            decoration: BoxDecoration(
+              color: ds.surface3,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        Padding(
+          padding: padding,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: ds.ink,
+                    fontFamilyFallback: AppTypography.fallback,
+                  ),
+                ),
+              ),
+              if (headerAction != null) headerAction!,
+              DsIconButton(
+                icon: CupertinoIcons.xmark,
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 /// Mobile sheet, desktop modal dialog. One overlay API so a page does not
 /// grow two different editing surfaces.
@@ -1203,7 +1417,9 @@ Future<T?> showDsSheet<T>({
           constraints: BoxConstraints(maxHeight: maxHeight),
           decoration: BoxDecoration(
             color: ds.surface,
-            borderRadius: AppRadii.sheetTop,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(12),
+            ),
             border: Border(top: BorderSide(color: ds.line)),
             boxShadow: AppShadows.sheet(ds.brightness),
           ),
@@ -1212,40 +1428,7 @@ Future<T?> showDsSheet<T>({
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(
-                    color: ds.surface3,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.s4,
-                    AppSpacing.s3,
-                    AppSpacing.s2,
-                    AppSpacing.s2,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.title.copyWith(color: ds.ink),
-                        ),
-                      ),
-                      DsIconButton(
-                        icon: CupertinoIcons.xmark,
-                        tooltip: MaterialLocalizations.of(ctx).closeButtonTooltip,
-                        onPressed: () => Navigator.of(ctx).maybePop(),
-                      ),
-                    ],
-                  ),
-                ),
+                DsSheetChrome(title: title),
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(
@@ -1300,6 +1483,13 @@ Future<T?> showDsFullSheet<T>({
         alignment: Alignment.bottomCenter,
         child: Material(
           color: ds.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(12),
+            ),
+            side: BorderSide(color: ds.line),
+          ),
           child: SafeArea(
             bottom: false,
             child: SizedBox(
@@ -1307,45 +1497,9 @@ Future<T?> showDsFullSheet<T>({
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(top: 8, bottom: 4),
-                    alignment: Alignment.center,
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: ds.surface3,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.s4,
-                      AppSpacing.s1,
-                      AppSpacing.s2,
-                      AppSpacing.s2,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: AppTypography.title.copyWith(color: ds.ink),
-                          ),
-                        ),
-                        if (headerAction != null) headerAction,
-                        DsIconButton(
-                          icon: CupertinoIcons.xmark,
-                          tooltip: MaterialLocalizations.of(
-                            ctx,
-                          ).closeButtonTooltip,
-                          onPressed: () => Navigator.of(ctx).maybePop(),
-                        ),
-                      ],
-                    ),
+                  DsSheetChrome(
+                    title: title,
+                    headerAction: headerAction,
                   ),
                   Expanded(
                     child: SingleChildScrollView(
@@ -1408,6 +1562,7 @@ class DsDialog extends StatelessWidget {
     required this.child,
     this.actions = const [],
     this.width = 560,
+    this.sheetOnMobile = false,
   });
 
   final String title;
@@ -1415,45 +1570,43 @@ class DsDialog extends StatelessWidget {
   final List<Widget> actions;
   final double width;
 
+  /// Forms that would be cramped in a centred card take the design's mobile
+  /// shape instead: a full-width sheet docked to the bottom edge.
+  final bool sheetOnMobile;
+
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
+    final size = MediaQuery.sizeOf(context);
+    final sheet = sheetOnMobile && size.width < 720;
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(AppSpacing.s6),
+      alignment: sheet ? Alignment.bottomCenter : Alignment.center,
+      insetPadding: sheet
+          ? const EdgeInsets.fromLTRB(10, 0, 10, 10)
+          : const EdgeInsets.all(AppSpacing.s6),
       child: Container(
-        width: width,
-        constraints: const BoxConstraints(maxHeight: 620),
+        width: sheet ? double.infinity : width,
+        constraints: BoxConstraints(
+          maxHeight: sheet ? size.height * 0.9 : 620,
+        ),
         decoration: BoxDecoration(
           color: ds.surface,
-          borderRadius: AppRadii.dialog,
+          borderRadius: sheet ? BorderRadius.circular(12) : AppRadii.dialog,
           border: Border.all(color: ds.line),
           boxShadow: AppShadows.two(ds.brightness),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Padding(
+            DsSheetChrome(
+              title: title,
+              showGrabber: false,
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.s5,
                 AppSpacing.s4,
                 AppSpacing.s2,
                 AppSpacing.s2,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: AppTypography.title.copyWith(color: ds.ink),
-                    ),
-                  ),
-                  DsIconButton(
-                    icon: CupertinoIcons.xmark,
-                    tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                ],
               ),
             ),
             Flexible(

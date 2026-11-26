@@ -1,6 +1,5 @@
 package com.dayspark.app
 
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -9,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 // JVM-level codec tests for the v5 snapshot contract. Native widgets only ever
-// read this blob; commands live in independent SharedPreferences keys.
+// read this blob; there is no native write path.
 class WidgetSnapshotCodecTest {
 
   private fun snapshotV5Json(): String {
@@ -388,37 +387,12 @@ class WidgetSnapshotCodecTest {
   }
 
   @Test
-  fun `per-widget state round-trips and defaults safely`() {
-    val state = WidgetUiState(
-      todoMode = "inbox",
-      selectedDate = "2026-11-18",
-      calendarMode = "day",
-    )
-    val decoded = WidgetStateStore.decode(WidgetStateStore.encode(state))
-    assertEquals("inbox", decoded.todoMode)
-    assertEquals("2026-11-18", decoded.selectedDate)
-    assertEquals("day", decoded.calendarMode)
-
-    assertEquals(WidgetUiState(), WidgetStateStore.decode(null))
-    assertEquals(WidgetUiState(), WidgetStateStore.decode(""))
-    assertEquals(WidgetUiState(), WidgetStateStore.decode("not json"))
-    assertEquals("today", WidgetStateStore.decode("""{"todoMode":"bogus"}""").todoMode)
-    assertEquals("month", WidgetStateStore.decode("""{"calendarMode":"bogus"}""").calendarMode)
-  }
-
-  @Test
-  fun `small mode label cycles today inbox all`() {
-    assertEquals("inbox", WidgetUiState.nextTodoMode("today"))
-    assertEquals("all", WidgetUiState.nextTodoMode("inbox"))
-    assertEquals("today", WidgetUiState.nextTodoMode("all"))
-    assertEquals("today", WidgetUiState.nextTodoMode("bogus"))
-  }
-
-  @Test
   fun `nominal cell sizes map to the intended layout tier`() {
     assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(110, 110))
     assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(180, 180))
-    assertEquals(WidgetSize.SMALL, WidgetSupport.sizeFor(250, 110))
+    // 4x2 is a four-column frame even when its height is the 110dp minimum;
+    // width alone selects MEDIUM so the 2x2 layout is not stretched.
+    assertEquals(WidgetSize.MEDIUM, WidgetSupport.sizeFor(250, 110))
     assertEquals(WidgetSize.MEDIUM, WidgetSupport.sizeFor(250, 180))
     assertEquals(WidgetSize.MEDIUM, WidgetSupport.sizeFor(320, 180))
     assertEquals(WidgetSize.LARGE, WidgetSupport.sizeFor(320, 320))
@@ -464,14 +438,6 @@ class WidgetSnapshotCodecTest {
   }
 
   @Test
-  fun `calendar day mode gives the list the grid's height`() {
-    assertEquals(2, WidgetSupport.calendarDayRows(0))
-    assertEquals(2, WidgetSupport.calendarDayRows(230))
-    assertEquals(4, WidgetSupport.calendarDayRows(340))
-    assertEquals(6, WidgetSupport.calendarDayRows(460))
-  }
-
-  @Test
   fun `calendar grid fits the declared minimum even for a six week month`() {
     // calendar_widget_info declares 250dp; 6 rows of the nominal 27dp plus the
     // 106dp of chrome is 268. The tight tier is what stops the last week from
@@ -498,38 +464,10 @@ class WidgetSnapshotCodecTest {
   }
 
   @Test
-  fun `normalized selected date resets outside the current month`() {
-    val today = WidgetStateStore.todayIso()
-    assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState()))
-    assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState(selectedDate = "bad")))
-    assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState(selectedDate = "2001-01-01")))
-    assertEquals(today, WidgetStateStore.normalizedSelectedDate(WidgetUiState(selectedDate = today)))
-  }
-
-  @Test
   fun `hex colors accept RRGGBB and AARRGGBB`() {
     assertEquals(0xFF1976D2.toInt(), WidgetSnapshot.parseHexColor("#1976D2"))
     assertEquals(0x801976D2.toInt(), WidgetSnapshot.parseHexColor("#801976D2"))
     assertNull(WidgetSnapshot.parseHexColor("#XYZ"))
     assertNull(WidgetSnapshot.parseHexColor("#12345"))
-  }
-
-  @Test
-  fun `writeCommand serializes sourceAllocationId and required fields`() {
-    val obj = JSONObject().apply {
-      put("version", 1)
-      put("commandId", "cmd_test_1")
-      put("action", "complete")
-      put("target", "taskInstance")
-      put("todoId", 15)
-      put("todoSyncId", "sync_15")
-      put("occurrenceId", "occ_2026")
-      put("sourceAllocationId", "alloc_99")
-      put("at", "2026-10-07T10:00:00.000Z")
-    }
-    assertEquals(1, obj.getInt("version"))
-    assertEquals("taskInstance", obj.getString("target"))
-    assertEquals(15, obj.getInt("todoId"))
-    assertEquals("alloc_99", obj.getString("sourceAllocationId"))
   }
 }

@@ -5,11 +5,13 @@ import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 
-// v5 `widget_snapshot` reader + native command queue operations.
+// v5 `widget_snapshot` reader.
 //
 // Every native widget renders from this snapshot blob; the snapshot is READ-ONLY
-// for native code (Single-Writer rule). Widget actions append typed commands
-// into independent SharedPreferences keys (`widget_command_<commandId>`).
+// for native code (Single-Writer rule). Widgets are read-only snapshots too:
+// there is no native write path any more, so the only command-queue code left
+// is the legacy drain in `readPendingCommands` / `ackCommand`, which the Dart
+// side still calls to consume commands queued by older installs.
 data class WidgetSnapshot(val json: JSONObject) {
 
   val version: Int get() = json.optInt("version", 0)
@@ -122,11 +124,6 @@ data class WidgetSnapshot(val json: JSONObject) {
     val firstWeekday: Int,
     val today: Int,
     val days: List<MonthDayRow>,
-  )
-
-  data class PendingTargets(
-    val todoIds: Set<Int>,
-    val instanceKeys: Set<String>,
   )
 
   fun todayIso(): String = json.optString("today", "")
@@ -277,8 +274,6 @@ data class WidgetSnapshot(val json: JSONObject) {
     return ThemeBlock(dark = o.optBoolean("dark", false), colors = parsed)
   }
 
-  fun color(key: String, fallback: Int): Int = theme()?.colors?.get(key) ?: fallback
-
   data class UiStrings(
     val locale: String,
     val today: String,
@@ -318,16 +313,6 @@ data class WidgetSnapshot(val json: JSONObject) {
     const val PREFS_NAME = "HomeWidgetPreferences"
     const val SNAPSHOT_KEY = "widget_snapshot"
     const val COMMAND_PREFIX = "widget_command_"
-    const val ACTION_TOGGLE_TODO = "com.dayspark.app.action.TOGGLE_TODO"
-    const val ACTION_COMPLETE_ACTION = "com.dayspark.app.action.COMPLETE_ACTION"
-    const val EXTRA_TARGET = "target"
-    const val EXTRA_ACTION = "action"
-    const val ACTION_COMPLETE = "complete"
-    const val ACTION_UNCOMPLETE = "uncomplete"
-    const val EXTRA_TODO_ID = "todoId"
-    const val EXTRA_TODO_SYNC_ID = "todoSyncId"
-    const val EXTRA_OCCURRENCE_ID = "occurrenceId"
-    const val EXTRA_SOURCE_ALLOCATION_ID = "sourceAllocationId"
 
     private val COLOR_KEYS = listOf(
       "background",
@@ -355,43 +340,9 @@ data class WidgetSnapshot(val json: JSONObject) {
       }
     }
 
-    // Atomic single-writer command write: writes widget_command_<commandId> to prefs.
-    // Does NOT mutate widget_snapshot.
-    fun writeCommand(
-      context: Context,
-      target: String,
-      todoId: Int,
-      todoSyncId: String?,
-      occurrenceId: String?,
-      sourceAllocationId: String? = null,
-      action: String = ACTION_COMPLETE,
-    ): String {
-      val commandId = java.util.UUID.randomUUID().toString()
-      val atIso = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
-        timeZone = java.util.TimeZone.getTimeZone("UTC")
-      }.format(java.util.Date())
-
-      val obj = JSONObject().apply {
-        put("version", 1)
-        put("commandId", commandId)
-        put(
-          "action",
-          if (action == ACTION_UNCOMPLETE) ACTION_UNCOMPLETE else ACTION_COMPLETE,
-        )
-        put("target", target)
-        put("todoId", todoId)
-        if (!todoSyncId.isNullOrEmpty()) put("todoSyncId", todoSyncId)
-        if (!occurrenceId.isNullOrEmpty()) put("occurrenceId", occurrenceId)
-        if (!sourceAllocationId.isNullOrEmpty()) put("sourceAllocationId", sourceAllocationId)
-        put("at", atIso)
-      }
-
-      val editor = prefs(context).edit()
-      editor.putString("$COMMAND_PREFIX$commandId", obj.toString())
-      editor.commit()
-      return commandId
-    }
-
+    // Legacy command drain. Widgets no longer queue commands, but a widget
+    // placed by an older build may still have entries; the Dart side drains
+    // them through the unchanged method channel and acks each one.
     fun readPendingCommands(context: Context): List<Map<String, String>> {
       val prefs = prefs(context)
       val list = mutableListOf<Map<String, String>>()
@@ -412,102 +363,6 @@ data class WidgetSnapshot(val json: JSONObject) {
     fun ackCommand(context: Context, commandId: String): Boolean {
       val editor = prefs(context).edit()
       return editor.remove("$COMMAND_PREFIX$commandId").commit()
-    }
-
-    // A second tap on the same checkbox is an undo, not a second completion.
-    // Checking the queue first keeps a tap from stacking another complete
-    // command that would run after the app opened and re-apply the action the
-    // user just cancelled. Broadcast receivers run serially on the main thread,
-    // so read-then-remove is ordered with other taps.
-    fun cancelPendingCommands(
-      context: Context,
-      target: String,
-      todoId: Int,
-      occurrenceId: String?,
-    ): Int = cancelPendingCommands(
-      context = context,
-      target = target,
-      todoId = todoId,
-      occurrenceId = occurrenceId,
-      action = null,
-    )
-
-    // `action` narrows the cancel to a command that would do the same thing.
-    // Without it, tapping a checked row after a committed-but-unacked
-    // `complete` would cancel that stale command and enqueue nothing, so the
-    // undo silently did nothing.
-    fun cancelPendingCommands(
-      context: Context,
-      target: String,
-      todoId: Int,
-      occurrenceId: String?,
-      action: String?,
-    ): Int {
-      val prefs = prefs(context)
-      val editor = prefs.edit()
-      var removed = 0
-      for ((key, value) in prefs.all) {
-        if (!key.startsWith(COMMAND_PREFIX) || value !is String) continue
-        if (commandMatches(value, target, todoId, occurrenceId, action)) {
-          editor.remove(key)
-          removed++
-        }
-      }
-      if (removed > 0) editor.commit()
-      return removed
-    }
-
-    // Allocation is deliberately not part of the identity: the same recurring
-    // occurrence scheduled twice is still one completion, and leaving a
-    // duplicate would complete what the user just unchecked.
-    fun commandMatches(
-      raw: String,
-      target: String,
-      todoId: Int,
-      occurrenceId: String?,
-      action: String? = null,
-    ): Boolean {
-      val obj = try {
-        JSONObject(raw)
-      } catch (_: Exception) {
-        return false
-      }
-      val storedAction = obj.optString("action", ACTION_COMPLETE)
-      if (storedAction != ACTION_COMPLETE && storedAction != ACTION_UNCOMPLETE) {
-        return false
-      }
-      if (action != null && storedAction != action) return false
-      if (obj.optString("target", "todo") != target) return false
-      if (obj.optInt("todoId", -1) != todoId) return false
-      if (target != "taskInstance") return true
-      val stored = obj.optString("occurrenceId", "")
-      return stored.isNotEmpty() && stored == occurrenceId
-    }
-
-    fun readPendingTargets(context: Context): PendingTargets {
-      val prefs = prefs(context)
-      val todoIds = mutableSetOf<Int>()
-      val instanceKeys = mutableSetOf<String>()
-      for ((key, value) in prefs.all) {
-        if (key.startsWith(COMMAND_PREFIX) && value is String) {
-          try {
-            val obj = JSONObject(value)
-            val target = obj.optString("target", "todo")
-            val todoId = obj.optInt("todoId", -1)
-            if (target == "taskInstance") {
-              val occ = obj.optString("occurrenceId", "")
-              if (todoId > 0 && occ.isNotEmpty()) {
-                instanceKeys.add("$todoId:$occ")
-              }
-            } else if (target == "todo") {
-              if (todoId > 0) {
-                todoIds.add(todoId)
-              }
-            }
-          } catch (_: Exception) {}
-        }
-      }
-      return PendingTargets(todoIds = todoIds, instanceKeys = instanceKeys)
     }
 
     fun parseHexColor(hex: String): Int? {

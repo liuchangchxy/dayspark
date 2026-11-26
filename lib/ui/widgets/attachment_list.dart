@@ -13,6 +13,7 @@ import 'package:dayspark/domain/services/attachment_files.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 
 /// A file the form is holding. [id] is set for a row that is already stored,
@@ -342,9 +343,7 @@ class _AttachmentListState extends ConsumerState<AttachmentList> {
   }
 
   void _toast(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showSpecToast(context, message);
   }
 
   String _formatSize(int bytes) {

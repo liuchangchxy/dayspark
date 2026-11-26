@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -149,6 +150,131 @@ void main() {
         () => downloadFileWeb(content: 'test', filename: 'test.ics'),
         throwsA(isA<UnsupportedError>()),
       );
+    });
+  });
+
+  group('ImportExportSection backup', () {
+    testWidgets('a second tap while backing up does not start another export', (
+      tester,
+    ) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final downloads = <String>[];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            isWebProvider.overrideWithValue(true),
+            webBytesDownloaderProvider.overrideWithValue(({
+              required bytes,
+              required filename,
+              required mimeType,
+            }) {
+              downloads.add(filename);
+            }),
+          ],
+          child: const MaterialApp(
+            locale: Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(body: ImportExportSection()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('full-backup-btn')));
+      await tester.tap(find.byKey(const ValueKey('full-backup-btn')));
+      await tester.pumpAndSettle();
+
+      expect(downloads.length, 1);
+      expect(find.textContaining('Backup complete'), findsOneWidget);
+    });
+  });
+
+  group('IcsService import preview', () {
+    test('counts create, duplicate and skipped rows without writing', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final calendarId = (await db.select(db.calendars).get()).first.id;
+
+      await db
+          .into(db.events)
+          .insert(
+            EventsCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Existing Event',
+              startDt: DateTime(2026, 10, 5, 10),
+              endDt: DateTime(2026, 10, 5, 11),
+              icsUid: const Value('dup-event'),
+            ),
+          );
+
+      const ics =
+          'BEGIN:VCALENDAR\r\n'
+          'VERSION:2.0\r\n'
+          'BEGIN:VEVENT\r\n'
+          'UID:new-event\r\n'
+          'DTSTAMP:20261005T000000Z\r\n'
+          'SUMMARY:New Event\r\n'
+          'DTSTART:20261005T100000Z\r\n'
+          'END:VEVENT\r\n'
+          'BEGIN:VEVENT\r\n'
+          'UID:dup-event\r\n'
+          'DTSTAMP:20261005T000000Z\r\n'
+          'SUMMARY:Duplicate Event\r\n'
+          'DTSTART:20261005T100000Z\r\n'
+          'END:VEVENT\r\n'
+          'BEGIN:VEVENT\r\n'
+          'UID:bad-event\r\n'
+          'DTSTAMP:20261005T000000Z\r\n'
+          'SUMMARY:Bad Event\r\n'
+          'END:VEVENT\r\n'
+          'BEGIN:VTODO\r\n'
+          'UID:new-todo\r\n'
+          'DTSTAMP:20261005T000000Z\r\n'
+          'SUMMARY:New Todo\r\n'
+          'DUE:20261005T120000Z\r\n'
+          'END:VTODO\r\n'
+          'END:VCALENDAR\r\n';
+
+      final preview = await IcsService(db).previewIcs(ics, calendarId);
+
+      expect(preview.eventCount, 3);
+      expect(preview.todoCount, 1);
+      expect(preview.createCount, 2);
+      expect(preview.duplicateCount, 1);
+      expect(preview.skippedCount, 1);
+      expect(preview.skipped.single.summary, 'Bad Event');
+
+      expect((await db.select(db.events).get()).length, 1);
+      expect(await db.select(db.todos).get(), isEmpty);
+    });
+
+    test('import reports how many rows updated an existing UID', () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final calendarId = (await db.select(db.calendars).get()).first.id;
+      final service = IcsService(db);
+
+      const ics =
+          'BEGIN:VCALENDAR\r\n'
+          'VERSION:2.0\r\n'
+          'BEGIN:VEVENT\r\n'
+          'UID:event-uid\r\n'
+          'DTSTAMP:20261005T000000Z\r\n'
+          'SUMMARY:First\r\n'
+          'DTSTART:20261005T100000Z\r\n'
+          'END:VEVENT\r\n'
+          'END:VCALENDAR\r\n';
+
+      final first = await service.importIcsDetailed(ics, calendarId);
+      expect(first.updated, 0);
+
+      final second = await service.importIcsDetailed(ics, calendarId);
+      expect(second.updated, 1);
+      expect((await db.select(db.events).get()).length, 1);
     });
   });
 

@@ -69,11 +69,8 @@ void main() {
       final title = find.byKey(const ValueKey('event-detail-title'));
       expect(title, findsOneWidget);
       await tester.enterText(title, 'Changed');
-      await tester.pump(const Duration(milliseconds: 700));
-      await tester.pump();
-      expect(attempts, 1);
-      expect(tester.widget<TextField>(title).controller!.text, 'Changed');
-      expect(find.text('That didn\'t work. Please try again.'), findsOneWidget);
+      await pumpFrames(tester);
+      expect(attempts, 0);
       expect(
         (await (db.select(
           db.events,
@@ -81,7 +78,19 @@ void main() {
         'Original',
       );
 
-      tester.widget<TextField>(title).focusNode!.unfocus();
+      await tester.tap(find.byKey(const ValueKey('event-detail-save')));
+      await pumpFrames(tester);
+      expect(attempts, 1);
+      expect(tester.widget<TextField>(title).controller!.text, 'Changed');
+      expect(find.text('Save failed · not written'), findsOneWidget);
+      expect(
+        (await (db.select(
+          db.events,
+        )..where((t) => t.id.equals(id))).getSingle()).summary,
+        'Original',
+      );
+
+      await tester.tap(find.byKey(const ValueKey('event-detail-retry-save')));
       await pumpFrames(tester);
       expect(attempts, 2);
       expect(

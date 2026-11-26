@@ -56,6 +56,18 @@ final todoTagIdsMapProvider = StreamProvider<Map<int, Set<int>>>((ref) {
   });
 });
 
+/// Map of eventId to Set of tagIds for all events.
+final eventTagIdsMapProvider = StreamProvider<Map<int, Set<int>>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.select(db.eventTags).watch().map((rows) {
+    final map = <int, Set<int>>{};
+    for (final row in rows) {
+      map.putIfAbsent(row.eventId, () => <int>{}).add(row.tagId);
+    }
+    return map;
+  });
+});
+
 /// Create a new tag.
 final createTagProvider =
     Provider<Future<int> Function({required String name, String? color})>((

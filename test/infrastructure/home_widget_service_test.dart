@@ -891,14 +891,16 @@ void main() {
 
     test('theme includes error and warning tokens', () {
       // The block is the widget's copy of the app palette, so the accent is
-      // pinned to the token and not to a literal: a palette change has to
-      // reach the widget, and this assertion should not need a second edit.
+      // pinned to the default preset and not to a literal: a palette change
+      // has to reach the widget, and this assertion should not need a second
+      // edit.
       String hex(Color color) =>
           '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
       final light = HomeWidgetService.buildThemeBlock(dark: false);
       expect(light['dark'], false);
       final lightColors = light['colors'] as Map;
+      expect(lightColors['accent'], hex(AppAccent.terracotta.light));
       expect(lightColors['accent'], hex(AppColors.lightAccent));
       expect(lightColors['error'], isA<String>());
       expect(lightColors['warning'], isA<String>());
@@ -906,7 +908,7 @@ void main() {
       final dark = HomeWidgetService.buildThemeBlock(dark: true);
       expect(dark['dark'], true);
       final darkColors = dark['colors'] as Map;
-      expect(darkColors['accent'], hex(AppColors.darkAccent));
+      expect(darkColors['accent'], hex(AppAccent.terracotta.dark));
       expect(darkColors['error'], isA<String>());
       expect(darkColors['warning'], isA<String>());
 

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +19,7 @@ import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
@@ -27,6 +29,7 @@ Widget _app({
   ValueChanged<Todo>? onOpenTodo,
   ValueChanged<Todo>? onScheduleTodo,
   VoidCallback? onOpenUnplanned,
+  VoidCallback? onOpenAll,
   Future<bool> Function(Todo todo, String? occurrenceId, bool completed)?
   onToggleTodo,
 }) {
@@ -48,6 +51,7 @@ Widget _app({
           onOpenEvent: (_) {},
           onToggleTodo: onToggleTodo ?? (_, __, ___) async => true,
           onOpenUnplanned: onOpenUnplanned ?? () {},
+          onOpenAll: onOpenAll,
           onScheduleTodo: onScheduleTodo ?? (_) {},
         ),
       ),
@@ -450,7 +454,7 @@ void main() {
     await _unmount(tester);
   });
 
-  testWidgets('missed instances are bounded to three with a more entry', (
+  testWidgets('a missed series renders as an overdue row with its missed count', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -465,7 +469,7 @@ void main() {
       timeZone: 'Asia/Shanghai',
       rrule: 'FREQ=DAILY;COUNT=7',
     );
-    await _createSeries(
+    final seriesId = await _createSeries(
       db,
       calendarId: calendarId,
       summary: 'Daily Plan',
@@ -482,64 +486,150 @@ void main() {
     );
     await _settle(tester);
 
-    // One today block, three of the five missed occurrences (10/1–10/5), and
-    // the series' own row in the unplanned shelf.
-    expect(find.text('Missed'), findsOneWidget);
-    expect(find.text('Daily Plan'), findsNWidgets(5));
-    expect(find.text('2 more · Show all'), findsOneWidget);
-
-    await tester.tap(find.text('2 more · Show all'));
-    await _settle(tester);
-    expect(find.text('Daily Plan'), findsNWidgets(7));
+    // The spec's normal Today shows a missed series in the overdue group, with
+    // the missed count beside it, not as a separate card.
+    final row = find.byKey(ValueKey('overdue-$seriesId'));
+    expect(row, findsOneWidget);
+    expect(
+      find.descendant(of: row, matching: find.text('Daily Plan')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: row, matching: find.text('· Missed 5')),
+      findsOneWidget,
+    );
+    expect(find.byKey(ValueKey('missed-card-$seriesId')), findsNothing);
+    expect(find.text('Missed'), findsNothing);
+    expect(find.textContaining('Show all'), findsNothing);
 
     await _unmount(tester);
   });
 
-  testWidgets('earlier missed series has an entry after the recent window', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'an earlier missed series renders an overdue row even when the recent window is empty',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
 
-    final spec = RecurrenceSpec.parse(
-      anchor: RecurrenceAnchor(
-        source: RecurrenceAnchorSource.start,
-        value: LocalDate(2026, 8, 1),
-      ),
-      timeZone: 'Asia/Shanghai',
-      rrule: 'FREQ=DAILY;COUNT=100',
-    );
-    await _createSeries(
-      db,
-      calendarId: calendarId,
-      summary: 'Long Streak',
-      spec: spec,
-    );
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDate(2026, 8, 1),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=100',
+      );
+      final seriesId = await _createSeries(
+        db,
+        calendarId: calendarId,
+        summary: 'Long Streak',
+        spec: spec,
+      );
 
-    await tester.pumpWidget(
-      _app(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          actionDateProvider.overrideWith((ref) => day),
-        ],
-      ),
-    );
-    await _settle(tester);
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+        ),
+      );
+      await _settle(tester);
 
-    // 9/6–10/5 is the recent 30-day window (30 instances); everything before
-    // it belongs to the earlier-missed entry, not to the bounded preview.
-    expect(find.text('Missed'), findsOneWidget);
-    expect(find.text('Long Streak'), findsNWidgets(5));
-    expect(find.text('27 more · Show all'), findsOneWidget);
-    expect(find.text('Earlier missed…'), findsOneWidget);
+      // The row says it was missed; how many can't be counted past the recent
+      // window, so the pill names the fact without a count.
+      final row = find.byKey(ValueKey('overdue-$seriesId'));
+      expect(row, findsOneWidget);
+      expect(
+        find.descendant(of: row, matching: find.text('Long Streak')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: row,
+          matching: find.byWidgetPredicate(
+            (widget) => widget is Text && (widget.data ?? '').contains('Missed'),
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(ValueKey('missed-card-$seriesId')), findsNothing);
+      expect(find.text('Earlier missed…'), findsNothing);
 
-    await tester.tap(find.text('Earlier missed…'));
-    await _settle(tester);
-    expect(find.text('Long Streak'), findsNWidgets(6));
+      await _unmount(tester);
+    },
+  );
 
-    await _unmount(tester);
-  });
+  testWidgets(
+    'a missed row completes one occurrence, leaves overdue, and disappears',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final overdueId = await db.into(db.todos).insertReturning(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Late report',
+              dueDate: Value(day.subtract(const Duration(days: 1))),
+            ),
+          );
+      final spec = RecurrenceSpec.parse(
+        anchor: RecurrenceAnchor(
+          source: RecurrenceAnchorSource.start,
+          value: LocalDate(2026, 10, 5),
+        ),
+        timeZone: 'Asia/Shanghai',
+        rrule: 'FREQ=DAILY;COUNT=1',
+      );
+      final seriesId = await _createSeries(
+        db,
+        calendarId: calendarId,
+        summary: 'Weekly notes',
+        spec: spec,
+      );
+      final calls = <(int, String?, bool)>[];
+
+      await tester.pumpWidget(
+        _app(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+          onToggleTodo: (todo, occurrenceId, completed) async {
+            calls.add((todo.id, occurrenceId, completed));
+            return _completeInDb(db, todo, occurrenceId, completed);
+          },
+        ),
+      );
+      await _settle(tester);
+
+      final row = find.byKey(ValueKey('overdue-$seriesId'));
+      expect(row, findsOneWidget);
+      expect(
+        find.descendant(of: row, matching: find.text('· Missed 1')),
+        findsOneWidget,
+      );
+      expect(find.byKey(ValueKey('missed-card-$seriesId')), findsNothing);
+      expect(find.byKey(ValueKey('overdue-${overdueId.id}')), findsOneWidget);
+
+      final check = find.descendant(
+        of: row,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is DsCheck && widget.label == 'Weekly notes',
+        ),
+      );
+      await tester.tap(check);
+      await _settle(tester);
+
+      expect(calls, [(seriesId, 'v2:DATE:2026-10-05', true)]);
+      expect(find.byKey(ValueKey('overdue-$seriesId')), findsNothing);
+      expect(find.byKey(ValueKey('overdue-${overdueId.id}')), findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
 
   testWidgets('a timed recurring instance shows its clock time, not all day', (
     tester,
@@ -624,9 +714,9 @@ void main() {
       expect(find.text('Task 3'), findsOneWidget);
       expect(find.text('Task 4'), findsNothing);
       expect(find.text('Task 5'), findsNothing);
-      expect(find.text('2 more · Show all'), findsOneWidget);
+      expect(find.text('View 2 undated'), findsOneWidget);
 
-      await tester.tap(find.text('2 more · Show all'));
+      await tester.tap(find.text('View 2 undated'));
       await _settle(tester);
       expect(openedUnplanned, 1);
 
@@ -661,12 +751,12 @@ void main() {
     );
     await _settle(tester);
 
-    // T1: the empty box is the whole page only. Overdue stands on its own.
+    // Spec: the empty 70px placeholder is gone; mobileTimeSections always keeps Now + now-line + Upcoming 0.
     expect(find.text('Nothing scheduled today'), findsNothing);
     expect(find.text('Overdue'), findsOneWidget);
     expect(find.text('Old rent'), findsOneWidget);
-    expect(find.text('Now'), findsNothing);
-    expect(find.text('Upcoming'), findsNothing);
+    expect(find.text('Now'), findsOneWidget);
+    expect(find.text('Upcoming'), findsOneWidget);
     expect(find.text('Due today'), findsNothing);
 
     await _unmount(tester);
@@ -775,12 +865,14 @@ void main() {
           );
     }
 
+    var openedAll = false;
     await tester.pumpWidget(
       _app(
         overrides: [
           databaseProvider.overrideWithValue(db),
           actionDateProvider.overrideWith((ref) => day),
         ],
+        onOpenAll: () => openedAll = true,
       ),
     );
     await _settle(tester);
@@ -791,13 +883,13 @@ void main() {
     expect(find.text('Old 3'), findsOneWidget);
     expect(find.text('Old 4'), findsNothing);
     expect(find.text('Old 5'), findsNothing);
-    expect(find.text('2 more · Show all'), findsOneWidget);
+    expect(find.text('View all 5 items'), findsOneWidget);
 
-    await tester.tap(find.text('2 more · Show all'));
+    await tester.tap(find.text('View all 5 items'));
     await _settle(tester);
-    expect(find.text('Old 4'), findsOneWidget);
-    expect(find.text('Old 5'), findsOneWidget);
-    expect(find.text('Show less'), findsOneWidget);
+    expect(openedAll, isTrue);
+    expect(find.text('Old 4'), findsNothing);
+    expect(find.text('Old 5'), findsNothing);
 
     await _unmount(tester);
   });
@@ -841,32 +933,16 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Weekly notes'), findsOneWidget);
-      final check = find.byWidgetPredicate(
-        (widget) => widget is DsCheck && widget.label == 'Weekly notes',
+      // Per requirement 7: mobile time block has no checkbox
+      final check = find.descendant(
+        of: find.byType(SpecTimeBlock),
+        matching: find.byType(DsCheck),
       );
-      expect(check, findsOneWidget);
-      await tester.tap(check);
-      await _settle(tester);
+      expect(check, findsNothing);
 
-      // T3: one tick, one completion fact: the allocation and the deadline both
-      // close, and the block records that together with the deadline it closed.
-      final row = await (db.select(
-        db.todos,
-      )..where((table) => table.id.equals(id))).getSingle();
-      expect(row.status, 'COMPLETED');
-      expect(find.text('Weekly notes'), findsOneWidget);
-      expect(find.text('Undo'), findsOneWidget);
-      // T3 also keeps the moment it was completed, not just the fact.
       expect(
         find.descendant(
-          of: find.byType(A2Block),
-          matching: find.textContaining('Completed '),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byType(A2Block),
+          of: find.byType(SpecTimeBlock),
           matching: find.textContaining('Due 18:00'),
         ),
         findsOneWidget,
@@ -920,7 +996,7 @@ void main() {
       // T4/D3: the projection has dropped the row, but it stays where it stood
       // with an inline undo key; the completed fold does not duplicate it yet.
       expect(find.text('Pay bill'), findsOneWidget);
-      expect(find.text('Undo'), findsOneWidget);
+      expect(find.text('Undo'), findsNWidgets(2));
       expect(find.text('Completed Today'), findsNothing);
 
       await tester.pump(const Duration(seconds: 5));
@@ -951,7 +1027,7 @@ void main() {
         timeZone: 'Asia/Shanghai',
         rrule: 'FREQ=DAILY;COUNT=3',
       );
-      final seriesId = await _createSeries(
+      await _createSeries(
         db,
         calendarId: calendarId,
         summary: 'Daily Review',
@@ -973,20 +1049,20 @@ void main() {
       );
       await _settle(tester);
 
-      // The timeline block comes before the unplanned shelf's parent row.
-      final checks = find.byWidgetPredicate(
-        (widget) => widget is DsCheck && widget.label == 'Daily Review',
+      // Target the timeline block bound to the concrete occurrence.
+      // Mobile time block has no checkbox per requirement 7
+      final instanceCheck = find.descendant(
+        of: find.byType(SpecTimeBlock),
+        matching: find.byType(DsCheck),
       );
-      expect(checks, findsWidgets);
-      await tester.tap(checks.first);
-      await _settle(tester);
-
-      expect(calls, [(seriesId, 'v2:DATE:2026-10-06', true)]);
-      expect(find.text('Undo · 2026-10-06'), findsOneWidget);
-
-      await tester.tap(find.text('Undo · 2026-10-06'));
-      await _settle(tester);
-      expect(calls.last, (seriesId, 'v2:DATE:2026-10-06', false));
+      expect(instanceCheck, findsNothing);
+      expect(
+        find.descendant(
+          of: find.byType(SpecTimeBlock),
+          matching: find.text('Daily Review'),
+        ),
+        findsOneWidget,
+      );
 
       await _unmount(tester);
     },
@@ -1023,7 +1099,7 @@ void main() {
       await _settle(tester);
 
       expect(find.text('Nothing scheduled today'), findsNothing);
-      expect(find.text('2 items'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
 
       final check = find.byWidgetPredicate(
         (widget) => widget is DsCheck && widget.label == 'Task A',
@@ -1033,12 +1109,12 @@ void main() {
 
       // R5: the projection was re-read in place, so the shelf count already
       // reflects the completion while the row is still held for undo.
-      expect(find.text('1 items'), findsOneWidget);
+      expect(find.text('1'), findsOneWidget);
       expect(find.text('Task A'), findsOneWidget);
-      expect(find.text('Undo'), findsOneWidget);
+      expect(find.text('Undo'), findsNWidgets(2));
 
       // Any other interaction closes the window without waiting out the timer.
-      await tester.tap(find.text('Unplanned').first);
+      await tester.tap(find.text('Task B'));
       await _settle(tester);
       expect(find.text('Undo'), findsNothing);
       expect(find.text('Task A'), findsNothing);
@@ -1085,25 +1161,223 @@ void main() {
     await _settle(tester);
 
     expect(find.text('Earlier today'), findsOneWidget);
-    final check = find.byWidgetPredicate(
-      (widget) => widget is DsCheck && widget.label == 'Morning review',
-    );
-    expect(check, findsOneWidget);
+    // Earlier today is collapsed by default on mobile
+    expect(find.text('Morning review'), findsNothing);
 
-    await tester.tap(check);
+    // Expand Earlier today
+    await tester.tap(find.text('Earlier today'));
     await _settle(tester);
 
-    // The row belongs to "Earlier today"; the undo window must keep it there
-    // instead of cloning it into Upcoming (which would also reuse the undo
-    // key twice and throw in debug builds).
     expect(find.text('Morning review'), findsOneWidget);
-    expect(find.text('Upcoming'), findsNothing);
-    expect(find.text('Undo'), findsOneWidget);
-
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pump();
-    expect(find.text('Undo'), findsNothing);
+    // Per requirement 7: mobile time block has no checkbox
+    final check = find.descendant(
+      of: find.byType(SpecTimeBlock),
+      matching: find.byType(DsCheck),
+    );
+    expect(check, findsNothing);
 
     await _unmount(tester);
   });
+
+  testWidgets(
+    'desktop Today: an allocated todo appears only once (timeline only, not task col)',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final plannedId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Planned Task',
+              dueDate: Value(DateTime(2026, 10, 6, 18)),
+            ),
+          );
+
+      await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Unplanned Task',
+            ),
+          );
+
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      await container.read(createTaskAllocationProvider)(
+        todoId: plannedId,
+        startAt: DateTime(2026, 10, 6, 15),
+        endAt: DateTime(2026, 10, 6, 16),
+      );
+      container.dispose();
+
+      await tester.pumpWidget(
+        _app(
+          now: DateTime(2026, 10, 6, 14),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+        ),
+      );
+      await _settle(tester);
+
+      // P0 1: One todo appears only once today!
+      expect(find.text('Planned Task'), findsOneWidget);
+      expect(find.text('Unplanned Task'), findsOneWidget);
+
+      // Planned Task is in the time column via SpecTimeBlock, not left SpecTaskRow
+      expect(find.byType(SpecTimeBlock), findsWidgets);
+      final timeBlockFinder = find.ancestor(
+        of: find.text('Planned Task'),
+        matching: find.byType(SpecTimeBlock),
+      );
+      expect(timeBlockFinder, findsOneWidget);
+
+      final taskRowFinder = find.ancestor(
+        of: find.text('Planned Task'),
+        matching: find.byType(SpecTaskRow),
+      );
+      expect(taskRowFinder, findsNothing);
+
+      // Unplanned Task is in left task column via SpecTaskRow
+      final unplannedRowFinder = find.ancestor(
+        of: find.text('Unplanned Task'),
+        matching: find.byType(SpecTaskRow),
+      );
+      expect(unplannedRowFinder, findsOneWidget);
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'desktop Today: the time column keeps a plan\'s overdue deadline and an event\'s location',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final overdueId = await db
+          .into(db.todos)
+          .insert(
+            TodosCompanion.insert(
+              calendarId: calendarId,
+              summary: 'Overdue plan',
+              dueDate: Value(DateTime(2026, 10, 4, 18)),
+            ),
+          );
+      await db.into(db.events).insert(
+        EventsCompanion.insert(
+          calendarId: calendarId,
+          summary: 'Site visit',
+          startDt: DateTime(2026, 10, 6, 16),
+          endDt: DateTime(2026, 10, 6, 17),
+          location: const Value('Container yard'),
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [databaseProvider.overrideWithValue(db)],
+      );
+      await container.read(createTaskAllocationProvider)(
+        todoId: overdueId,
+        startAt: DateTime(2026, 10, 6, 17),
+        endAt: DateTime(2026, 10, 6, 18),
+      );
+      container.dispose();
+
+      await tester.pumpWidget(
+        _app(
+          now: DateTime(2026, 10, 6, 14),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+        ),
+      );
+      await _settle(tester);
+
+      // A plan is a block but its deadline is still a fact: the row says it is
+      // overdue instead of dropping the pill. The event keeps its location.
+      final planBlock = find.ancestor(
+        of: find.text('Overdue plan'),
+        matching: find.byType(SpecTimeBlock),
+      );
+      expect(planBlock, findsOneWidget);
+      expect(
+        find.descendant(
+          of: planBlock,
+          matching: find.textContaining('Overdue · Deadline: 10/4'),
+        ),
+        findsOneWidget,
+      );
+      final eventBlock = find.ancestor(
+        of: find.text('Site visit'),
+        matching: find.byType(SpecTimeBlock),
+      );
+      expect(eventBlock, findsOneWidget);
+      expect(
+        find.descendant(
+          of: eventBlock,
+          matching: find.textContaining('Container yard'),
+        ),
+        findsOneWidget,
+      );
+
+      await _unmount(tester);
+    },
+  );
+
+  testWidgets(
+    'desktop Today: asserts day head vertical layout, timeline, now line, and floating capture bar',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _app(
+          now: DateTime(2026, 10, 6, 14),
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            actionDateProvider.overrideWith((ref) => day),
+          ],
+        ),
+      );
+      await _settle(tester);
+
+      // Day head: title, subtitle with week number, summary
+      expect(find.text('Oct 6'), findsOneWidget);
+      expect(find.textContaining('Week 41'), findsOneWidget);
+
+      // Timeline components
+      expect(find.byType(SpecNowLine), findsOneWidget);
+
+      // Floating capture bar
+      expect(find.byKey(const ValueKey('desktop-capture-input')), findsOneWidget);
+      expect(find.byKey(const ValueKey('desktop-capture-expand-btn')), findsOneWidget);
+
+      // Expanding the desktop capture bar opens the 12-state A2CapturePanel
+      await tester.tap(find.byKey(const ValueKey('desktop-capture-expand-btn')));
+      await _settle(tester);
+
+      expect(find.byType(A2CapturePanel), findsOneWidget);
+      expect(find.text('Task Title'), findsOneWidget);
+      expect(find.text('Deadline'), findsOneWidget);
+      expect(find.text('Planned execution'), findsOneWidget);
+      expect(find.text('Calendar'), findsOneWidget);
+      expect(find.text('Reminder'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _settle(tester);
+      expect(find.byType(A2CapturePanel), findsNothing);
+
+      await _unmount(tester);
+    },
+  );
 }

@@ -2,10 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
-import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
 import 'package:dayspark/ui/widgets/color_swatch_grid.dart';
 
 const kCalendarColors = [
@@ -30,12 +31,13 @@ Future<int?> pickCalendar(
   int? selectedId,
 }) async {
   var selected = selectedId;
+  final l = AppLocalizations.of(context)!;
   while (true) {
     if (!context.mounted) return null;
-    final result = await showModalBottomSheet<Object>(
+    final result = await showDsSheet<Object>(
       context: context,
-      isScrollControlled: true,
-      builder: (ctx) => _CalendarPickerSheet(selectedId: selected),
+      title: l.calendarField,
+      body: _CalendarPickerSheet(selectedId: selected),
     );
     if (!context.mounted) return null;
     if (result == null) return null;
@@ -61,58 +63,39 @@ class _CalendarPickerSheet extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
     final selected = selectedId ?? (calendars.isEmpty ? null : calendars.first.id);
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                ),
-                child: Text(l.calendarField, style: AppTypography.title),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final calendar in calendars)
+          DsRow(
+            title: calendar.name,
+            leading: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: ColorUtils.parseHex(calendar.color),
+                shape: BoxShape.circle,
               ),
-              for (final calendar in calendars)
-                ListTile(
-                  minVerticalPadding: AppSpacing.sm,
-                  leading: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: ColorUtils.parseHex(calendar.color),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  title: Text(calendar.name),
-                  trailing: calendar.id == selected
-                      ? Icon(
-                          CupertinoIcons.checkmark,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.primary,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(context).pop(calendar.id),
-                ),
-              const Divider(height: 1),
-              ListTile(
-                minVerticalPadding: AppSpacing.sm,
-                leading: const Icon(CupertinoIcons.add, size: 18),
-                title: Text(l.createCalendarFromPicker),
-                onTap: () =>
-                    Navigator.of(context).pop<Object>(_createCalendarSentinel),
-              ),
-            ],
+            ),
+            selected: calendar.id == selected,
+            trailing: calendar.id == selected
+                ? Icon(
+                    CupertinoIcons.checkmark,
+                    size: 16,
+                    color: context.ds.primary,
+                  )
+                : null,
+            onTap: () => Navigator.of(context).pop(calendar.id),
           ),
+        const DsHairline(),
+        DsSettingRow(
+          label: l.createCalendarFromPicker,
+          leading: const Icon(CupertinoIcons.add, size: 18),
+          onTap: () =>
+              Navigator.of(context).pop<Object>(_createCalendarSentinel),
         ),
-      ),
+      ],
     );
   }
 }
@@ -130,9 +113,55 @@ Future<int?> _showCreateCalendarDialog(
     animationStyle: AnimationStyle.noAnimation,
     context: context,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setState) => AlertDialog(
-        title: Text(l.newCalendar),
-        content: Column(
+      builder: (ctx, setState) => DsDialog(
+        title: l.newCalendar,
+        actions: [
+          Expanded(
+            child: DsButton(
+              label: l.cancel,
+              tone: DsButtonTone.secondary,
+              expand: true,
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.s2),
+          Expanded(
+            child: DsButton(
+              label: l.create,
+              expand: true,
+              loading: saving,
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) {
+                        setState(() => error = l.calendarNameRequired);
+                        return;
+                      }
+                      setState(() {
+                        saving = true;
+                        error = null;
+                      });
+                      try {
+                        final id = await ref.read(createCalendarProvider)(
+                          name: name,
+                          color: selectedColor,
+                        );
+                        if (ctx.mounted) Navigator.of(ctx).pop(id);
+                      } catch (failure) {
+                        debugPrint('calendar picker: create failed: $failure');
+                        if (ctx.mounted) {
+                          setState(() {
+                            saving = false;
+                            error = l.actionFailedRetry;
+                          });
+                        }
+                      }
+                    },
+            ),
+          ),
+        ],
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -153,43 +182,6 @@ Future<int?> _showCreateCalendarDialog(
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
-          ),
-          TextButton(
-            onPressed: saving
-                ? null
-                : () async {
-                    final name = nameController.text.trim();
-                    if (name.isEmpty) {
-                      setState(() => error = l.calendarNameRequired);
-                      return;
-                    }
-                    setState(() {
-                      saving = true;
-                      error = null;
-                    });
-                    try {
-                      final id = await ref.read(createCalendarProvider)(
-                        name: name,
-                        color: selectedColor,
-                      );
-                      if (ctx.mounted) Navigator.of(ctx).pop(id);
-                    } catch (failure) {
-                      debugPrint('calendar picker: create failed: $failure');
-                      if (ctx.mounted) {
-                        setState(() {
-                          saving = false;
-                          error = l.actionFailedRetry;
-                        });
-                      }
-                    }
-                  },
-            child: Text(l.create),
-          ),
-        ],
       ),
     ),
   );

@@ -7,9 +7,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_pickers.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
 import 'package:go_router/go_router.dart';
+
+String _dayKey(DateTime day) =>
+    'spec-day-${day.year.toString().padLeft(4, '0')}-'
+    '${day.month.toString().padLeft(2, '0')}-'
+    '${day.day.toString().padLeft(2, '0')}';
 
 Widget _wrap(AppDatabase db) {
   final router = GoRouter(
@@ -117,7 +123,7 @@ void main() {
       await tester.tap(find.text('No deadline').last);
       await _settle(tester);
 
-      final dialog = find.byType(DatePickerDialog);
+      final dialog = find.byType(SpecDatePickerDialog);
       expect(dialog, findsOneWidget);
       final now = DateTime.now();
       final tomorrow = DateTime(
@@ -125,9 +131,7 @@ void main() {
         now.month,
         now.day,
       ).add(const Duration(days: 1));
-      await tester.tap(
-        find.descendant(of: dialog, matching: find.text('${tomorrow.day}')),
-      );
+      await tester.tap(find.byKey(ValueKey(_dayKey(tomorrow))));
       await tester.pump();
       await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
       await _settle(tester);
@@ -160,13 +164,14 @@ void main() {
     await tester.pump();
 
     // Scheduling is offered while the todo is still a draft; the old flow
-    // forced a save, a reopen, and a second trip to this same sheet.
+    // forced a save, a reopen, and a second trip to this same picker.
     await tester.tap(find.text('Add execution time'));
     await _settle(tester);
 
-    final sheetSave = find.widgetWithText(FilledButton, 'Save');
-    expect(sheetSave, findsOneWidget);
-    await tester.tap(sheetSave);
+    // The spec plan picker shows date, start/end, duration and the day's
+    // existing blocks; its primary action is "Schedule".
+    expect(find.text('Schedule'), findsOneWidget);
+    await tester.tap(find.text('Schedule'));
     await _settle(tester);
 
     await tester.tap(find.text('Save'));
@@ -229,16 +234,18 @@ void main() {
     await tester.tap(find.textContaining('18:00').last);
     await _settle(tester);
 
-    final dialog = find.byType(DatePickerDialog);
+    final dialog = find.byType(SpecDatePickerDialog);
     expect(dialog, findsOneWidget);
-    await tester.tap(find.descendant(of: dialog, matching: find.text('31')));
+    await tester.tap(find.byKey(const ValueKey('spec-day-2026-10-31')));
     await tester.pump();
     await tester.tap(find.descendant(of: dialog, matching: find.text('OK')));
     await _settle(tester);
 
-    final sheet = find.byType(BottomSheet);
-    expect(sheet, findsOneWidget, reason: 'the time step still asks');
-    await tester.tap(find.descendant(of: sheet, matching: find.text('OK')));
+    // The time step is the spec's inline hour/minute card, not a wheel sheet:
+    // it opens in the same dialog chrome and confirms with the same OK.
+    final timeDialog = find.byType(SpecTimePickerDialog);
+    expect(timeDialog, findsOneWidget, reason: 'the time step still asks');
+    await tester.tap(find.descendant(of: timeDialog, matching: find.text('OK')));
     await _settle(tester);
 
     await tester.tap(find.text('Save'));

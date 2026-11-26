@@ -90,6 +90,7 @@ void main() {
         TodosCompanion.insert(
           calendarId: calendarId,
           summary: 'Daily standup',
+          startDate: Value(DateTime(now.year, now.month, now.day)),
           rrule: Value(spec.rule.canonical),
         ),
         recurrenceSpec: spec,
@@ -117,24 +118,8 @@ void main() {
     await tester.tap(find.byType(DsCheck).first);
     await _settle(tester);
 
-    expect(
-      find.text('Select occurrence'),
-      findsOneWidget,
-      reason: 'a recurring series has no single row-level completion',
-    );
-
-    await tester.tap(
-      find
-          .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
-          )
-          .first,
-    );
-    await _settle(tester);
-
     final states = await db.select(db.taskInstanceStates).get();
-    expect(states, hasLength(1), reason: 'the chosen occurrence is recorded');
+    expect(states, hasLength(1), reason: 'the current occurrence is recorded');
     expect(states.single.status, 'completed');
     expect(states.single.todoSyncId, series.syncId);
 
@@ -152,13 +137,7 @@ void main() {
     await tester.pumpWidget(_app(db, series));
     await _settle(tester);
 
-    await tester.tap(find.text('Schedule'));
-    await _settle(tester);
-    await tester.tap(find.byKey(const ValueKey('a2-composer-plan')));
-    await _settle(tester);
-    await tester.tap(find.text('14:00–15:00'));
-    await _settle(tester);
-    await tester.tap(find.byType(FilledButton));
+    await tester.tap(find.text('Add execution time'));
     await _settle(tester);
 
     expect(
@@ -170,13 +149,17 @@ void main() {
     await tester.tap(
       find
           .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
+            of: find.byType(DsDialog),
+            matching: find.byType(DsSettingRow),
           )
           .first,
     );
     await _settle(tester);
 
+    await tester.tap(find.text('Schedule'));
+    await _settle(tester);
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
     final allocations = await db.select(db.taskAllocations).get();
     expect(allocations, hasLength(1));
     expect(

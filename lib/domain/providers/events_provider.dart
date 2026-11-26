@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/event_writer.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
@@ -137,6 +138,11 @@ final deletedEventsProvider = StreamProvider<List<Event>>((ref) {
   return db.eventsDao.watchDeletedEvents();
 });
 
+final allEventsProvider = StreamProvider<List<Event>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.events)..where((t) => t.deletedAt.isNull())).watch();
+});
+
 final restoreEventProvider = Provider<Future<void> Function(int)>((ref) {
   final db = ref.read(databaseProvider);
   return (int id) =>
@@ -166,7 +172,7 @@ final createCalendarProvider =
         return db.calendarsDao.insertCalendar(
           CalendarsCompanion.insert(
             name: name,
-            color: color != null ? Value(color) : const Value('#2563EB'),
+            color: color != null ? Value(color) : const Value('#8a8a82'),
           ),
         );
       };
@@ -258,5 +264,9 @@ final deleteCalendarProvider =
 
           await db.calendarsDao.deleteCalendar(id);
         });
+
+        await ref
+            .read(defaultCalendarIdProvider.notifier)
+            .clearDefaultCalendarId(id);
       };
     });

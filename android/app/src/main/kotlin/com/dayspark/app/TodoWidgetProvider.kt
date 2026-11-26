@@ -9,8 +9,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 
-// Todos / 待办: the long-lived task list. It never shows events, allocations or
-// a timeline. Mode is per instance; today mode mirrors the App's overdue group.
+// Todos / 待办: a read-only snapshot of today's task list. It never shows events
+// or a timeline, never completes a task and never switches lists in place:
+// every row is a deep link into the App. Overdue tasks stay under today's list.
 class TodoWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(
     context: Context,
@@ -100,19 +101,14 @@ class TodoWidgetProvider : AppWidgetProvider() {
         views.setViewPadding(R.id.todos_root, edge, edge, edge, edge)
       }
 
-      val state = WidgetStateStore.read(context, appWidgetId)
-      val mode = state.todoMode
+      val mode = "today"
       val block = snapshot.todos()
-      val current = when (mode) {
-        "inbox" -> block.inbox
-        "all" -> block.all
-        else -> block.today
-      }
-      val todayMode = mode == "today"
-      val overdueRows = if (todayMode) current.overdue else emptyList()
+      val current = block.today
+      val todayMode = true
+      val overdueRows = current.overdue
       val todayIso = snapshot.todayIso().ifEmpty { WidgetSupport.todayIso(context) }
       val snapshotStale = todayIso != WidgetSupport.todayIso(context)
-      val todayStale = snapshotStale && mode == "today"
+      val todayStale = snapshotStale
 
       val primary = context.getColor(R.color.widget_text_primary)
       val secondary = context.getColor(R.color.widget_text_secondary)
@@ -120,13 +116,11 @@ class TodoWidgetProvider : AppWidgetProvider() {
       val error = theme?.colors?.get("error") ?: context.getColor(R.color.widget_error)
       val warning = theme?.colors?.get("warning") ?: theme?.colors?.get("accent") ?: accent
 
-      val modeLabel = when (mode) {
-        "inbox" -> ui?.inbox ?: context.getString(R.string.widget_inbox)
-        "all" -> ui?.all ?: context.getString(R.string.widget_all)
-        else -> ui?.today ?: context.getString(R.string.widget_today)
-      }
       val total = current.total + overdueRows.size
-      views.setTextViewText(R.id.todos_mode, if (size == WidgetSize.SMALL) modeLabel else context.getString(R.string.widget_todos_name))
+      views.setTextViewText(
+        R.id.todos_mode,
+        context.getString(R.string.widget_todos_name),
+      )
       views.setTextViewText(R.id.todos_count, total.toString())
       WidgetSupport.textColor(views, R.id.todos_mode, theme, "textPrimary", primary)
       WidgetSupport.textColor(views, R.id.todos_count, theme, "textSecondary", secondary)
@@ -140,26 +134,20 @@ class TodoWidgetProvider : AppWidgetProvider() {
         R.id.todos_count,
         WidgetSupport.openUri(context, listUri, appWidgetId + 601),
       )
-      if (size == WidgetSize.SMALL) {
-        views.setOnClickPendingIntent(
-          R.id.todos_mode,
-          WidgetSupport.stateIntent(
-            context,
-            appWidgetId,
-            WidgetActionReceiver.ACTION_CYCLE_TODO_MODE,
-          ),
-        )
-      } else {
-        views.setOnClickPendingIntent(
-          R.id.todos_mode,
-          WidgetSupport.openUri(context, listUri, appWidgetId + 602),
-        )
-        chip(context, views, R.id.todos_chip_today, ui?.today ?: "", mode == "today", appWidgetId, "today", theme, secondary, accent)
-        chip(context, views, R.id.todos_chip_inbox, ui?.inbox ?: "", mode == "inbox", appWidgetId, "inbox", theme, secondary, accent)
-        chip(context, views, R.id.todos_chip_all, ui?.all ?: "", mode == "all", appWidgetId, "all", theme, secondary, accent)
+      views.setOnClickPendingIntent(
+        R.id.todos_mode,
+        WidgetSupport.openUri(context, listUri, appWidgetId + 602),
+      )
+      if (size != WidgetSize.SMALL) {
+        // The list chips used to switch today / inbox / all in place. The
+        // widget is a snapshot now, so the chips are retired rather than left
+        // as dead controls; the header still names the list it shows.
+        views.setViewVisibility(R.id.todos_chip_today, View.GONE)
+        views.setViewVisibility(R.id.todos_chip_inbox, View.GONE)
+        views.setViewVisibility(R.id.todos_chip_all, View.GONE)
       }
 
-      val addDate = if (mode == "today") todayIso else null
+      val addDate = todayIso
       views.setOnClickPendingIntent(
         R.id.todos_add,
         WidgetSupport.openUri(
@@ -171,8 +159,9 @@ class TodoWidgetProvider : AppWidgetProvider() {
       WidgetSupport.textColor(views, R.id.todos_add, theme, "accent", accent)
 
       views.removeAllViews(R.id.todos_rows)
-      val pending = WidgetSnapshot.readPendingTargets(context)
       val effectiveHeight = if (heightDp > 0) heightDp else 220
+      // The chip row still occupies 48dp in every non-small layout, so it stays
+      // in the budget even though its controls are hidden.
       val chipsDp = if (size == WidgetSize.SMALL) 0 else 48
       val budget = RowBudget(effectiveHeight - paddingDp * 2 - 48 - chipsDp)
       var overdueShown = 0
@@ -205,7 +194,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
         views.addView(
           R.id.todos_rows,
           itemRow(
-            context, item, pending, theme, size, mode,
+            context, item, theme, size, mode,
             overdue = overdue, error = error, warning = warning,
             number = number, appWidgetId = appWidgetId,
           ),
@@ -275,10 +264,10 @@ class TodoWidgetProvider : AppWidgetProvider() {
         }
       }
 
-      // Today's completed rows stay under the open ones, checked, so the same
-      // checkbox can undo them after the command has already reached the DB.
+      // Today's completed rows stay under the open ones as a read-only record.
       // They are not part of `total` (open tasks), so the "more" row is not
-      // affected; when the budget runs out they are simply not drawn.
+      // affected; when the budget runs out they are simply not drawn. A tap
+      // on any of them opens the item, exactly like an open row.
       var completedShown = 0
       if (!todayStale && todayMode && current.completed.isNotEmpty()) {
         for (item in current.completed) {
@@ -315,7 +304,7 @@ class TodoWidgetProvider : AppWidgetProvider() {
       // "No tasks" is a statement about the data, not about how many rows
       // happened to fit; a short card must not claim the list is empty. A card
       // whose only tasks are completed ones is not empty either: it is drawing
-      // the undo rows, so "all done" would sit on top of them.
+      // the completed rows, so "all done" would sit on top of them.
       val hasTasks = current.items.isNotEmpty() ||
         overdueRows.isNotEmpty() ||
         current.total > 0 ||
@@ -333,39 +322,6 @@ class TodoWidgetProvider : AppWidgetProvider() {
       }
 
       return views
-    }
-
-    private fun chip(
-      context: Context,
-      views: RemoteViews,
-      id: Int,
-      label: String,
-      selected: Boolean,
-      appWidgetId: Int,
-      mode: String,
-      theme: WidgetSnapshot.ThemeBlock?,
-      secondary: Int,
-      accent: Int,
-    ) {
-      views.setTextViewText(id, label)
-      views.setTextColor(
-        id,
-        if (selected) {
-          theme?.colors?.get("accent") ?: accent
-        } else {
-          theme?.colors?.get("textSecondary") ?: secondary
-        },
-      )
-      views.setOnClickPendingIntent(
-        id,
-        WidgetSupport.stateIntent(
-          context,
-          appWidgetId,
-          WidgetActionReceiver.ACTION_SET_TODO_MODE,
-          WidgetActionReceiver.EXTRA_TODO_MODE,
-          mode,
-        ),
-      )
     }
 
     private fun staleRow(
@@ -419,7 +375,6 @@ class TodoWidgetProvider : AppWidgetProvider() {
     internal fun itemRow(
       context: Context,
       item: WidgetSnapshot.TodoItemRow,
-      pending: WidgetSnapshot.PendingTargets,
       theme: WidgetSnapshot.ThemeBlock?,
       size: WidgetSize,
       mode: String,
@@ -485,46 +440,29 @@ class TodoWidgetProvider : AppWidgetProvider() {
       } else if (item.todoId > 0) {
         row.setViewVisibility(R.id.todo_check, View.VISIBLE)
         row.setViewVisibility(R.id.todo_repeat, View.GONE)
-        val checked = item.completed ||
-          WidgetSupport.isPending(pending, "todo", item.todoId, null)
+        // The circle is a read-only state glyph: completed rows keep the filled
+        // check, and the tap anywhere in the row (including the circle) opens
+        // the item instead of changing it.
         row.setImageViewResource(
           R.id.todo_check,
-          if (checked) R.drawable.widget_check_on else R.drawable.widget_check_off,
+          if (item.completed) R.drawable.widget_check_on else R.drawable.widget_check_off,
         )
-        if (checked) {
+        if (item.completed) {
           WidgetSupport.tint(row, R.id.todo_check, theme?.colors?.get("accent") ?: accent)
         }
-        row.setOnClickPendingIntent(
-          R.id.todo_check,
-          WidgetSupport.togglePendingIntent(
-            context,
-            "todo",
-            item.todoId,
-            item.todoSyncId,
-            null,
-            null,
-            command = if (item.completed) {
-              WidgetSnapshot.ACTION_UNCOMPLETE
-            } else {
-              WidgetSnapshot.ACTION_COMPLETE
-            },
-          ),
-        )
       } else {
         row.setViewVisibility(R.id.todo_check, View.GONE)
         row.setViewVisibility(R.id.todo_repeat, View.GONE)
       }
 
       if (item.todoId > 0) {
-        WidgetSupport.bindOpen(
-          row,
-          WidgetRows.TODO_OPEN_IDS,
-          WidgetSupport.openUri(
-            context,
-            WidgetSupport.todoUri(item.todoId),
-            (item.todoId * 37 + appWidgetId + 700) and 0x7FFFFFFF,
-          ),
+        val open = WidgetSupport.openUri(
+          context,
+          WidgetSupport.todoUri(item.todoId),
+          (item.todoId * 37 + appWidgetId + 700) and 0x7FFFFFFF,
         )
+        WidgetSupport.bindOpen(row, WidgetRows.TODO_OPEN_IDS, open)
+        row.setOnClickPendingIntent(R.id.todo_check, open)
       } else {
         WidgetSupport.bindOpen(
           row,
@@ -533,8 +471,8 @@ class TodoWidgetProvider : AppWidgetProvider() {
         )
       }
       if (item.completed) {
-        // A completed row is the undo affordance: muted and struck through,
-        // with its checked box still tappable.
+        // Completed rows stay as a read-only record, muted and struck through;
+        // their circle opens the item like every other point in the row.
         WidgetSupport.textColor(row, R.id.todo_title, theme, "textSecondary", secondary)
         row.setInt(
           R.id.todo_title,

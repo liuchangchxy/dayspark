@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
@@ -25,7 +26,7 @@ Future<void> showMonthYearPicker(
     await showDialog<void>(
       context: context,
       barrierColor: ds.scrim,
-      builder: (_) => _MonthYearDialog(initial: initial),
+      builder: (_) => _MonthYearPickerSheet(initial: initial, sheet: false),
     );
     return;
   }
@@ -35,64 +36,8 @@ Future<void> showMonthYearPicker(
     backgroundColor: Colors.transparent,
     barrierColor: ds.scrim,
     constraints: const BoxConstraints(maxWidth: double.infinity),
-    builder: (sheetContext) => SizedBox(
-      height: MediaQuery.sizeOf(sheetContext).height * 0.78,
-      width: double.infinity,
-      child: _MonthYearPickerSheet(initial: initial),
-    ),
+    builder: (_) => _MonthYearPickerSheet(initial: initial),
   );
-}
-
-/// The same grid as a centred card. It is a plain [Dialog] rather than
-/// [DsDialog] because the grid has to flex to the card's height; the close
-/// control is the dialog's own, matching every other desktop overlay.
-class _MonthYearDialog extends StatelessWidget {
-  const _MonthYearDialog({required this.initial});
-
-  final DateTime initial;
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.all(AppSpacing.s6),
-      child: Container(
-        width: 420,
-        constraints: const BoxConstraints(maxHeight: 620),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: ds.surface,
-          borderRadius: AppRadii.dialog,
-          border: Border.all(color: ds.line),
-          boxShadow: AppShadows.two(ds.brightness),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 0, 4, 0),
-              child: Row(
-                children: [
-                  const Spacer(),
-                  DsIconButton(
-                    icon: CupertinoIcons.xmark,
-                    tooltip: MaterialLocalizations.of(
-                      context,
-                    ).closeButtonTooltip,
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: _MonthYearPickerSheet(initial: initial, sheet: false),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _MonthYearPickerSheet extends ConsumerStatefulWidget {
@@ -168,80 +113,70 @@ class _MonthYearPickerSheetState extends ConsumerState<_MonthYearPickerSheet> {
     final title = _yearMode
         ? '${_visibleMonth.year}'
         : DateFormat.yMMMM(_locale).format(_visibleMonth);
-    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
 
-    return Material(
-      color: ds.surface,
-      borderRadius: widget.sheet
-          ? const BorderRadius.vertical(top: Radius.circular(18))
-          : null,
-      clipBehavior: Clip.antiAlias,
-      child: Container(
-        decoration: widget.sheet
-            ? BoxDecoration(
-                border: Border(top: BorderSide(color: ds.line)),
-              )
-            : null,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.sheet) ...[
-              const SizedBox(height: 8),
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: ds.surface3,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+    final column = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DsSheetChrome(
+          title: title,
+          showGrabber: widget.sheet,
+          headerAction: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _segmented(l),
+              const SizedBox(width: AppSpacing.s2),
+              _nav(),
             ],
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: [
-                  _segmented(l),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: ds.ink,
-                          height: 1.4,
-                          fontFeatures: AppTypography.tabular,
-                          fontFamilyFallback: AppTypography.fallback,
-                        ),
-                      ),
-                    ),
-                  ),
-                  _nav(),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-                child: _yearMode ? _yearGrid() : _monthGrid(),
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(20, 8, 20, 12 + bottomInset),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: _linkButton(
-                  l.goToToday,
-                  () => _pick(ref.read(calendarNowProvider)()),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
+        Flexible(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: _yearMode ? _yearGrid() : _monthGrid(),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: _linkButton(
+              l.goToToday,
+              () => _pick(ref.read(calendarNowProvider)()),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (widget.sheet) {
+      return Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+        ),
+        decoration: BoxDecoration(
+          color: ds.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          border: Border(top: BorderSide(color: ds.line)),
+          boxShadow: AppShadows.sheet(ds.brightness),
+        ),
+        child: SafeArea(top: false, child: column),
+      );
+    }
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(AppSpacing.s6),
+      child: Container(
+        width: 420,
+        constraints: const BoxConstraints(maxHeight: 620),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: ds.surface,
+          borderRadius: AppRadii.dialog,
+          border: Border.all(color: ds.line),
+          boxShadow: AppShadows.two(ds.brightness),
+        ),
+        child: column,
       ),
     );
   }
@@ -396,12 +331,12 @@ class _MonthYearPickerSheetState extends ConsumerState<_MonthYearPickerSheet> {
     final today = _sameDay(day, ref.read(calendarNowProvider)());
     final selected = _sameDay(day, _selected);
     final background = today
-        ? ds.primaryTint
+        ? SpecTokens.redSoft
         : selected
         ? ds.surface3
         : null;
     final color = today
-        ? ds.primary
+        ? SpecTokens.red
         : otherMonth
         ? ds.ink3.withValues(alpha: 0.45)
         : ds.ink;

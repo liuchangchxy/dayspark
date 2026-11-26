@@ -590,6 +590,68 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get importPreviewTitle => '导入预览';
+
+  @override
+  String importPreviewSummary(int events, int todos, String fileName) {
+    return '从 $fileName 读到 $events 个事件、$todos 个待办。';
+  }
+
+  @override
+  String importPreviewCounts(int create, int duplicate, int skipped) {
+    return '新增 $create 项 · 重复 $duplicate 项 · 跳过 $skipped 项';
+  }
+
+  @override
+  String get importPreviewNew => '新增';
+
+  @override
+  String get importPreviewDuplicate => '重复';
+
+  @override
+  String get importPreviewSkipped => '跳过';
+
+  @override
+  String importPreviewMore(int count) {
+    return '另有 $count 项';
+  }
+
+  @override
+  String importFailedRows(int count) {
+    return '导入时另有 $count 项失败';
+  }
+
+  @override
+  String importFailureDetail(String fileName) {
+    return '没有写入任何内容。文件：$fileName';
+  }
+
+  @override
+  String get startImport => '开始导入';
+
+  @override
+  String get importInProgress => '正在读取并导入…';
+
+  @override
+  String get importResultTitle => '导入结果';
+
+  @override
+  String importResultSummary(int created, int updated, int skipped) {
+    return '新建 $created 项 · 更新 $updated 项 · 跳过 $skipped 项';
+  }
+
+  @override
+  String get importNothing => '这个文件里没有事件或待办。';
+
+  @override
+  String get backupInProgress => '正在备份…';
+
+  @override
+  String backupComplete(String filename) {
+    return '备份完成：$filename';
+  }
+
+  @override
   String get importExportDesc => '将日程和待办导出为 .ics 文件，或从 .ics 文件导入。';
 
   @override
@@ -750,6 +812,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String dateLabel(int month, int day) {
     return '$month月$day日';
   }
+
+  @override
+  String calendarMonthDay(String month, String day) {
+    return '$month 月 $day 日';
+  }
+
+  @override
+  String calendarDateRange(String start, String end) {
+    return '$start – $end';
+  }
+
+  @override
+  String get calendarWeekSummary => '本周 · 7 天';
+
+  @override
+  String get calendarWeekEmpty => '这一周没有安排。';
+
+  @override
+  String get calendarWeekEmptyHint => '从捕获或日历时间槽开始。';
 
   @override
   String get openUpdatePage => '查看更新';
@@ -1448,6 +1529,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get repeatAdvanced => '重复选项';
 
   @override
+  String get repeatField => '重复';
+
+  @override
   String get seriesTimeZoneShort => '全部重复使用的时区';
 
   @override
@@ -1637,17 +1721,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String remindMinutesBefore(int count) {
-    return '提前 $count 分钟';
+    return '$count 分钟前';
   }
 
   @override
   String remindHoursBefore(int count) {
-    return '提前 $count 小时';
+    return '$count 小时前';
   }
 
   @override
   String remindDaysBefore(int count) {
-    return '提前 $count 天';
+    return '$count 天前';
   }
 
   @override
@@ -1933,7 +2017,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get other => '其他';
 
   @override
-  String get capturePlaceholder => '记一笔 · 回车直接进「未安排」';
+  String get capturePlaceholder => '记一件事，回车记下';
 
   @override
   String get captureHintEnter => '⏎ 进未安排';
@@ -2008,16 +2092,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get emptyTodayHint => '想好的事随时记下来，回车直接进「未安排」';
 
   @override
-  String get emptyUnplannedTitle => '未安排里什么都没有';
+  String get emptyUnplannedTitle => '未安排是空的';
 
   @override
-  String get emptyUnplannedHint => '捕获一条，回车就进这里';
+  String get emptyUnplannedHint => '从今天或这里捕获的待办会先落到这里。';
 
   @override
-  String get emptyDateTitle => '这一天还没有安排';
+  String get emptyDateTitle => '这一天还没有计划';
 
   @override
-  String get emptyDateHint => '用下面的「安排到这一天」加一条';
+  String get emptyDateHint => '把待办拖 / 安排到这一天，或先从捕获开始。';
 
   @override
   String get allDueTodaySection => '今天截止';
@@ -2038,13 +2122,68 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noDueSection => '无截止';
 
   @override
+  String get noDateGroupSection => '无日期';
+
+  @override
   String get datePlannedSection => '计划执行';
 
   @override
   String get dateDueSection => '截止';
 
   @override
-  String get dateEventsSection => '事件';
+  String get dateEventsSection => '当天日程';
+
+  @override
+  String dayEventsBgSub(int count) {
+    return '$count 项 · 只做时间背景';
+  }
+
+  @override
+  String todoAllActiveSummary(int active, int completed) {
+    return '$active 项待办 · $completed 项已完成';
+  }
+
+  @override
+  String viewNoDateCount(int count) {
+    return '查看无日期 $count 项';
+  }
+
+  @override
+  String get filter => '筛选';
+
+  @override
+  String get filterEmptyHint => '清除筛选后显示全部。';
+
+  @override
+  String get filterEmptyTitle => '没有符合条件的待办';
+
+  @override
+  String filterAppliedCount(int count) {
+    return '已筛选 · $count 项';
+  }
+
+  @override
+  String get filterReset => '重置';
+
+  @override
+  String get filterApply => '应用';
+
+  @override
+  String get emptyInboxNoDateTitle => '没有无日期的待办';
+
+  @override
+  String get emptyInboxNoDateHint => '所有未安排项都带截止日期。';
+
+  @override
+  String todoInboxNoDateContext(int count) {
+    return '$count 项 · 无日期';
+  }
+
+  @override
+  String get todoInboxNoDateBanner => '来自今天 · 只看无日期';
+
+  @override
+  String get todoInboxViewAll => '查看全部未安排';
 
   @override
   String todoUnplannedContext(int count, int withDue) {
@@ -2186,4 +2325,1662 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get slotEmptyCreateHint => '暂无可安排的待办，新建后会直接排到这个时段。';
+
+  @override
+  String get navMe => '我的';
+
+  @override
+  String get todayCleanTitle => '今天清空了';
+
+  @override
+  String get todayCleanSub => '用下面的捕获条记下一件事，它会先进未安排。';
+
+  @override
+  String get todayEmptyTime => '今天没有时间安排。';
+
+  @override
+  String get todayEmptyTimeWithHint => '今天没有时间安排。可以从日历把待办安排到时间上。';
+
+  @override
+  String get captureInputPlaceholder => '记一件事，回车记下';
+
+  @override
+  String get captureTypeTodo => '待办';
+
+  @override
+  String get captureDefaultDate => '无日期 · 个人';
+
+  @override
+  String get captureTitle => '记一件事';
+
+  @override
+  String get captureSaveTodo => '记下待办';
+
+  @override
+  String plannedTodosMovedToTimeline(int count) {
+    return '另有 $count 项已安排，显示在右侧时间区。';
+  }
+
+  @override
+  String deleteConfirmTitle(String title) {
+    return '删除「$title」？';
+  }
+
+  @override
+  String get deleteConfirmBody => '删除后将移至回收站。';
+
+  @override
+  String todaySummary(int overdue, int due, int unplanned, int done) {
+    return '$overdue 逾期 · $due 今天截止 · $unplanned 无日期 · $done 已完成';
+  }
+
+  @override
+  String get todaySummaryEmpty => '今天没有安排';
+
+  @override
+  String get todayCompletedGroup => '今日已完成';
+
+  @override
+  String get todayEarlyGroup => '今日早前';
+
+  @override
+  String get todayNowGroup => '现在';
+
+  @override
+  String get todayUpcomingGroup => '接下来';
+
+  @override
+  String get todayOverdueGroup => '已逾期';
+
+  @override
+  String get todayDueGroup => '今天截止';
+
+  @override
+  String get todayUnplannedGroup => '无日期';
+
+  @override
+  String expandTodayDone(int count) {
+    return '今日已完成 $count · 展开';
+  }
+
+  @override
+  String expandTodayEarly(int count) {
+    return '今日早前 $count · 展开';
+  }
+
+  @override
+  String collapseTodayEarly(int count) {
+    return '今日早前 $count · 收起';
+  }
+
+  @override
+  String viewAllNItems(int count) {
+    return '查看全部 $count 项';
+  }
+
+  @override
+  String plannedBitsNote(String items) {
+    return '另有 $items，显示在右侧时间区。';
+  }
+
+  @override
+  String plannedBitsOverdue(int count) {
+    return '$count 项已逾期 / 已遗漏';
+  }
+
+  @override
+  String plannedBitsDue(int count) {
+    return '$count 项今天截止';
+  }
+
+  @override
+  String get sortDeadline => '按截止日排序';
+
+  @override
+  String nItemsOverdue(int count) {
+    return '$count 项已逾期';
+  }
+
+  @override
+  String markedCompleted(String title) {
+    return '已标记完成 · $title';
+  }
+
+  @override
+  String get tasksZoneLabel => '任务';
+
+  @override
+  String get timeZoneLabel => '时间';
+
+  @override
+  String get captureDefaultSub => '无日期 · 个人';
+
+  @override
+  String get planTagLabel => '计划';
+
+  @override
+  String todayDateSubtitle(String date, String weekday) {
+    return '$date · $weekday';
+  }
+
+  @override
+  String get showCalendars => '显示日历';
+
+  @override
+  String get restoreAllCalendars => '全部恢复';
+
+  @override
+  String hiddenCalendarsSummary(int count) {
+    return '已隐藏 $count 个日历';
+  }
+
+  @override
+  String get selectAll => '全选';
+
+  @override
+  String get hiddenBadge => '已隐藏';
+
+  @override
+  String get repeatEndLabel => '结束';
+
+  @override
+  String get repeatNeverEnd => '永不结束';
+
+  @override
+  String get repeatOnDate => '在日期';
+
+  @override
+  String get repeatAfterCount => '在次数';
+
+  @override
+  String get repeatEndDate => '结束日期';
+
+  @override
+  String get repeatCount => '次数';
+
+  @override
+  String get repeatSeriesNotice => '修改频率或结束会应用到整个系列。';
+
+  @override
+  String planTodoModalTitle(String title) {
+    return '安排「$title」';
+  }
+
+  @override
+  String get planTodoSub => '只写计划执行，不改截止。';
+
+  @override
+  String get planEditSub => '正在编辑时间；只改计划执行。';
+
+  @override
+  String get planDate => '计划日期';
+
+  @override
+  String get planStartTime => '开始';
+
+  @override
+  String get planEndTime => '结束';
+
+  @override
+  String get planDuration => '时长';
+
+  @override
+  String get planSubmitAction => '安排';
+
+  @override
+  String get planSaveTimeAction => '保存时间';
+
+  @override
+  String get planNoConflict => '没有时间冲突';
+
+  @override
+  String planConflictWith(String title) {
+    return '与 $title 重叠';
+  }
+
+  @override
+  String get planDayEmpty => '当天还没有安排';
+
+  @override
+  String get planDayExisting => '当天已有';
+
+  @override
+  String planOverlapBlocks(String range, int count) {
+    return '$range 有 $count 项重叠';
+  }
+
+  @override
+  String get planOverlapNote => '允许重叠；不会把截止当成占用。';
+
+  @override
+  String planDurationMinutes(int count) {
+    return '$count 分钟';
+  }
+
+  @override
+  String planDurationHours(int hours) {
+    return '$hours 小时';
+  }
+
+  @override
+  String planDurationHoursMinutes(int hours, int minutes) {
+    return '$hours 小时 $minutes 分钟';
+  }
+
+  @override
+  String get detailEmptyTitle => '未选择待办';
+
+  @override
+  String get detailEmptyHint => '从左侧列表选择待办查看详情。';
+
+  @override
+  String get completeThisOccurrence => '完成这一次';
+
+  @override
+  String get completedThisOccurrence => '本次已完成';
+
+  @override
+  String missedOccurrencesNote(String date, int count) {
+    return '当前实例 $date · 已遗漏 $count 次';
+  }
+
+  @override
+  String missedCardSubtitle(String repeat, int count) {
+    return '$repeat · 已遗漏 $count 次 · 完成只影响这一次';
+  }
+
+  @override
+  String missedCardRepeatWeekly(String day) {
+    return '每周$day';
+  }
+
+  @override
+  String get deleteToTrashAction => '删除到回收站';
+
+  @override
+  String get cancelAction => '取消';
+
+  @override
+  String get saveAction => '保存';
+
+  @override
+  String get titleRequired => '标题不能为空。';
+
+  @override
+  String get endTimeAfterStartTime => '结束时间必须晚于开始时间。';
+
+  @override
+  String timeArrangementsCount(int count) {
+    return '$count 项时间安排';
+  }
+
+  @override
+  String dayAgendaContextNotice(int count) {
+    return '当天日程 $count 项 · 只做时间背景';
+  }
+
+  @override
+  String moreUnplannedItems(int count) {
+    return '查看无日期 $count 项';
+  }
+
+  @override
+  String get defaultCalendar => '默认日历';
+
+  @override
+  String get defaultCalendarDesc => '只决定“新条目默认落到哪里”，不会改已有条目的日历。';
+
+  @override
+  String get defaultCalendarSettingDesc => '新待办和捕获默认放到这里；没设置时用第一个日历，不存在“未分类”。';
+
+  @override
+  String get defaultCalendarAlert => '没有“未分类”：如果这里没有设置，就使用列表中的第一个日历。';
+
+  @override
+  String get saveDefaultCalendar => '保存默认日历';
+
+  @override
+  String get defaultCalendarSaved => '已保存默认日历';
+
+  @override
+  String get badgeDefault => '默认';
+
+  @override
+  String get settingsSubtitle => '默认日历、数据与偏好';
+
+  @override
+  String get settingsHomeDesc => '先确认账号与默认日历，再管数据、AI 和同步。';
+
+  @override
+  String get general => '通用';
+
+  @override
+  String get generalDesc => '决定新待办落到哪里，以及打开应用时先看到什么。';
+
+  @override
+  String get themeDesc => '暖灰纸面、白色内容面；选中与操作用墨色。';
+
+  @override
+  String get accentColorDesc => '只影响操作和选中，不影响日历色。';
+
+  @override
+  String get accentWarmGray => '暖灰';
+
+  @override
+  String get startupViewDesc => '冷启动进入哪个一级入口。';
+
+  @override
+  String get languageDesc => '界面文案语言。';
+
+  @override
+  String get calendarManagementDesc => '日历是事件和待办的共享分组 / 颜色空间。';
+
+  @override
+  String get deleteCalendarNotice => '删除日历时必须选择：迁移内容到另一个日历，或连同内容一起删除。';
+
+  @override
+  String get newCalendarDesc => '先定名称和颜色；新日历不会自动成为默认日历，创建后到「默认日历」里选择。';
+
+  @override
+  String editCalendarDesc(String name) {
+    return '正在编辑「$name」；名称、颜色。默认日历在单独设置里改。';
+  }
+
+  @override
+  String deleteCalendarHeader(String name, int count) {
+    return '删除「$name」前，必须决定 $count 项内容去哪里。';
+  }
+
+  @override
+  String get deleteCalendarWarning => '不会静默删除内容。删除日历后，事件和待办需要迁移，或和日历一起删除。';
+
+  @override
+  String get migrateTo => '迁移到';
+
+  @override
+  String migrateItemCount(String name, int count) {
+    return '$name · 迁移 $count 项';
+  }
+
+  @override
+  String deleteWithContents(int count) {
+    return '连同 $count 项内容一起删除（进回收站）';
+  }
+
+  @override
+  String get confirmMigrateAndDelete => '确认迁移并删除';
+
+  @override
+  String get calendarPlaceholder => '例如：副业';
+
+  @override
+  String get tagPlaceholder => '例如：等待回复';
+
+  @override
+  String get tagManagementDesc => '标签不是日历；它用于跨日历的横向筛选。';
+
+  @override
+  String tagEditDesc(String name) {
+    return '正在编辑「$name」；标签跨日历使用，改名不会改变条目。';
+  }
+
+  @override
+  String get tagDeleteBanner => '删除标签只会移除标签，不会删除条目。';
+
+  @override
+  String get trashDesc => '删除的待办和日程先放这里；恢复会回到原来的日历。';
+
+  @override
+  String trashRestoredBanner(String title) {
+    return '已恢复「$title」，它已经回到原来的日历。';
+  }
+
+  @override
+  String trashPermanentDeleteConfirm(String title) {
+    return '永久删除「$title」？不能撤销，也不会同步到其他设备。';
+  }
+
+  @override
+  String trashDeletedBanner(String title) {
+    return '已永久删除「$title」，回收站里不再保留这一项。';
+  }
+
+  @override
+  String get trashClearedBanner => '回收站已清空，没有可以恢复的条目。';
+
+  @override
+  String get ioSectionDesc => 'ICS 用于和别的日历交换；备份用于搬回 DaySpark。';
+
+  @override
+  String get ioCardImportDesc => '选择目标日历；事件和带日期的待办会按 ICS 字段读入。';
+
+  @override
+  String get ioCardExportDesc => '导出全部日历；不静默漏掉任何一个。';
+
+  @override
+  String get ioCardBackupDesc => '包含所有日历、待办、日程、标签、提醒与附件索引。';
+
+  @override
+  String get notifySectionDesc => '提醒是每个条目自己的事实；这里只管系统权限。';
+
+  @override
+  String get notifyDeniedBanner => '系统通知权限已关闭。提醒仍保存，到点不会弹。';
+
+  @override
+  String get openSystemSettings => '打开系统设置';
+
+  @override
+  String get notificationAllowed => '已允许';
+
+  @override
+  String get notificationOff => '已关闭';
+
+  @override
+  String get notificationUnknown => '未知';
+
+  @override
+  String get inAppReminders => '应用内提醒';
+
+  @override
+  String get inAppRemindersDesc => '前台仍可显示';
+
+  @override
+  String get available => '可用';
+
+  @override
+  String get syncSectionDesc => 'DaySpark 自托管多设备同步。';
+
+  @override
+  String get syncLoggedOutBanner => '还没有登录。本地仍可用；登录后才多设备同步。';
+
+  @override
+  String get syncFailedBanner => '同步失败。服务器超时；本地修改等待重试。';
+
+  @override
+  String get syncOfflineBanner => '离线。本地修改会先保存，联网后自动重试。';
+
+  @override
+  String syncOfflinePending(int count) {
+    return '离线 · $count 条本地修改待同步。';
+  }
+
+  @override
+  String syncPendingUploads(int count) {
+    return '$count 条待上传';
+  }
+
+  @override
+  String syncFailedAt(String time, String reason) {
+    return '$time · $reason';
+  }
+
+  @override
+  String get syncConflicts => '冲突';
+
+  @override
+  String syncConflictCount(int count) {
+    return '$count 条待处理';
+  }
+
+  @override
+  String syncConflictLast(String id) {
+    return '最近：$id';
+  }
+
+  @override
+  String get syncServerRejections => '服务器拒绝';
+
+  @override
+  String syncRejectedTotal(int count) {
+    return '$count 条被拒绝';
+  }
+
+  @override
+  String get retryNow => '立即重试';
+
+  @override
+  String get localStatus => '本地状态';
+
+  @override
+  String get localPriority => '本地优先';
+
+  @override
+  String get keepLocal => '保留本地';
+
+  @override
+  String get keepServer => '保留服务器';
+
+  @override
+  String get mergeConflict => '合并';
+
+  @override
+  String get acceptDeletion => '接受删除';
+
+  @override
+  String get aboutDesc => 'DaySpark · 本地优先的个人时间管理工具。';
+
+  @override
+  String get dataLocation => '数据';
+
+  @override
+  String get dataLocationDesc => '本地优先 · 自托管同步';
+
+  @override
+  String get license => '许可';
+
+  @override
+  String get viewLicense => '查看';
+
+  @override
+  String get commandPlaceholder => '搜索待办、日程，或输入动作';
+
+  @override
+  String get commandHintRecent => '最近';
+
+  @override
+  String get commandHintActions => '动作';
+
+  @override
+  String get commandHintTodos => '待办';
+
+  @override
+  String get commandHintEvents => '日程';
+
+  @override
+  String get commandCreateTodo => '新建待办';
+
+  @override
+  String get commandCreateEvent => '新建日程';
+
+  @override
+  String get commandGoSettings => '去设置';
+
+  @override
+  String get commandGoSettingsDesc => '默认日历、数据与偏好';
+
+  @override
+  String commandNotFound(String query) {
+    return '没有找到「$query」';
+  }
+
+  @override
+  String get commandFootSelect => '↑↓ 选择';
+
+  @override
+  String get commandFootOpen => '↵ 打开';
+
+  @override
+  String get commandFootClose => 'esc 关闭';
+
+  @override
+  String get commandFootHint => '内容优先，动作在后';
+
+  @override
+  String commandFootSelected(int index) {
+    return '当前选中第 $index 条';
+  }
+
+  @override
+  String commandActionTitleQuery(String query) {
+    return '标题“$query”';
+  }
+
+  @override
+  String get commandCaptureTodoDesc => '进入捕获 · 待办模式';
+
+  @override
+  String get commandCaptureEventDesc => '进入捕获 · 日程模式';
+
+  @override
+  String get commandSideAction => '动作';
+
+  @override
+  String get commandSideTodo => '待办';
+
+  @override
+  String get commandSideEvent => '日程';
+
+  @override
+  String get currentCalendarIsDefault => '当前日历是默认日历';
+
+  @override
+  String get currentDefaultPrefix => '当前默认：';
+
+  @override
+  String get goToSettings => '去设置';
+
+  @override
+  String get orAlternative => '或者';
+
+  @override
+  String get calendarColorLabel => '颜色';
+
+  @override
+  String get noSchedule => '无安排';
+
+  @override
+  String deadlineMarkerLabel(String time, String title) {
+    return '$time 截止 · $title';
+  }
+
+  @override
+  String calendarTimeRowPlanned(String timeRange) {
+    return '$timeRange · 计划执行';
+  }
+
+  @override
+  String get calendarRepeatBadge => '↻';
+
+  @override
+  String get calendarRepeatBadgeSemantics => '重复';
+
+  @override
+  String calendarSeriesCurrentInstance(String timeRange) {
+    return '当前实例 $timeRange';
+  }
+
+  @override
+  String get calendarSeriesHint => '重复日程 · 点条目打开详情';
+
+  @override
+  String get todaySummaryOverdue => '逾期';
+
+  @override
+  String get todayNoDateGroup => '无日期';
+
+  @override
+  String todayViewNoDate(int count) {
+    return '查看无日期 $count 项';
+  }
+
+  @override
+  String get importAndBackup => '导入与备份';
+
+  @override
+  String get userAccount => '账号';
+
+  @override
+  String get dataSectionDesc => '标签、回收站、导入导出和备份。';
+
+  @override
+  String get accountSectionDesc => '当前登录账号与设备会话管理。';
+
+  @override
+  String get aiSectionDesc => '智能建议与助手设置。';
+
+  @override
+  String get notify => '通知';
+
+  @override
+  String get versionLabel => '版本';
+
+  @override
+  String get versionDesc => '当前构建。';
+
+  @override
+  String get dataDesc => '存储位置。';
+
+  @override
+  String get licenseDesc => '开源许可。';
+
+  @override
+  String get mobileGeneralDesc => '默认日历、启动时打开';
+
+  @override
+  String mobileCalendarsDesc(int count) {
+    return '$count 个日历';
+  }
+
+  @override
+  String get mobileDataDesc => '标签 / 回收站 / 导入';
+
+  @override
+  String get mobileNotifyDesc => '权限与提醒';
+
+  @override
+  String get mobileSyncDesc => '账号、失败、冲突';
+
+  @override
+  String get sync => '同步';
+
+  @override
+  String get mobileAboutDesc => '版本与许可';
+
+  @override
+  String get captureParsedTypeTodoTitle => '类型仍是待办';
+
+  @override
+  String get captureParsedTypeTodoSub => '识别到时间只作为“计划执行”建议，不会自动变成日程，也不会写截止。';
+
+  @override
+  String get captureParsedSuggestTitle => '建议安排';
+
+  @override
+  String get captureParsedSuggestEventTitle => '日程安排';
+
+  @override
+  String get captureParsedSuggestRemoved => '时间建议已移除';
+
+  @override
+  String get captureParsedSuggestSub => '已预选；保存后写为“计划执行”。可以移除。';
+
+  @override
+  String get captureParsedSuggestEventSub => '已改为日程；保存后直接写入日历。';
+
+  @override
+  String get captureParsedSuggestSubRemoved => '保存后只记标题；无日期、无计划、无截止。';
+
+  @override
+  String get captureActionRemove => '移除';
+
+  @override
+  String get captureActionRestore => '恢复';
+
+  @override
+  String get captureActionChangeToEvent => '改为日程';
+
+  @override
+  String get captureActionChangeToTodo => '改回待办';
+
+  @override
+  String get captureActionExpandFields => '展开字段';
+
+  @override
+  String get captureActionBackToCompact => '回到紧凑';
+
+  @override
+  String get captureActionSaveLater => '先记到未安排';
+
+  @override
+  String get captureHintParsed => '默认：待办 · 无日期 · 个人\n截止仍为空';
+
+  @override
+  String get captureHintExpanded => '保存前所有事实可见；没有被点开的字段不写入。';
+
+  @override
+  String get captureHintEvent => '只有主动切换“日程”，或从 Calendar 时间槽进入，才是日程。';
+
+  @override
+  String get captureHintDate => '只写日期，不写时间；不会自动变成日程。';
+
+  @override
+  String get captureHintPlan => '允许重叠；不会把截止改成 16:00。';
+
+  @override
+  String get captureHintCalendar => '默认日历来自设置；没有“未分类”。';
+
+  @override
+  String get captureHintReminder => '提醒是条目自己的事实，不影响截止。';
+
+  @override
+  String get captureHintValidation => '校验错误贴着字段，不弹全局错误。';
+
+  @override
+  String get captureHintSaveError => '失败态不关闭 Capture，不吞输入。';
+
+  @override
+  String get captureHintDiscard => '危险动作先确认。';
+
+  @override
+  String get captureHintKeyboard => '焦点可见；Esc 走放弃确认。';
+
+  @override
+  String get captureValidationEmptyTitle => '标题不能为空。写一个能让你明天看懂的动作。';
+
+  @override
+  String get captureValidationAlert => '保存前先补标题；其他字段已经保留。';
+
+  @override
+  String get captureSaveErrorServer => '没有连上服务器。';
+
+  @override
+  String captureSaveErrorDraftHint(String title) {
+    return '“$title”还在这条草稿里；可以重试或先留在未安排。';
+  }
+
+  @override
+  String get captureDiscardTitle => '放弃这次输入？';
+
+  @override
+  String captureDiscardSub(String title) {
+    return '“$title”还没有保存';
+  }
+
+  @override
+  String get captureDiscardLineTitle => '关闭后草稿会消失';
+
+  @override
+  String get captureDiscardLineSub => '继续编辑会保留标题、日期和提醒。';
+
+  @override
+  String get captureKeyboardTitle => '键盘操作';
+
+  @override
+  String get captureKeyboardSub => '桌面：Tab 切字段 · Enter 保存 · Esc 放弃';
+
+  @override
+  String get captureKeyboardHelp => '焦点在标题；Tab 到截止、计划、提醒。';
+
+  @override
+  String get captureChoiceTitleDate => '选择日期';
+
+  @override
+  String get captureChoiceTitlePlan => '选择计划执行';
+
+  @override
+  String get captureChoiceTitleCalendar => '选择日历';
+
+  @override
+  String get captureChoiceTitleReminder => '提醒';
+
+  @override
+  String get captureChoiceSubCalendar => '新待办默认落到这里';
+
+  @override
+  String get captureChoiceFooter => '只改这一项；其他事实保持不变。';
+
+  @override
+  String get captureFieldDateToday => '今天';
+
+  @override
+  String get captureFieldDateTomorrow => '明天';
+
+  @override
+  String get captureFieldDateNextMonday => '下周一';
+
+  @override
+  String get captureFieldDateOther => '其他日期';
+
+  @override
+  String get captureFieldDateOpenCalendar => '打开日历';
+
+  @override
+  String get captureSelectedTag => '选中';
+
+  @override
+  String get planPickerTitle => '安排待办';
+
+  @override
+  String planPickerTarget(String title) {
+    return '安排「$title」';
+  }
+
+  @override
+  String get planPickerEmpty => '没有可安排的待办';
+
+  @override
+  String get planPickerEmptySub => '从捕获条添加待办后，再安排计划执行。';
+
+  @override
+  String get planPickerContext => '当天已有';
+
+  @override
+  String get saveFailedNotWritten => '保存失败 · 未写入';
+
+  @override
+  String get retrySave => '重试保存';
+
+  @override
+  String deleteTodoConfirm(String title) {
+    return '删除「$title」？';
+  }
+
+  @override
+  String get deleteSeriesTrashNotice => '这是重复任务，会删除整个系列并移入回收站，可恢复。';
+
+  @override
+  String get deleteTrashNotice => '会移入回收站，可恢复。';
+
+  @override
+  String backupConflictTitle(int count) {
+    return '检测到 $count 项数据冲突';
+  }
+
+  @override
+  String get backupConflictDesc => '备份中的部分记录与本机已有记录存在冲突。请逐项选择合并策略：';
+
+  @override
+  String get backupKeepLocal => '保留本机';
+
+  @override
+  String get backupKeepRemote => '覆盖为备份';
+
+  @override
+  String get backupApplyResolutions => '应用选择';
+
+  @override
+  String get importStepFile => '1 · 选择文件';
+
+  @override
+  String get importStepCalendar => '2 · 目标日历';
+
+  @override
+  String get importStepPreview => '3 · 预览与写入';
+
+  @override
+  String get importFileHelp => '支持 .ics；不会覆盖同 UID 的事件。';
+
+  @override
+  String importCalendarHelp(int count) {
+    return '目标日历 · 当前 $count 项';
+  }
+
+  @override
+  String get importPreviewHelp => '先看将新增 / 跳过 / 重复的条目。';
+
+  @override
+  String get importNextStep => '下一步';
+
+  @override
+  String get importChangeFile => '重新选择';
+
+  @override
+  String get importChangeCalendar => '更改日历';
+
+  @override
+  String calendarHiddenSingleSummary(String name, int count) {
+    return '已隐藏『$name』日历 · $count 项';
+  }
+
+  @override
+  String calendarHiddenMultipleSummary(int calCount, int count) {
+    return '已隐藏 $calCount 个日历 · $count 项';
+  }
+
+  @override
+  String get multiDaySpanLabel => '跨天';
+
+  @override
+  String multiDayEventSpanSummary(String title, String start, String end, int days) {
+    return '$title · $start–$end · $days 天';
+  }
+
+  @override
+  String get filterOverdueOnly => '只看已逾期';
+
+  @override
+  String filterMatchedCount(int count) {
+    return '匹配 $count 项';
+  }
+
+  @override
+  String get captureParsedDefaultTitle => '明天下午三点交报告';
+
+  @override
+  String get captureParsedDefaultSub => '待办 · 无日期 · 个人（默认）';
+
+  @override
+  String get captureSubExpanded => '需要时再展开；默认不写日期。';
+
+  @override
+  String get captureTitleEvent => '新建日程';
+
+  @override
+  String get captureSubEvent => '日程 · 工作';
+
+  @override
+  String get captureSubDate => '待办 · 个人（默认）';
+
+  @override
+  String get captureSubPlan => '只写计划执行，不改截止。';
+
+  @override
+  String get captureSubReminder => '提醒是条目自身的事实，不影响截止。';
+
+  @override
+  String get captureSaveErrorTitle => '保存失败';
+
+  @override
+  String get captureSaveErrorSub => '草稿还在，不会丢';
+
+  @override
+  String get captureFieldTaskTitle => '待办标题';
+
+  @override
+  String get captureFieldDeadline => '截止';
+
+  @override
+  String get captureFieldPlanExecution => '计划执行';
+
+  @override
+  String get captureFieldCalendar => '日历';
+
+  @override
+  String get captureFieldReminder => '提醒';
+
+  @override
+  String get captureFieldPriority => '优先级';
+
+  @override
+  String get captureFieldEventTitle => '标题';
+
+  @override
+  String get captureFieldEventTime => '时间';
+
+  @override
+  String get captureFieldEventAllDay => '全天';
+
+  @override
+  String get captureFieldEventRepeat => '重复';
+
+  @override
+  String get captureFieldDuration => '时长';
+
+  @override
+  String get captureFieldDayExisting => '当天已有';
+
+  @override
+  String get captureFieldNotFilled => '未填写';
+
+  @override
+  String get captureFieldNoDeadline => '无截止';
+
+  @override
+  String get captureFieldNotScheduled => '未安排';
+
+  @override
+  String get captureFieldNoReminder => '无提醒';
+
+  @override
+  String get captureFieldNoRepeat => '不重复';
+
+  @override
+  String get captureFieldNoOverlap => '无重叠日程';
+
+  @override
+  String get captureFieldNone => '无';
+
+  @override
+  String get captureFieldYes => '是';
+
+  @override
+  String get captureFieldNo => '否';
+
+  @override
+  String get captureFieldHigh => '高';
+
+  @override
+  String get captureFieldMedium => '中';
+
+  @override
+  String get captureActionCreateEvent => '创建日程';
+
+  @override
+  String get captureActionApply => '应用';
+
+  @override
+  String get captureActionEnterSave => 'Enter 保存';
+
+  @override
+  String get captureActionKeepEditing => '继续编辑';
+
+  @override
+  String get captureActionDiscard => '放弃';
+
+  @override
+  String get captureActionRetry => '重试';
+
+  @override
+  String get captureCalPersonal => '个人';
+
+  @override
+  String get captureCalPersonalDefault => '个人 · 默认';
+
+  @override
+  String get captureCalDefaultSelected => '默认 · 选中';
+
+  @override
+  String get captureCalWork => '工作';
+
+  @override
+  String get captureCalWorkCalendar => '工作日历';
+
+  @override
+  String get captureCalHome => '家事';
+
+  @override
+  String get captureCalHomeCalendar => '生活日历';
+
+  @override
+  String get captureCalHealth => '健康';
+
+  @override
+  String get captureCalHealthCalendar => '健康日历';
+
+  @override
+  String get captureReminderNoReminder => '不提醒';
+
+  @override
+  String get captureReminder5mBefore => '5 分钟前';
+
+  @override
+  String get captureReminder15mBefore => '15 分钟前';
+
+  @override
+  String get captureReminder1hBefore => '1 小时前';
+
+  @override
+  String get captureReminder1dBefore => '1 天前';
+
+  @override
+  String captureDateSelectedSuffix(String date) {
+    return '$date · 选中';
+  }
+
+  @override
+  String get captureDateNextWeek => '下周';
+
+  @override
+  String get closeTooltip => '关闭';
+
+  @override
+  String backupConflictSkipAssociated(int count) {
+    return '保留本机将跳过 $count 个关联项';
+  }
+
+  @override
+  String get newTodoPageTitle => '记一件事';
+
+  @override
+  String get newItemPageSub => 'Capture 的整页形态：字段和浮动捕获完全一致；不点开的字段不写入。';
+
+  @override
+  String get createTodoAction => '记下待办';
+
+  @override
+  String get createEventAction => '创建日程';
+
+  @override
+  String get newTodoPlaceholder => '写一个明天能看懂的动作';
+
+  @override
+  String get newEventPlaceholder => '给这段日程起个名字';
+
+  @override
+  String get newTodoFootnote => '标签、子任务、附件可以创建后再加；它们不属于捕获必填项。';
+
+  @override
+  String get newEventFootnote => '地点和备注可以创建后再加。';
+
+  @override
+  String get typeNoteTodo => '默认是待办；只有主动切到日程才会变。';
+
+  @override
+  String get typeNoteEvent => '从时间槽进入，所以是日程。';
+
+  @override
+  String get notFilled => '未填写';
+
+  @override
+  String get itemTypeTodo => '待办';
+
+  @override
+  String get itemTypeEvent => '日程';
+
+  @override
+  String get eventLocationUnset => '未填写';
+
+  @override
+  String get newItemSaveFailedNote => '这一页的内容还在；检查网络后重试。';
+
+  @override
+  String get newItemRepeatLabel => '重复';
+
+  @override
+  String get timePickerHint => '直接输入数字；回车确定。不使用表盘。';
+
+  @override
+  String get timePickerInvalid => '小时需在 00–23、分钟需在 00–59；修正后才能确定。';
+
+  @override
+  String get pickTimeHint => '选择时间';
+
+  @override
+  String calendarOverlapCount(int count) {
+    return '$count 项重叠';
+  }
+
+  @override
+  String get calendarOverlapNote => '并排显示，不合并、不覆盖；点任一项打开详情。';
+
+  @override
+  String calendarDragReleaseHint(String time) {
+    return '松手 · $time 安排';
+  }
+
+  @override
+  String get deadlinePointNote => '点状标记，不占时间';
+
+  @override
+  String get slotCaptureFrom => '从时间槽进入';
+
+  @override
+  String get slotCaptureHint => '入口不同，Capture 表面相同；时间已预填。';
+
+  @override
+  String get slotOtherWays => '其他安排方式';
+
+  @override
+  String monthItemsOverflow(int count) {
+    return '$count 项未展开';
+  }
+
+  @override
+  String get savingLabel => '保存中…';
+
+  @override
+  String get settingsHomeAccountDesc => '登录、服务器与登录状态。';
+
+  @override
+  String get settingsHomeGeneralDesc => '默认日历、启动页、主题与语言。';
+
+  @override
+  String settingsHomeCalendarsDesc(int count) {
+    return '$count 个日历 · 1 个默认。';
+  }
+
+  @override
+  String get settingsHomeDataDesc => '标签、回收站、导入导出、备份。';
+
+  @override
+  String get settingsHomeAiDesc => '可选功能；需要自己的模型 Key。';
+
+  @override
+  String get settingsHomeNotifyDesc => '系统闹钟与权限。';
+
+  @override
+  String get settingsHomeSyncDesc => '服务器、账号、失败与冲突。';
+
+  @override
+  String get settingsHomeAboutDesc => '版本、许可与反馈入口。';
+
+  @override
+  String get settingsValueEnter => '进入';
+
+  @override
+  String get settingsValueOpen => '打开';
+
+  @override
+  String get settingsValueManage => '管理';
+
+  @override
+  String get settingsValueView => '查看';
+
+  @override
+  String get accountNotLoggedIn => '未登录';
+
+  @override
+  String get aiEnableFull => '启用 AI 助手';
+
+  @override
+  String get aiEnableDesc => '关闭后隐藏「打开助手」与对话入口；已创建的待办不受影响。';
+
+  @override
+  String get aiModelRow => '模型配置';
+
+  @override
+  String get aiKeyLocalOnly => '只在本机保存';
+
+  @override
+  String get aiModelDialogTitle => 'AI 模型';
+
+  @override
+  String get aiBaseUrlHelp => 'Key 只保存在这台设备；不会同步到服务器。检测会请求 /models。';
+
+  @override
+  String get aiKeyCheckFailedTitle => 'Key 校验失败。';
+
+  @override
+  String get aiKeyCheck401Body => '服务端返回 401；没有保存这次修改。';
+
+  @override
+  String aiKeyCheckFailedBody(String status) {
+    return '请求服务商失败（$status）；没有保存这次修改。';
+  }
+
+  @override
+  String get aiUnconfiguredAlertTitle => '还没有可用的模型。';
+
+  @override
+  String get aiUnconfiguredAlertBody => '填好 Base URL 和 Key 并保存后，才能发送消息。';
+
+  @override
+  String get aiOffAlertBody => 'AI 助手已关闭；设置里保留这一页，方便随时重新打开。';
+
+  @override
+  String aiConfiguredWithModel(String model) {
+    return '已配置 · $model';
+  }
+
+  @override
+  String aiConnectedModel(String model) {
+    return '已连接 · 模型 $model · 仅在本机保存 Key';
+  }
+
+  @override
+  String get aiChatSubtitleFallback => '对话是内容页；不是搜索，也不是命令框。';
+
+  @override
+  String get aiReplyInProgress => '正在回复…';
+
+  @override
+  String get syncConflictDesc => '同一个条目在本地和服务器都改过；逐项选择。';
+
+  @override
+  String syncConflictRecord(String id, String type) {
+    return '冲突记录 $id · $type';
+  }
+
+  @override
+  String get syncConflictLocalServer => '本地：此设备的修改仍保留。服务器：版本已变化，服务器拒绝了覆盖。';
+
+  @override
+  String get syncConflictApply => '应用选择';
+
+  @override
+  String get syncConflictMergeHint => '同步层没有字段级合并；选择「合并」不会改写任一版本。';
+
+  @override
+  String capturePlanTo(String date) {
+    return '计划到 $date';
+  }
+
+  @override
+  String get syncConflictKeepLocalResult => '已保留本地版本；下次编辑这条记录时会作为新修改重新上传。';
+
+  @override
+  String get capturePlanDayEmpty => '当天还没有安排';
+
+  @override
+  String get syncConflictRemoteUnavailable => '同步层没有暴露服务器副本；没有应用「保留服务器」的选择。';
+
+  @override
+  String capturePlanOverlapCount(int count) {
+    return '与 $count 项重叠';
+  }
+
+  @override
+  String get syncConflictMergeUnavailable => '同步层没有字段级合并；没有应用「合并」的选择，也没有伪造合并结果。';
+
+  @override
+  String captureSuggestionTitle(String range) {
+    return '$range · 建议安排';
+  }
+
+  @override
+  String get syncConflictBack => '返回同步';
+
+  @override
+  String get syncServerUnreachable => '不可达';
+
+  @override
+  String syncPendingBoth(int uploads, int downloads) {
+    return '$uploads 条待上传 · $downloads 条待下载';
+  }
+
+  @override
+  String get syncRetryDesc => '立即重试同步。';
+
+  @override
+  String get backupProgressTitle => '正在备份';
+
+  @override
+  String get backupProgressPacking => '打包日历、待办、日程、标签与附件索引。';
+
+  @override
+  String backupProgressWriting(String filename) {
+    return '正在写入 $filename';
+  }
+
+  @override
+  String backupProgressPercent(int percent) {
+    return '$percent%';
+  }
+
+  @override
+  String get backupIncludes => '包含';
+
+  @override
+  String backupIncludesCounts(int calendars, int todos, int events, int attachments) {
+    return '$calendars 个日历 · $todos 个待办 · $events 个日程 · 附件索引 $attachments 个';
+  }
+
+  @override
+  String get backupSavedLocation => '文件已保存到你选择的位置。';
+
+  @override
+  String captureEventCreatedToast(String range) {
+    return '已创建日程 · $range';
+  }
+
+  @override
+  String get backupFailedTitle => '备份失败';
+
+  @override
+  String overdueToolbarEarliest(String date) {
+    return '最早 $date';
+  }
+
+  @override
+  String get backupFailedBody => '目标位置不可写。';
+
+  @override
+  String timelineMissedPill(int count) {
+    return '已遗漏 $count 次';
+  }
+
+  @override
+  String get backupNoPartial => '没有生成半成品文件。';
+
+  @override
+  String get pastDueOrMissedSection => '已逾期 / 已遗漏';
+
+  @override
+  String get importErrorTitle => '导入失败';
+
+  @override
+  String get importSeeReport => '查看报告';
+
+  @override
+  String get importSkipRows => '跳过错误行并继续';
+
+  @override
+  String get importCannotSkip => '整份文件无法解析，无法只跳过错误行；修正文件后重试。';
+
+  @override
+  String get importReportTitle => '导入报告';
+
+  @override
+  String importReportSkipped(int count) {
+    return '将跳过 $count 行';
+  }
+
+  @override
+  String get importReportEmpty => '这份文件没有需要报告的坏行。';
+
+  @override
+  String importReportError(String error) {
+    return '解析错误：$error';
+  }
+
+  @override
+  String get exactAlarmNotActive => '未生效';
+
+  @override
+  String get systemNotification => '系统通知';
+
+  @override
+  String feedbackCharCount(int count) {
+    return '$count 字 · 不会自动附带日志';
+  }
+
+  @override
+  String get feedbackMetaReady => '可以复制，或带到 GitHub';
+
+  @override
+  String filterAppliedSummary(String criteria, int count) {
+    return '已筛选：$criteria · $count 项';
+  }
+
+  @override
+  String get feedbackMetaEmpty => '写点内容才能继续';
+
+  @override
+  String get listSeparator => '、';
+
+  @override
+  String get feedbackNoSilentSubmit => 'DaySpark 不会在后台自动提交任何内容。复制之后，你可以贴到任意渠道；GitHub 会打开一个空白 issue，正文已填好。';
+
+  @override
+  String get pickTimeTitle => '选择时间';
+
+  @override
+  String get feedbackLinkErrorTitle => '没能打开浏览器。';
+
+  @override
+  String get feedbackLinkErrorBody => '内容还在，可以重试，或先复制到剪贴板再手动打开。';
+
+  @override
+  String get aiOffValue => '已关闭';
+
+  @override
+  String get aiDisabledTitle => 'AI 助手已关闭';
+
+  @override
+  String get aiDisabledHint => '这是一个可选功能；打开开关并配置模型后，才会出现对话入口。';
+
+  @override
+  String get aiOpenSettings => '打开设置';
+
+  @override
+  String get aiConfigureModel => '配置模型';
+
+  @override
+  String settingsCalendarsCountOne(int count) {
+    return '$count 个日历 · 1 个默认';
+  }
+
+  @override
+  String get defaultCalendarBadgeValue => '默认';
+
+  @override
+  String settingsCurrentDefault(String name) {
+    return '当前默认：$name';
+  }
+
+  @override
+  String get settingsDefaultCalSavedPlaceholder => '保存默认日历';
+
+  @override
+  String get chatModelAction => '模型';
+
+  @override
+  String get chatClearAction => '清空对话';
+
+  @override
+  String get settingsBetaBadge => '候选版本';
+
+  @override
+  String get aiPrivacyFooter => '对话只在本机保存；模型请求直接发往你填的服务商。DaySpark 服务器不参与，也不保存 Key。';
+
+  @override
+  String get aiKeyChecking => '正在校验 Key…';
+
+  @override
+  String get aiKeyMissing => '先填写 API Key 再保存。';
+
+  @override
+  String get syncConflictTitle => '同步冲突';
+
+  @override
+  String get syncConflictLocal => '本地';
+
+  @override
+  String get syncConflictServer => '服务器';
+
+  @override
+  String get backupDoneTitle => '备份完成';
+
+  @override
+  String get backupMergeHint => '合并保留两边：本机条目不动，备份里的版本作为新条目导入。';
+
+  @override
+  String get aiNotConfiguredTitle => '还没有配置模型';
+
+  @override
+  String get aiChatNotConfiguredHint => '填一个 OpenAI 兼容的 Base URL 和 API Key；Key 只保存在本机，不会上传到 DaySpark 服务器。';
+
+  @override
+  String get feedbackWriteLabel => '写点什么';
+
+  @override
+  String get feedbackPlaceholder => '发生了什么、你期望什么；如果方便，写上机型和版本。';
+
+  @override
+  String get syncConflictApplied => '已应用选择。';
+
+  @override
+  String syncConflictApplyFailed(String error) {
+    return '没能应用全部选择：$error';
+  }
+
+  @override
+  String get saveSeriesTitle => '保存到整个系列？';
+
+  @override
+  String get saveSeriesBody => '这次修改会写入系列锚点，所有实例一起更新。只想跳过这一次，请用“删除 · 仅此次”。';
+
+  @override
+  String get saveSeriesConfirm => '保存整个系列';
+
+  @override
+  String get timedDeadline => '定时截止';
+
+  @override
+  String get outOfRangeNote => '时间轴固定 08:00–20:00；更早或更晚的事件贴在两端，点开详情看真实时间。跨午夜事件留在跨天条目里。';
+
+  @override
+  String get staleCalendarTitle => '没读到服务器上的日历';
+
+  @override
+  String get staleCalendarBody => '下面仍是上次看到的数据；重试成功后再替换。';
+
+  @override
+  String get trashedItemTitle => '这一项已在回收站';
+
+  @override
+  String get trashedItemBody => '链接对应的条目已移入回收站；恢复后才能继续编辑。';
+
+  @override
+  String get goToTrash => '去回收站';
+
+  @override
+  String get startupFailedTitle => 'DaySpark 没能打开';
+
+  @override
+  String get startupFailedBody => '本地数据库没有打开，数据仍在磁盘上。先重试，或导出诊断后再处理。';
+
+  @override
+  String get exportDiagnostics => '导出诊断';
+
+  @override
+  String get endDateOfEvent => '结束日期';
+
+  @override
+  String get dayCountLabel => '天数';
+
+  @override
+  String get syncOfflineShort => '离线，改动等待上传。';
+
+  @override
+  String get syncFailedShort => '同步失败，本地数据没有丢。';
+
+  @override
+  String get syncConflictShort => '发现冲突，去同步里逐项选择。';
+
+  @override
+  String get relatedLoading => '正在读取标签、提醒与安排…';
+
+  @override
+  String get relatedPartial => '部分关联内容没读到。';
 }

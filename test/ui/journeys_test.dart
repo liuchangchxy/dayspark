@@ -14,10 +14,10 @@ import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
-import 'package:dayspark/ui/pages/event/event_form_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
-import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
+import 'package:dayspark/ui/pages/todo/new_item_page.dart';
 import 'package:dayspark/ui/pages/trash/trash_page.dart';
 
 /// Journeys through the real router and a real database.
@@ -91,15 +91,11 @@ void main() {
 
     await start(tester);
 
-    await tester.tap(find.text('Capture').first);
-    await _settle(tester);
-    expect(find.byKey(const ValueKey('a2-composer-title')), findsOneWidget);
     await tester.enterText(
-      find.byKey(const ValueKey('a2-composer-title')),
+      find.byKey(const ValueKey('desktop-capture-input')),
       'Book the flights',
     );
-    await tester.pump();
-    await tester.tap(find.text('Save to Unplanned'));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await _settle(tester);
 
     final created = (await db.select(db.todos).get()).single;
@@ -120,7 +116,7 @@ void main() {
     expect(title, findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Edit'), findsNothing);
     await tester.enterText(title, 'Book the flights now');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
     await _settle(tester);
 
     final rows = await db.select(db.todos).get();
@@ -170,8 +166,8 @@ void main() {
     // The confirm button carries the same words as the row that opened it.
     await tester.tap(
       find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(TextButton, 'Move to Trash'),
+        of: find.byType(SpecDeleteConfirmDialog),
+        matching: find.text('Move to Trash'),
       ),
     );
     await _settle(tester);
@@ -207,10 +203,13 @@ void main() {
       '&end=${DateTime(2026, 10, 30, 11).millisecondsSinceEpoch}',
     );
     await _settle(tester);
-    expect(find.byType(EventFormPage), findsOneWidget);
+    expect(find.byType(NewItemPage), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField).first, 'Design review');
-    await tester.tap(find.text('Save'));
+    await tester.enterText(
+      find.byKey(const ValueKey('new-item-title')),
+      'Design review',
+    );
+    await tester.tap(find.text('Create event'));
     await _settle(tester);
 
     final event = (await db.select(db.events).get()).single;
@@ -229,7 +228,7 @@ void main() {
     final title = find.byKey(const ValueKey('event-detail-title'));
     expect(title, findsOneWidget);
     await tester.enterText(title, 'Design review 2');
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.tap(find.byKey(const ValueKey('event-detail-save')));
     await _settle(tester);
 
     final edited = (await db.select(db.events).get()).single;
@@ -253,7 +252,7 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.byType(TodoFormPage), findsOneWidget);
+    expect(find.byType(NewItemPage), findsOneWidget);
     expect(
       find.widgetWithText(TextField, 'Weekly review'),
       findsOneWidget,

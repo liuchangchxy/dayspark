@@ -1181,6 +1181,102 @@ abstract class AppLocalizations {
   /// **'Imported {events} event(s) and {todos} task(s) ({failed} failed)'**
   String importedResultWithFailed(int events, int todos, int failed);
 
+  /// No description provided for @importPreviewTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import preview'**
+  String get importPreviewTitle;
+
+  /// No description provided for @importPreviewSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Read {events} event(s) and {todos} task(s) from {fileName}.'**
+  String importPreviewSummary(int events, int todos, String fileName);
+
+  /// No description provided for @importPreviewCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{create} new · {duplicate} duplicate · {skipped} skipped'**
+  String importPreviewCounts(int create, int duplicate, int skipped);
+
+  /// No description provided for @importPreviewNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get importPreviewNew;
+
+  /// No description provided for @importPreviewDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'Duplicate'**
+  String get importPreviewDuplicate;
+
+  /// No description provided for @importPreviewSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'Skipped'**
+  String get importPreviewSkipped;
+
+  /// No description provided for @importPreviewMore.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String importPreviewMore(int count);
+
+  /// No description provided for @importFailedRows.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} row(s) failed during import'**
+  String importFailedRows(int count);
+
+  /// No description provided for @importFailureDetail.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing was written. File: {fileName}'**
+  String importFailureDetail(String fileName);
+
+  /// No description provided for @startImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Start import'**
+  String get startImport;
+
+  /// No description provided for @importInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading and importing…'**
+  String get importInProgress;
+
+  /// No description provided for @importResultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import result'**
+  String get importResultTitle;
+
+  /// No description provided for @importResultSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Created {created} · updated {updated} · skipped {skipped}'**
+  String importResultSummary(int created, int updated, int skipped);
+
+  /// No description provided for @importNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'No events or tasks found in this file.'**
+  String get importNothing;
+
+  /// No description provided for @backupInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Backing up…'**
+  String get backupInProgress;
+
+  /// No description provided for @backupComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup complete: {filename}'**
+  String backupComplete(String filename);
+
   /// No description provided for @importExportDesc.
   ///
   /// In en, this message translates to:
@@ -1480,6 +1576,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{month}/{day}'**
   String dateLabel(int month, int day);
+
+  /// No description provided for @calendarMonthDay.
+  ///
+  /// In en, this message translates to:
+  /// **'{month} {day}'**
+  String calendarMonthDay(String month, String day);
+
+  /// No description provided for @calendarDateRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{start} – {end}'**
+  String calendarDateRange(String start, String end);
+
+  /// No description provided for @calendarWeekSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'This week · 7 days'**
+  String get calendarWeekSummary;
+
+  /// No description provided for @calendarWeekEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing this week.'**
+  String get calendarWeekEmpty;
+
+  /// No description provided for @calendarWeekEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Start from capture or a calendar time slot.'**
+  String get calendarWeekEmptyHint;
 
   /// No description provided for @openUpdatePage.
   ///
@@ -2801,6 +2927,12 @@ abstract class AppLocalizations {
   /// **'Repeat options'**
   String get repeatAdvanced;
 
+  /// No description provided for @repeatField.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get repeatField;
+
   /// No description provided for @seriesTimeZoneShort.
   ///
   /// In en, this message translates to:
@@ -3686,7 +3818,7 @@ abstract class AppLocalizations {
   /// No description provided for @capturePlaceholder.
   ///
   /// In en, this message translates to:
-  /// **'Capture · Enter files it unplanned'**
+  /// **'Capture a task, press Enter'**
   String get capturePlaceholder;
 
   /// No description provided for @captureHintEnter.
@@ -3869,6 +4001,12 @@ abstract class AppLocalizations {
   /// **'No deadline'**
   String get noDueSection;
 
+  /// No description provided for @noDateGroupSection.
+  ///
+  /// In en, this message translates to:
+  /// **'No date'**
+  String get noDateGroupSection;
+
   /// No description provided for @datePlannedSection.
   ///
   /// In en, this message translates to:
@@ -3884,8 +4022,92 @@ abstract class AppLocalizations {
   /// No description provided for @dateEventsSection.
   ///
   /// In en, this message translates to:
-  /// **'Events'**
+  /// **'Day schedule'**
   String get dateEventsSection;
+
+  /// No description provided for @dayEventsBgSub.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items · background timeline only'**
+  String dayEventsBgSub(int count);
+
+  /// No description provided for @todoAllActiveSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{active} pending · {completed} completed'**
+  String todoAllActiveSummary(int active, int completed);
+
+  /// No description provided for @viewNoDateCount.
+  ///
+  /// In en, this message translates to:
+  /// **'View {count} unplanned'**
+  String viewNoDateCount(int count);
+
+  /// No description provided for @filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get filter;
+
+  /// No description provided for @filterEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters to show all.'**
+  String get filterEmptyHint;
+
+  /// No description provided for @filterEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching tasks'**
+  String get filterEmptyTitle;
+
+  /// No description provided for @filterAppliedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Filtered · {count} items'**
+  String filterAppliedCount(int count);
+
+  /// No description provided for @filterReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get filterReset;
+
+  /// No description provided for @filterApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get filterApply;
+
+  /// No description provided for @emptyInboxNoDateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No undated tasks'**
+  String get emptyInboxNoDateTitle;
+
+  /// No description provided for @emptyInboxNoDateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'All unplanned tasks have a deadline.'**
+  String get emptyInboxNoDateHint;
+
+  /// No description provided for @todoInboxNoDateContext.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items · undated'**
+  String todoInboxNoDateContext(int count);
+
+  /// No description provided for @todoInboxNoDateBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'From today · undated only'**
+  String get todoInboxNoDateBanner;
+
+  /// No description provided for @todoInboxViewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View all unplanned'**
+  String get todoInboxViewAll;
 
   /// No description provided for @todoUnplannedContext.
   ///
@@ -4120,6 +4342,2982 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing to schedule yet — create one and it lands in this slot.'**
   String get slotEmptyCreateHint;
+
+  /// No description provided for @navMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Me'**
+  String get navMe;
+
+  /// No description provided for @todayCleanTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today is clear'**
+  String get todayCleanTitle;
+
+  /// No description provided for @todayCleanSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a task below, it will land in Unplanned.'**
+  String get todayCleanSub;
+
+  /// No description provided for @todayEmptyTime.
+  ///
+  /// In en, this message translates to:
+  /// **'No time scheduled today.'**
+  String get todayEmptyTime;
+
+  /// No description provided for @todayEmptyTimeWithHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No time scheduled today. You can schedule tasks onto time slots from Calendar.'**
+  String get todayEmptyTimeWithHint;
+
+  /// No description provided for @captureInputPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a task, press Enter'**
+  String get captureInputPlaceholder;
+
+  /// No description provided for @captureTypeTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get captureTypeTodo;
+
+  /// No description provided for @captureDefaultDate.
+  ///
+  /// In en, this message translates to:
+  /// **'No date · Personal'**
+  String get captureDefaultDate;
+
+  /// No description provided for @captureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a task'**
+  String get captureTitle;
+
+  /// No description provided for @captureSaveTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Save task'**
+  String get captureSaveTodo;
+
+  /// No description provided for @plannedTodosMovedToTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} planned items shown in timeline.'**
+  String plannedTodosMovedToTimeline(int count);
+
+  /// No description provided for @deleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\"?'**
+  String deleteConfirmTitle(String title);
+
+  /// No description provided for @deleteConfirmBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Will be moved to Trash.'**
+  String get deleteConfirmBody;
+
+  /// No description provided for @todaySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{overdue} overdue · {due} due today · {unplanned} no date · {done} completed'**
+  String todaySummary(int overdue, int due, int unplanned, int done);
+
+  /// No description provided for @todaySummaryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks scheduled today'**
+  String get todaySummaryEmpty;
+
+  /// No description provided for @todayCompletedGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed Today'**
+  String get todayCompletedGroup;
+
+  /// No description provided for @todayEarlyGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier Today'**
+  String get todayEarlyGroup;
+
+  /// No description provided for @todayNowGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get todayNowGroup;
+
+  /// No description provided for @todayUpcomingGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Up'**
+  String get todayUpcomingGroup;
+
+  /// No description provided for @todayOverdueGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get todayOverdueGroup;
+
+  /// No description provided for @todayDueGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Due Today'**
+  String get todayDueGroup;
+
+  /// No description provided for @todayUnplannedGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'No Date'**
+  String get todayUnplannedGroup;
+
+  /// No description provided for @expandTodayDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed today {count} · Expand'**
+  String expandTodayDone(int count);
+
+  /// No description provided for @expandTodayEarly.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier today {count} · Expand'**
+  String expandTodayEarly(int count);
+
+  /// No description provided for @collapseTodayEarly.
+  ///
+  /// In en, this message translates to:
+  /// **'Earlier today {count} · Collapse'**
+  String collapseTodayEarly(int count);
+
+  /// No description provided for @viewAllNItems.
+  ///
+  /// In en, this message translates to:
+  /// **'View all {count} items'**
+  String viewAllNItems(int count);
+
+  /// No description provided for @plannedBitsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'{items} more items shown in the time section.'**
+  String plannedBitsNote(String items);
+
+  /// No description provided for @plannedBitsOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overdue / missed'**
+  String plannedBitsOverdue(int count);
+
+  /// No description provided for @plannedBitsDue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} due today'**
+  String plannedBitsDue(int count);
+
+  /// No description provided for @sortDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by deadline'**
+  String get sortDeadline;
+
+  /// No description provided for @nItemsOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overdue'**
+  String nItemsOverdue(int count);
+
+  /// No description provided for @markedCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Marked completed · {title}'**
+  String markedCompleted(String title);
+
+  /// No description provided for @tasksZoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TASKS'**
+  String get tasksZoneLabel;
+
+  /// No description provided for @timeZoneLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'TIME'**
+  String get timeZoneLabel;
+
+  /// No description provided for @captureDefaultSub.
+  ///
+  /// In en, this message translates to:
+  /// **'No date · Personal'**
+  String get captureDefaultSub;
+
+  /// No description provided for @planTagLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get planTagLabel;
+
+  /// No description provided for @todayDateSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · {weekday}'**
+  String todayDateSubtitle(String date, String weekday);
+
+  /// No description provided for @showCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'Display Calendars'**
+  String get showCalendars;
+
+  /// No description provided for @restoreAllCalendars.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore All'**
+  String get restoreAllCalendars;
+
+  /// No description provided for @hiddenCalendarsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden {count} calendars'**
+  String hiddenCalendarsSummary(int count);
+
+  /// No description provided for @selectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select All'**
+  String get selectAll;
+
+  /// No description provided for @hiddenBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden'**
+  String get hiddenBadge;
+
+  /// No description provided for @repeatEndLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get repeatEndLabel;
+
+  /// No description provided for @repeatNeverEnd.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get repeatNeverEnd;
+
+  /// No description provided for @repeatOnDate.
+  ///
+  /// In en, this message translates to:
+  /// **'On date'**
+  String get repeatOnDate;
+
+  /// No description provided for @repeatAfterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'After count'**
+  String get repeatAfterCount;
+
+  /// No description provided for @repeatEndDate.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get repeatEndDate;
+
+  /// No description provided for @repeatCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Occurrences'**
+  String get repeatCount;
+
+  /// No description provided for @repeatSeriesNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating frequency or end applies to the entire series.'**
+  String get repeatSeriesNotice;
+
+  /// No description provided for @planTodoModalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule \"{title}\"'**
+  String planTodoModalTitle(String title);
+
+  /// No description provided for @planTodoSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets planned execution only; does not change deadline.'**
+  String get planTodoSub;
+
+  /// No description provided for @planEditSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing time; sets planned execution only.'**
+  String get planEditSub;
+
+  /// No description provided for @planDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan Date'**
+  String get planDate;
+
+  /// No description provided for @planStartTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get planStartTime;
+
+  /// No description provided for @planEndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get planEndTime;
+
+  /// No description provided for @planDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get planDuration;
+
+  /// No description provided for @planSubmitAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule'**
+  String get planSubmitAction;
+
+  /// No description provided for @planSaveTimeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Time'**
+  String get planSaveTimeAction;
+
+  /// No description provided for @planNoConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'No time conflict'**
+  String get planNoConflict;
+
+  /// No description provided for @planConflictWith.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlaps with {title}'**
+  String planConflictWith(String title);
+
+  /// No description provided for @planDayEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled that day'**
+  String get planDayEmpty;
+
+  /// No description provided for @planDayExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Already on that day'**
+  String get planDayExisting;
+
+  /// No description provided for @planOverlapBlocks.
+  ///
+  /// In en, this message translates to:
+  /// **'{range} · {count, plural, =1{1 item overlaps} other{{count} items overlap}}'**
+  String planOverlapBlocks(String range, int count);
+
+  /// No description provided for @planOverlapNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlap is allowed; a deadline is not a time block.'**
+  String get planOverlapNote;
+
+  /// No description provided for @planDurationMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} min'**
+  String planDurationMinutes(int count);
+
+  /// No description provided for @planDurationHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hr'**
+  String planDurationHours(int hours);
+
+  /// No description provided for @planDurationHoursMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} hr {minutes} min'**
+  String planDurationHoursMinutes(int hours, int minutes);
+
+  /// No description provided for @detailEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No Task Selected'**
+  String get detailEmptyTitle;
+
+  /// No description provided for @detailEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a task from the list to view its details.'**
+  String get detailEmptyHint;
+
+  /// No description provided for @completeThisOccurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete This Occurrence'**
+  String get completeThisOccurrence;
+
+  /// No description provided for @completedThisOccurrence.
+  ///
+  /// In en, this message translates to:
+  /// **'This Occurrence Completed'**
+  String get completedThisOccurrence;
+
+  /// No description provided for @missedOccurrencesNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Current instance {date} · Missed {count} times'**
+  String missedOccurrencesNote(String date, int count);
+
+  /// No description provided for @missedCardSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{repeat} · Missed {count} times · Completing affects only this one'**
+  String missedCardSubtitle(String repeat, int count);
+
+  /// No description provided for @missedCardRepeatWeekly.
+  ///
+  /// In en, this message translates to:
+  /// **'Every {day}'**
+  String missedCardRepeatWeekly(String day);
+
+  /// No description provided for @deleteToTrashAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Trash'**
+  String get deleteToTrashAction;
+
+  /// No description provided for @cancelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelAction;
+
+  /// No description provided for @saveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get saveAction;
+
+  /// No description provided for @titleRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Title cannot be empty.'**
+  String get titleRequired;
+
+  /// No description provided for @endTimeAfterStartTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End time must be after start time.'**
+  String get endTimeAfterStartTime;
+
+  /// No description provided for @timeArrangementsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} scheduled items'**
+  String timeArrangementsCount(int count);
+
+  /// No description provided for @dayAgendaContextNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Day\'s events {count} items · Time context only'**
+  String dayAgendaContextNotice(int count);
+
+  /// No description provided for @moreUnplannedItems.
+  ///
+  /// In en, this message translates to:
+  /// **'View {count} undated items'**
+  String moreUnplannedItems(int count);
+
+  /// No description provided for @defaultCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Default Calendar'**
+  String get defaultCalendar;
+
+  /// No description provided for @defaultCalendarDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Only decides where new items land by default; does not change existing items.'**
+  String get defaultCalendarDesc;
+
+  /// No description provided for @defaultCalendarSettingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'New tasks and captures land here by default; uses the first calendar if unset, no \"Uncategorized\".'**
+  String get defaultCalendarSettingDesc;
+
+  /// No description provided for @defaultCalendarAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'No \"Uncategorized\": if unset, the first calendar in the list is used.'**
+  String get defaultCalendarAlert;
+
+  /// No description provided for @saveDefaultCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Default Calendar'**
+  String get saveDefaultCalendar;
+
+  /// No description provided for @defaultCalendarSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar saved'**
+  String get defaultCalendarSaved;
+
+  /// No description provided for @badgeDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get badgeDefault;
+
+  /// No description provided for @settingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar, data and preferences'**
+  String get settingsSubtitle;
+
+  /// No description provided for @settingsHomeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm the account and default calendar first, then data, AI and sync.'**
+  String get settingsHomeDesc;
+
+  /// No description provided for @general.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get general;
+
+  /// No description provided for @generalDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Decide where new tasks land and what to see on startup.'**
+  String get generalDesc;
+
+  /// No description provided for @themeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm paper surface, white content; ink for selection and actions.'**
+  String get themeDesc;
+
+  /// No description provided for @accentColorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Only affects actions and selection, not calendar colors.'**
+  String get accentColorDesc;
+
+  /// No description provided for @accentWarmGray.
+  ///
+  /// In en, this message translates to:
+  /// **'Warm Gray'**
+  String get accentWarmGray;
+
+  /// No description provided for @startupViewDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Which primary view to open on cold start.'**
+  String get startupViewDesc;
+
+  /// No description provided for @languageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface language.'**
+  String get languageDesc;
+
+  /// No description provided for @calendarManagementDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendars are shared grouping and color spaces for events and tasks.'**
+  String get calendarManagementDesc;
+
+  /// No description provided for @deleteCalendarNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'When deleting a calendar, you must choose: migrate contents to another calendar, or delete them together.'**
+  String get deleteCalendarNotice;
+
+  /// No description provided for @newCalendarDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose name and color; new calendars do not become default automatically, select in \"Default Calendar\" after creation.'**
+  String get newCalendarDesc;
+
+  /// No description provided for @editCalendarDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing \"{name}\"; name, color. Change default calendar in separate setting.'**
+  String editCalendarDesc(String name);
+
+  /// No description provided for @deleteCalendarHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Before deleting \"{name}\", you must decide where {count} items go.'**
+  String deleteCalendarHeader(String name, int count);
+
+  /// No description provided for @deleteCalendarWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Will not silently delete contents. Events and tasks must be migrated, or deleted together with the calendar.'**
+  String get deleteCalendarWarning;
+
+  /// No description provided for @migrateTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Migrate to'**
+  String get migrateTo;
+
+  /// No description provided for @migrateItemCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · migrate {count} items'**
+  String migrateItemCount(String name, int count);
+
+  /// No description provided for @deleteWithContents.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete together with {count} items (move to trash)'**
+  String deleteWithContents(int count);
+
+  /// No description provided for @confirmMigrateAndDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Migration and Delete'**
+  String get confirmMigrateAndDelete;
+
+  /// No description provided for @calendarPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Side project'**
+  String get calendarPlaceholder;
+
+  /// No description provided for @tagPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Waiting for reply'**
+  String get tagPlaceholder;
+
+  /// No description provided for @tagManagementDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags are not calendars; they are used for cross-calendar filtering.'**
+  String get tagManagementDesc;
+
+  /// No description provided for @tagEditDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Editing \"{name}\"; tags are cross-calendar, renaming does not alter items.'**
+  String tagEditDesc(String name);
+
+  /// No description provided for @tagDeleteBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleting a tag only removes the tag, not the items.'**
+  String get tagDeleteBanner;
+
+  /// No description provided for @trashDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted tasks and events land here; restoring returns them to their original calendar.'**
+  String get trashDesc;
+
+  /// No description provided for @trashRestoredBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Restored \"{title}\", returned to its original calendar.'**
+  String trashRestoredBanner(String title);
+
+  /// No description provided for @trashPermanentDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete \"{title}\"? Cannot be undone, will not sync to other devices.'**
+  String trashPermanentDeleteConfirm(String title);
+
+  /// No description provided for @trashDeletedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently deleted \"{title}\", no longer kept in trash.'**
+  String trashDeletedBanner(String title);
+
+  /// No description provided for @trashClearedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash cleared, no items to restore.'**
+  String get trashClearedBanner;
+
+  /// No description provided for @ioSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'ICS is for exchanging with other calendars; backup is for restoring DaySpark.'**
+  String get ioSectionDesc;
+
+  /// No description provided for @ioCardImportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Select target calendar; events and dated tasks are imported from ICS fields.'**
+  String get ioCardImportDesc;
+
+  /// No description provided for @ioCardExportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Export all calendars; none silently omitted.'**
+  String get ioCardExportDesc;
+
+  /// No description provided for @ioCardBackupDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Contains all calendars, tasks, events, tags, reminders and attachment index.'**
+  String get ioCardBackupDesc;
+
+  /// No description provided for @notifySectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders belong to each item; this manages system permissions only.'**
+  String get notifySectionDesc;
+
+  /// No description provided for @notifyDeniedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'System notification permission is off. Reminders are saved, but will not alert when due.'**
+  String get notifyDeniedBanner;
+
+  /// No description provided for @openSystemSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open System Settings'**
+  String get openSystemSettings;
+
+  /// No description provided for @notificationAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed'**
+  String get notificationAllowed;
+
+  /// No description provided for @notificationOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get notificationOff;
+
+  /// No description provided for @notificationUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get notificationUnknown;
+
+  /// No description provided for @inAppReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'In-app Reminders'**
+  String get inAppReminders;
+
+  /// No description provided for @inAppRemindersDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Displays in foreground'**
+  String get inAppRemindersDesc;
+
+  /// No description provided for @available.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get available;
+
+  /// No description provided for @syncSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark self-hosted multi-device sync.'**
+  String get syncSectionDesc;
+
+  /// No description provided for @syncLoggedOutBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Not logged in yet. Local still works; login for multi-device sync.'**
+  String get syncLoggedOutBanner;
+
+  /// No description provided for @syncFailedBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed. Server timed out; local changes pending retry.'**
+  String get syncFailedBanner;
+
+  /// No description provided for @syncOfflineBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline. Local changes are saved; sync retries when you are back online.'**
+  String get syncOfflineBanner;
+
+  /// No description provided for @syncOfflinePending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Offline · 1 local change waiting to upload.} other{Offline · {count} local changes waiting to upload.}}'**
+  String syncOfflinePending(int count);
+
+  /// No description provided for @syncPendingUploads.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 pending upload} other{{count} pending uploads}}'**
+  String syncPendingUploads(int count);
+
+  /// No description provided for @syncFailedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} · {reason}'**
+  String syncFailedAt(String time, String reason);
+
+  /// No description provided for @syncConflicts.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts'**
+  String get syncConflicts;
+
+  /// No description provided for @syncConflictCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 needs review} other{{count} need review}}'**
+  String syncConflictCount(int count);
+
+  /// No description provided for @syncConflictLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest: {id}'**
+  String syncConflictLast(String id);
+
+  /// No description provided for @syncServerRejections.
+  ///
+  /// In en, this message translates to:
+  /// **'Server rejections'**
+  String get syncServerRejections;
+
+  /// No description provided for @syncRejectedTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 rejected} other{{count} rejected}}'**
+  String syncRejectedTotal(int count);
+
+  /// No description provided for @retryNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Now'**
+  String get retryNow;
+
+  /// No description provided for @localStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Status'**
+  String get localStatus;
+
+  /// No description provided for @localPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Priority'**
+  String get localPriority;
+
+  /// No description provided for @keepLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Local'**
+  String get keepLocal;
+
+  /// No description provided for @keepServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep Server'**
+  String get keepServer;
+
+  /// No description provided for @mergeConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get mergeConflict;
+
+  /// No description provided for @acceptDeletion.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept Deletion'**
+  String get acceptDeletion;
+
+  /// No description provided for @aboutDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark · Local-first personal time management tool.'**
+  String get aboutDesc;
+
+  /// No description provided for @dataLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get dataLocation;
+
+  /// No description provided for @dataLocationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Local-first · Self-hosted sync'**
+  String get dataLocationDesc;
+
+  /// No description provided for @license.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get license;
+
+  /// No description provided for @viewLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get viewLicense;
+
+  /// No description provided for @commandPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tasks, events, or type an action'**
+  String get commandPlaceholder;
+
+  /// No description provided for @commandHintRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get commandHintRecent;
+
+  /// No description provided for @commandHintActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Actions'**
+  String get commandHintActions;
+
+  /// No description provided for @commandHintTodos.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks'**
+  String get commandHintTodos;
+
+  /// No description provided for @commandHintEvents.
+  ///
+  /// In en, this message translates to:
+  /// **'Events'**
+  String get commandHintEvents;
+
+  /// No description provided for @commandCreateTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'New Task'**
+  String get commandCreateTodo;
+
+  /// No description provided for @commandCreateEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'New Event'**
+  String get commandCreateEvent;
+
+  /// No description provided for @commandGoSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Settings'**
+  String get commandGoSettings;
+
+  /// No description provided for @commandGoSettingsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar, data and preferences'**
+  String get commandGoSettingsDesc;
+
+  /// No description provided for @commandNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found for \"{query}\"'**
+  String commandNotFound(String query);
+
+  /// No description provided for @commandFootSelect.
+  ///
+  /// In en, this message translates to:
+  /// **'↑↓ Navigate'**
+  String get commandFootSelect;
+
+  /// No description provided for @commandFootOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'↵ Open'**
+  String get commandFootOpen;
+
+  /// No description provided for @commandFootClose.
+  ///
+  /// In en, this message translates to:
+  /// **'esc Close'**
+  String get commandFootClose;
+
+  /// No description provided for @commandFootHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Content first, actions after'**
+  String get commandFootHint;
+
+  /// No description provided for @commandFootSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Item {index} selected'**
+  String commandFootSelected(int index);
+
+  /// No description provided for @commandActionTitleQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'Title \"{query}\"'**
+  String commandActionTitleQuery(String query);
+
+  /// No description provided for @commandCaptureTodoDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter capture · task mode'**
+  String get commandCaptureTodoDesc;
+
+  /// No description provided for @commandCaptureEventDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter capture · event mode'**
+  String get commandCaptureEventDesc;
+
+  /// No description provided for @commandSideAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Action'**
+  String get commandSideAction;
+
+  /// No description provided for @commandSideTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get commandSideTodo;
+
+  /// No description provided for @commandSideEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get commandSideEvent;
+
+  /// No description provided for @currentCalendarIsDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'This calendar is default'**
+  String get currentCalendarIsDefault;
+
+  /// No description provided for @currentDefaultPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Current default: '**
+  String get currentDefaultPrefix;
+
+  /// No description provided for @goToSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure'**
+  String get goToSettings;
+
+  /// No description provided for @orAlternative.
+  ///
+  /// In en, this message translates to:
+  /// **'Or'**
+  String get orAlternative;
+
+  /// No description provided for @calendarColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get calendarColorLabel;
+
+  /// No description provided for @noSchedule.
+  ///
+  /// In en, this message translates to:
+  /// **'No schedule'**
+  String get noSchedule;
+
+  /// No description provided for @deadlineMarkerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Due {time} · {title}'**
+  String deadlineMarkerLabel(String time, String title);
+
+  /// No description provided for @calendarTimeRowPlanned.
+  ///
+  /// In en, this message translates to:
+  /// **'{timeRange} · Planned'**
+  String calendarTimeRowPlanned(String timeRange);
+
+  /// No description provided for @calendarRepeatBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'↻'**
+  String get calendarRepeatBadge;
+
+  /// No description provided for @calendarRepeatBadgeSemantics.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeats'**
+  String get calendarRepeatBadgeSemantics;
+
+  /// No description provided for @calendarSeriesCurrentInstance.
+  ///
+  /// In en, this message translates to:
+  /// **'Current instance {timeRange}'**
+  String calendarSeriesCurrentInstance(String timeRange);
+
+  /// No description provided for @calendarSeriesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeating event · open an item for details'**
+  String get calendarSeriesHint;
+
+  /// No description provided for @todaySummaryOverdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get todaySummaryOverdue;
+
+  /// No description provided for @todayNoDateGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'No date'**
+  String get todayNoDateGroup;
+
+  /// No description provided for @todayViewNoDate.
+  ///
+  /// In en, this message translates to:
+  /// **'View {count} undated'**
+  String todayViewNoDate(int count);
+
+  /// No description provided for @importAndBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Import & Backup'**
+  String get importAndBackup;
+
+  /// No description provided for @userAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get userAccount;
+
+  /// No description provided for @dataSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags, trash, import/export, and backups.'**
+  String get dataSectionDesc;
+
+  /// No description provided for @accountSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Current account and device session management.'**
+  String get accountSectionDesc;
+
+  /// No description provided for @aiSectionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Smart suggestions and assistant settings.'**
+  String get aiSectionDesc;
+
+  /// No description provided for @notify.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notify;
+
+  /// No description provided for @versionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get versionLabel;
+
+  /// No description provided for @versionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Current build.'**
+  String get versionDesc;
+
+  /// No description provided for @dataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage location.'**
+  String get dataDesc;
+
+  /// No description provided for @licenseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Open source license.'**
+  String get licenseDesc;
+
+  /// No description provided for @mobileGeneralDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar, open on launch'**
+  String get mobileGeneralDesc;
+
+  /// No description provided for @mobileCalendarsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} calendars'**
+  String mobileCalendarsDesc(int count);
+
+  /// No description provided for @mobileDataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags / Trash / Import'**
+  String get mobileDataDesc;
+
+  /// No description provided for @mobileNotifyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions & reminders'**
+  String get mobileNotifyDesc;
+
+  /// No description provided for @mobileSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Account, failure, conflict'**
+  String get mobileSyncDesc;
+
+  /// No description provided for @sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get sync;
+
+  /// No description provided for @mobileAboutDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Version & license'**
+  String get mobileAboutDesc;
+
+  /// No description provided for @captureParsedTypeTodoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Type remains Task'**
+  String get captureParsedTypeTodoTitle;
+
+  /// No description provided for @captureParsedTypeTodoSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected time is only a \"Planned execution\" suggestion, not an event or deadline.'**
+  String get captureParsedTypeTodoSub;
+
+  /// No description provided for @captureParsedSuggestTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested Plan'**
+  String get captureParsedSuggestTitle;
+
+  /// No description provided for @captureParsedSuggestEventTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Event Schedule'**
+  String get captureParsedSuggestEventTitle;
+
+  /// No description provided for @captureParsedSuggestRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Time suggestion removed'**
+  String get captureParsedSuggestRemoved;
+
+  /// No description provided for @captureParsedSuggestSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Preselected; saved as \"Planned execution\". Can be removed.'**
+  String get captureParsedSuggestSub;
+
+  /// No description provided for @captureParsedSuggestEventSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed to Event; saved directly to calendar.'**
+  String get captureParsedSuggestEventSub;
+
+  /// No description provided for @captureParsedSuggestSubRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves title only; no date, no plan, no deadline.'**
+  String get captureParsedSuggestSubRemoved;
+
+  /// No description provided for @captureActionRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get captureActionRemove;
+
+  /// No description provided for @captureActionRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get captureActionRestore;
+
+  /// No description provided for @captureActionChangeToEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Change to Event'**
+  String get captureActionChangeToEvent;
+
+  /// No description provided for @captureActionChangeToTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Change to Task'**
+  String get captureActionChangeToTodo;
+
+  /// No description provided for @captureActionExpandFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand fields'**
+  String get captureActionExpandFields;
+
+  /// No description provided for @captureActionBackToCompact.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to compact'**
+  String get captureActionBackToCompact;
+
+  /// No description provided for @captureActionSaveLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Unplanned first'**
+  String get captureActionSaveLater;
+
+  /// No description provided for @captureHintParsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Default: Task · No date · Personal\nDeadline remains empty'**
+  String get captureHintParsed;
+
+  /// No description provided for @captureHintExpanded.
+  ///
+  /// In en, this message translates to:
+  /// **'All facts visible before saving; untouched fields are not written.'**
+  String get captureHintExpanded;
+
+  /// No description provided for @captureHintEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Only explicit switch to \"Event\" or entering from Calendar slot creates an event.'**
+  String get captureHintEvent;
+
+  /// No description provided for @captureHintDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Writes date only, not time; will not become an event.'**
+  String get captureHintDate;
+
+  /// No description provided for @captureHintPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Overlaps allowed; will not modify deadline.'**
+  String get captureHintPlan;
+
+  /// No description provided for @captureHintCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar comes from settings; no \"uncategorized\".'**
+  String get captureHintCalendar;
+
+  /// No description provided for @captureHintReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder is the item\'s own fact, does not affect deadline.'**
+  String get captureHintReminder;
+
+  /// No description provided for @captureHintValidation.
+  ///
+  /// In en, this message translates to:
+  /// **'Validation error stays on field, no global popup.'**
+  String get captureHintValidation;
+
+  /// No description provided for @captureHintSaveError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failure state does not close Capture or drop input.'**
+  String get captureHintSaveError;
+
+  /// No description provided for @captureHintDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Dangerous actions require confirmation.'**
+  String get captureHintDiscard;
+
+  /// No description provided for @captureHintKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus visible; Esc triggers discard confirmation.'**
+  String get captureHintKeyboard;
+
+  /// No description provided for @captureValidationEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title cannot be empty. Write an action you will understand tomorrow.'**
+  String get captureValidationEmptyTitle;
+
+  /// No description provided for @captureValidationAlert.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill title before saving; other fields are preserved.'**
+  String get captureValidationAlert;
+
+  /// No description provided for @captureSaveErrorServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to server.'**
+  String get captureSaveErrorServer;
+
+  /// No description provided for @captureSaveErrorDraftHint.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" is still in this draft; you can retry or keep it in Unplanned.'**
+  String captureSaveErrorDraftHint(String title);
+
+  /// No description provided for @captureDiscardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard this input?'**
+  String get captureDiscardTitle;
+
+  /// No description provided for @captureDiscardSub.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{title}\" has not been saved'**
+  String captureDiscardSub(String title);
+
+  /// No description provided for @captureDiscardLineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft will be lost on close'**
+  String get captureDiscardLineTitle;
+
+  /// No description provided for @captureDiscardLineSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing will preserve title, date and reminders.'**
+  String get captureDiscardLineSub;
+
+  /// No description provided for @captureKeyboardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard navigation'**
+  String get captureKeyboardTitle;
+
+  /// No description provided for @captureKeyboardSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop: Tab fields · Enter save · Esc discard'**
+  String get captureKeyboardSub;
+
+  /// No description provided for @captureKeyboardHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus on title; Tab to deadline, plan, reminder.'**
+  String get captureKeyboardHelp;
+
+  /// No description provided for @captureChoiceTitleDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Date'**
+  String get captureChoiceTitleDate;
+
+  /// No description provided for @captureChoiceTitlePlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Planned Execution'**
+  String get captureChoiceTitlePlan;
+
+  /// No description provided for @captureChoiceTitleCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Calendar'**
+  String get captureChoiceTitleCalendar;
+
+  /// No description provided for @captureChoiceTitleReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder'**
+  String get captureChoiceTitleReminder;
+
+  /// No description provided for @captureChoiceSubCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'New tasks land here by default'**
+  String get captureChoiceSubCalendar;
+
+  /// No description provided for @captureChoiceFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Only modifies this field; other facts remain unchanged.'**
+  String get captureChoiceFooter;
+
+  /// No description provided for @captureFieldDateToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get captureFieldDateToday;
+
+  /// No description provided for @captureFieldDateTomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get captureFieldDateTomorrow;
+
+  /// No description provided for @captureFieldDateNextMonday.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Monday'**
+  String get captureFieldDateNextMonday;
+
+  /// No description provided for @captureFieldDateOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other date'**
+  String get captureFieldDateOther;
+
+  /// No description provided for @captureFieldDateOpenCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Open calendar'**
+  String get captureFieldDateOpenCalendar;
+
+  /// No description provided for @captureSelectedTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get captureSelectedTag;
+
+  /// No description provided for @planPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule Task'**
+  String get planPickerTitle;
+
+  /// No description provided for @planPickerTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule \"{title}\"'**
+  String planPickerTarget(String title);
+
+  /// No description provided for @planPickerEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No schedulable tasks'**
+  String get planPickerEmpty;
+
+  /// No description provided for @planPickerEmptySub.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a task from the capture bar first, then plan its execution.'**
+  String get planPickerEmptySub;
+
+  /// No description provided for @planPickerContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Existing today'**
+  String get planPickerContext;
+
+  /// No description provided for @saveFailedNotWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed · not written'**
+  String get saveFailedNotWritten;
+
+  /// No description provided for @retrySave.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry save'**
+  String get retrySave;
+
+  /// No description provided for @deleteTodoConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{title}\"?'**
+  String deleteTodoConfirm(String title);
+
+  /// No description provided for @deleteSeriesTrashNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a repeating task. The whole series will move to the trash and can be restored.'**
+  String get deleteSeriesTrashNotice;
+
+  /// No description provided for @deleteTrashNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'It will move to the trash and can be restored.'**
+  String get deleteTrashNotice;
+
+  /// No description provided for @backupConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Data Conflicts ({count})'**
+  String backupConflictTitle(int count);
+
+  /// No description provided for @backupConflictDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Some records in the backup conflict with existing records on this device. Select a resolution for each item:'**
+  String get backupConflictDesc;
+
+  /// No description provided for @backupKeepLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep local'**
+  String get backupKeepLocal;
+
+  /// No description provided for @backupKeepRemote.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite with backup'**
+  String get backupKeepRemote;
+
+  /// No description provided for @backupApplyResolutions.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply resolutions'**
+  String get backupApplyResolutions;
+
+  /// No description provided for @importStepFile.
+  ///
+  /// In en, this message translates to:
+  /// **'1 · Choose File'**
+  String get importStepFile;
+
+  /// No description provided for @importStepCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'2 · Target Calendar'**
+  String get importStepCalendar;
+
+  /// No description provided for @importStepPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'3 · Preview & Import'**
+  String get importStepPreview;
+
+  /// No description provided for @importFileHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Supports .ics files. Events with matching UIDs will not be duplicated.'**
+  String get importFileHelp;
+
+  /// No description provided for @importCalendarHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Target calendar · currently {count} items'**
+  String importCalendarHelp(int count);
+
+  /// No description provided for @importPreviewHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Review events and tasks that will be added or skipped.'**
+  String get importPreviewHelp;
+
+  /// No description provided for @importNextStep.
+  ///
+  /// In en, this message translates to:
+  /// **'Next step'**
+  String get importNextStep;
+
+  /// No description provided for @importChangeFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Change file'**
+  String get importChangeFile;
+
+  /// No description provided for @importChangeCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Change calendar'**
+  String get importChangeCalendar;
+
+  /// No description provided for @calendarHiddenSingleSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden \"{name}\" · {count} items'**
+  String calendarHiddenSingleSummary(String name, int count);
+
+  /// No description provided for @calendarHiddenMultipleSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden {calCount} calendars · {count} items'**
+  String calendarHiddenMultipleSummary(int calCount, int count);
+
+  /// No description provided for @multiDaySpanLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Span'**
+  String get multiDaySpanLabel;
+
+  /// No description provided for @multiDayEventSpanSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} · {start}–{end} · {days} d'**
+  String multiDayEventSpanSummary(String title, String start, String end, int days);
+
+  /// No description provided for @filterOverdueOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue only'**
+  String get filterOverdueOnly;
+
+  /// No description provided for @filterMatchedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} matched'**
+  String filterMatchedCount(int count);
+
+  /// No description provided for @captureParsedDefaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit report at 3pm tomorrow'**
+  String get captureParsedDefaultTitle;
+
+  /// No description provided for @captureParsedDefaultSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Task · No date · Personal (default)'**
+  String get captureParsedDefaultSub;
+
+  /// No description provided for @captureSubExpanded.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand when needed; no date by default.'**
+  String get captureSubExpanded;
+
+  /// No description provided for @captureTitleEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'New Event'**
+  String get captureTitleEvent;
+
+  /// No description provided for @captureSubEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Event · Work'**
+  String get captureSubEvent;
+
+  /// No description provided for @captureSubDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Task · Personal (default)'**
+  String get captureSubDate;
+
+  /// No description provided for @captureSubPlan.
+  ///
+  /// In en, this message translates to:
+  /// **'Sets plan only, does not change deadline.'**
+  String get captureSubPlan;
+
+  /// No description provided for @captureSubReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders belong to the item, does not change deadline.'**
+  String get captureSubReminder;
+
+  /// No description provided for @captureSaveErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save Failed'**
+  String get captureSaveErrorTitle;
+
+  /// No description provided for @captureSaveErrorSub.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft preserved, will not be lost'**
+  String get captureSaveErrorSub;
+
+  /// No description provided for @captureFieldTaskTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Title'**
+  String get captureFieldTaskTitle;
+
+  /// No description provided for @captureFieldDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Deadline'**
+  String get captureFieldDeadline;
+
+  /// No description provided for @captureFieldPlanExecution.
+  ///
+  /// In en, this message translates to:
+  /// **'Planned execution'**
+  String get captureFieldPlanExecution;
+
+  /// No description provided for @captureFieldCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get captureFieldCalendar;
+
+  /// No description provided for @captureFieldReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder'**
+  String get captureFieldReminder;
+
+  /// No description provided for @captureFieldPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get captureFieldPriority;
+
+  /// No description provided for @captureFieldEventTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get captureFieldEventTitle;
+
+  /// No description provided for @captureFieldEventTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get captureFieldEventTime;
+
+  /// No description provided for @captureFieldEventAllDay.
+  ///
+  /// In en, this message translates to:
+  /// **'All-day'**
+  String get captureFieldEventAllDay;
+
+  /// No description provided for @captureFieldEventRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get captureFieldEventRepeat;
+
+  /// No description provided for @captureFieldDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get captureFieldDuration;
+
+  /// No description provided for @captureFieldDayExisting.
+  ///
+  /// In en, this message translates to:
+  /// **'Schedule on day'**
+  String get captureFieldDayExisting;
+
+  /// No description provided for @captureFieldNotFilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not filled'**
+  String get captureFieldNotFilled;
+
+  /// No description provided for @captureFieldNoDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'No deadline'**
+  String get captureFieldNoDeadline;
+
+  /// No description provided for @captureFieldNotScheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not scheduled'**
+  String get captureFieldNotScheduled;
+
+  /// No description provided for @captureFieldNoReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminder'**
+  String get captureFieldNoReminder;
+
+  /// No description provided for @captureFieldNoRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Does not repeat'**
+  String get captureFieldNoRepeat;
+
+  /// No description provided for @captureFieldNoOverlap.
+  ///
+  /// In en, this message translates to:
+  /// **'No overlap'**
+  String get captureFieldNoOverlap;
+
+  /// No description provided for @captureFieldNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get captureFieldNone;
+
+  /// No description provided for @captureFieldYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get captureFieldYes;
+
+  /// No description provided for @captureFieldNo.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get captureFieldNo;
+
+  /// No description provided for @captureFieldHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High'**
+  String get captureFieldHigh;
+
+  /// No description provided for @captureFieldMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium'**
+  String get captureFieldMedium;
+
+  /// No description provided for @captureActionCreateEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Event'**
+  String get captureActionCreateEvent;
+
+  /// No description provided for @captureActionApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get captureActionApply;
+
+  /// No description provided for @captureActionEnterSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter to save'**
+  String get captureActionEnterSave;
+
+  /// No description provided for @captureActionKeepEditing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get captureActionKeepEditing;
+
+  /// No description provided for @captureActionDiscard.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get captureActionDiscard;
+
+  /// No description provided for @captureActionRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get captureActionRetry;
+
+  /// No description provided for @captureCalPersonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal'**
+  String get captureCalPersonal;
+
+  /// No description provided for @captureCalPersonalDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal · Default'**
+  String get captureCalPersonalDefault;
+
+  /// No description provided for @captureCalDefaultSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Default · Selected'**
+  String get captureCalDefaultSelected;
+
+  /// No description provided for @captureCalWork.
+  ///
+  /// In en, this message translates to:
+  /// **'Work'**
+  String get captureCalWork;
+
+  /// No description provided for @captureCalWorkCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Work calendar'**
+  String get captureCalWorkCalendar;
+
+  /// No description provided for @captureCalHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get captureCalHome;
+
+  /// No description provided for @captureCalHomeCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Home calendar'**
+  String get captureCalHomeCalendar;
+
+  /// No description provided for @captureCalHealth.
+  ///
+  /// In en, this message translates to:
+  /// **'Health'**
+  String get captureCalHealth;
+
+  /// No description provided for @captureCalHealthCalendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Health calendar'**
+  String get captureCalHealthCalendar;
+
+  /// No description provided for @captureReminderNoReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminder'**
+  String get captureReminderNoReminder;
+
+  /// No description provided for @captureReminder5mBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'5 minutes before'**
+  String get captureReminder5mBefore;
+
+  /// No description provided for @captureReminder15mBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'15 minutes before'**
+  String get captureReminder15mBefore;
+
+  /// No description provided for @captureReminder1hBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour before'**
+  String get captureReminder1hBefore;
+
+  /// No description provided for @captureReminder1dBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'1 day before'**
+  String get captureReminder1dBefore;
+
+  /// No description provided for @captureDateSelectedSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'{date} · Selected'**
+  String captureDateSelectedSuffix(String date);
+
+  /// No description provided for @captureDateNextWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Next week'**
+  String get captureDateNextWeek;
+
+  /// No description provided for @closeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeTooltip;
+
+  /// No description provided for @backupConflictSkipAssociated.
+  ///
+  /// In en, this message translates to:
+  /// **'Keeping local will skip {count} associated items in backup'**
+  String backupConflictSkipAssociated(int count);
+
+  /// No description provided for @newTodoPageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture a task'**
+  String get newTodoPageTitle;
+
+  /// No description provided for @newItemPageSub.
+  ///
+  /// In en, this message translates to:
+  /// **'The full-page form of Capture: same fields as the floating panel; fields you do not open are not written.'**
+  String get newItemPageSub;
+
+  /// No description provided for @createTodoAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add todo'**
+  String get createTodoAction;
+
+  /// No description provided for @createEventAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Create event'**
+  String get createEventAction;
+
+  /// No description provided for @newTodoPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Write an action future-you can understand'**
+  String get newTodoPlaceholder;
+
+  /// No description provided for @newEventPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Name this event'**
+  String get newEventPlaceholder;
+
+  /// No description provided for @newTodoFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags, subtasks and attachments can be added after creation; they are not part of capture.'**
+  String get newTodoFootnote;
+
+  /// No description provided for @newEventFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'Location and notes can be added after creation.'**
+  String get newEventFootnote;
+
+  /// No description provided for @typeNoteTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'A todo by default; only switching to event changes that.'**
+  String get typeNoteTodo;
+
+  /// No description provided for @typeNoteEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Opened from a time slot, so this is an event.'**
+  String get typeNoteEvent;
+
+  /// No description provided for @notFilled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get notFilled;
+
+  /// No description provided for @itemTypeTodo.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo'**
+  String get itemTypeTodo;
+
+  /// No description provided for @itemTypeEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'Event'**
+  String get itemTypeEvent;
+
+  /// No description provided for @eventLocationUnset.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get eventLocationUnset;
+
+  /// No description provided for @newItemSaveFailedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This page still has your input. Check the connection and retry.'**
+  String get newItemSaveFailedNote;
+
+  /// No description provided for @newItemRepeatLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get newItemRepeatLabel;
+
+  /// No description provided for @timePickerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type the numbers; press Enter to confirm. No dial.'**
+  String get timePickerHint;
+
+  /// No description provided for @timePickerInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Hour must be 00–23 and minute 00–59; fix it before confirming.'**
+  String get timePickerInvalid;
+
+  /// No description provided for @pickTimeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a time'**
+  String get pickTimeHint;
+
+  /// No description provided for @calendarOverlapCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 item overlaps} other{{count} items overlap}}'**
+  String calendarOverlapCount(int count);
+
+  /// No description provided for @calendarOverlapNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Side by side, never merged or covered; tap one to open it.'**
+  String get calendarOverlapNote;
+
+  /// No description provided for @calendarDragReleaseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Release · schedule at {time}'**
+  String calendarDragReleaseHint(String time);
+
+  /// No description provided for @deadlinePointNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A point marker, it occupies no time.'**
+  String get deadlinePointNote;
+
+  /// No description provided for @slotCaptureFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'From a time slot'**
+  String get slotCaptureFrom;
+
+  /// No description provided for @slotCaptureHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Same capture surface from every entry; the time is prefilled.'**
+  String get slotCaptureHint;
+
+  /// No description provided for @slotOtherWays.
+  ///
+  /// In en, this message translates to:
+  /// **'Other scheduling options'**
+  String get slotOtherWays;
+
+  /// No description provided for @monthItemsOverflow.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more items'**
+  String monthItemsOverflow(int count);
+
+  /// No description provided for @savingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get savingLabel;
+
+  /// No description provided for @settingsHomeAccountDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in, server, and session status.'**
+  String get settingsHomeAccountDesc;
+
+  /// No description provided for @settingsHomeGeneralDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Default calendar, startup view, theme, and language.'**
+  String get settingsHomeGeneralDesc;
+
+  /// No description provided for @settingsHomeCalendarsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} calendars · 1 default.'**
+  String settingsHomeCalendarsDesc(int count);
+
+  /// No description provided for @settingsHomeDataDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags, trash, import/export, and backups.'**
+  String get settingsHomeDataDesc;
+
+  /// No description provided for @settingsHomeAiDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional; needs your own model key.'**
+  String get settingsHomeAiDesc;
+
+  /// No description provided for @settingsHomeNotifyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'System alarms and permissions.'**
+  String get settingsHomeNotifyDesc;
+
+  /// No description provided for @settingsHomeSyncDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Server, account, failures, and conflicts.'**
+  String get settingsHomeSyncDesc;
+
+  /// No description provided for @settingsHomeAboutDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Version, licenses, and feedback.'**
+  String get settingsHomeAboutDesc;
+
+  /// No description provided for @settingsValueEnter.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter'**
+  String get settingsValueEnter;
+
+  /// No description provided for @settingsValueOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get settingsValueOpen;
+
+  /// No description provided for @settingsValueManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage'**
+  String get settingsValueManage;
+
+  /// No description provided for @settingsValueView.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get settingsValueView;
+
+  /// No description provided for @accountNotLoggedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in'**
+  String get accountNotLoggedIn;
+
+  /// No description provided for @aiEnableFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable AI assistant'**
+  String get aiEnableFull;
+
+  /// No description provided for @aiEnableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Turning it off hides \"Open assistant\" and the chat entry; existing tasks are unaffected.'**
+  String get aiEnableDesc;
+
+  /// No description provided for @aiModelRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Model configuration'**
+  String get aiModelRow;
+
+  /// No description provided for @aiKeyLocalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this device only'**
+  String get aiKeyLocalOnly;
+
+  /// No description provided for @aiModelDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI model'**
+  String get aiModelDialogTitle;
+
+  /// No description provided for @aiBaseUrlHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'The key is saved only on this device; it is never synced to the server. Detection requests /models.'**
+  String get aiBaseUrlHelp;
+
+  /// No description provided for @aiKeyCheckFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Key check failed.'**
+  String get aiKeyCheckFailedTitle;
+
+  /// No description provided for @aiKeyCheck401Body.
+  ///
+  /// In en, this message translates to:
+  /// **'The server returned 401; this change was not saved.'**
+  String get aiKeyCheck401Body;
+
+  /// No description provided for @aiKeyCheckFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The provider request failed ({status}); this change was not saved.'**
+  String aiKeyCheckFailedBody(String status);
+
+  /// No description provided for @aiUnconfiguredAlertTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No usable model yet.'**
+  String get aiUnconfiguredAlertTitle;
+
+  /// No description provided for @aiUnconfiguredAlertBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the Base URL and key, save, and then you can send messages.'**
+  String get aiUnconfiguredAlertBody;
+
+  /// No description provided for @aiOffAlertBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI assistant is off; this page stays so you can turn it back on.'**
+  String get aiOffAlertBody;
+
+  /// No description provided for @aiConfiguredWithModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured · {model}'**
+  String aiConfiguredWithModel(String model);
+
+  /// No description provided for @aiConnectedModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected · model {model} · key saved only on this device'**
+  String aiConnectedModel(String model);
+
+  /// No description provided for @aiChatSubtitleFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Chat is a content page, not search and not the command palette.'**
+  String get aiChatSubtitleFallback;
+
+  /// No description provided for @aiReplyInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Replying…'**
+  String get aiReplyInProgress;
+
+  /// No description provided for @syncConflictDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The same record changed on both this device and the server; choose per item.'**
+  String get syncConflictDesc;
+
+  /// No description provided for @syncConflictRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflict {id} · {type}'**
+  String syncConflictRecord(String id, String type);
+
+  /// No description provided for @syncConflictLocalServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Local: this device\'s change is still here. Server: the version changed, so the server rejected the overwrite.'**
+  String get syncConflictLocalServer;
+
+  /// No description provided for @syncConflictApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply choices'**
+  String get syncConflictApply;
+
+  /// No description provided for @syncConflictMergeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync layer has no field-level merge; choosing Merge will not rewrite either version.'**
+  String get syncConflictMergeHint;
+
+  /// No description provided for @capturePlanTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Plan on {date}'**
+  String capturePlanTo(String date);
+
+  /// No description provided for @syncConflictKeepLocalResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept the local version; the next edit to this record will upload again as a new change.'**
+  String get syncConflictKeepLocalResult;
+
+  /// No description provided for @capturePlanDayEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scheduled that day'**
+  String get capturePlanDayEmpty;
+
+  /// No description provided for @syncConflictRemoteUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync layer does not expose the server copy; the \"Keep server\" choices were not applied.'**
+  String get syncConflictRemoteUnavailable;
+
+  /// No description provided for @capturePlanOverlapCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} overlapping'**
+  String capturePlanOverlapCount(int count);
+
+  /// No description provided for @syncConflictMergeUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The sync layer has no field-level merge; Merge choices were not applied and no merge result was invented.'**
+  String get syncConflictMergeUnavailable;
+
+  /// No description provided for @captureSuggestionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{range} · Suggested'**
+  String captureSuggestionTitle(String range);
+
+  /// No description provided for @syncConflictBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to sync'**
+  String get syncConflictBack;
+
+  /// No description provided for @syncServerUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreachable'**
+  String get syncServerUnreachable;
+
+  /// No description provided for @syncPendingBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'{uploads} pending uploads · {downloads} pending downloads'**
+  String syncPendingBoth(int uploads, int downloads);
+
+  /// No description provided for @syncRetryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry sync now.'**
+  String get syncRetryDesc;
+
+  /// No description provided for @backupProgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backing up'**
+  String get backupProgressTitle;
+
+  /// No description provided for @backupProgressPacking.
+  ///
+  /// In en, this message translates to:
+  /// **'Packaging calendars, tasks, events, tags, and the attachment index.'**
+  String get backupProgressPacking;
+
+  /// No description provided for @backupProgressWriting.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing {filename}'**
+  String backupProgressWriting(String filename);
+
+  /// No description provided for @backupProgressPercent.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String backupProgressPercent(int percent);
+
+  /// No description provided for @backupIncludes.
+  ///
+  /// In en, this message translates to:
+  /// **'Contains'**
+  String get backupIncludes;
+
+  /// No description provided for @backupIncludesCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{calendars} calendars · {todos} tasks · {events} events · {attachments} attachment entries'**
+  String backupIncludesCounts(int calendars, int todos, int events, int attachments);
+
+  /// No description provided for @backupSavedLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'The file was saved where you chose.'**
+  String get backupSavedLocation;
+
+  /// No description provided for @captureEventCreatedToast.
+  ///
+  /// In en, this message translates to:
+  /// **'Event created · {range}'**
+  String captureEventCreatedToast(String range);
+
+  /// No description provided for @backupFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup failed'**
+  String get backupFailedTitle;
+
+  /// No description provided for @overdueToolbarEarliest.
+  ///
+  /// In en, this message translates to:
+  /// **'Earliest {date}'**
+  String overdueToolbarEarliest(String date);
+
+  /// No description provided for @backupFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The destination is not writable.'**
+  String get backupFailedBody;
+
+  /// No description provided for @timelineMissedPill.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed {count} times'**
+  String timelineMissedPill(int count);
+
+  /// No description provided for @backupNoPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'No partial file was produced.'**
+  String get backupNoPartial;
+
+  /// No description provided for @pastDueOrMissedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue / Missed'**
+  String get pastDueOrMissedSection;
+
+  /// No description provided for @importErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed'**
+  String get importErrorTitle;
+
+  /// No description provided for @importSeeReport.
+  ///
+  /// In en, this message translates to:
+  /// **'View report'**
+  String get importSeeReport;
+
+  /// No description provided for @importSkipRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip error rows and continue'**
+  String get importSkipRows;
+
+  /// No description provided for @importCannotSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'The whole file cannot be parsed, so error rows cannot be skipped; fix the file and retry.'**
+  String get importCannotSkip;
+
+  /// No description provided for @importReportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import report'**
+  String get importReportTitle;
+
+  /// No description provided for @importReportSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} row(s) will be skipped'**
+  String importReportSkipped(int count);
+
+  /// No description provided for @importReportEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'This file has no bad rows to report.'**
+  String get importReportEmpty;
+
+  /// No description provided for @importReportError.
+  ///
+  /// In en, this message translates to:
+  /// **'Parse error: {error}'**
+  String importReportError(String error);
+
+  /// No description provided for @exactAlarmNotActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Not active'**
+  String get exactAlarmNotActive;
+
+  /// No description provided for @systemNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'System notifications'**
+  String get systemNotification;
+
+  /// No description provided for @feedbackCharCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters · Logs are not attached automatically'**
+  String feedbackCharCount(int count);
+
+  /// No description provided for @feedbackMetaReady.
+  ///
+  /// In en, this message translates to:
+  /// **'You can copy it or take it to GitHub'**
+  String get feedbackMetaReady;
+
+  /// No description provided for @filterAppliedSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Filtered: {criteria} · {count} items'**
+  String filterAppliedSummary(String criteria, int count);
+
+  /// No description provided for @feedbackMetaEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something first'**
+  String get feedbackMetaEmpty;
+
+  /// No description provided for @listSeparator.
+  ///
+  /// In en, this message translates to:
+  /// **', '**
+  String get listSeparator;
+
+  /// No description provided for @feedbackNoSilentSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark never submits anything in the background. After copying, paste it anywhere; GitHub opens a blank issue with the body filled in.'**
+  String get feedbackNoSilentSubmit;
+
+  /// No description provided for @pickTimeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a time'**
+  String get pickTimeTitle;
+
+  /// No description provided for @feedbackLinkErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the browser.'**
+  String get feedbackLinkErrorTitle;
+
+  /// No description provided for @feedbackLinkErrorBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your text is still here; retry, or copy it to the clipboard and open it manually.'**
+  String get feedbackLinkErrorBody;
+
+  /// No description provided for @aiOffValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get aiOffValue;
+
+  /// No description provided for @aiDisabledTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The AI assistant is off'**
+  String get aiDisabledTitle;
+
+  /// No description provided for @aiDisabledHint.
+  ///
+  /// In en, this message translates to:
+  /// **'This is an optional feature; turn it on and configure a model to get a chat entry.'**
+  String get aiDisabledHint;
+
+  /// No description provided for @aiOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get aiOpenSettings;
+
+  /// No description provided for @aiConfigureModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure model'**
+  String get aiConfigureModel;
+
+  /// No description provided for @settingsCalendarsCountOne.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} calendars · 1 default'**
+  String settingsCalendarsCountOne(int count);
+
+  /// No description provided for @defaultCalendarBadgeValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultCalendarBadgeValue;
+
+  /// No description provided for @settingsCurrentDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Current default: {name}'**
+  String settingsCurrentDefault(String name);
+
+  /// No description provided for @settingsDefaultCalSavedPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Save default calendar'**
+  String get settingsDefaultCalSavedPlaceholder;
+
+  /// No description provided for @chatModelAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get chatModelAction;
+
+  /// No description provided for @chatClearAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear chat'**
+  String get chatClearAction;
+
+  /// No description provided for @settingsBetaBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Beta'**
+  String get settingsBetaBadge;
+
+  /// No description provided for @aiPrivacyFooter.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversations stay on this device; model requests go directly to the provider you configured. DaySpark servers never see the key.'**
+  String get aiPrivacyFooter;
+
+  /// No description provided for @aiKeyChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking key…'**
+  String get aiKeyChecking;
+
+  /// No description provided for @aiKeyMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an API key before saving.'**
+  String get aiKeyMissing;
+
+  /// No description provided for @syncConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync conflict'**
+  String get syncConflictTitle;
+
+  /// No description provided for @syncConflictLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Local'**
+  String get syncConflictLocal;
+
+  /// No description provided for @syncConflictServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get syncConflictServer;
+
+  /// No description provided for @backupDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup complete'**
+  String get backupDoneTitle;
+
+  /// No description provided for @backupMergeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge keeps both: the local item stays, and the backup version is imported as a new item.'**
+  String get backupMergeHint;
+
+  /// No description provided for @aiNotConfiguredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No model configured yet'**
+  String get aiNotConfiguredTitle;
+
+  /// No description provided for @aiChatNotConfiguredHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in an OpenAI-compatible Base URL and API key. The key stays on this device and is never uploaded to DaySpark servers.'**
+  String get aiChatNotConfiguredHint;
+
+  /// No description provided for @feedbackWriteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something'**
+  String get feedbackWriteLabel;
+
+  /// No description provided for @feedbackPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'What happened, and what did you expect? Include device and version if you can.'**
+  String get feedbackPlaceholder;
+
+  /// No description provided for @syncConflictApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Choices applied.'**
+  String get syncConflictApplied;
+
+  /// No description provided for @syncConflictApplyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not apply every choice: {error}'**
+  String syncConflictApplyFailed(String error);
+
+  /// No description provided for @saveSeriesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save to the whole series?'**
+  String get saveSeriesTitle;
+
+  /// No description provided for @saveSeriesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This edit is written to the series anchor and updates every occurrence. To skip only this one, use Delete · This event.'**
+  String get saveSeriesBody;
+
+  /// No description provided for @saveSeriesConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Save whole series'**
+  String get saveSeriesConfirm;
+
+  /// No description provided for @timedDeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Timed deadline'**
+  String get timedDeadline;
+
+  /// No description provided for @outOfRangeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The axis is fixed 08:00–20:00. Earlier or later events stick to the edge; open the detail for the real time. Cross-midnight events stay in the multi-day band.'**
+  String get outOfRangeNote;
+
+  /// No description provided for @staleCalendarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the server'**
+  String get staleCalendarTitle;
+
+  /// No description provided for @staleCalendarBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing the last data you saw. Retry to replace it.'**
+  String get staleCalendarBody;
+
+  /// No description provided for @trashedItemTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This item is in Trash'**
+  String get trashedItemTitle;
+
+  /// No description provided for @trashedItemBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The link points to an item that was moved to Trash. Restore it to keep editing.'**
+  String get trashedItemBody;
+
+  /// No description provided for @goToTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Trash'**
+  String get goToTrash;
+
+  /// No description provided for @startupFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'DaySpark couldn\'t open'**
+  String get startupFailedTitle;
+
+  /// No description provided for @startupFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The local database did not open. Your data is still on disk. Retry, or export diagnostics first.'**
+  String get startupFailedBody;
+
+  /// No description provided for @exportDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Export diagnostics'**
+  String get exportDiagnostics;
+
+  /// No description provided for @endDateOfEvent.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get endDateOfEvent;
+
+  /// No description provided for @dayCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Days'**
+  String get dayCountLabel;
+
+  /// No description provided for @syncOfflineShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline. Changes waiting to upload.'**
+  String get syncOfflineShort;
+
+  /// No description provided for @syncFailedShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed. Local data is safe.'**
+  String get syncFailedShort;
+
+  /// No description provided for @syncConflictShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Conflicts found. Review them in Sync.'**
+  String get syncConflictShort;
+
+  /// No description provided for @relatedLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading tags, reminders and schedule…'**
+  String get relatedLoading;
+
+  /// No description provided for @relatedPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Some related content didn\'t load.'**
+  String get relatedPartial;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

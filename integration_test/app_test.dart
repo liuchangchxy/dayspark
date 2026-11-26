@@ -11,7 +11,7 @@ import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/main.dart' show DaySparkApp;
-import 'package:dayspark/ui/design/a2.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 
 /// Real-app flows: the shipped [DaySparkApp], router, providers and database
 /// run inside the native integration harness. Each test answers one question
@@ -86,11 +86,10 @@ void main() {
     await settle(tester);
   }
 
-  /// The Todo header title is the mode menu; the design draws no switcher.
-  Future<void> showView(WidgetTester tester, String label) async {
-    await tester.tap(find.byKey(const ValueKey('todos-mode-switch')));
-    await settle(tester);
-    await tester.tap(find.text(label).last);
+  /// The Todo header draws the mode switch inline; each mode is its own
+  /// button, so the flow picks it by the key the switch gives it.
+  Future<void> showView(WidgetTester tester, String modeKey) async {
+    await tester.tap(find.byKey(ValueKey(modeKey)));
     await settle(tester);
   }
 
@@ -103,7 +102,8 @@ void main() {
     await seedCalendar();
     expect(await db.select(db.todos).get(), isEmpty);
 
-    await launch(tester);
+    // Phone chrome: the capture row under the list is the phone surface.
+    await launch(tester, size: const Size(420, 900));
 
     final field = find.byKey(const ValueKey('today-capture-field'));
     expect(field, findsOneWidget);
@@ -144,25 +144,30 @@ void main() {
     await launch(tester);
     await openTasks(tester);
 
-    expect(find.text('By date'), findsOneWidget);
+    // Navigation lands on Inbox: neither task is planned, so both are here.
+    expect(find.text('Today task'), findsOneWidget);
+    expect(find.text('Other day task'), findsOneWidget);
+
+    await showView(tester, 'todo-mode-date');
     expect(find.text('Today task'), findsOneWidget);
     expect(find.text('Other day task'), findsNothing);
+    expect(find.byKey(const ValueKey('todos-date-strip')), findsOneWidget);
 
-    await showView(tester, 'All Tasks');
+    await showView(tester, 'todo-mode-all');
     expect(find.text('Today task'), findsOneWidget);
     expect(find.text('Other day task'), findsOneWidget);
     expect(
-      find.byType(A2PlanBar),
+      find.byKey(const ValueKey('todos-date-strip')),
       findsNothing,
       reason: 'All is not attached to a day',
     );
 
-    await showView(tester, 'By date');
-    expect(find.byType(A2PlanBar), findsOneWidget);
+    await showView(tester, 'todo-mode-date');
+    expect(find.byKey(const ValueKey('todos-date-strip')), findsOneWidget);
 
     // The day strip opens the month picker; the pick writes the shared
     // browse date, which is what the list reads.
-    await tester.tap(find.text('Today').first);
+    await tester.tap(find.byKey(const ValueKey('todos-date-strip')));
     await settle(tester);
     await tester.tap(
       find.byKey(
@@ -200,8 +205,8 @@ void main() {
     );
     // The rows have no per-todo key of their own; the title is what the user
     // reads, so it is what the flow follows.
-    final firstRow = find.widgetWithText(A2Row, 'First task');
-    final secondRow = find.widgetWithText(A2Row, 'Second task');
+    final firstRow = find.widgetWithText(SpecTaskRow, 'First task');
+    final secondRow = find.widgetWithText(SpecTaskRow, 'Second task');
     expect(firstRow, findsOneWidget);
     expect(secondRow, findsOneWidget);
 

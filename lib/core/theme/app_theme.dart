@@ -12,15 +12,21 @@ import 'package:dayspark/core/theme/app_typography.dart';
 @immutable
 abstract final class AppTheme {
   static ThemeData light({Color? accent}) =>
-      _buildTheme(DsColors.light, accent);
+      _buildTheme(DsColors.light, accent, AppColors.lightAccent);
 
   static ThemeData dark({Color? accent}) =>
-      _buildTheme(DsColors.dark, accent);
+      _buildTheme(DsColors.dark, accent, AppColors.darkAccent);
 
-  static ThemeData _buildTheme(DsColors base, Color? accentOverride) {
-    // The default accent is already the token pair; re-deriving its soft and
-    // tint would move them a step off the table, so it keeps the exact set.
-    final ds = accentOverride == null || accentOverride == base.primary
+  static ThemeData _buildTheme(
+    DsColors base,
+    Color? accentOverride,
+    Color defaultAccent,
+  ) {
+    // The app's own (default) accent is the spec accent, so an install that
+    // never picked a preset keeps the exact spec table: ink actions, red
+    // reserved for overdue/today. An explicit non-default preset still swaps
+    // the accent pair, as it always has.
+    final ds = accentOverride == null || accentOverride == defaultAccent
         ? base
         : base.withAccent(accentOverride);
     final scheme = ColorScheme(

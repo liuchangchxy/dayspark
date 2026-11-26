@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
@@ -17,11 +18,13 @@ import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/ai_config_dialog.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 
 class AiChatPage extends ConsumerStatefulWidget {
@@ -122,6 +125,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
     _controller.clear();
     setState(() => _sending = true);
+    _scrollToBottom();
 
     await ref.read(aiChatProvider.notifier).sendMessage(text);
 
@@ -153,39 +157,59 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     final messages = ref.watch(aiChatProvider);
     final configured = ref.watch(isAiConfiguredProvider);
     final flags = ref.watch(featureFlagsProvider);
+    final aiConfig = ref.watch(aiConfigProvider).value;
     final enabled =
         flags.valueOrNull?.isEnabled(FeatureFlag.aiAssistant) ?? false;
     final loading = flags.isLoading || configured.isLoading;
+    final ready = enabled && configured.valueOrNull == true;
+    final subtitle = ready && aiConfig != null
+        ? l.aiConnectedModel(aiConfig.model)
+        : l.aiChatSubtitleFallback;
 
     return WorkspacePage(
       title: l.aiAssistant,
+      subtitle: subtitle,
       maxContentWidth: 860,
       actions: [
-        if (messages.isNotEmpty)
-          DsIconButton(
+        if (ready && messages.isNotEmpty)
+          DsButton(
+            label: l.chatClearAction,
             icon: CupertinoIcons.delete,
-            size: 18,
-            compact: true,
+            tone: DsButtonTone.ghost,
+            small: true,
             // Clearing is not undoable, so it asks once.
             onPressed: () => _confirmClear(l),
-            tooltip: l.clearChat,
           ),
+        const SizedBox(width: AppSpacing.s1),
+        DsButton(
+          label: l.chatModelAction,
+          icon: CupertinoIcons.slider_horizontal_3,
+          tone: DsButtonTone.ghost,
+          small: true,
+          onPressed: () => showAiConfigDialog(context, ref),
+        ),
       ],
       child: loading
           ? const Center(child: CircularProgressIndicator())
           : !enabled
           ? DsEmpty(
               icon: CupertinoIcons.chat_bubble_2,
-              title: l.aiNotConfigured,
-              message: l.aiNotConfiguredHint,
+              title: l.aiDisabledTitle,
+              message: l.aiDisabledHint,
+              action: DsButton(
+                label: l.aiOpenSettings,
+                icon: CupertinoIcons.settings,
+                small: true,
+                onPressed: () => context.push('/settings?section=ai'),
+              ),
             )
           : configured.valueOrNull != true
           ? DsEmpty(
               icon: CupertinoIcons.chat_bubble_2,
-              title: l.aichatNoKeyTitle,
-              message: l.aichatNoKeyHint,
+              title: l.aiNotConfiguredTitle,
+              message: l.aiChatNotConfiguredHint,
               action: DsButton(
-                label: l.aichatSetupKey,
+                label: l.aiConfigureModel,
                 icon: CupertinoIcons.settings,
                 small: true,
                 onPressed: () => showAiConfigDialog(context, ref),
@@ -208,8 +232,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                             AppSpacing.s4,
                             AppSpacing.s2,
                           ),
-                          itemCount: messages.length,
+                          itemCount: messages.length + (_sending ? 1 : 0),
                           itemBuilder: (context, index) {
+                            if (index == messages.length) {
+                              return const _ReplyingBubble();
+                            }
                             final msg = messages[index];
                             final isUser = msg.role == 'user';
                             return Align(
@@ -234,12 +261,15 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: isUser
-                                      ? context.ds.primarySoft
-                                      : context.ds.surface,
+                                      ? const Color(0xFFF7F7F4)
+                                      : SpecTokens.paper,
                                   borderRadius: BorderRadius.circular(
-                                    AppRadii.lg,
+                                    SpecTokens.r8,
                                   ),
-                                  border: Border.all(color: context.ds.line),
+                                  border: Border.all(
+                                    color: SpecTokens.hair2,
+                                    width: 1,
+                                  ),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,34 +425,40 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                             ),
                           ),
                           const SizedBox(width: AppSpacing.s2),
-                          MouseRegion(
-                            cursor: SystemMouseCursors.click,
-                            child: GestureDetector(
-                              onTap: _sending ? null : _send,
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: _sending
-                                      ? context.ds.surface3
-                                      : context.ds.primary,
-                                  borderRadius: BorderRadius.circular(
-                                    AppRadii.sm + 2,
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: _sending ? null : _send,
+                                child: Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: _sending
+                                        ? context.ds.surface3
+                                        : SpecTokens.ink,
+                                    borderRadius: BorderRadius.circular(
+                                      SpecTokens.r8,
+                                    ),
                                   ),
-                                ),
-                                child: _sending
-                                    ? Padding(
-                                        padding: const EdgeInsets.all(11),
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: context.ds.ink3,
+                                  child: _sending
+                                      ? const Padding(
+                                          padding: EdgeInsets.all(14),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: SpecTokens.muted,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          CupertinoIcons.arrow_up,
+                                          size: 18,
+                                          color: SpecTokens.paper,
                                         ),
-                                      )
-                                    : Icon(
-                                        CupertinoIcons.arrow_up,
-                                        size: 18,
-                                        color: context.ds.onPrimary,
-                                      ),
+                                ),
                               ),
                             ),
                           ),
@@ -459,9 +495,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       if (!context.mounted) return;
       if (todos.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noSchedulableTodos)));
+        showSpecToast(context, l.noSchedulableTodos);
         return;
       }
 
@@ -540,9 +574,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       if (!context.mounted) return;
       if (suggestions.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noTimeSlots)));
+        showSpecToast(context, l.noTimeSlots);
         return;
       }
 
@@ -668,12 +700,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
 
       if (!isStillFree) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l.timeSlotConflict),
-            backgroundColor: context.ds.danger,
-          ),
-        );
+        showSpecToast(context, l.timeSlotConflict, danger: true);
         return;
       }
 
@@ -686,15 +713,11 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       );
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.scheduledTodoSuccess(chosenTodo.summary))),
-      );
+      showSpecToast(context, l.scheduledTodoSuccess(chosenTodo.summary));
     } catch (e) {
       debugPrint('ai_chat: scheduleTask error: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.schedulingFailed)));
+        showSpecToast(context, l.schedulingFailed);
       }
     }
   }
@@ -709,9 +732,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
       final subtasks = await ref.read(suggestTaskBreakdownProvider)(content);
       if (!context.mounted) return;
       if (subtasks.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noSubtaskSuggestions)));
+        showSpecToast(context, l.noSubtaskSuggestions);
         return;
       }
       showDsSheet<void>(
@@ -765,16 +786,12 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
                           final msg = reminderError != null
                               ? '${l.todoCreatedShort} (${l.failedAction})'
                               : l.todoCreatedShort;
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text(msg)));
+                          showSpecToast(context, msg);
                         }
                       } catch (e) {
                         debugPrint('ai_chat: createTodoFromAction error: $e');
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(l.failedCreateTodo)),
-                          );
+                          showSpecToast(context, l.failedCreateTodo);
                         }
                       }
                     },
@@ -797,9 +814,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     } catch (e) {
       debugPrint('ai_chat: breakDownTask error: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.breakdownFailed)));
+        showSpecToast(context, l.breakdownFailed);
       }
     }
   }
@@ -922,9 +937,7 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     } catch (e) {
       debugPrint('ai_chat: createFromAI error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.failedAction)));
+        showSpecToast(context, l.failedAction);
       }
     } finally {
       if (mounted) setState(() => _writing = false);
@@ -993,19 +1006,57 @@ class _AiChatPageState extends ConsumerState<AiChatPage> {
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(success)));
+      showSpecToast(context, success);
     } catch (e) {
       debugPrint('ai_chat: write failed: $e');
       if (!mounted) return;
       final l = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.failedAction)));
+      showSpecToast(context, l.failedAction);
     } finally {
       if (mounted) setState(() => _writing = false);
     }
+  }
+}
+
+class _ReplyingBubble extends StatelessWidget {
+  const _ReplyingBubble();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.s3 + 2,
+          vertical: AppSpacing.s3,
+        ),
+        decoration: BoxDecoration(
+          color: SpecTokens.paper,
+          borderRadius: BorderRadius.circular(SpecTokens.r8),
+          border: Border.all(color: SpecTokens.hair2, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.6,
+                color: SpecTokens.muted,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              l.aiReplyInProgress,
+              style: AppTypography.small.copyWith(color: SpecTokens.muted),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

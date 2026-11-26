@@ -17,10 +17,51 @@ import 'ical/ical_converter.dart';
 
 /// Delivers exported text to the browser instead of the file system. Injected
 /// so the web branch can be exercised where `kIsWeb` is false.
-typedef IcsWebDownloader = void Function({
-  required String content,
-  required String filename,
-});
+typedef IcsWebDownloader =
+    void Function({required String content, required String filename});
+
+enum IcsPreviewKind { event, todo }
+
+enum IcsPreviewStatus { create, duplicate, skipped }
+
+class IcsPreviewItem {
+  const IcsPreviewItem({
+    required this.kind,
+    required this.status,
+    required this.summary,
+    this.at,
+  });
+
+  final IcsPreviewKind kind;
+  final IcsPreviewStatus status;
+  final String summary;
+  final DateTime? at;
+}
+
+class IcsImportPreview {
+  const IcsImportPreview({required this.items});
+
+  final List<IcsPreviewItem> items;
+
+  int get eventCount =>
+      items.where((item) => item.kind == IcsPreviewKind.event).length;
+
+  int get todoCount =>
+      items.where((item) => item.kind == IcsPreviewKind.todo).length;
+
+  int get createCount =>
+      items.where((item) => item.status == IcsPreviewStatus.create).length;
+
+  int get duplicateCount =>
+      items.where((item) => item.status == IcsPreviewStatus.duplicate).length;
+
+  int get skippedCount =>
+      items.where((item) => item.status == IcsPreviewStatus.skipped).length;
+
+  List<IcsPreviewItem> get skipped => items
+      .where((item) => item.status == IcsPreviewStatus.skipped)
+      .toList(growable: false);
+}
 
 /// Import/export .ics files.
 class IcsService {
@@ -35,20 +76,24 @@ class IcsService {
 
   /// Export all events from a calendar to a .ics file, or from all calendars when calendarId is null.
   Future<String> exportCalendar([int? calendarId]) async {
-    final events = await (_db.select(_db.events)..where((t) {
-      final notDeleted = t.deletedAt.isNull();
-      if (calendarId != null) {
-        return notDeleted & t.calendarId.equals(calendarId);
-      }
-      return notDeleted;
-    })).get();
-    final todos = await (_db.select(_db.todos)..where((t) {
-      final notDeleted = t.deletedAt.isNull();
-      if (calendarId != null) {
-        return notDeleted & t.calendarId.equals(calendarId);
-      }
-      return notDeleted;
-    })).get();
+    final events =
+        await (_db.select(_db.events)..where((t) {
+              final notDeleted = t.deletedAt.isNull();
+              if (calendarId != null) {
+                return notDeleted & t.calendarId.equals(calendarId);
+              }
+              return notDeleted;
+            }))
+            .get();
+    final todos =
+        await (_db.select(_db.todos)..where((t) {
+              final notDeleted = t.deletedAt.isNull();
+              if (calendarId != null) {
+                return notDeleted & t.calendarId.equals(calendarId);
+              }
+              return notDeleted;
+            }))
+            .get();
 
     final cal = VCalendar();
     cal.productId = '-//CalendarTodoApp//EN';
@@ -137,8 +182,108 @@ class IcsService {
     return file.path;
   }
 
+  /// Parses an .ics string without writing, so the UI can show what will be
+  /// created, updated by UID, or skipped before the user commits.
+  Future<IcsImportPreview> previewIcs(String icsContent, int calendarId) async {
+    final component = VComponent.parse(icsContent);
+    if (component is! VCalendar) {
+      throw FormatException('Not a valid VCALENDAR');
+    }
+
+    final items = <IcsPreviewItem>[];
+    for (final child in component.children) {
+      if (child is VEvent) {
+        items.add(await _previewEvent(child, calendarId));
+      } else if (child is VTodo) {
+        items.add(await _previewTodo(child, calendarId));
+      }
+    }
+    return IcsImportPreview(items: items);
+  }
+
+  Future<IcsPreviewItem> _previewEvent(VEvent child, int calendarId) async {
+    try {
+      final childCal = VCalendar();
+      childCal.productId = '-//CalendarTodoApp//EN';
+      childCal.children.add(child);
+      final companion = _converter.icalToEventCompanion(
+        childCal.toString(),
+        calendarId,
+      );
+      final duplicate = await _eventUidExists(
+        companion.icsUid.present ? companion.icsUid.value : null,
+      );
+      return IcsPreviewItem(
+        kind: IcsPreviewKind.event,
+        status: duplicate
+            ? IcsPreviewStatus.duplicate
+            : IcsPreviewStatus.create,
+        summary: companion.summary.value,
+        at: companion.startDt.value,
+      );
+    } catch (error) {
+      debugPrint('ics: VEVENT preview error: $error');
+      return IcsPreviewItem(
+        kind: IcsPreviewKind.event,
+        status: IcsPreviewStatus.skipped,
+        summary: child.summary ?? '',
+      );
+    }
+  }
+
+  Future<IcsPreviewItem> _previewTodo(VTodo child, int calendarId) async {
+    try {
+      final childCal = VCalendar();
+      childCal.productId = '-//CalendarTodoApp//EN';
+      childCal.children.add(child);
+      final companion = _converter.icalToTodoCompanion(
+        childCal.toString(),
+        calendarId,
+      );
+      final duplicate = await _todoUidExists(
+        companion.icsUid.present ? companion.icsUid.value : null,
+      );
+      final at = companion.dueDate.present
+          ? companion.dueDate.value
+          : companion.startDate.present
+          ? companion.startDate.value
+          : null;
+      return IcsPreviewItem(
+        kind: IcsPreviewKind.todo,
+        status: duplicate
+            ? IcsPreviewStatus.duplicate
+            : IcsPreviewStatus.create,
+        summary: companion.summary.value,
+        at: at,
+      );
+    } catch (error) {
+      debugPrint('ics: VTODO preview error: $error');
+      return IcsPreviewItem(
+        kind: IcsPreviewKind.todo,
+        status: IcsPreviewStatus.skipped,
+        summary: child.summary ?? '',
+      );
+    }
+  }
+
+  Future<bool> _eventUidExists(String? uid) async {
+    if (uid == null || uid.isEmpty) return false;
+    final existing = await (_db.select(
+      _db.events,
+    )..where((e) => e.icsUid.equals(uid))).getSingleOrNull();
+    return existing != null;
+  }
+
+  Future<bool> _todoUidExists(String? uid) async {
+    if (uid == null || uid.isEmpty) return false;
+    final existing = await (_db.select(
+      _db.todos,
+    )..where((t) => t.icsUid.equals(uid))).getSingleOrNull();
+    return existing != null;
+  }
+
   /// Import events/todos from an .ics string into a calendar.
-  Future<({int events, int todos, int failed})> importIcsDetailed(
+  Future<({int events, int todos, int failed, int updated})> importIcsDetailed(
     String icsContent,
     int calendarId,
   ) async {
@@ -150,6 +295,7 @@ class IcsService {
     var events = 0;
     var todos = 0;
     var failed = 0;
+    var updated = 0;
 
     // 一批导入 = 一个事务 = 一个事件批；畸形行在 catch 里记录 failed 计数，不登记
     // （没落库的行不该让派生态去重读）。
@@ -164,8 +310,12 @@ class IcsService {
               childCal.toString(),
               calendarId,
             );
+            final existed = await _eventUidExists(
+              companion.icsUid.present ? companion.icsUid.value : null,
+            );
             await EventWriter.importRow(_db, tx, companion);
             events++;
+            if (existed) updated++;
           } catch (e) {
             failed++;
             debugPrint('ics: VEVENT insert error: $e');
@@ -178,6 +328,9 @@ class IcsService {
             var companion = _converter.icalToTodoCompanion(
               childCal.toString(),
               calendarId,
+            );
+            final existed = await _todoUidExists(
+              companion.icsUid.present ? companion.icsUid.value : null,
             );
             final import = _recurrenceFromIcs(child, component);
             if (import != null) {
@@ -199,6 +352,7 @@ class IcsService {
               recurrenceEvidence: import?.evidence,
             );
             todos++;
+            if (existed) updated++;
           } catch (e) {
             failed++;
             debugPrint('ics: VTODO insert error: $e');
@@ -207,7 +361,7 @@ class IcsService {
       }
     });
 
-    return (events: events, todos: todos, failed: failed);
+    return (events: events, todos: todos, failed: failed, updated: updated);
   }
 
   /// Import events/todos from an .ics string into a calendar.

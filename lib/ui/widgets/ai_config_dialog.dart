@@ -7,24 +7,20 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/pages/settings/settings_ui.dart';
 
 /// Show the AI configuration dialog. Used by both Settings and AI Chat pages.
 Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
   final l = AppLocalizations.of(context)!;
   final config = ref.read(aiConfigProvider).value;
   final rawKey = config?.apiKey ?? '';
-  final maskedKey = rawKey.length > 4
-      ? '••••${rawKey.substring(rawKey.length - 4)}'
-      : rawKey;
+  final maskedKey = maskApiKey(rawKey);
   final keyController = TextEditingController(text: maskedKey);
 
   // Find which preset matches the current base URL
   final currentUrl = config?.baseUrl ?? '';
-  var selectedPresetIndex = kAiPresets.indexWhere(
-    (p) => p.baseUrl == currentUrl,
-  );
-  final isCustom = selectedPresetIndex < 0 && currentUrl.isNotEmpty;
-
+  final matched = kAiPresets.indexWhere((p) => p.baseUrl == currentUrl);
+  final selectedPresetIndex = currentUrl.isEmpty ? 0 : matched;
   await showDialog(
     context: context,
     builder: (ctx) => _AiConfigDialog(
@@ -32,7 +28,6 @@ Future<void> showAiConfigDialog(BuildContext context, WidgetRef ref) async {
       initialConfig: config,
       keyController: keyController,
       initialPresetIndex: selectedPresetIndex,
-      isCustom: isCustom,
       ref: ref,
       originalKey: rawKey,
     ),
@@ -44,7 +39,6 @@ class _AiConfigDialog extends ConsumerStatefulWidget {
   final AiConfig? initialConfig;
   final TextEditingController keyController;
   final int initialPresetIndex;
-  final bool isCustom;
   final WidgetRef ref;
   final String originalKey;
 
@@ -53,7 +47,6 @@ class _AiConfigDialog extends ConsumerStatefulWidget {
     this.initialConfig,
     required this.keyController,
     required this.initialPresetIndex,
-    required this.isCustom,
     required this.ref,
     required this.originalKey,
   });
@@ -64,22 +57,26 @@ class _AiConfigDialog extends ConsumerStatefulWidget {
 
 class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
   late int _presetIndex;
-  late bool _isCustom;
   late TextEditingController _urlController;
   late TextEditingController _modelController;
 
   List<String> _detectedModels = [];
   bool _detecting = false;
   bool _detectFailed = false;
+  bool _saving = false;
   String? _actionError;
+  String? _keyErrorTitle;
+  String? _keyErrorBody;
 
   @override
   void initState() {
     super.initState();
     _presetIndex = widget.initialPresetIndex;
-    _isCustom = widget.isCustom;
+    final initial = widget.initialConfig;
     _urlController = TextEditingController(
-      text: widget.initialConfig?.baseUrl ?? 'https://api.openai.com/v1',
+      text: (initial == null || initial.baseUrl.isEmpty)
+          ? 'https://api.openai.com/v1'
+          : initial.baseUrl,
     );
     _modelController = TextEditingController(
       text: widget.initialConfig?.model ?? 'gpt-4o-mini',
@@ -94,19 +91,10 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
     super.dispose();
   }
 
-  String get _baseUrl {
-    if (_isCustom || _presetIndex < 0) return _urlController.text.trim();
-    return kAiPresets[_presetIndex].baseUrl;
-  }
-
-  String get _providerLabel {
-    if (_isCustom) return widget.l.customProvider;
-    final index = _presetIndex >= 0 ? _presetIndex : 0;
-    return kAiPresets[index].name;
-  }
+  String get _baseUrl => _urlController.text.trim();
 
   Future<void> _detectModels() async {
-    final key = widget.keyController.text.trim();
+    final key = _resolvedKey();
     final url = _baseUrl;
     if (key.isEmpty || url.isEmpty) return;
 
@@ -134,58 +122,19 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
     }
   }
 
-  Future<void> _pickProvider() async {
-    final l = widget.l;
-    final current = _isCustom
-        ? kAiPresets.length
-        : (_presetIndex >= 0 ? _presetIndex : 0);
-    final picked = await showDsSheet<int>(
-      context: context,
-      title: l.aiProvider,
-      body: Builder(
-        builder: (sheetContext) {
-          final ds = sheetContext.ds;
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < kAiPresets.length; i++)
-                DsSettingRow(
-                  label: kAiPresets[i].name,
-                  selected: current == i,
-                  trailing: current == i
-                      ? Icon(
-                          CupertinoIcons.checkmark,
-                          size: 15,
-                          color: ds.primary,
-                        )
-                      : null,
-                  onTap: () => Navigator.of(sheetContext).pop(i),
-                ),
-              DsSettingRow(
-                label: l.customProvider,
-                selected: current == kAiPresets.length,
-                trailing: current == kAiPresets.length
-                    ? Icon(
-                        CupertinoIcons.checkmark,
-                        size: 15,
-                        color: ds.primary,
-                      )
-                    : null,
-                onTap: () => Navigator.of(sheetContext).pop(kAiPresets.length),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    if (picked == null || !mounted) return;
+  /// A masked field means "keep the stored key"; an empty field means nothing
+  /// was ever entered.
+  String _resolvedKey() {
+    final typed = widget.keyController.text.trim();
+    if (typed.isEmpty || typed.contains('••••')) return widget.originalKey;
+    return typed;
+  }
+
+  void _selectPreset(int index) {
     setState(() {
-      if (picked == kAiPresets.length) {
-        _isCustom = true;
-      } else {
-        _isCustom = false;
-        _presetIndex = picked;
-        _urlController.text = kAiPresets[picked].baseUrl;
+      _presetIndex = index;
+      if (index >= 0 && index < kAiPresets.length) {
+        _urlController.text = kAiPresets[index].baseUrl;
       }
       _detectedModels = [];
     });
@@ -224,6 +173,61 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
     setState(() => _modelController.text = picked);
   }
 
+  Future<void> _save() async {
+    if (_saving) return;
+    final l = widget.l;
+    final key = _resolvedKey();
+    if (key.isEmpty) {
+      setState(() {
+        _keyErrorTitle = l.aiKeyCheckFailedTitle;
+        _keyErrorBody = l.aiKeyMissing;
+      });
+      return;
+    }
+    final url = _baseUrl.isEmpty ? 'https://api.openai.com/v1' : _baseUrl;
+    final model = _modelController.text.trim();
+
+    setState(() {
+      _saving = true;
+      _keyErrorTitle = null;
+      _keyErrorBody = null;
+      _actionError = null;
+    });
+
+    final check = await ref.read(validateAiKeyProvider)(
+      baseUrl: url,
+      apiKey: key,
+    );
+    if (!mounted) return;
+    if (!check.ok) {
+      setState(() {
+        _saving = false;
+        _keyErrorTitle = l.aiKeyCheckFailedTitle;
+        _keyErrorBody = check.unauthorized
+            ? l.aiKeyCheck401Body
+            : l.aiKeyCheckFailedBody(check.failureLabel);
+      });
+      return;
+    }
+
+    try {
+      await ref.read(saveAiConfigProvider)(
+        apiKey: key,
+        baseUrl: url,
+        model: model.isEmpty ? 'gpt-4o-mini' : model,
+      );
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      debugPrint('ai_config: save error: $error');
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _actionError = l.actionFailedRetry;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = widget.l;
@@ -231,88 +235,97 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
     final ds = context.ds;
 
     return DsDialog(
-      title: l.aiConfig,
+      title: l.aiModelDialogTitle,
       width: 520,
+      sheetOnMobile: true,
       actions: [
         if (config != null)
           DsButton(
             label: l.remove,
             tone: DsButtonTone.danger,
-            onPressed: () async {
-              try {
-                await ref.read(deleteAiConfigProvider)();
-                if (context.mounted) Navigator.of(context).pop();
-              } catch (error) {
-                debugPrint('ai_config: delete error: $error');
-                if (mounted) {
-                  setState(() => _actionError = l.actionFailedRetry);
-                }
-              }
-            },
+            onPressed: _saving
+                ? null
+                : () async {
+                    try {
+                      await ref.read(deleteAiConfigProvider)();
+                      if (context.mounted) Navigator.of(context).pop();
+                    } catch (error) {
+                      debugPrint('ai_config: delete error: $error');
+                      if (mounted) {
+                        setState(() => _actionError = l.actionFailedRetry);
+                      }
+                    }
+                  },
           ),
         const Spacer(),
         DsButton(
           label: l.cancel,
           tone: DsButtonTone.ghost,
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _saving ? null : () => Navigator.of(context).pop(),
         ),
         const SizedBox(width: AppSpacing.s2),
         DsButton(
-          label: l.save,
-          onPressed: () async {
-            var key = widget.keyController.text.trim();
-            if (key.startsWith('••••') || key.isEmpty) {
-              key = widget.originalKey;
-            }
-            final url = _baseUrl;
-            final model = _modelController.text.trim();
-            if (key.isEmpty) return;
-
-            try {
-              await ref.read(saveAiConfigProvider)(
-                apiKey: key,
-                baseUrl: url.isEmpty ? 'https://api.openai.com/v1' : url,
-                model: model.isEmpty ? 'gpt-4o-mini' : model,
-              );
-              if (context.mounted) Navigator.of(context).pop();
-            } catch (error) {
-              debugPrint('ai_config: save error: $error');
-              if (mounted) {
-                setState(() => _actionError = l.actionFailedRetry);
-              }
-            }
-          },
+          label: _saving ? l.aiKeyChecking : l.save,
+          loading: _saving,
+          onPressed: _saving ? null : _save,
         ),
       ],
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DsSettingRow(
+          if (_keyErrorBody != null)
+            InlineAlert(
+              title: _keyErrorTitle,
+              message: _keyErrorBody!,
+              isRed: true,
+            ),
+          DsField(
             label: l.aiProvider,
-            value: _providerLabel,
-            onTap: _pickProvider,
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (var i = 0; i < kAiPresets.length; i++)
+                  DsChip(
+                    label: kAiPresets[i].name,
+                    selected: _presetIndex == i,
+                    onTap: () => _selectPreset(i),
+                  ),
+                DsChip(
+                  label: l.customProvider,
+                  selected: _presetIndex < 0,
+                  onTap: () => _selectPreset(-1),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: AppSpacing.s3),
           DsField(
             label: l.baseUrl,
-            help:
-                'Format: http://host:port/v1 (e.g., http://192.168.1.100:11434/v1)',
+            // The spec keeps the Base URL editable for every provider, not
+            // only the custom preset.
             child: DsTextField(
               controller: _urlController,
               hint: 'https://api.openai.com/v1',
               keyboardType: TextInputType.url,
-              enabled: _isCustom,
               onChanged: (_) => setState(() => _detectedModels = []),
             ),
           ),
+          if (_keyErrorBody != null) const SizedBox(height: AppSpacing.s2),
           DsField(
             label: l.apiKey,
             child: DsTextField(
               controller: widget.keyController,
               hint: 'sk-...',
               obscureText: true,
-              onChanged: (_) => setState(() => _detectedModels = []),
+              onChanged: (_) {
+                setState(() {
+                  _detectedModels = [];
+                  _keyErrorBody = null;
+                  _keyErrorTitle = null;
+                });
+              },
             ),
           ),
           Row(
@@ -332,7 +345,7 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
                 icon: CupertinoIcons.search,
                 small: true,
                 loading: _detecting,
-                onPressed: _detecting ? null : _detectModels,
+                onPressed: _detecting || _saving ? null : _detectModels,
               ),
             ],
           ),
@@ -350,19 +363,22 @@ class _AiConfigDialogState extends ConsumerState<_AiConfigDialog> {
               value: _detectedModels.contains(_modelController.text)
                   ? _modelController.text
                   : null,
-              onTap: _pickModel,
+              onTap: _saving ? null : _pickModel,
             )
           else
             DsTextField(
               controller: _modelController,
               hint: 'gpt-4o-mini',
+              enabled: !_saving,
             ),
+          const SizedBox(height: AppSpacing.s2),
+          Text(
+            l.aiBaseUrlHelp,
+            style: AppTypography.caption.copyWith(color: ds.ink3),
+          ),
           if (_actionError != null) ...[
             const SizedBox(height: AppSpacing.s2),
-            Text(
-              _actionError!,
-              style: AppTypography.caption.copyWith(color: ds.danger),
-            ),
+            InlineAlert(message: _actionError!, isRed: true),
           ],
         ],
       ),

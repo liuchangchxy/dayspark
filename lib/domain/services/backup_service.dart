@@ -1,10 +1,42 @@
 import 'dart:convert';
 import 'package:archive/archive.dart';
+import 'package:dayspark_contracts/dayspark_contracts.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../data/local/database/app_database.dart';
+import '../records/record_scope.dart';
 import 'attachment_files.dart';
+
+enum BackupConflictResolution {
+  keepLocal,
+  keepRemote,
+
+  /// Keep both: the local row stays and the backup's version is imported as
+  /// a new, local-only row (its sync identity is cleared). Nothing is
+  /// overwritten, and no field-level merge is invented.
+  merge,
+}
+
+class BackupConflictItem {
+  const BackupConflictItem({
+    required this.table,
+    required this.id,
+    required this.title,
+    required this.localDescription,
+    required this.remoteDescription,
+    this.associatedSkippedCount = 0,
+  });
+
+  final String table;
+  final int id;
+  final String title;
+  final String localDescription;
+  final String remoteDescription;
+  final int associatedSkippedCount;
+
+  String get key => '$table:$id';
+}
 
 /// Full DaySpark native backup & restore service.
 ///
@@ -173,32 +205,40 @@ class BackupService {
   /// still holds. A row whose file is already gone is exported without
   /// bytes — restore leaves it fileless and the first open re-fetches it
   /// from the server, which is strictly better than failing the export.
-  Future<Uint8List> exportZip() async {
+  Future<Uint8List> exportZip({void Function(double)? onProgress}) async {
     final archive = Archive();
     final json = utf8.encode(await exportJson());
     archive.addFile(ArchiveFile(dbEntryName, json.length, json));
+    onProgress?.call(0.15);
     final attachments = await _db.select(_db.attachments).get();
-    for (final a in attachments) {
+    for (var i = 0; i < attachments.length; i++) {
+      final a = attachments[i];
       final bytes = await _files.read(a.filePath);
-      if (bytes == null) continue;
-      archive.addFile(
-        ArchiveFile(
-          attachmentEntryName(
-            id: a.id,
-            syncId: a.syncId,
-            fileName: a.fileName,
+      if (bytes != null) {
+        archive.addFile(
+          ArchiveFile(
+            attachmentEntryName(
+              id: a.id,
+              syncId: a.syncId,
+              fileName: a.fileName,
+            ),
+            bytes.length,
+            bytes,
           ),
-          bytes.length,
-          bytes,
-        ),
-      );
+        );
+      }
+      onProgress?.call(0.15 + 0.75 * (i + 1) / attachments.length);
     }
-    return ZipEncoder().encodeBytes(archive);
+    onProgress?.call(0.9);
+    final encoded = ZipEncoder().encodeBytes(archive);
+    onProgress?.call(1);
+    return encoded;
   }
 
-  /// Restores a package produced by [exportZip], writing the attachment
-  /// bodies back to local storage and repointing their rows at the files.
-  Future<void> restoreZip(List<int> bytes) async {
+  /// Parses a zip package into its decoded data map and archive.
+  static ({Map<String, dynamic> data, Archive archive}) decodeZip(
+    List<int> bytes,
+  ) {
     final archive = ZipDecoder().decodeBytes(bytes);
     final entry = archive.findFile(dbEntryName);
     final raw = entry?.readBytes();
@@ -209,174 +249,1024 @@ class BackupService {
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Invalid backup JSON payload');
     }
-    await restoreData(decoded, archive: archive);
+    return (data: decoded, archive: archive);
+  }
+
+  /// Inspects [data] against local database to find conflicting items.
+  /// An item is in conflict when its local integer `id` exists locally but has
+  /// a different `syncId` / `icsUid`.
+  Future<List<BackupConflictItem>> inspectConflicts(
+    Map<String, dynamic> data,
+  ) async {
+    final conflicts = <BackupConflictItem>[];
+
+    // 1. Calendars
+    final calendars =
+        (data['calendars'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final c in calendars) {
+      final remoteId = c['id'] as int?;
+      if (remoteId == null) continue;
+      final remoteSync = c['syncId'] as String?;
+      final remoteName = c['name'] as String? ?? '';
+      final localById = (await (_db.select(_db.calendars)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .get()).firstOrNull;
+      if (localById != null) {
+        final isSame = localById.name == remoteName && localById.syncId == remoteSync;
+        if (!isSame) {
+          final calendarEventIds = (data['events'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where((e) => e['calendarId'] == remoteId)
+              .map((e) => e['id'])
+              .whereType<int>()
+              .toSet();
+          final calendarTodoIds = (data['todos'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where((t) => t['calendarId'] == remoteId)
+              .map((t) => t['id'])
+              .whereType<int>()
+              .toSet();
+          var associatedCount =
+              calendarEventIds.length + calendarTodoIds.length;
+          associatedCount += (data['reminders'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where(
+                (r) =>
+                    (r['parentType'] == 'event' &&
+                        calendarEventIds.contains(r['parentId'])) ||
+                    (r['parentType'] == 'todo' &&
+                        calendarTodoIds.contains(r['parentId'])),
+              )
+              .length;
+          associatedCount += (data['attachments'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where(
+                (a) =>
+                    (a['parentType'] == 'event' &&
+                        calendarEventIds.contains(a['parentId'])) ||
+                    (a['parentType'] == 'todo' &&
+                        calendarTodoIds.contains(a['parentId'])),
+              )
+              .length;
+          associatedCount += (data['eventTags'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where((et) => calendarEventIds.contains(et['eventId']))
+              .length;
+          associatedCount += (data['todoTags'] as List<dynamic>? ?? [])
+              .whereType<Map<String, dynamic>>()
+              .where((tt) => calendarTodoIds.contains(tt['todoId']))
+              .length;
+          conflicts.add(
+            BackupConflictItem(
+              table: 'calendars',
+              id: remoteId,
+              title: remoteName.isNotEmpty ? remoteName : 'Calendar #$remoteId',
+              localDescription: '${localById.name} (${localById.color})',
+              remoteDescription: '$remoteName (${c['color']})',
+              associatedSkippedCount: associatedCount,
+            ),
+          );
+        }
+      }
+    }
+
+    // 2. Tags
+    final tags =
+        (data['tags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final tg in tags) {
+      final remoteId = tg['id'] as int?;
+      if (remoteId == null) continue;
+      final remoteSync = tg['syncId'] as String?;
+      final remoteName = tg['name'] as String? ?? '';
+      final localById = (await (_db.select(_db.tags)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .get()).firstOrNull;
+      if (localById != null) {
+        final isSame = localById.name == remoteName && localById.syncId == remoteSync;
+        if (!isSame) {
+          final associatedCount = (data['eventTags'] as List<dynamic>? ?? [])
+                  .where((et) => et is Map && et['tagId'] == remoteId)
+                  .length +
+              (data['todoTags'] as List<dynamic>? ?? [])
+                  .where((tt) => tt is Map && tt['tagId'] == remoteId)
+                  .length;
+          conflicts.add(
+            BackupConflictItem(
+              table: 'tags',
+              id: remoteId,
+              title: remoteName.isNotEmpty ? remoteName : 'Tag #$remoteId',
+              localDescription: localById.name,
+              remoteDescription: remoteName,
+              associatedSkippedCount: associatedCount,
+            ),
+          );
+        }
+      }
+    }
+
+    // 3. Events
+    final events =
+        (data['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final e in events) {
+      final remoteId = e['id'] as int?;
+      if (remoteId == null) continue;
+      final localById = await (_db.select(_db.events)
+            ..where((t) => t.id.equals(remoteId)))
+          .getSingleOrNull();
+      if (localById != null) {
+        final remoteSync = e['syncId'] as String?;
+        final remoteIcs = e['icsUid'] as String?;
+        final isIdentical = localById.summary == e['summary'] &&
+            localById.syncId == remoteSync &&
+            localById.icsUid == remoteIcs;
+        if (!isIdentical) {
+          final associatedCount = (data['reminders'] as List<dynamic>? ?? [])
+                  .where((r) =>
+                      r is Map &&
+                      r['parentType'] == 'event' &&
+                      r['parentId'] == remoteId)
+                  .length +
+              (data['attachments'] as List<dynamic>? ?? [])
+                  .where((a) =>
+                      a is Map &&
+                      a['parentType'] == 'event' &&
+                      a['parentId'] == remoteId)
+                  .length +
+              (data['eventTags'] as List<dynamic>? ?? [])
+                  .where((et) => et is Map && et['eventId'] == remoteId)
+                  .length;
+          conflicts.add(
+            BackupConflictItem(
+              table: 'events',
+              id: remoteId,
+              title: e['summary'] as String? ?? 'Event #$remoteId',
+              localDescription: localById.summary,
+              remoteDescription: e['summary'] as String? ?? '',
+              associatedSkippedCount: associatedCount,
+            ),
+          );
+        }
+      }
+    }
+
+    // 4. Todos
+    final todos =
+        (data['todos'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final t in todos) {
+      final remoteId = t['id'] as int?;
+      if (remoteId == null) continue;
+      final localById = await (_db.select(_db.todos)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .getSingleOrNull();
+      if (localById != null) {
+        final remoteSync = t['syncId'] as String?;
+        final remoteIcs = t['icsUid'] as String?;
+        final isIdentical = localById.summary == t['summary'] &&
+            localById.syncId == remoteSync &&
+            localById.icsUid == remoteIcs;
+        if (!isIdentical) {
+          final associatedCount = (data['todos'] as List<dynamic>? ?? [])
+                  .where((t2) => t2 is Map && t2['parentId'] == remoteId)
+                  .length +
+              (data['reminders'] as List<dynamic>? ?? [])
+                  .where((r) =>
+                      r is Map &&
+                      r['parentType'] == 'todo' &&
+                      r['parentId'] == remoteId)
+                  .length +
+              (data['attachments'] as List<dynamic>? ?? [])
+                  .where((a) =>
+                      a is Map &&
+                      a['parentType'] == 'todo' &&
+                      a['parentId'] == remoteId)
+                  .length +
+              (data['todoTags'] as List<dynamic>? ?? [])
+                  .where((tt) => tt is Map && tt['todoId'] == remoteId)
+                  .length;
+          conflicts.add(
+            BackupConflictItem(
+              table: 'todos',
+              id: remoteId,
+              title: t['summary'] as String? ?? 'Task #$remoteId',
+              localDescription: localById.summary,
+              remoteDescription: t['summary'] as String? ?? '',
+              associatedSkippedCount: associatedCount,
+            ),
+          );
+        }
+      }
+    }
+
+    // 5. Reminders
+    final reminders =
+        (data['reminders'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final r in reminders) {
+      final remoteId = r['id'] as int?;
+      if (remoteId == null) continue;
+      final localById = await (_db.select(_db.reminders)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .getSingleOrNull();
+      if (localById != null) {
+        final remoteSync = r['syncId'] as String?;
+        final syncDiffers = remoteSync != null &&
+            localById.syncId != null &&
+            remoteSync != localById.syncId;
+        final triggerDiffers = localById.triggerTime.toUtc() !=
+            DateTime.parse(r['triggerTime'] as String).toUtc();
+        final hasIdCollision = (remoteSync == null && localById.syncId != null) ||
+            (remoteSync != null && localById.syncId == null) ||
+            (remoteSync == null && localById.syncId == null) ||
+            syncDiffers;
+        if (hasIdCollision || triggerDiffers) {
+          conflicts.add(
+            BackupConflictItem(
+              table: 'reminders',
+              id: remoteId,
+              title: 'Reminder #$remoteId',
+              localDescription: '${localById.parentType} @ ${localById.triggerTime}',
+              remoteDescription: '${r['parentType']} @ ${r['triggerTime']}',
+            ),
+          );
+        }
+      }
+    }
+
+    // 6. Attachments
+    final attachments =
+        (data['attachments'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    for (final a in attachments) {
+      final remoteId = a['id'] as int?;
+      if (remoteId == null) continue;
+      final localById = await (_db.select(_db.attachments)
+            ..where((tbl) => tbl.id.equals(remoteId)))
+          .getSingleOrNull();
+      if (localById != null) {
+        final remoteSync = a['syncId'] as String?;
+        final remoteFileName = a['fileName'] as String? ?? '';
+        final syncDiffers = remoteSync != null &&
+            localById.syncId != null &&
+            remoteSync != localById.syncId;
+        final nameDiffers = localById.fileName != remoteFileName;
+        final hasIdCollision = (remoteSync == null && localById.syncId != null) ||
+            (remoteSync != null && localById.syncId == null) ||
+            (remoteSync == null && localById.syncId == null) ||
+            syncDiffers;
+        if (hasIdCollision || nameDiffers) {
+          conflicts.add(
+            BackupConflictItem(
+              table: 'attachments',
+              id: remoteId,
+              title: remoteFileName.isNotEmpty ? remoteFileName : 'Attachment #$remoteId',
+              localDescription: '${localById.fileName} (${localById.fileSize} B)',
+              remoteDescription: '$remoteFileName (${a['fileSize']} B)',
+            ),
+          );
+        }
+      }
+    }
+
+    return conflicts;
+  }
+
+  /// Restores a package produced by [exportZip], writing the attachment
+  /// bodies back to local storage and repointing their rows at the files.
+  Future<void> restoreZip(
+    List<int> bytes, {
+    Map<String, BackupConflictResolution>? resolutions,
+  }) async {
+    final decoded = decodeZip(bytes);
+    await restoreData(
+      decoded.data,
+      archive: decoded.archive,
+      resolutions: resolutions,
+    );
   }
 
   /// Restores database state from a backup JSON string or decoded map.
-  Future<void> restoreFromJson(String jsonString) async {
+  Future<void> restoreFromJson(
+    String jsonString, {
+    Map<String, BackupConflictResolution>? resolutions,
+  }) async {
     final dynamic decoded = jsonDecode(jsonString);
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('Invalid backup JSON payload');
     }
-    await restoreData(decoded);
+    await restoreData(decoded, resolutions: resolutions);
   }
 
-  /// Restores data from a parsed backup map inside a single transaction.
-  ///
-  /// With [archive] the attachment bodies in it are written back and each
-  /// row is repointed at the restored file; without it (JSON-only backup)
-  /// rows keep a path only when that file still exists on this device.
+  /// Restores data from a parsed backup map inside RecordScope.
+  /// Matches items by syncId/icsUid. Unresolved conflicts are skipped.
   Future<void> restoreData(
     Map<String, dynamic> data, {
     Archive? archive,
+    Map<String, BackupConflictResolution>? resolutions,
   }) async {
-    await _db.transaction(() async {
-      final calendars = (data['calendars'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    await RecordScope.run(_db, (tx) async {
+      final skippedCalendarIds = <int>{};
+      final skippedTagIds = <int>{};
+      final skippedEventIds = <int>{};
+      final skippedTodoIds = <int>{};
+
+      // 1. Calendars: ONLY match by syncId non-empty and matching
+      final calendars =
+          (data['calendars'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      final calendarIdMap = <int, int>{}; // oldId -> newId
+
       for (final c in calendars) {
-        await _db.into(_db.calendars).insertOnConflictUpdate(
-          CalendarsCompanion(
-            id: Value(c['id'] as int),
-            name: Value(c['name'] as String),
-            color: Value(c['color'] as String),
-            timezone: Value(c['timezone'] as String? ?? 'UTC'),
-            isActive: Value(c['isActive'] as bool? ?? true),
-            sortOrder: Value(c['sortOrder'] as int? ?? 0),
-            syncId: Value(c['syncId'] as String?),
-          ),
+        final oldId = c['id'] as int;
+        final syncId = c['syncId'] as String?;
+        final name = c['name'] as String;
+        final color = c['color'] as String;
+        final timezone = c['timezone'] as String? ?? 'UTC';
+        final isActive = c['isActive'] as bool? ?? true;
+        final sortOrder = c['sortOrder'] as int? ?? 0;
+        final conflictKey = 'calendars:$oldId';
+        final hasSyncId = syncId != null && syncId.isNotEmpty;
+
+        Calendar? match;
+        if (hasSyncId) {
+          match = (await (_db.select(_db.calendars)
+                ..where((tbl) => tbl.syncId.equals(syncId)))
+              .get()).firstOrNull;
+        }
+        final localById = (await (_db.select(_db.calendars)
+              ..where((tbl) => tbl.id.equals(oldId)))
+            .get()).firstOrNull;
+
+        // Only a non-empty syncId identifies the same calendar. An exact
+        // duplicate under the same integer id is a no-op; any other integer-id
+        // collision is a different calendar and must never be updated in place.
+        final matchesByIdentity = match != null &&
+            match.name == name &&
+            match.color == color &&
+            match.timezone == timezone &&
+            match.isActive == isActive &&
+            match.sortOrder == sortOrder &&
+            match.syncId == syncId;
+        final isExactLocalDuplicate = !hasSyncId &&
+            localById != null &&
+            localById.name == name &&
+            localById.color == color &&
+            localById.timezone == timezone &&
+            localById.isActive == isActive &&
+            localById.sortOrder == sortOrder &&
+            localById.syncId == syncId;
+        if (matchesByIdentity || isExactLocalDuplicate) {
+          calendarIdMap[oldId] = match?.id ?? localById!.id;
+          continue;
+        }
+
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isConflict = hasIdCollision ||
+            (match != null && match.name != name);
+
+        var mergeAsNew = false;
+        if (isConflict) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            skippedCalendarIds.add(oldId);
+            continue;
+          }
+          mergeAsNew = res == BackupConflictResolution.merge;
+        }
+
+        final companion = CalendarsCompanion(
+          name: Value(name),
+          color: Value(color),
+          timezone: Value(timezone),
+          isActive: Value(isActive),
+          sortOrder: Value(sortOrder),
+          syncId: Value(syncId),
         );
+
+        if (mergeAsNew) {
+          final newId = await _db.into(_db.calendars).insert(
+            companion.copyWith(syncId: const Value(null)),
+          );
+          calendarIdMap[oldId] = newId;
+        } else if (match != null) {
+          calendarIdMap[oldId] = match.id;
+          await (_db.update(_db.calendars)..where((tbl) => tbl.id.equals(match!.id)))
+              .write(
+            companion.copyWith(
+              syncId: Value(syncId ?? match.syncId),
+            ),
+          );
+        } else if (localById != null) {
+          // Id collision without a shared syncId: the local row is another
+          // calendar. Import the remote as a new row instead of overwriting it.
+          final newId = await _db.into(_db.calendars).insert(companion);
+          calendarIdMap[oldId] = newId;
+        } else {
+          final newId = await _db.into(_db.calendars).insert(companion.copyWith(id: Value(oldId)));
+          calendarIdMap[oldId] = newId;
+        }
       }
 
+      // 2. Tags: ONLY match by syncId non-empty and matching
       final tags = (data['tags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      final tagIdMap = <int, int>{};
+
       for (final tg in tags) {
-        await _db.into(_db.tags).insertOnConflictUpdate(
-          TagsCompanion(
-            id: Value(tg['id'] as int),
-            name: Value(tg['name'] as String),
-            color: Value(tg['color'] as String),
-            syncId: Value(tg['syncId'] as String?),
-          ),
+        final oldId = tg['id'] as int;
+        final syncId = tg['syncId'] as String?;
+        final name = tg['name'] as String;
+        final color = tg['color'] as String;
+        final conflictKey = 'tags:$oldId';
+        final hasSyncId = syncId != null && syncId.isNotEmpty;
+
+        Tag? match;
+        if (hasSyncId) {
+          match = (await (_db.select(_db.tags)
+                ..where((tbl) => tbl.syncId.equals(syncId)))
+              .get()).firstOrNull;
+        }
+        final localById = (await (_db.select(_db.tags)
+              ..where((tbl) => tbl.id.equals(oldId)))
+            .get()).firstOrNull;
+
+        // Only a non-empty syncId identifies the same tag. An exact duplicate
+        // under the same integer id is a no-op; any other integer-id collision
+        // is a different tag and must never be updated in place.
+        final matchesByIdentity = match != null &&
+            match.name == name &&
+            match.color == color &&
+            match.syncId == syncId;
+        final isExactLocalDuplicate = !hasSyncId &&
+            localById != null &&
+            localById.name == name &&
+            localById.color == color &&
+            localById.syncId == syncId;
+        if (matchesByIdentity || isExactLocalDuplicate) {
+          tagIdMap[oldId] = match?.id ?? localById!.id;
+          continue;
+        }
+
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isConflict = hasIdCollision ||
+            (match != null && match.name != name);
+
+        var mergeAsNew = false;
+        if (isConflict) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            skippedTagIds.add(oldId);
+            continue;
+          }
+          mergeAsNew = res == BackupConflictResolution.merge;
+        }
+
+        final companion = TagsCompanion(
+          name: Value(name),
+          color: Value(color),
+          syncId: Value(syncId),
         );
+
+        if (mergeAsNew) {
+          final newId = await _db.into(_db.tags).insert(
+            companion.copyWith(syncId: const Value(null)),
+          );
+          tagIdMap[oldId] = newId;
+        } else if (match != null) {
+          tagIdMap[oldId] = match.id;
+          await (_db.update(_db.tags)..where((tbl) => tbl.id.equals(match!.id)))
+              .write(
+            companion.copyWith(
+              syncId: Value(syncId ?? match.syncId),
+            ),
+          );
+        } else if (localById != null) {
+          // Id collision without a shared syncId: the local row is another
+          // tag. Import the remote as a new row instead of overwriting it.
+          final newId = await _db.into(_db.tags).insert(companion);
+          tagIdMap[oldId] = newId;
+        } else {
+          final newId = await _db.into(_db.tags).insert(companion.copyWith(id: Value(oldId)));
+          tagIdMap[oldId] = newId;
+        }
       }
 
-      final events = (data['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      // 3. Events: ONLY match by syncId / icsUid non-empty and matching (Rule 19)
+      final events =
+          (data['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      final eventIdMap = <int, int>{};
+
       for (final e in events) {
-        await _db.into(_db.events).insertOnConflictUpdate(
-          EventsCompanion(
-            id: Value(e['id'] as int),
-            calendarId: Value(e['calendarId'] as int),
-            summary: Value(e['summary'] as String),
-            description: Value(e['description'] as String?),
-            startDt: Value(DateTime.parse(e['startDt'] as String).toUtc()),
-            endDt: Value(DateTime.parse(e['endDt'] as String).toUtc()),
-            isAllDay: Value(e['isAllDay'] as bool? ?? false),
-            location: Value(e['location'] as String?),
-            rrule: Value(e['rrule'] as String?),
-            // Excluding one occurrence is a user decision about the series;
-            // a backup that drops it resurrects the occurrence on restore.
-            exdates: Value(e['exdates'] as String?),
-            deletedAt: Value(e['deletedAt'] == null ? null : DateTime.parse(e['deletedAt'] as String).toUtc()),
-            syncId: Value(e['syncId'] as String?),
-            icsUid: Value(e['icsUid'] as String?),
+        final oldId = e['id'] as int;
+        final syncId = e['syncId'] as String?;
+        final icsUid = e['icsUid'] as String?;
+        final conflictKey = 'events:$oldId';
+
+        final rawCalId = e['calendarId'] as int;
+        if (skippedCalendarIds.contains(rawCalId)) {
+          skippedEventIds.add(oldId);
+          continue;
+        }
+
+        final localById = (await (_db.select(_db.events)
+              ..where((tbl) => tbl.id.equals(oldId)))
+            .get()).firstOrNull;
+
+        Event? match;
+        if (syncId != null && syncId.isNotEmpty) {
+          match = (await (_db.select(_db.events)
+                ..where((tbl) => tbl.syncId.equals(syncId)))
+              .get()).firstOrNull;
+        }
+        if (match == null && icsUid != null && icsUid.isNotEmpty) {
+          match = (await (_db.select(_db.events)
+                ..where((tbl) => tbl.icsUid.equals(icsUid)))
+              .get()).firstOrNull;
+        }
+        // Rule 19: NEVER match by localById!
+        final isIdentical = (localById != null &&
+                localById.summary == e['summary'] &&
+                localById.syncId == syncId &&
+                localById.icsUid == icsUid) ||
+            (match != null &&
+                match.summary == e['summary'] &&
+                match.syncId == syncId &&
+                match.icsUid == icsUid);
+        if (isIdentical) {
+          eventIdMap[oldId] = match?.id ?? localById!.id;
+          continue;
+        }
+
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isConflict = hasIdCollision ||
+            (match != null && match.summary != e['summary']);
+
+        var mergeAsNew = false;
+        if (isConflict) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            skippedEventIds.add(oldId);
+            continue;
+          }
+          mergeAsNew = res == BackupConflictResolution.merge;
+        }
+
+        final targetCalId = calendarIdMap[rawCalId] ?? rawCalId;
+
+        final companion = EventsCompanion(
+          calendarId: Value(targetCalId),
+          summary: Value(e['summary'] as String),
+          description: Value(e['description'] as String?),
+          startDt: Value(DateTime.parse(e['startDt'] as String).toUtc()),
+          endDt: Value(DateTime.parse(e['endDt'] as String).toUtc()),
+          isAllDay: Value(e['isAllDay'] as bool? ?? false),
+          location: Value(e['location'] as String?),
+          rrule: Value(e['rrule'] as String?),
+          exdates: Value(e['exdates'] as String?),
+          deletedAt: Value(
+            e['deletedAt'] == null
+                ? null
+                : DateTime.parse(e['deletedAt'] as String).toUtc(),
           ),
+          syncId: Value(syncId),
+          icsUid: Value(icsUid),
         );
+
+        if (mergeAsNew) {
+          final newId = await _db.into(_db.events).insert(
+            companion.copyWith(
+              syncId: const Value(null),
+              icsUid: const Value(null),
+            ),
+          );
+          eventIdMap[oldId] = newId;
+          tx.applied(RecordType.event, newId);
+        } else if (match != null) {
+          eventIdMap[oldId] = match.id;
+          await (_db.update(_db.events)..where((tbl) => tbl.id.equals(match!.id)))
+              .write(companion);
+          tx.applied(RecordType.event, match.id);
+        } else if (localById != null) {
+          // Id collision without a shared syncId/icsUid: the local row is a
+          // different event. Import the remote as a new row instead of
+          // overwriting it.
+          final newId = await _db.into(_db.events).insert(companion);
+          eventIdMap[oldId] = newId;
+          tx.applied(RecordType.event, newId);
+        } else {
+          final newId = await _db.into(_db.events).insert(companion.copyWith(id: Value(oldId)));
+          eventIdMap[oldId] = newId;
+          tx.applied(RecordType.event, newId);
+        }
       }
 
-      final todos = (data['todos'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      // 4. Todos: ONLY match by syncId / icsUid non-empty and matching (Rule 19)
+      // Two-pass parentId restoration (Rule 23)
+      final todos =
+          (data['todos'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      final todoIdMap = <int, int>{};
+      final pendingParentUpdates = <int, int>{}; // newTodoId -> backupParentId
+
       for (final t in todos) {
-        await _db.into(_db.todos).insertOnConflictUpdate(
-          TodosCompanion(
-            id: Value(t['id'] as int),
-            calendarId: Value(t['calendarId'] as int),
-            summary: Value(t['summary'] as String),
-            description: Value(t['description'] as String?),
-            dueDate: Value(t['dueDate'] == null ? null : DateTime.parse(t['dueDate'] as String).toUtc()),
-            startDate: Value(t['startDate'] == null ? null : DateTime.parse(t['startDate'] as String).toUtc()),
-            status: Value(t['status'] as String? ?? 'NEEDS-ACTION'),
-            completedAt: Value(t['completedAt'] == null ? null : DateTime.parse(t['completedAt'] as String).toUtc()),
-            priority: Value(t['priority'] as int? ?? 0),
-            parentId: Value(t['parentId'] as int?),
-            rrule: Value(t['rrule'] as String?),
-            recurrenceAnchorSource: Value(t['recurrenceAnchorSource'] as String?),
-            recurrenceValueType: Value(t['recurrenceValueType'] as String?),
-            recurrenceAnchorValue: Value(t['recurrenceAnchorValue'] as String?),
-            recurrenceTimeZone: Value(t['recurrenceTimeZone'] as String?),
-            recurrenceRule: Value(t['recurrenceRule'] as String?),
-            recurrenceLegacyState: Value(t['recurrenceLegacyState'] as String?),
-            recurrenceEvidence: Value(t['recurrenceEvidence'] as String?),
-            recurrenceRevision: Value(t['recurrenceRevision'] as int? ?? 0),
-            percentComplete: Value(t['percentComplete'] as int? ?? 0),
-            sortOrder: Value(t['sortOrder'] as int? ?? 0),
-            deletedAt: Value(t['deletedAt'] == null ? null : DateTime.parse(t['deletedAt'] as String).toUtc()),
-            syncId: Value(t['syncId'] as String?),
-            icsUid: Value(t['icsUid'] as String?),
+        final oldId = t['id'] as int;
+        final syncId = t['syncId'] as String?;
+        final icsUid = t['icsUid'] as String?;
+        final conflictKey = 'todos:$oldId';
+
+        final rawCalId = t['calendarId'] as int;
+        if (skippedCalendarIds.contains(rawCalId)) {
+          skippedTodoIds.add(oldId);
+          continue;
+        }
+
+        final localById = (await (_db.select(_db.todos)
+              ..where((tbl) => tbl.id.equals(oldId)))
+            .get()).firstOrNull;
+
+        Todo? match;
+        if (syncId != null && syncId.isNotEmpty) {
+          match = (await (_db.select(_db.todos)
+                ..where((tbl) => tbl.syncId.equals(syncId)))
+              .get()).firstOrNull;
+        }
+        if (match == null && icsUid != null && icsUid.isNotEmpty) {
+          match = (await (_db.select(_db.todos)
+                ..where((tbl) => tbl.icsUid.equals(icsUid)))
+              .get()).firstOrNull;
+        }
+        // Rule 19: NEVER match by localById!
+        final isIdentical = (localById != null &&
+                localById.summary == t['summary'] &&
+                localById.syncId == syncId &&
+                localById.icsUid == icsUid) ||
+            (match != null &&
+                match.summary == t['summary'] &&
+                match.syncId == syncId &&
+                match.icsUid == icsUid);
+        if (isIdentical) {
+          todoIdMap[oldId] = match?.id ?? localById!.id;
+          continue;
+        }
+
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isConflict = hasIdCollision ||
+            (match != null && match.summary != t['summary']);
+
+        var mergeAsNew = false;
+        if (isConflict) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            skippedTodoIds.add(oldId);
+            continue;
+          }
+          mergeAsNew = res == BackupConflictResolution.merge;
+        }
+
+        final targetCalId = calendarIdMap[rawCalId] ?? rawCalId;
+
+        final companion = TodosCompanion(
+          calendarId: Value(targetCalId),
+          summary: Value(t['summary'] as String),
+          description: Value(t['description'] as String?),
+          dueDate: Value(
+            t['dueDate'] == null
+                ? null
+                : DateTime.parse(t['dueDate'] as String).toUtc(),
           ),
+          startDate: Value(
+            t['startDate'] == null
+                ? null
+                : DateTime.parse(t['startDate'] as String).toUtc(),
+          ),
+          status: Value(t['status'] as String? ?? 'NEEDS-ACTION'),
+          completedAt: Value(
+            t['completedAt'] == null
+                ? null
+                : DateTime.parse(t['completedAt'] as String).toUtc(),
+          ),
+          priority: Value(t['priority'] as int? ?? 0),
+          parentId: const Value(null), // Filled in Pass 2
+          rrule: Value(t['rrule'] as String?),
+          recurrenceAnchorSource: Value(t['recurrenceAnchorSource'] as String?),
+          recurrenceValueType: Value(t['recurrenceValueType'] as String?),
+          recurrenceAnchorValue: Value(t['recurrenceAnchorValue'] as String?),
+          recurrenceTimeZone: Value(t['recurrenceTimeZone'] as String?),
+          recurrenceRule: Value(t['recurrenceRule'] as String?),
+          recurrenceLegacyState: Value(t['recurrenceLegacyState'] as String?),
+          recurrenceEvidence: Value(t['recurrenceEvidence'] as String?),
+          recurrenceRevision: Value(t['recurrenceRevision'] as int? ?? 0),
+          percentComplete: Value(t['percentComplete'] as int? ?? 0),
+          sortOrder: Value(t['sortOrder'] as int? ?? 0),
+          deletedAt: Value(
+            t['deletedAt'] == null
+                ? null
+                : DateTime.parse(t['deletedAt'] as String).toUtc(),
+          ),
+          syncId: Value(syncId),
+          icsUid: Value(icsUid),
         );
+
+        final int targetTodoId;
+        if (mergeAsNew) {
+          final newId = await _db.into(_db.todos).insert(
+            companion.copyWith(
+              syncId: const Value(null),
+              icsUid: const Value(null),
+            ),
+          );
+          todoIdMap[oldId] = newId;
+          targetTodoId = newId;
+          tx.applied(RecordType.todo, newId);
+        } else if (match != null) {
+          todoIdMap[oldId] = match.id;
+          targetTodoId = match.id;
+          await (_db.update(_db.todos)..where((tbl) => tbl.id.equals(match!.id)))
+              .write(companion);
+          tx.applied(RecordType.todo, match.id);
+        } else if (localById != null) {
+          // Id collision without a shared syncId/icsUid: the local row is a
+          // different todo. Import the remote as a new row instead of
+          // overwriting it.
+          final newId = await _db.into(_db.todos).insert(companion);
+          todoIdMap[oldId] = newId;
+          targetTodoId = newId;
+          tx.applied(RecordType.todo, newId);
+        } else {
+          final newId = await _db.into(_db.todos).insert(companion.copyWith(id: Value(oldId)));
+          todoIdMap[oldId] = newId;
+          targetTodoId = newId;
+          tx.applied(RecordType.todo, newId);
+        }
+
+        if (t['parentId'] != null) {
+          pendingParentUpdates[targetTodoId] = t['parentId'] as int;
+        }
       }
 
-      final reminders = (data['reminders'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      // Pass 2: Backfill parentId (Item 23)
+      for (final entry in pendingParentUpdates.entries) {
+        final childId = entry.key;
+        final rawParentId = entry.value;
+        if (skippedTodoIds.contains(rawParentId)) continue;
+        final resolvedParentId = todoIdMap[rawParentId];
+        if (resolvedParentId != null) {
+          await (_db.update(_db.todos)..where((tbl) => tbl.id.equals(childId)))
+              .write(TodosCompanion(parentId: Value(resolvedParentId)));
+        }
+      }
+
+      // 5. Reminders (Item 21: skip if parent was skipped)
+      final reminders =
+          (data['reminders'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final r in reminders) {
-        await _db.into(_db.reminders).insertOnConflictUpdate(
-          RemindersCompanion(
-            id: Value(r['id'] as int),
-            parentType: Value(r['parentType'] as String),
-            parentId: Value(r['parentId'] as int),
-            triggerTime: Value(DateTime.parse(r['triggerTime'] as String).toUtc()),
-            isTriggered: Value(r['isTriggered'] as bool? ?? false),
-            syncId: Value(r['syncId'] as String?),
-            parentSyncId: Value(r['parentSyncId'] as String?),
-          ),
+        final parentType = r['parentType'] as String;
+        final rawParentId = r['parentId'] as int;
+        final parentResolvedId = parentType == 'event'
+            ? eventIdMap[rawParentId]
+            : todoIdMap[rawParentId];
+        final parentId = parentResolvedId ??
+            (parentType == 'event'
+                ? (await (_db.select(_db.events)..where((e) => e.id.equals(rawParentId))).getSingleOrNull())?.id
+                : (await (_db.select(_db.todos)..where((t) => t.id.equals(rawParentId))).getSingleOrNull())?.id);
+        if (parentId == null ||
+            (parentType == 'event' && skippedEventIds.contains(rawParentId)) ||
+            (parentType == 'todo' && skippedTodoIds.contains(rawParentId))) {
+          continue;
+        }
+
+        final oldId = r['id'] as int;
+        final syncId = r['syncId'] as String?;
+        final conflictKey = 'reminders:$oldId';
+
+        Reminder? match;
+        if (syncId != null && syncId.isNotEmpty) {
+          match = await (_db.select(_db.reminders)
+                ..where((tbl) => tbl.syncId.equals(syncId)))
+              .getSingleOrNull();
+        }
+
+        final localById = await (_db.select(_db.reminders)
+              ..where((tbl) => tbl.id.equals(oldId)))
+            .getSingleOrNull();
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isMerge =
+            resolutions?[conflictKey] == BackupConflictResolution.merge;
+        if (hasIdCollision) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            continue;
+          }
+        }
+
+        final companion = RemindersCompanion(
+          parentType: Value(parentType),
+          parentId: Value(parentId),
+          triggerTime: Value(DateTime.parse(r['triggerTime'] as String).toUtc()),
+          isTriggered: Value(r['isTriggered'] as bool? ?? false),
+          syncId: Value(syncId),
+          parentSyncId: Value(r['parentSyncId'] as String?),
         );
+
+        if (match != null && !isMerge) {
+          await (_db.update(_db.reminders)
+                ..where((tbl) => tbl.id.equals(match!.id)))
+              .write(companion);
+        } else if (localById != null || isMerge) {
+          // Id collision without a shared syncId, or an explicit merge: the
+          // local row is a different reminder. Import the remote as a new row
+          // instead of overwriting it. A merge copy is local-only.
+          await _db.into(_db.reminders).insert(
+            isMerge ? companion.copyWith(syncId: const Value(null)) : companion,
+          );
+        } else {
+          await _db.into(_db.reminders).insert(companion.copyWith(id: Value(oldId)));
+        }
       }
 
-      final eventTags = (data['eventTags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      // 6. EventTags & TodoTags (Item 21: skip if parent was skipped; Item 1 & 5: resolution gate)
+      final eventTags =
+          (data['eventTags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final et in eventTags) {
+        final rawEventId = et['eventId'] as int;
+        final rawTagId = et['tagId'] as int;
+        final eventId = eventIdMap[rawEventId] ??
+            (await (_db.select(_db.events)..where((e) => e.id.equals(rawEventId))).getSingleOrNull())?.id;
+        final tagId = tagIdMap[rawTagId] ??
+            (await (_db.select(_db.tags)..where((t) => t.id.equals(rawTagId))).getSingleOrNull())?.id;
+        if (eventId == null || tagId == null) {
+          continue;
+        }
+        if (skippedEventIds.contains(rawEventId) || skippedTagIds.contains(rawTagId)) {
+          continue;
+        }
+        // Conflict keys are the backup ids (`events:<backupId>`). Effective
+        // ids must not be consulted: a different conflict that happens to sit
+        // on the same effective integer id cannot suppress this join.
+        if (resolutions?['events:$rawEventId'] == BackupConflictResolution.keepLocal ||
+            resolutions?['tags:$rawTagId'] == BackupConflictResolution.keepLocal) {
+          continue;
+        }
+        final syncId = et['syncId'] as String?;
+
         await _db.into(_db.eventTags).insertOnConflictUpdate(
           EventTagsCompanion(
-            eventId: Value(et['eventId'] as int),
-            tagId: Value(et['tagId'] as int),
-            syncId: Value(et['syncId'] as String?),
+            eventId: Value(eventId),
+            tagId: Value(tagId),
+            syncId: Value(syncId),
           ),
         );
       }
 
-      final todoTags = (data['todoTags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      final todoTags =
+          (data['todoTags'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final tt in todoTags) {
+        final rawTodoId = tt['todoId'] as int;
+        final rawTagId = tt['tagId'] as int;
+        final todoId = todoIdMap[rawTodoId] ??
+            (await (_db.select(_db.todos)..where((t) => t.id.equals(rawTodoId))).getSingleOrNull())?.id;
+        final tagId = tagIdMap[rawTagId] ??
+            (await (_db.select(_db.tags)..where((t) => t.id.equals(rawTagId))).getSingleOrNull())?.id;
+        if (todoId == null || tagId == null) {
+          continue;
+        }
+        if (skippedTodoIds.contains(rawTodoId) || skippedTagIds.contains(rawTagId)) {
+          continue;
+        }
+        // Conflict keys are the backup ids (`todos:<backupId>`). Effective ids
+        // must not be consulted: a different conflict that happens to sit on
+        // the same effective integer id cannot suppress this join.
+        if (resolutions?['todos:$rawTodoId'] == BackupConflictResolution.keepLocal ||
+            resolutions?['tags:$rawTagId'] == BackupConflictResolution.keepLocal) {
+          continue;
+        }
+        final syncId = tt['syncId'] as String?;
+
         await _db.into(_db.todoTags).insertOnConflictUpdate(
           TodoTagsCompanion(
-            todoId: Value(tt['todoId'] as int),
-            tagId: Value(tt['tagId'] as int),
-            syncId: Value(tt['syncId'] as String?),
+            todoId: Value(todoId),
+            tagId: Value(tagId),
+            syncId: Value(syncId),
           ),
         );
       }
 
-      final attachments = (data['attachments'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+      // 7. Attachments (Item 20 & 21: match by syncId/parentSyncId, preserve local valid path, skip if parent skipped)
+      final attachments =
+          (data['attachments'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
       for (final a in attachments) {
         final id = a['id'] as int;
+        final parentType = a['parentType'] as String;
+        final rawParentId = a['parentId'] as int;
+        final parentResolvedId = parentType == 'event'
+            ? eventIdMap[rawParentId]
+            : todoIdMap[rawParentId];
+        final parentId = parentResolvedId ??
+            (parentType == 'event'
+                ? (await (_db.select(_db.events)..where((e) => e.id.equals(rawParentId))).getSingleOrNull())?.id
+                : (await (_db.select(_db.todos)..where((t) => t.id.equals(rawParentId))).getSingleOrNull())?.id);
+        if (parentId == null ||
+            (parentType == 'event' && skippedEventIds.contains(rawParentId)) ||
+            (parentType == 'todo' && skippedTodoIds.contains(rawParentId))) {
+          continue;
+        }
+
+        final syncId = a['syncId'] as String?;
+        final parentSyncId = a['parentSyncId'] as String?;
         final fileName = a['fileName'] as String;
+        final conflictKey = 'attachments:$id';
+
+        Attachment? match;
+        if (syncId != null && syncId.isNotEmpty) {
+          match = await (_db.select(_db.attachments)
+                ..where((tbl) => tbl.syncId.equals(syncId)))
+              .getSingleOrNull();
+        }
+        if (match == null && parentSyncId != null && parentSyncId.isNotEmpty) {
+          match = await (_db.select(_db.attachments)
+                ..where((tbl) => tbl.parentSyncId.equals(parentSyncId) & tbl.fileName.equals(fileName)))
+              .getSingleOrNull();
+        }
+
+        final localById = await (_db.select(_db.attachments)
+              ..where((tbl) => tbl.id.equals(id)))
+            .getSingleOrNull();
+        final hasIdCollision = localById != null && (match == null || match.id != localById.id);
+        final isMerge =
+            resolutions?[conflictKey] == BackupConflictResolution.merge;
+        if (hasIdCollision) {
+          final res = resolutions?[conflictKey];
+          if (res == null || res == BackupConflictResolution.keepLocal) {
+            continue;
+          }
+        }
+
+        final int targetId;
+        final importAsNewRow = (match == null && localById != null) || isMerge;
+        if (match != null && !isMerge) {
+          targetId = match.id;
+        } else if (importAsNewRow) {
+          // Id collision without a shared syncId/parent identity: the local
+          // row is a different attachment. Import the remote as a new row
+          // instead of overwriting it; its bytes go under the new row's key.
+          targetId = await _db.into(_db.attachments).insert(
+            AttachmentsCompanion(
+              parentType: Value(parentType),
+              parentId: Value(parentId),
+              filePath: const Value(''),
+              fileName: Value(fileName),
+              fileSize: Value(a['fileSize'] as int? ?? 0),
+              mimeType: Value(a['mimeType'] as String?),
+              syncId: Value(isMerge ? null : syncId),
+              parentSyncId: Value(parentSyncId),
+              serverFileRef: Value(a['serverFileRef'] as String?),
+            ),
+          );
+        } else {
+          final placeholderCompanion = AttachmentsCompanion(
+            parentType: Value(parentType),
+            parentId: Value(parentId),
+            filePath: const Value(''),
+            fileName: Value(fileName),
+            fileSize: Value(a['fileSize'] as int? ?? 0),
+            mimeType: Value(a['mimeType'] as String?),
+            syncId: Value(syncId),
+            parentSyncId: Value(parentSyncId),
+            serverFileRef: Value(a['serverFileRef'] as String?),
+          );
+          targetId = await _db.into(_db.attachments).insert(
+            placeholderCompanion.copyWith(id: Value(id)),
+          );
+        }
+
         final restored = await _restoreAttachmentFile(
           archive: archive,
           id: id,
-          syncId: a['syncId'] as String?,
+          syncId: syncId,
           fileName: fileName,
           recordedPath: a['filePath'] as String? ?? '',
+          localTargetKey: attachmentFileKey(targetId),
         );
-        await _db.into(_db.attachments).insertOnConflictUpdate(
-          AttachmentsCompanion(
-            id: Value(id),
-            parentType: Value(a['parentType'] as String),
-            parentId: Value(a['parentId'] as int),
-            filePath: Value(restored?.path ?? ''),
-            fileName: Value(fileName),
-            fileSize: Value(
-              restored?.size ?? (a['fileSize'] as int? ?? 0),
-            ),
-            mimeType: Value(a['mimeType'] as String?),
-            syncId: Value(a['syncId'] as String?),
-            parentSyncId: Value(a['parentSyncId'] as String?),
-            serverFileRef: Value(a['serverFileRef'] as String?),
-          ),
+
+        // Preserve local valid path if no body in backup (Item 20). Only an
+        // attachment matched by sync identity may borrow an existing row's
+        // path; a collided local row belongs to a different attachment.
+        final targetPath = restored?.path ??
+            (match != null && match.filePath.isNotEmpty ? match.filePath : '');
+        final targetSize = restored?.size ??
+            (match != null && match.fileSize > 0
+                ? match.fileSize
+                : (a['fileSize'] as int? ?? 0));
+
+        final companion = AttachmentsCompanion(
+          parentType: Value(parentType),
+          parentId: Value(parentId),
+          filePath: Value(targetPath),
+          fileName: Value(fileName),
+          fileSize: Value(targetSize),
+          mimeType: Value(a['mimeType'] as String?),
+          syncId: Value(isMerge ? null : syncId),
+          parentSyncId: Value(parentSyncId),
+          serverFileRef: Value(a['serverFileRef'] as String?),
         );
+
+        await (_db.update(_db.attachments)
+              ..where((tbl) => tbl.id.equals(targetId)))
+            .write(companion);
       }
     });
   }
@@ -387,6 +1277,7 @@ class BackupService {
     required String? syncId,
     required String fileName,
     required String recordedPath,
+    String? localTargetKey,
   }) async {
     final entry = archive?.findFile(
       attachmentEntryName(id: id, syncId: syncId, fileName: fileName),
@@ -394,8 +1285,9 @@ class BackupService {
     final bytes = entry?.readBytes();
     if (bytes != null) {
       if (!localFiles) return null;
+      final key = localTargetKey ?? attachmentFileKey(id);
       final path = await _files.write(
-        key: attachmentFileKey(id),
+        key: key,
         fileName: fileName,
         bytes: bytes,
       );

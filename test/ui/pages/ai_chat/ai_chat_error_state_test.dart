@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,8 +32,30 @@ class _FakeAiChatNotifier extends StateNotifier<List<AiChatMessage>>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _SlowAiChatNotifier extends StateNotifier<List<AiChatMessage>>
+    implements AiChatNotifier {
+  _SlowAiChatNotifier(super.state, this.gate);
+
+  final Future<void> gate;
+
+  @override
+  Future<void> sendMessage(String message) async {
+    state = [...state, AiChatMessage(role: 'user', content: message)];
+    await gate;
+    state = [...state, AiChatMessage(role: 'assistant', content: 'Done')];
+  }
+
+  @override
+  void clear() {
+    state = [];
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 Widget _app({
-  required _FakeAiChatNotifier notifier,
+  required AiChatNotifier notifier,
   bool enabled = true,
   Future<bool> Function(Ref ref)? configured,
 }) {
@@ -122,8 +145,34 @@ void main() {
     );
     await _settle(tester);
 
-    expect(find.text('AI is not configured'), findsOneWidget);
+    // SPEC 2669: 已关闭 is its own state, with a way back to the switch.
+    expect(find.text('The AI assistant is off'), findsOneWidget);
+    expect(find.text('Open settings'), findsOneWidget);
+    expect(find.text('AI is not configured'), findsNothing);
     expect(find.byType(TextField), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 50));
+  });
+
+  testWidgets('sending shows an in-thread replying bubble', (tester) async {
+    final gate = Completer<void>();
+    final notifier = _SlowAiChatNotifier(
+      [AiChatMessage(role: 'user', content: 'Plan my week')],
+      gate.future,
+    );
+    await tester.pumpWidget(_app(notifier: notifier));
+    await _settle(tester);
+
+    await tester.enterText(find.byType(TextField), 'And tomorrow?');
+    await tester.tap(find.byIcon(CupertinoIcons.arrow_up));
+    await tester.pump();
+
+    expect(find.text('Replying…'), findsOneWidget);
+
+    gate.complete();
+    await _settle(tester);
+    expect(find.text('Replying…'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 50));

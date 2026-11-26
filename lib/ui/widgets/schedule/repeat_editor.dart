@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:rrule_generator/rrule_generator.dart';
@@ -8,6 +7,8 @@ import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 
@@ -103,14 +104,13 @@ class RepeatRow extends ConsumerWidget {
   ) async {
     final anchor = anchorDate;
     if (anchor == null || needsDate) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.repeatNeedsDate)));
+      showSpecToast(context, l.repeatNeedsDate);
       return;
     }
-    final result = await showModalBottomSheet<RepeatChoice>(
+    final result = await showDsSheet<RepeatChoice>(
       context: context,
-      builder: (ctx) => _RepeatSheet(
+      title: l.recurrenceRule,
+      body: _RepeatSheet(
         rrule: rrule,
         anchorDate: anchor,
         explicitStart: startDate,
@@ -261,132 +261,89 @@ class _RepeatSheetState extends State<_RepeatSheet> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                0,
-                AppSpacing.sm,
-                AppSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(l.recurrenceRule, style: AppTypography.title),
-                  ),
-                  IconButton(
-                    icon: const Icon(CupertinoIcons.xmark, size: 18),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: l.close,
-                  ),
-                ],
-              ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.onPickStart != null)
+          DsRow(
+            title:
+                '${l.legacyRepeatFrom}: '
+                '${formatDeadline(context, widget.explicitStart ?? widget.anchorDate)}',
+            trailing: const Icon(CupertinoIcons.calendar, size: 14),
+            onTap: () async {
+              final picked = await pickDeadline(
+                context,
+                initial: widget.explicitStart ?? widget.anchorDate,
+              );
+              if (picked != null) {
+                widget.onPickStart!(picked);
+                if (context.mounted) Navigator.of(context).pop();
+              }
+            },
+          ),
+        for (final mode in RepeatMode.values)
+          if (mode != RepeatMode.custom)
+            DsRow(
+              title: _labelFor(l, mode),
+              selected: _mode == mode,
+              trailing: _mode == mode
+                  ? Icon(
+                      CupertinoIcons.checkmark,
+                      size: 16,
+                      color: context.ds.primary,
+                    )
+                  : null,
+              onTap: () => setState(() {
+                _mode = mode;
+                _showAdvanced = false;
+              }),
             ),
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (widget.onPickStart != null)
-                      _RepeatOption(
-                        label:
-                            '${l.legacyRepeatFrom}: '
-                            '${formatDeadline(context, widget.explicitStart ?? widget.anchorDate)}',
-                        selected: false,
-                        trailing: const Icon(CupertinoIcons.calendar, size: 14),
-                        onTap: () async {
-                          final picked = await pickDeadline(
-                            context,
-                            initial: widget.explicitStart ?? widget.anchorDate,
-                          );
-                          if (picked != null) {
-                            widget.onPickStart!(picked);
-                            if (context.mounted) Navigator.of(context).pop();
-                          }
-                        },
-                      ),
-                    for (final mode in RepeatMode.values)
-                      if (mode != RepeatMode.custom)
-                        _RepeatOption(
-                          label: _labelFor(l, mode),
-                          selected: _mode == mode,
-                          onTap: () => setState(() {
-                            _mode = mode;
-                            _showAdvanced = false;
-                          }),
-                        ),
-                    _RepeatOption(
-                      label: l.repeatCustom,
-                      selected: _mode == RepeatMode.custom,
-                      trailing: const Icon(
-                        CupertinoIcons.chevron_forward,
-                        size: 14,
-                      ),
-                      onTap: () => setState(() {
-                        _mode = RepeatMode.custom;
-                        _showAdvanced = true;
-                      }),
-                    ),
-                    if (_showAdvanced) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.lg,
-                          AppSpacing.sm,
-                          AppSpacing.lg,
-                          AppSpacing.md,
-                        ),
-                        child: RRuleGenerator(
-                          localeBuilder: (_) =>
-                              LocaleAwareRRuleTextDelegate(context),
-                          config: RRuleGeneratorConfig(),
-                          initialRRule: _customRule,
-                          withExcludeDates: false,
-                          onChange: (value) =>
-                              setState(() => _customRule = value),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.sm,
-                AppSpacing.lg,
-                0,
-              ),
-              child: FilledButton(
-                onPressed: () =>
-                    Navigator.of(context).pop(RepeatChoice(_resultingRule())),
-                child: Text(l.done),
-              ),
-            ),
-            if (widget.anchorLabel != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                  AppSpacing.lg,
-                  0,
-                ),
-                child: Text(
-                  widget.anchorLabel!,
-                  style: AppTypography.caption.copyWith(
-                    color: context.semantic.textSecondary,
-                  ),
-                ),
-              ),
-          ],
+        DsSettingRow(
+          label: l.repeatCustom,
+          selected: _mode == RepeatMode.custom,
+          onTap: () => setState(() {
+            _mode = RepeatMode.custom;
+            _showAdvanced = true;
+          }),
         ),
-      ),
+        if (_showAdvanced)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s4,
+              AppSpacing.s2,
+              AppSpacing.s4,
+              AppSpacing.s3,
+            ),
+            child: RRuleGenerator(
+              localeBuilder: (_) => LocaleAwareRRuleTextDelegate(context),
+              config: RRuleGeneratorConfig(),
+              initialRRule: _customRule,
+              withExcludeDates: false,
+              onChange: (value) => setState(() => _customRule = value),
+            ),
+          ),
+        if (widget.anchorLabel != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s4,
+              AppSpacing.s2,
+              AppSpacing.s4,
+              0,
+            ),
+            child: Text(
+              widget.anchorLabel!,
+              style: AppTypography.caption.copyWith(color: context.ds.ink3),
+            ),
+          ),
+        const SizedBox(height: AppSpacing.s3),
+        DsButton(
+          label: l.done,
+          expand: true,
+          onPressed: () =>
+              Navigator.of(context).pop(RepeatChoice(_resultingRule())),
+        ),
+      ],
     );
   }
 
@@ -401,58 +358,4 @@ class _RepeatSheetState extends State<_RepeatSheet> {
     RepeatMode.yearly => l.repeatYearly,
     RepeatMode.custom => l.repeatCustom,
   };
-}
-
-class _RepeatOption extends StatelessWidget {
-  const _RepeatOption({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.trailing,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Widget? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTypography.body.copyWith(
-                    color: selected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurface,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
-              ),
-              if (trailing != null)
-                trailing!
-              else if (selected)
-                Icon(
-                  CupertinoIcons.checkmark,
-                  size: 16,
-                  color: theme.colorScheme.primary,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }

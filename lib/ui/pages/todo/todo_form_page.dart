@@ -9,6 +9,7 @@ import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/ai_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
@@ -21,6 +22,7 @@ import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/domain/services/attachment_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
@@ -33,7 +35,7 @@ import 'package:dayspark/ui/widgets/schedule/schedule_row.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/legacy_recurrence_dialog.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
-import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -307,7 +309,10 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       if (!mounted) return;
       setState(() {
         if (calendars.isNotEmpty && _calendarId == null) {
-          _calendarId = calendars.first.id;
+          _calendarId = resolveNewEntryCalendarId(
+            calendars: calendars,
+            preferredId: ref.read(defaultCalendarIdProvider),
+          );
         }
         _initial = _snapshot();
         _loadingAssociations = false;
@@ -419,17 +424,13 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     final l = AppLocalizations.of(context)!;
     if (_saving) return;
     if (_summaryController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
+      showSpecToast(context, l.enterTitle);
       return;
     }
     if (_startDate != null &&
         _deadline != null &&
         _startDate!.isAfter(_deadline!)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.startAfterDeadline)));
+      showSpecToast(context, l.startAfterDeadline);
       return;
     }
 
@@ -437,9 +438,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     // writer would refuse it after the row exists. Say so before touching the
     // database instead of turning it into a generic failure.
     if (!_isEditing && _rrule != null && _executions.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${l.save} · ${l.scheduleTodoDesc}')),
-      );
+      showSpecToast(context, '${l.save} · ${l.scheduleTodoDesc}');
       return;
     }
 
@@ -450,13 +449,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         _completed &&
         widget.todo!.rrule != null &&
         widget.todo!.status != 'COMPLETED') {
-      final selected = await TodoOccurrencePickerSheet.show(
-        context,
-        ref: ref,
-        todo: widget.todo!,
-      );
-      if (selected == null || !mounted) return;
-      occurrenceId = selected.occurrenceId;
+      occurrenceId = await resolveCurrentOccurrenceId(ref, widget.todo!);
     }
 
     setState(() => _saving = true);
@@ -464,13 +457,17 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       final calendars = await ref.read(calendarsProvider.future);
       if (!mounted) return;
       if (calendars.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.noCalendar)));
+        showSpecToast(context, l.noCalendar);
         setState(() => _saving = false);
         return;
       }
-      final calendarId = _calendarId ?? calendars.first.id;
+      final calendarId =
+          _calendarId ??
+          resolveNewEntryCalendarId(
+            calendars: calendars,
+            preferredId: ref.read(defaultCalendarIdProvider),
+          ) ??
+          calendars.first.id;
       final description = _descriptionController.text.trim();
 
       // Bytes first, and outside the transaction: a source file that has gone
@@ -578,9 +575,7 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       context.pop();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+        showSpecToast(context, l.actionFailedRetry);
         debugPrint('todo_form: save error: $error');
       }
     } finally {
@@ -690,16 +685,12 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
     final l = AppLocalizations.of(context)!;
     final text = _summaryController.text.trim();
     if (text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.enterTitle)));
+      showSpecToast(context, l.enterTitle);
       return;
     }
     final config = ref.read(aiConfigProvider).value;
     if (config == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.notConfigured)));
+      showSpecToast(context, l.notConfigured);
       return;
     }
     setState(() => _aiLoading = true);
@@ -738,15 +729,11 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
         }
       });
       if (filled.isNotEmpty && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.aiFilled(filled.join(', ')))));
+        showSpecToast(context, l.aiFilled(filled.join(', ')));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l.aiError)));
+        showSpecToast(context, l.aiError);
       }
     } finally {
       if (mounted) setState(() => _aiLoading = false);
@@ -1229,7 +1216,13 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       error: (_, __) => const SizedBox.shrink(),
       data: (calendars) {
         if (calendars.isEmpty) return const SizedBox.shrink();
-        final selected = _calendarId ?? calendars.first.id;
+        final selected =
+            _calendarId ??
+            resolveNewEntryCalendarId(
+              calendars: calendars,
+              preferredId: ref.watch(defaultCalendarIdProvider),
+            ) ??
+            calendars.first.id;
         final current =
             calendars.where((c) => c.id == selected).firstOrNull ??
             calendars.first;
@@ -1453,19 +1446,16 @@ class _TodoFormPageState extends ConsumerState<TodoFormPage> {
       debugPrint('todo_form: delete error: $error');
       if (!mounted) return;
       setState(() => _deleting = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l.actionFailedRetry)));
+      showSpecToast(context, l.actionFailedRetry);
       return;
     }
     if (!mounted) return;
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.deleted),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(label: l.undo, onPressed: () => restore(todoId)),
-      ),
+    showUndoBar(
+      context,
+      message: l.deleted,
+      undoLabel: l.undo,
+      onUndo: () => restore(todoId),
     );
+    Navigator.of(context).pop();
   }
 }

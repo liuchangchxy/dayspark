@@ -34,7 +34,9 @@
   "categoryCount": "{count} total",
   "@categoryCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "newCalendar": "New Calendar",
@@ -84,18 +86,26 @@
   "plannedShort": "Planned",
   "overdueDays": "{count, plural, =1{1 day late} other{{count} days late}}",
   "@overdueDays": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "dayItemCount": "{count, plural, =1{1 item} other{{count} items}}",
   "@dayItemCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "deadlineLane": "Due (no time block) · {count}",
   "@deadlineLane": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "noPlansDay": "Nothing planned",
@@ -151,23 +161,67 @@
   "completedLabel": "Done",
   "nextOpening": "Next opening",
   "todayStillOpen": "{count} still open today",
-  "@todayStillOpen": {"placeholders": {"count": {"type": "int"}}},
+  "@todayStillOpen": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "durationHours": "{hours} h",
-  "@durationHours": {"placeholders": {"hours": {"type": "int"}}},
+  "@durationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
   "durationMinutes": "{minutes} min",
-  "@durationMinutes": {"placeholders": {"minutes": {"type": "int"}}},
+  "@durationMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "durationHoursMinutes": "{hours} h {minutes} min",
-  "@durationHoursMinutes": {"placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
+  "@durationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "freeFor": "Free {duration}",
-  "@freeFor": {"placeholders": {"duration": {"type": "String"}}},
+  "@freeFor": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
   "timelineTitle": "Today's timeline",
   "scheduledLabel": "Scheduled",
   "freeLabel": "Free",
   "remainingMinutes": "{minutes} min left",
-  "@remainingMinutes": {"placeholders": {"minutes": {"type": "int"}}},
-  "overdue": "Overdue",
+  "@remainingMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "eventsAndFree": "{count} events",
-  "@eventsAndFree": {"placeholders": {"count": {"type": "int"}}},
+  "@eventsAndFree": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "nextUp": "Next",
   "syncedAt": "Synced {time}",
   "meLabel": "Me",
@@ -272,6 +326,89 @@
       }
     }
   },
+  "importPreviewTitle": "Import preview",
+  "importPreviewSummary": "Read {events} event(s) and {todos} task(s) from {fileName}.",
+  "@importPreviewSummary": {
+    "placeholders": {
+      "events": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      },
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "importPreviewCounts": "{create} new · {duplicate} duplicate · {skipped} skipped",
+  "@importPreviewCounts": {
+    "placeholders": {
+      "create": {
+        "type": "int"
+      },
+      "duplicate": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewNew": "New",
+  "importPreviewDuplicate": "Duplicate",
+  "importPreviewSkipped": "Skipped",
+  "importPreviewMore": "+{count} more",
+  "@importPreviewMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailedRows": "{count} row(s) failed during import",
+  "@importFailedRows": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailureDetail": "Nothing was written. File: {fileName}",
+  "@importFailureDetail": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "startImport": "Start import",
+  "importInProgress": "Reading and importing…",
+  "importResultTitle": "Import result",
+  "importResultSummary": "Created {created} · updated {updated} · skipped {skipped}",
+  "@importResultSummary": {
+    "placeholders": {
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "importNothing": "No events or tasks found in this file.",
+  "backupInProgress": "Backing up…",
+  "backupComplete": "Backup complete: {filename}",
+  "@backupComplete": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
   "importExportDesc": "Export calendar events and tasks to .ics, or import from a .ics file.",
   "error": "Something went wrong. Please try again.",
   "endBeforeStart": "End time must be after start time",
@@ -367,6 +504,31 @@
       }
     }
   },
+  "calendarMonthDay": "{month} {day}",
+  "@calendarMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarDateRange": "{start} – {end}",
+  "@calendarDateRange": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarWeekSummary": "This week · 7 days",
+  "calendarWeekEmpty": "Nothing this week.",
+  "calendarWeekEmptyHint": "Start from capture or a calendar time slot.",
   "openUpdatePage": "View release",
   "checkUpdate": "Check for Updates",
   "upToDate": "Already up to date",
@@ -395,7 +557,9 @@
   "deletedOn": "Deleted on {date}",
   "@deletedOn": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "snoozedFor": "Snoozed for {duration}",
@@ -741,6 +905,7 @@
   "notScheduled": "Not scheduled",
   "execution": "Execution",
   "repeatAdvanced": "Repeat options",
+  "repeatField": "Repeat",
   "seriesTimeZoneShort": "Time zone for all repeats",
   "startsAtHint": "Earliest day this can be done",
   "noDeadline": "No deadline",
@@ -985,15 +1150,27 @@
   },
   "calendarTags": "Calendar & tags",
   "other": "Other",
-  "capturePlaceholder": "Capture · Enter files it unplanned",
+  "capturePlaceholder": "Capture a task, press Enter",
   "captureHintEnter": "⏎ Unplanned",
   "captureHintSubmit": "Add",
   "captureAddedToast": "Added to Unplanned · keep typing",
   "justAddedLabel": "Just added",
   "groupCountItems": "{count} items",
-  "@groupCountItems": {"placeholders": {"count": {"type": "int"}}},
+  "@groupCountItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "expandRemaining": "{count} more · Show all",
-  "@expandRemaining": {"placeholders": {"count": {"type": "int"}}},
+  "@expandRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "collapseLabel": "Show less",
   "sectionNow": "Now",
   "sectionUpcoming": "Upcoming",
@@ -1002,13 +1179,37 @@
   "scheduleAction": "Schedule",
   "noExecutionSlot": "No execution slot",
   "plannedRangeLabel": "Planned {range}",
-  "@plannedRangeLabel": {"placeholders": {"range": {"type": "String"}}},
+  "@plannedRangeLabel": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
   "plannedShortRangeLabel": "Plan {range}",
-  "@plannedShortRangeLabel": {"placeholders": {"range": {"type": "String"}}},
+  "@plannedShortRangeLabel": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
   "dueValueLabel": "Due {value}",
-  "@dueValueLabel": {"placeholders": {"value": {"type": "String"}}},
+  "@dueValueLabel": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "dueTodayTimeLabel": "Due today {time}",
-  "@dueTodayTimeLabel": {"placeholders": {"time": {"type": "String"}}},
+  "@dueTodayTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "allDayLabel": "All day",
   "emptyTodayTitle": "Nothing scheduled today",
   "emptyTodayHint": "Write it down anytime — Enter files it under Unplanned",
@@ -1022,31 +1223,141 @@
   "allUnplannedNoDueSection": "No deadline",
   "withDueUnplannedSection": "With a deadline · unplanned",
   "noDueSection": "No deadline",
+  "noDateGroupSection": "No date",
   "datePlannedSection": "Planned",
   "dateDueSection": "Deadline",
-  "dateEventsSection": "Events",
+  "dateEventsSection": "Day schedule",
+  "dayEventsBgSub": "{count} items · background timeline only",
+  "@dayEventsBgSub": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoAllActiveSummary": "{active} pending · {completed} completed",
+  "@todoAllActiveSummary": {
+    "placeholders": {
+      "active": {
+        "type": "int"
+      },
+      "completed": {
+        "type": "int"
+      }
+    }
+  },
+  "viewNoDateCount": "View {count} unplanned",
+  "@viewNoDateCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filter": "Filter",
+  "filterEmptyHint": "Clear filters to show all.",
+  "filterEmptyTitle": "No matching tasks",
+  "filterAppliedCount": "Filtered · {count} items",
+  "@filterAppliedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filterReset": "Reset",
+  "filterApply": "Apply",
+  "emptyInboxNoDateTitle": "No undated tasks",
+  "emptyInboxNoDateHint": "All unplanned tasks have a deadline.",
+  "todoInboxNoDateContext": "{count} items · undated",
+  "@todoInboxNoDateContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoInboxNoDateBanner": "From today · undated only",
+  "todoInboxViewAll": "View all unplanned",
   "todoUnplannedContext": "{count} items · {withDue} with a deadline",
-  "@todoUnplannedContext": {"placeholders": {"count": {"type": "int"}, "withDue": {"type": "int"}}},
+  "@todoUnplannedContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "withDue": {
+        "type": "int"
+      }
+    }
+  },
   "todoAllSummary": "{count} items · {active} active",
-  "@todoAllSummary": {"placeholders": {"count": {"type": "int"}, "active": {"type": "int"}}},
+  "@todoAllSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "active": {
+        "type": "int"
+      }
+    }
+  },
   "byDateTitle": "By date",
   "byDateContext": "Todos · shares its date with Calendar",
   "planThisDay": "Plan this day",
   "planToDate": "Plan to {date}",
-  "@planToDate": {"placeholders": {"date": {"type": "String"}}},
+  "@planToDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "inDaysCount": "In {count} days",
-  "@inDaysCount": {"placeholders": {"count": {"type": "int"}}},
+  "@inDaysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "daysAgo": "{count, plural, =1{1 day ago} other{{count} days ago}}",
-  "@daysAgo": {"placeholders": {"count": {"type": "int"}}},
+  "@daysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "yearMonthTitle": "{year} / {month}",
-  "@yearMonthTitle": {"placeholders": {"year": {"type": "String"}, "month": {"type": "String"}}},
+  "@yearMonthTitle": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
   "yearLabel": "Year",
   "composerPlaceholder": "What needs doing?",
   "saveToUnplanned": "Save to Unplanned",
   "savePlannedTo": "Plan for {date}",
-  "@savePlannedTo": {"placeholders": {"date": {"type": "String"}}},
+  "@savePlannedTo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "saveWithDueDate": "Save (due {date})",
-  "@saveWithDueDate": {"placeholders": {"date": {"type": "String"}}},
+  "@saveWithDueDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "composerHintNoSlot": "Saving without a slot files this under Unplanned.",
   "composerHintAlloc": "This is a planned execution, not a deadline. Set the deadline separately.",
   "composerHintDue": "A deadline is the latest finish; a planned execution is when you chose to do it.",
@@ -1055,7 +1366,13 @@
   "composerCustomSlot": "Custom…",
   "moreActions": "More",
   "weekNumberLabel": "Week {week}",
-  "@weekNumberLabel": {"placeholders": {"week": {"type": "int"}}},
+  "@weekNumberLabel": {
+    "placeholders": {
+      "week": {
+        "type": "int"
+      }
+    }
+  },
   "daySegmentLabel": "Day",
   "captureQuickAddLabel": "Capture",
   "calendarTodayHint": "Go to today",
@@ -1064,16 +1381,1197 @@
   "moreItemsHint": "More",
   "startPlanning": "Plan it",
   "eventCountLabel": "{count}",
-  "@eventCountLabel": {"placeholders": {"count": {"type": "int"}}},
+  "@eventCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "composerOptional": "Optional",
   "previousDay": "Previous day",
   "nextDay": "Next day",
   "undoOccurrence": "Undo · {label}",
-  "@undoOccurrence": {"placeholders": {"label": {"type": "String"}}},
+  "@undoOccurrence": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "backToNow": "Back to now",
   "dawnQuiet": "{start}–{end} · quiet hours, nothing scheduled",
-  "@dawnQuiet": {"placeholders": {"start": {"type": "String"}, "end": {"type": "String"}}},
+  "@dawnQuiet": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
   "slotRangeExistingEvent": "Existing event",
   "slotRangeDefaultEditable": "default, editable",
-  "slotEmptyCreateHint": "Nothing to schedule yet — create one and it lands in this slot."
+  "slotEmptyCreateHint": "Nothing to schedule yet — create one and it lands in this slot.",
+  "navMe": "Me",
+  "todayCleanTitle": "Today is clear",
+  "todayCleanSub": "Capture a task below, it will land in Unplanned.",
+  "todayEmptyTime": "No time scheduled today.",
+  "todayEmptyTimeWithHint": "No time scheduled today. You can schedule tasks onto time slots from Calendar.",
+  "captureInputPlaceholder": "Capture a task, press Enter",
+  "captureTypeTodo": "Task",
+  "captureDefaultDate": "No date · Personal",
+  "captureTitle": "Capture a task",
+  "captureSaveTodo": "Save task",
+  "plannedTodosMovedToTimeline": "{count} planned items shown in timeline.",
+  "@plannedTodosMovedToTimeline": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteConfirmTitle": "Delete \"{title}\"?",
+  "@deleteConfirmTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteConfirmBody": "Will be moved to Trash.",
+  "todaySummary": "{overdue} overdue · {due} due today · {unplanned} no date · {done} completed",
+  "@todaySummary": {
+    "placeholders": {
+      "overdue": {
+        "type": "int"
+      },
+      "due": {
+        "type": "int"
+      },
+      "unplanned": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      }
+    }
+  },
+  "todaySummaryEmpty": "No tasks scheduled today",
+  "todayCompletedGroup": "Completed Today",
+  "todayEarlyGroup": "Earlier Today",
+  "todayNowGroup": "Now",
+  "todayUpcomingGroup": "Next Up",
+  "todayOverdueGroup": "Overdue",
+  "todayDueGroup": "Due Today",
+  "todayUnplannedGroup": "No Date",
+  "expandTodayDone": "Completed today {count} · Expand",
+  "@expandTodayDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "expandTodayEarly": "Earlier today {count} · Expand",
+  "@expandTodayEarly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collapseTodayEarly": "Earlier today {count} · Collapse",
+  "@collapseTodayEarly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewAllNItems": "View all {count} items",
+  "@viewAllNItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plannedBitsNote": "{items} more items shown in the time section.",
+  "@plannedBitsNote": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "plannedBitsOverdue": "{count} overdue / missed",
+  "@plannedBitsOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plannedBitsDue": "{count} due today",
+  "@plannedBitsDue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sortDeadline": "Sort by deadline",
+  "nItemsOverdue": "{count} overdue",
+  "@nItemsOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "markedCompleted": "Marked completed · {title}",
+  "@markedCompleted": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "tasksZoneLabel": "TASKS",
+  "timeZoneLabel": "TIME",
+  "captureDefaultSub": "No date · Personal",
+  "planTagLabel": "Plan",
+  "todayDateSubtitle": "{date} · {weekday}",
+  "@todayDateSubtitle": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "weekday": {
+        "type": "String"
+      }
+    }
+  },
+  "showCalendars": "Display Calendars",
+  "restoreAllCalendars": "Restore All",
+  "hiddenCalendarsSummary": "Hidden {count} calendars",
+  "@hiddenCalendarsSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectAll": "Select All",
+  "hiddenBadge": "Hidden",
+  "repeatEndLabel": "Ends",
+  "repeatNeverEnd": "Never",
+  "repeatOnDate": "On date",
+  "repeatAfterCount": "After count",
+  "repeatEndDate": "End date",
+  "repeatCount": "Occurrences",
+  "repeatSeriesNotice": "Updating frequency or end applies to the entire series.",
+  "planTodoModalTitle": "Schedule \"{title}\"",
+  "@planTodoModalTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planTodoSub": "Sets planned execution only; does not change deadline.",
+  "planEditSub": "Editing time; sets planned execution only.",
+  "planDate": "Plan Date",
+  "planStartTime": "Start",
+  "planEndTime": "End",
+  "planDuration": "Duration",
+  "planSubmitAction": "Schedule",
+  "planSaveTimeAction": "Save Time",
+  "planNoConflict": "No time conflict",
+  "planConflictWith": "Overlaps with {title}",
+  "@planConflictWith": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planDayEmpty": "Nothing scheduled that day",
+  "planDayExisting": "Already on that day",
+  "planOverlapBlocks": "{range} · {count, plural, =1{1 item overlaps} other{{count} items overlap}}",
+  "@planOverlapBlocks": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planOverlapNote": "Overlap is allowed; a deadline is not a time block.",
+  "planDurationMinutes": "{count} min",
+  "@planDurationMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planDurationHours": "{hours} hr",
+  "@planDurationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "planDurationHoursMinutes": "{hours} hr {minutes} min",
+  "@planDurationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "detailEmptyTitle": "No Task Selected",
+  "detailEmptyHint": "Select a task from the list to view its details.",
+  "completeThisOccurrence": "Complete This Occurrence",
+  "completedThisOccurrence": "This Occurrence Completed",
+  "missedOccurrencesNote": "Current instance {date} · Missed {count} times",
+  "@missedOccurrencesNote": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missedCardSubtitle": "{repeat} · Missed {count} times · Completing affects only this one",
+  "@missedCardSubtitle": {
+    "placeholders": {
+      "repeat": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missedCardRepeatWeekly": "Every {day}",
+  "@missedCardRepeatWeekly": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteToTrashAction": "Move to Trash",
+  "cancelAction": "Cancel",
+  "saveAction": "Save",
+  "titleRequired": "Title cannot be empty.",
+  "endTimeAfterStartTime": "End time must be after start time.",
+  "timeArrangementsCount": "{count} scheduled items",
+  "@timeArrangementsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dayAgendaContextNotice": "Day's events {count} items · Time context only",
+  "@dayAgendaContextNotice": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "moreUnplannedItems": "View {count} undated items",
+  "@moreUnplannedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "defaultCalendar": "Default Calendar",
+  "defaultCalendarDesc": "Only decides where new items land by default; does not change existing items.",
+  "defaultCalendarSettingDesc": "New tasks and captures land here by default; uses the first calendar if unset, no \"Uncategorized\".",
+  "defaultCalendarAlert": "No \"Uncategorized\": if unset, the first calendar in the list is used.",
+  "saveDefaultCalendar": "Save Default Calendar",
+  "defaultCalendarSaved": "Default calendar saved",
+  "badgeDefault": "Default",
+  "settingsSubtitle": "Default calendar, data and preferences",
+  "settingsHomeDesc": "Confirm the account and default calendar first, then data, AI and sync.",
+  "general": "General",
+  "generalDesc": "Decide where new tasks land and what to see on startup.",
+  "themeDesc": "Warm paper surface, white content; ink for selection and actions.",
+  "accentColorDesc": "Only affects actions and selection, not calendar colors.",
+  "accentWarmGray": "Warm Gray",
+  "startupViewDesc": "Which primary view to open on cold start.",
+  "languageDesc": "Interface language.",
+  "calendarManagementDesc": "Calendars are shared grouping and color spaces for events and tasks.",
+  "deleteCalendarNotice": "When deleting a calendar, you must choose: migrate contents to another calendar, or delete them together.",
+  "newCalendarDesc": "Choose name and color; new calendars do not become default automatically, select in \"Default Calendar\" after creation.",
+  "editCalendarDesc": "Editing \"{name}\"; name, color. Change default calendar in separate setting.",
+  "@editCalendarDesc": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCalendarHeader": "Before deleting \"{name}\", you must decide where {count} items go.",
+  "@deleteCalendarHeader": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteCalendarWarning": "Will not silently delete contents. Events and tasks must be migrated, or deleted together with the calendar.",
+  "migrateTo": "Migrate to",
+  "migrateItemCount": "{name} · migrate {count} items",
+  "@migrateItemCount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteWithContents": "Delete together with {count} items (move to trash)",
+  "@deleteWithContents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "confirmMigrateAndDelete": "Confirm Migration and Delete",
+  "calendarPlaceholder": "e.g. Side project",
+  "tagPlaceholder": "e.g. Waiting for reply",
+  "tagManagementDesc": "Tags are not calendars; they are used for cross-calendar filtering.",
+  "tagEditDesc": "Editing \"{name}\"; tags are cross-calendar, renaming does not alter items.",
+  "@tagEditDesc": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tagDeleteBanner": "Deleting a tag only removes the tag, not the items.",
+  "trashDesc": "Deleted tasks and events land here; restoring returns them to their original calendar.",
+  "trashRestoredBanner": "Restored \"{title}\", returned to its original calendar.",
+  "@trashRestoredBanner": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashPermanentDeleteConfirm": "Permanently delete \"{title}\"? Cannot be undone, will not sync to other devices.",
+  "@trashPermanentDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashDeletedBanner": "Permanently deleted \"{title}\", no longer kept in trash.",
+  "@trashDeletedBanner": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashClearedBanner": "Trash cleared, no items to restore.",
+  "ioSectionDesc": "ICS is for exchanging with other calendars; backup is for restoring DaySpark.",
+  "ioCardImportDesc": "Select target calendar; events and dated tasks are imported from ICS fields.",
+  "ioCardExportDesc": "Export all calendars; none silently omitted.",
+  "ioCardBackupDesc": "Contains all calendars, tasks, events, tags, reminders and attachment index.",
+  "notifySectionDesc": "Reminders belong to each item; this manages system permissions only.",
+  "notifyDeniedBanner": "System notification permission is off. Reminders are saved, but will not alert when due.",
+  "openSystemSettings": "Open System Settings",
+  "notificationAllowed": "Allowed",
+  "notificationOff": "Off",
+  "notificationUnknown": "Unknown",
+  "inAppReminders": "In-app Reminders",
+  "inAppRemindersDesc": "Displays in foreground",
+  "available": "Available",
+  "syncSectionDesc": "DaySpark self-hosted multi-device sync.",
+  "syncLoggedOutBanner": "Not logged in yet. Local still works; login for multi-device sync.",
+  "syncFailedBanner": "Sync failed. Server timed out; local changes pending retry.",
+  "syncOfflineBanner": "Offline. Local changes are saved; sync retries when you are back online.",
+  "syncOfflinePending": "{count, plural, =1{Offline · 1 local change waiting to upload.} other{Offline · {count} local changes waiting to upload.}}",
+  "@syncOfflinePending": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncPendingUploads": "{count, plural, =1{1 pending upload} other{{count} pending uploads}}",
+  "@syncPendingUploads": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncFailedAt": "{time} · {reason}",
+  "@syncFailedAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "syncConflicts": "Conflicts",
+  "syncConflictCount": "{count, plural, =1{1 needs review} other{{count} need review}}",
+  "@syncConflictCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncConflictLast": "Latest: {id}",
+  "@syncConflictLast": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "syncServerRejections": "Server rejections",
+  "syncRejectedTotal": "{count, plural, =1{1 rejected} other{{count} rejected}}",
+  "@syncRejectedTotal": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "retryNow": "Retry Now",
+  "localStatus": "Local Status",
+  "localPriority": "Local Priority",
+  "keepLocal": "Keep Local",
+  "keepServer": "Keep Server",
+  "mergeConflict": "Merge",
+  "acceptDeletion": "Accept Deletion",
+  "aboutDesc": "DaySpark · Local-first personal time management tool.",
+  "dataLocation": "Data",
+  "dataLocationDesc": "Local-first · Self-hosted sync",
+  "license": "License",
+  "viewLicense": "View",
+  "commandPlaceholder": "Search tasks, events, or type an action",
+  "commandHintRecent": "Recent",
+  "commandHintActions": "Actions",
+  "commandHintTodos": "Tasks",
+  "commandHintEvents": "Events",
+  "commandCreateTodo": "New Task",
+  "commandCreateEvent": "New Event",
+  "commandGoSettings": "Go to Settings",
+  "commandGoSettingsDesc": "Default calendar, data and preferences",
+  "commandNotFound": "No results found for \"{query}\"",
+  "@commandNotFound": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "commandFootSelect": "↑↓ Navigate",
+  "commandFootOpen": "↵ Open",
+  "commandFootClose": "esc Close",
+  "commandFootHint": "Content first, actions after",
+  "commandFootSelected": "Item {index} selected",
+  "@commandFootSelected": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "commandActionTitleQuery": "Title \"{query}\"",
+  "@commandActionTitleQuery": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "commandCaptureTodoDesc": "Enter capture · task mode",
+  "commandCaptureEventDesc": "Enter capture · event mode",
+  "commandSideAction": "Action",
+  "commandSideTodo": "Task",
+  "commandSideEvent": "Event",
+  "currentCalendarIsDefault": "This calendar is default",
+  "currentDefaultPrefix": "Current default: ",
+  "goToSettings": "Configure",
+  "orAlternative": "Or",
+  "calendarColorLabel": "Color",
+  "noSchedule": "No schedule",
+  "deadlineMarkerLabel": "Due {time} · {title}",
+  "@deadlineMarkerLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarTimeRowPlanned": "{timeRange} · Planned",
+  "@calendarTimeRowPlanned": {
+    "placeholders": {
+      "timeRange": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarRepeatBadge": "↻",
+  "calendarRepeatBadgeSemantics": "Repeats",
+  "calendarSeriesCurrentInstance": "Current instance {timeRange}",
+  "@calendarSeriesCurrentInstance": {
+    "placeholders": {
+      "timeRange": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarSeriesHint": "Repeating event · open an item for details",
+  "todaySummaryOverdue": "Overdue",
+  "todayNoDateGroup": "No date",
+  "todayViewNoDate": "View {count} undated",
+  "@todayViewNoDate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importAndBackup": "Import & Backup",
+  "userAccount": "Account",
+  "dataSectionDesc": "Tags, trash, import/export, and backups.",
+  "accountSectionDesc": "Current account and device session management.",
+  "aiSectionDesc": "Smart suggestions and assistant settings.",
+  "notify": "Notifications",
+  "versionLabel": "Version",
+  "versionDesc": "Current build.",
+  "dataDesc": "Storage location.",
+  "licenseDesc": "Open source license.",
+  "mobileGeneralDesc": "Default calendar, open on launch",
+  "mobileCalendarsDesc": "{count} calendars",
+  "@mobileCalendarsDesc": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mobileDataDesc": "Tags / Trash / Import",
+  "mobileNotifyDesc": "Permissions & reminders",
+  "mobileSyncDesc": "Account, failure, conflict",
+  "sync": "Sync",
+  "mobileAboutDesc": "Version & license",
+  "captureParsedTypeTodoTitle": "Type remains Task",
+  "captureParsedTypeTodoSub": "Detected time is only a \"Planned execution\" suggestion, not an event or deadline.",
+  "captureParsedSuggestTitle": "Suggested Plan",
+  "captureParsedSuggestEventTitle": "Event Schedule",
+  "captureParsedSuggestRemoved": "Time suggestion removed",
+  "captureParsedSuggestSub": "Preselected; saved as \"Planned execution\". Can be removed.",
+  "captureParsedSuggestEventSub": "Changed to Event; saved directly to calendar.",
+  "captureParsedSuggestSubRemoved": "Saves title only; no date, no plan, no deadline.",
+  "captureActionRemove": "Remove",
+  "captureActionRestore": "Restore",
+  "captureActionChangeToEvent": "Change to Event",
+  "captureActionChangeToTodo": "Change to Task",
+  "captureActionExpandFields": "Expand fields",
+  "captureActionBackToCompact": "Back to compact",
+  "captureActionSaveLater": "Save to Unplanned first",
+  "captureHintParsed": "Default: Task · No date · Personal\nDeadline remains empty",
+  "captureHintExpanded": "All facts visible before saving; untouched fields are not written.",
+  "captureHintEvent": "Only explicit switch to \"Event\" or entering from Calendar slot creates an event.",
+  "captureHintDate": "Writes date only, not time; will not become an event.",
+  "captureHintPlan": "Overlaps allowed; will not modify deadline.",
+  "captureHintCalendar": "Default calendar comes from settings; no \"uncategorized\".",
+  "captureHintReminder": "Reminder is the item's own fact, does not affect deadline.",
+  "captureHintValidation": "Validation error stays on field, no global popup.",
+  "captureHintSaveError": "Failure state does not close Capture or drop input.",
+  "captureHintDiscard": "Dangerous actions require confirmation.",
+  "captureHintKeyboard": "Focus visible; Esc triggers discard confirmation.",
+  "captureValidationEmptyTitle": "Title cannot be empty. Write an action you will understand tomorrow.",
+  "captureValidationAlert": "Fill title before saving; other fields are preserved.",
+  "captureSaveErrorServer": "Could not connect to server.",
+  "captureSaveErrorDraftHint": "\"{title}\" is still in this draft; you can retry or keep it in Unplanned.",
+  "@captureSaveErrorDraftHint": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDiscardTitle": "Discard this input?",
+  "captureDiscardSub": "\"{title}\" has not been saved",
+  "@captureDiscardSub": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDiscardLineTitle": "Draft will be lost on close",
+  "captureDiscardLineSub": "Keep editing will preserve title, date and reminders.",
+  "captureKeyboardTitle": "Keyboard navigation",
+  "captureKeyboardSub": "Desktop: Tab fields · Enter save · Esc discard",
+  "captureKeyboardHelp": "Focus on title; Tab to deadline, plan, reminder.",
+  "captureChoiceTitleDate": "Select Date",
+  "captureChoiceTitlePlan": "Select Planned Execution",
+  "captureChoiceTitleCalendar": "Select Calendar",
+  "captureChoiceTitleReminder": "Reminder",
+  "captureChoiceSubCalendar": "New tasks land here by default",
+  "captureChoiceFooter": "Only modifies this field; other facts remain unchanged.",
+  "captureFieldDateToday": "Today",
+  "captureFieldDateTomorrow": "Tomorrow",
+  "captureFieldDateNextMonday": "Next Monday",
+  "captureFieldDateOther": "Other date",
+  "captureFieldDateOpenCalendar": "Open calendar",
+  "captureSelectedTag": "Selected",
+  "planPickerTitle": "Schedule Task",
+  "planPickerTarget": "Schedule \"{title}\"",
+  "@planPickerTarget": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planPickerEmpty": "No schedulable tasks",
+  "planPickerEmptySub": "Add a task from the capture bar first, then plan its execution.",
+  "planPickerContext": "Existing today",
+  "saveFailedNotWritten": "Save failed · not written",
+  "retrySave": "Retry save",
+  "deleteTodoConfirm": "Delete \"{title}\"?",
+  "@deleteTodoConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteSeriesTrashNotice": "This is a repeating task. The whole series will move to the trash and can be restored.",
+  "deleteTrashNotice": "It will move to the trash and can be restored.",
+  "backupConflictTitle": "Data Conflicts ({count})",
+  "@backupConflictTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupConflictDesc": "Some records in the backup conflict with existing records on this device. Select a resolution for each item:",
+  "backupKeepLocal": "Keep local",
+  "backupKeepRemote": "Overwrite with backup",
+  "backupApplyResolutions": "Apply resolutions",
+  "importStepFile": "1 · Choose File",
+  "importStepCalendar": "2 · Target Calendar",
+  "importStepPreview": "3 · Preview & Import",
+  "importFileHelp": "Supports .ics files. Events with matching UIDs will not be duplicated.",
+  "importCalendarHelp": "Target calendar · currently {count} items",
+  "@importCalendarHelp": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewHelp": "Review events and tasks that will be added or skipped.",
+  "importNextStep": "Next step",
+  "importChangeFile": "Change file",
+  "importChangeCalendar": "Change calendar",
+  "calendarHiddenSingleSummary": "Hidden \"{name}\" · {count} items",
+  "@calendarHiddenSingleSummary": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarHiddenMultipleSummary": "Hidden {calCount} calendars · {count} items",
+  "@calendarHiddenMultipleSummary": {
+    "placeholders": {
+      "calCount": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "multiDaySpanLabel": "Span",
+  "multiDayEventSpanSummary": "{title} · {start}–{end} · {days} d",
+  "@multiDayEventSpanSummary": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "filterOverdueOnly": "Overdue only",
+  "filterMatchedCount": "{count} matched",
+  "@filterMatchedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "captureParsedDefaultTitle": "Submit report at 3pm tomorrow",
+  "captureParsedDefaultSub": "Task · No date · Personal (default)",
+  "captureSubExpanded": "Expand when needed; no date by default.",
+  "captureTitleEvent": "New Event",
+  "captureSubEvent": "Event · Work",
+  "captureSubDate": "Task · Personal (default)",
+  "captureSubPlan": "Sets plan only, does not change deadline.",
+  "captureSubReminder": "Reminders belong to the item, does not change deadline.",
+  "captureSaveErrorTitle": "Save Failed",
+  "captureSaveErrorSub": "Draft preserved, will not be lost",
+  "captureFieldTaskTitle": "Task Title",
+  "captureFieldDeadline": "Deadline",
+  "captureFieldPlanExecution": "Planned execution",
+  "captureFieldCalendar": "Calendar",
+  "captureFieldReminder": "Reminder",
+  "captureFieldPriority": "Priority",
+  "captureFieldEventTitle": "Title",
+  "captureFieldEventTime": "Time",
+  "captureFieldEventAllDay": "All-day",
+  "captureFieldEventRepeat": "Repeat",
+  "captureFieldDuration": "Duration",
+  "captureFieldDayExisting": "Schedule on day",
+  "captureFieldNotFilled": "Not filled",
+  "captureFieldNoDeadline": "No deadline",
+  "captureFieldNotScheduled": "Not scheduled",
+  "captureFieldNoReminder": "No reminder",
+  "captureFieldNoRepeat": "Does not repeat",
+  "captureFieldNoOverlap": "No overlap",
+  "captureFieldNone": "None",
+  "captureFieldYes": "Yes",
+  "captureFieldNo": "No",
+  "captureFieldHigh": "High",
+  "captureFieldMedium": "Medium",
+  "captureActionCreateEvent": "Create Event",
+  "captureActionApply": "Apply",
+  "captureActionEnterSave": "Enter to save",
+  "captureActionKeepEditing": "Keep editing",
+  "captureActionDiscard": "Discard",
+  "captureActionRetry": "Retry",
+  "captureCalPersonal": "Personal",
+  "captureCalPersonalDefault": "Personal · Default",
+  "captureCalDefaultSelected": "Default · Selected",
+  "captureCalWork": "Work",
+  "captureCalWorkCalendar": "Work calendar",
+  "captureCalHome": "Home",
+  "captureCalHomeCalendar": "Home calendar",
+  "captureCalHealth": "Health",
+  "captureCalHealthCalendar": "Health calendar",
+  "captureReminderNoReminder": "No reminder",
+  "captureReminder5mBefore": "5 minutes before",
+  "captureReminder15mBefore": "15 minutes before",
+  "captureReminder1hBefore": "1 hour before",
+  "captureReminder1dBefore": "1 day before",
+  "captureDateSelectedSuffix": "{date} · Selected",
+  "@captureDateSelectedSuffix": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDateNextWeek": "Next week",
+  "closeTooltip": "Close",
+  "backupConflictSkipAssociated": "Keeping local will skip {count} associated items in backup",
+  "@backupConflictSkipAssociated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "newTodoPageTitle": "Capture a task",
+  "newItemPageSub": "The full-page form of Capture: same fields as the floating panel; fields you do not open are not written.",
+  "createTodoAction": "Add todo",
+  "createEventAction": "Create event",
+  "newTodoPlaceholder": "Write an action future-you can understand",
+  "newEventPlaceholder": "Name this event",
+  "newTodoFootnote": "Tags, subtasks and attachments can be added after creation; they are not part of capture.",
+  "newEventFootnote": "Location and notes can be added after creation.",
+  "typeNoteTodo": "A todo by default; only switching to event changes that.",
+  "typeNoteEvent": "Opened from a time slot, so this is an event.",
+  "notFilled": "Not set",
+  "itemTypeTodo": "Todo",
+  "itemTypeEvent": "Event",
+  "eventLocationUnset": "Not set",
+  "newItemSaveFailedNote": "This page still has your input. Check the connection and retry.",
+  "newItemRepeatLabel": "Repeat",
+  "timePickerHint": "Type the numbers; press Enter to confirm. No dial.",
+  "timePickerInvalid": "Hour must be 00–23 and minute 00–59; fix it before confirming.",
+  "pickTimeHint": "Pick a time",
+  "calendarOverlapCount": "{count, plural, =1{1 item overlaps} other{{count} items overlap}}",
+  "@calendarOverlapCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarOverlapNote": "Side by side, never merged or covered; tap one to open it.",
+  "calendarDragReleaseHint": "Release · schedule at {time}",
+  "@calendarDragReleaseHint": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "deadlinePointNote": "A point marker, it occupies no time.",
+  "slotCaptureFrom": "From a time slot",
+  "slotCaptureHint": "Same capture surface from every entry; the time is prefilled.",
+  "slotOtherWays": "Other scheduling options",
+  "monthItemsOverflow": "{count} more items",
+  "@monthItemsOverflow": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savingLabel": "Saving…",
+  "settingsHomeAccountDesc": "Sign-in, server, and session status.",
+  "settingsHomeGeneralDesc": "Default calendar, startup view, theme, and language.",
+  "settingsHomeCalendarsDesc": "{count} calendars · 1 default.",
+  "@settingsHomeCalendarsDesc": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsHomeDataDesc": "Tags, trash, import/export, and backups.",
+  "settingsHomeAiDesc": "Optional; needs your own model key.",
+  "settingsHomeNotifyDesc": "System alarms and permissions.",
+  "settingsHomeSyncDesc": "Server, account, failures, and conflicts.",
+  "settingsHomeAboutDesc": "Version, licenses, and feedback.",
+  "settingsValueEnter": "Enter",
+  "settingsValueOpen": "Open",
+  "settingsValueManage": "Manage",
+  "settingsValueView": "View",
+  "accountNotLoggedIn": "Not signed in",
+  "aiEnableFull": "Enable AI assistant",
+  "aiEnableDesc": "Turning it off hides \"Open assistant\" and the chat entry; existing tasks are unaffected.",
+  "aiModelRow": "Model configuration",
+  "aiKeyLocalOnly": "Saved on this device only",
+  "aiModelDialogTitle": "AI model",
+  "aiBaseUrlHelp": "The key is saved only on this device; it is never synced to the server. Detection requests /models.",
+  "aiKeyCheckFailedTitle": "Key check failed.",
+  "aiKeyCheck401Body": "The server returned 401; this change was not saved.",
+  "aiKeyCheckFailedBody": "The provider request failed ({status}); this change was not saved.",
+  "@aiKeyCheckFailedBody": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "aiUnconfiguredAlertTitle": "No usable model yet.",
+  "aiUnconfiguredAlertBody": "Fill in the Base URL and key, save, and then you can send messages.",
+  "aiOffAlertBody": "The AI assistant is off; this page stays so you can turn it back on.",
+  "aiConfiguredWithModel": "Configured · {model}",
+  "@aiConfiguredWithModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "aiConnectedModel": "Connected · model {model} · key saved only on this device",
+  "@aiConnectedModel": {
+    "placeholders": {
+      "model": {
+        "type": "String"
+      }
+    }
+  },
+  "aiChatSubtitleFallback": "Chat is a content page, not search and not the command palette.",
+  "aiReplyInProgress": "Replying…",
+  "syncConflictDesc": "The same record changed on both this device and the server; choose per item.",
+  "syncConflictRecord": "Conflict {id} · {type}",
+  "@syncConflictRecord": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "syncConflictLocalServer": "Local: this device's change is still here. Server: the version changed, so the server rejected the overwrite.",
+  "syncConflictApply": "Apply choices",
+  "syncConflictMergeHint": "The sync layer has no field-level merge; choosing Merge will not rewrite either version.",
+  "capturePlanTo": "Plan on {date}",
+  "@capturePlanTo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "syncConflictKeepLocalResult": "Kept the local version; the next edit to this record will upload again as a new change.",
+  "capturePlanDayEmpty": "Nothing scheduled that day",
+  "syncConflictRemoteUnavailable": "The sync layer does not expose the server copy; the \"Keep server\" choices were not applied.",
+  "capturePlanOverlapCount": "{count} overlapping",
+  "@capturePlanOverlapCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncConflictMergeUnavailable": "The sync layer has no field-level merge; Merge choices were not applied and no merge result was invented.",
+  "captureSuggestionTitle": "{range} · Suggested",
+  "@captureSuggestionTitle": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "syncConflictBack": "Back to sync",
+  "syncServerUnreachable": "Unreachable",
+  "syncPendingBoth": "{uploads} pending uploads · {downloads} pending downloads",
+  "@syncPendingBoth": {
+    "placeholders": {
+      "uploads": {
+        "type": "int"
+      },
+      "downloads": {
+        "type": "int"
+      }
+    }
+  },
+  "syncRetryDesc": "Retry sync now.",
+  "backupProgressTitle": "Backing up",
+  "backupProgressPacking": "Packaging calendars, tasks, events, tags, and the attachment index.",
+  "backupProgressWriting": "Writing {filename}",
+  "@backupProgressWriting": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
+  "backupProgressPercent": "{percent}%",
+  "@backupProgressPercent": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "backupIncludes": "Contains",
+  "backupIncludesCounts": "{calendars} calendars · {todos} tasks · {events} events · {attachments} attachment entries",
+  "@backupIncludesCounts": {
+    "placeholders": {
+      "calendars": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      },
+      "events": {
+        "type": "int"
+      },
+      "attachments": {
+        "type": "int"
+      }
+    }
+  },
+  "backupSavedLocation": "The file was saved where you chose.",
+  "captureEventCreatedToast": "Event created · {range}",
+  "@captureEventCreatedToast": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
+  "backupFailedTitle": "Backup failed",
+  "overdueToolbarEarliest": "Earliest {date}",
+  "@overdueToolbarEarliest": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "backupFailedBody": "The destination is not writable.",
+  "timelineMissedPill": "Missed {count} times",
+  "@timelineMissedPill": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupNoPartial": "No partial file was produced.",
+  "pastDueOrMissedSection": "Overdue / Missed",
+  "importErrorTitle": "Import failed",
+  "importSeeReport": "View report",
+  "importSkipRows": "Skip error rows and continue",
+  "importCannotSkip": "The whole file cannot be parsed, so error rows cannot be skipped; fix the file and retry.",
+  "importReportTitle": "Import report",
+  "importReportSkipped": "{count} row(s) will be skipped",
+  "@importReportSkipped": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importReportEmpty": "This file has no bad rows to report.",
+  "importReportError": "Parse error: {error}",
+  "@importReportError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "exactAlarmNotActive": "Not active",
+  "systemNotification": "System notifications",
+  "feedbackCharCount": "{count} characters · Logs are not attached automatically",
+  "@feedbackCharCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackMetaReady": "You can copy it or take it to GitHub",
+  "filterAppliedSummary": "Filtered: {criteria} · {count} items",
+  "@filterAppliedSummary": {
+    "placeholders": {
+      "criteria": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "feedbackMetaEmpty": "Write something first",
+  "listSeparator": ", ",
+  "feedbackNoSilentSubmit": "DaySpark never submits anything in the background. After copying, paste it anywhere; GitHub opens a blank issue with the body filled in.",
+  "pickTimeTitle": "Choose a time",
+  "feedbackLinkErrorTitle": "Could not open the browser.",
+  "feedbackLinkErrorBody": "Your text is still here; retry, or copy it to the clipboard and open it manually.",
+  "aiOffValue": "Off",
+  "aiDisabledTitle": "The AI assistant is off",
+  "aiDisabledHint": "This is an optional feature; turn it on and configure a model to get a chat entry.",
+  "aiOpenSettings": "Open settings",
+  "aiConfigureModel": "Configure model",
+  "settingsCalendarsCountOne": "{count} calendars · 1 default",
+  "@settingsCalendarsCountOne": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "defaultCalendarBadgeValue": "Default",
+  "settingsCurrentDefault": "Current default: {name}",
+  "@settingsCurrentDefault": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsDefaultCalSavedPlaceholder": "Save default calendar",
+  "chatModelAction": "Model",
+  "chatClearAction": "Clear chat",
+  "settingsBetaBadge": "Beta",
+  "aiPrivacyFooter": "Conversations stay on this device; model requests go directly to the provider you configured. DaySpark servers never see the key.",
+  "aiKeyChecking": "Checking key…",
+  "aiKeyMissing": "Enter an API key before saving.",
+  "syncConflictTitle": "Sync conflict",
+  "syncConflictLocal": "Local",
+  "syncConflictServer": "Server",
+  "backupDoneTitle": "Backup complete",
+  "backupMergeHint": "Merge keeps both: the local item stays, and the backup version is imported as a new item.",
+  "aiNotConfiguredTitle": "No model configured yet",
+  "aiChatNotConfiguredHint": "Fill in an OpenAI-compatible Base URL and API key. The key stays on this device and is never uploaded to DaySpark servers.",
+  "feedbackWriteLabel": "Write something",
+  "feedbackPlaceholder": "What happened, and what did you expect? Include device and version if you can.",
+  "syncConflictApplied": "Choices applied.",
+  "syncConflictApplyFailed": "Could not apply every choice: {error}",
+  "@syncConflictApplyFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "saveSeriesTitle": "Save to the whole series?",
+  "saveSeriesBody": "This edit is written to the series anchor and updates every occurrence. To skip only this one, use Delete · This event.",
+  "saveSeriesConfirm": "Save whole series",
+  "timedDeadline": "Timed deadline",
+  "outOfRangeNote": "The axis is fixed 08:00–20:00. Earlier or later events stick to the edge; open the detail for the real time. Cross-midnight events stay in the multi-day band.",
+  "staleCalendarTitle": "Couldn't reach the server",
+  "staleCalendarBody": "Showing the last data you saw. Retry to replace it.",
+  "trashedItemTitle": "This item is in Trash",
+  "trashedItemBody": "The link points to an item that was moved to Trash. Restore it to keep editing.",
+  "goToTrash": "Go to Trash",
+  "startupFailedTitle": "DaySpark couldn't open",
+  "startupFailedBody": "The local database did not open. Your data is still on disk. Retry, or export diagnostics first.",
+  "exportDiagnostics": "Export diagnostics",
+  "endDateOfEvent": "End date",
+  "dayCountLabel": "Days",
+  "syncOfflineShort": "Offline. Changes waiting to upload.",
+  "syncFailedShort": "Sync failed. Local data is safe.",
+  "syncConflictShort": "Conflicts found. Review them in Sync.",
+  "relatedLoading": "Loading tags, reminders and schedule…",
+  "relatedPartial": "Some related content didn't load."
 }

@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/domain/providers/alarm_provider.dart';
+import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/pages/settings/settings_sections/notifications_section.dart';
 
@@ -23,8 +24,10 @@ Future<void> _pumpNotificationsSection(
   WidgetTester tester,
   TargetPlatform platform, {
   bool? exactAlarmsAllowed,
+  Completer<bool>? exactAlarmsPending,
   bool? initialAlarm,
   AlarmToggle? alarmToggle,
+  NotificationPermissionStatus? permissionStatus,
 }) async {
   // binding 在测试体结束时就校验 debug 变量已复位（早于 tearDown），所以调用方
   // 必须在断言之后、测试体之内把它置回 null；这里的 addTearDown 只是断言失败时的兜底。
@@ -42,12 +45,20 @@ Future<void> _pumpNotificationsSection(
           NotificationsSection.canScheduleExactProvider.overrideWith(
             (ref) async => exactAlarmsAllowed,
           ),
+        if (exactAlarmsPending != null)
+          NotificationsSection.canScheduleExactProvider.overrideWith(
+            (ref) => exactAlarmsPending.future,
+          ),
         if (initialAlarm != null)
           NotificationsSection.systemAlarmProvider.overrideWith(
             (ref) => initialAlarm,
           ),
         if (alarmToggle != null)
           alarmToggleProvider.overrideWithValue(alarmToggle),
+        if (permissionStatus != null)
+          NotificationsSection.permissionStatusProvider.overrideWith(
+            (ref) async => permissionStatus,
+          ),
       ],
       child: MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -108,10 +119,7 @@ void main() {
         return gate.future;
       },
     );
-    expect(
-      tester.widget<Switch>(find.byType(Switch)).value,
-      isTrue,
-    );
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
 
     await tester.tap(find.byType(Switch));
     await tester.pump();
@@ -145,25 +153,122 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('android 且已授权：精确闹钟入口不出现', (tester) async {
+  testWidgets('android 且已授权：精确提醒仍是状态行且显示已允许', (tester) async {
     await _pumpNotificationsSection(
       tester,
       TargetPlatform.android,
       exactAlarmsAllowed: true,
     );
     await tester.pump();
-    expect(find.text('Exact alarm permission'), findsNothing);
+    expect(find.text('Exact alarm permission'), findsOneWidget);
+    expect(find.text('Allowed'), findsWidgets);
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('macOS 且未授权：精确闹钟入口也不出现（只有 Android 有）', (tester) async {
+  testWidgets('android 且精确闹钟状态读取中：不提前画成已允许', (tester) async {
+    final gate = Completer<bool>();
+    await _pumpNotificationsSection(
+      tester,
+      TargetPlatform.android,
+      exactAlarmsPending: gate,
+      permissionStatus: NotificationPermissionStatus.unknown,
+    );
+    await tester.pump();
+    expect(find.text('Exact alarm permission'), findsOneWidget);
+    expect(find.text('Allowed'), findsNothing);
+    expect(find.text('Unknown'), findsWidgets);
+    debugDefaultTargetPlatformOverride = null;
+    gate.complete(true);
+  });
+
+  for (final platform in <TargetPlatform>[
+    TargetPlatform.iOS,
+    TargetPlatform.macOS,
+  ]) {
+    testWidgets('$platform：不渲染 Android 专属的精确提醒行', (tester) async {
+      await _pumpNotificationsSection(
+        tester,
+        platform,
+        exactAlarmsAllowed: false,
+      );
+      await tester.pump();
+      expect(find.text('Exact alarm permission'), findsNothing);
+      expect(find.text('Not active'), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+  }
+
+  for (final platform in <TargetPlatform>[
+    TargetPlatform.windows,
+    TargetPlatform.linux,
+  ]) {
+    testWidgets('$platform：通知分区有权限状态行，不再是空列表', (tester) async {
+      await _pumpNotificationsSection(
+        tester,
+        platform,
+        permissionStatus: NotificationPermissionStatus.granted,
+      );
+      expect(find.text('Notification permission'), findsOneWidget);
+      expect(find.text('Allowed'), findsWidgets);
+      expect(find.byType(Switch), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+  }
+
+  testWidgets('returning from system settings re-reads permission status', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    var reads = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          NotificationsSection.permissionStatusProvider.overrideWith((
+            ref,
+          ) async {
+            reads++;
+            return NotificationPermissionStatus.granted;
+          }),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
+            body: SingleChildScrollView(child: NotificationsSection()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(reads, 1);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(reads, greaterThan(1));
+    expect(find.text('Allowed'), findsWidgets);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('权限被拒：显示解释横幅、状态行和系统设置入口', (tester) async {
     await _pumpNotificationsSection(
       tester,
       TargetPlatform.macOS,
-      exactAlarmsAllowed: false,
+      permissionStatus: NotificationPermissionStatus.denied,
     );
-    await tester.pump();
-    expect(find.text('Exact alarm permission'), findsNothing);
+    expect(
+      find.text(
+        'System notification permission is off. '
+        'Reminders are saved, but will not alert when due.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('System notifications'), findsOneWidget);
+    expect(find.text('In-app Reminders'), findsOneWidget);
+    expect(find.text('Open System Settings'), findsWidgets);
     debugDefaultTargetPlatformOverride = null;
   });
 }

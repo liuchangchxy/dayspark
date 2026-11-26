@@ -9,10 +9,12 @@ class CalendarDeadline {
     required this.todoId,
     required this.title,
     required this.due,
+    this.calendarId,
   });
   final int todoId;
   final String title;
   final DateTime due;
+  final int? calendarId;
 }
 
 /// A due instant at exactly midnight carries no clock: the form stores a

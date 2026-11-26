@@ -12,40 +12,47 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
-import 'package:dayspark/core/utils/date_formatters.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/models/calendar_event_adapter.dart';
 import 'package:dayspark/domain/providers/action_projection_provider.dart';
 import 'package:dayspark/domain/providers/calendar_view_provider.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/home_widget_provider.dart';
 import 'package:dayspark/domain/providers/locale_provider.dart';
 import 'package:dayspark/domain/providers/record_bus_provider.dart';
-import 'package:dayspark/domain/providers/tags_provider.dart';
 import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/theme_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
-import 'package:dayspark/domain/providers/todos_ui_prefs_provider.dart';
 import 'package:dayspark/domain/utils/recurring_event_helper.dart';
 import 'package:dayspark/infrastructure/platform/notification_service.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
+import 'package:dayspark/ui/design/spec_drawer_overlay.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/pages/calendar/a2_calendar_page.dart';
 import 'package:dayspark/ui/pages/home/day_agenda.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark/ui/pages/search/search_page.dart';
 import 'package:dayspark/ui/pages/todo/a2_composer.dart';
 import 'package:dayspark/ui/pages/todo/a2_todo_page.dart';
+import 'package:dayspark/ui/pages/todo/capture_panel_submit.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/event/event_detail_page.dart';
+import 'package:dayspark/ui/shell/spark_top_bar.dart';
+import 'package:dayspark/ui/shell/sync_status_banner.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_deadline_lane.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
-import 'package:dayspark/ui/widgets/calendar/view_switcher.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
 
 /// A todo belongs in the calendar deadline lane only when it is an ordinary
@@ -60,6 +67,9 @@ bool isCalendarDeadlineCandidate(Todo todo) =>
     todo.dueDate != null &&
     todo.status != 'COMPLETED' &&
     todo.status != 'CANCELLED';
+
+bool _initialLoading(AsyncValue<Object?> value) =>
+    value.isLoading && !value.hasValue;
 
 /// The three primary destinations and the chrome they share.
 ///
@@ -89,6 +99,7 @@ class _HomePageState extends ConsumerState<HomePage>
   bool _calendarTabWasActive = false;
   bool _urlSyncScheduled = false;
   Timer? _dayCheckTimer;
+  Timer? _todayTicker;
   DateTime? _lastCheckedDay;
 
   DateTime _now() => (widget.clock ?? DateTime.now)();
@@ -121,6 +132,7 @@ class _HomePageState extends ConsumerState<HomePage>
       });
     }
     WidgetsBinding.instance.addObserver(this);
+    _startTodayTicker();
     _listenForDefaultTabChanges();
     _listenForWidgetRefreshTriggers();
     _listenForUrlStateChanges();
@@ -224,6 +236,12 @@ class _HomePageState extends ConsumerState<HomePage>
           _handleNotificationAction(actionId, parentId, parentType, reminderId),
         );
       };
+      // Body taps (and event "mark complete" taps) are navigation, not
+      // mutations: open the item the notification named instead of dropping
+      // the reader on whichever tab happened to be active.
+      notifService.onNotificationTapped = (parentId, parentType) {
+        unawaited(_handleNotificationTap(parentId, parentType));
+      };
       _startDayCheckTimer();
       _checkVersionChangelog();
       _refreshHomeWidget();
@@ -241,7 +259,11 @@ class _HomePageState extends ConsumerState<HomePage>
     if (!mounted ||
         calendars.length != 1 ||
         calendars.single.name != 'Personal' ||
-        !const {'#2563EB', '#5F7183'}.contains(calendars.single.color) ||
+        !const {
+          '#2563EB',
+          '#5F7183',
+          '#8a8a82',
+        }.contains(calendars.single.color) ||
         calendars.single.name == l.defaultCalendarName) {
       return;
     }
@@ -272,6 +294,38 @@ class _HomePageState extends ConsumerState<HomePage>
     _scheduleNextMidnightCheck();
   }
 
+  /// The Today page paints "now" from the clock at build time, and group
+  /// membership is derived from it. A minute that elapses while the page sits
+  /// open must move both, so tick on the minute boundary instead of leaving
+  /// the page frozen on the moment it was built.
+  void _startTodayTicker() {
+    _todayTicker?.cancel();
+    final now = _now();
+    final nextMinute = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute + 1,
+    );
+    _todayTicker = Timer(nextMinute.difference(now), () {
+      _refreshTodayClock();
+      if (!mounted) return;
+      _todayTicker = Timer.periodic(
+        const Duration(minutes: 1),
+        (_) => _refreshTodayClock(),
+      );
+    });
+  }
+
+  /// A tick is only worth a rebuild when Today is the visible destination;
+  /// the other tabs read their own clocks when they are built.
+  void _refreshTodayClock() {
+    if (!mounted) return;
+    if (ref.read(workspaceTabProvider) != AppTab.action) return;
+    setState(() {});
+  }
+
   void _scheduleNextMidnightCheck() {
     final now = _now();
     final midnight = DateTime(now.year, now.month, now.day + 1);
@@ -300,6 +354,7 @@ class _HomePageState extends ConsumerState<HomePage>
     if (mounted) setState(() {});
     _dayCheckTimer?.cancel();
     _scheduleNextMidnightCheck();
+    _startTodayTicker();
   }
 
   void _refreshHomeWidget() {
@@ -374,15 +429,21 @@ class _HomePageState extends ConsumerState<HomePage>
         await showDialog<void>(
           animationStyle: AnimationStyle.noAnimation,
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(l.whatsNew),
-            content: SingleChildScrollView(child: Text('v$current')),
+          builder: (ctx) => DsDialog(
+            title: l.whatsNew,
+            width: 420,
             actions: [
-              TextButton(
+              const Spacer(),
+              DsButton(
+                label: l.changelogDismiss,
+                tone: DsButtonTone.ghost,
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(l.changelogDismiss),
               ),
             ],
+            child: Text(
+              'v$current',
+              style: AppTypography.body.copyWith(color: context.ds.ink2),
+            ),
           ),
         );
       }
@@ -408,10 +469,9 @@ class _HomePageState extends ConsumerState<HomePage>
               .getSingleOrNull();
       if (!mounted || todo == null) return;
       if (todo.rrule != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.of(context)!.selectTodoOccurrence),
-          ),
+        showSpecToast(
+          context,
+          AppLocalizations.of(context)!.selectTodoOccurrence,
         );
         context.push('/todo/detail', extra: todo);
         return;
@@ -435,10 +495,41 @@ class _HomePageState extends ConsumerState<HomePage>
     }
   }
 
+  /// A notification body tap names a local row, not an object: resolve it the
+  /// same way the detail loaders do. A row already in the trash goes through
+  /// the id route so the reader sees "in Trash" rather than an editable page.
+  Future<void> _handleNotificationTap(int parentId, String parentType) async {
+    if (!mounted) return;
+    final db = ref.read(databaseProvider);
+    if (parentType == 'todo') {
+      final todo = await (db.select(
+        db.todos,
+      )..where((row) => row.id.equals(parentId))).getSingleOrNull();
+      if (!mounted || todo == null) return;
+      if (todo.deletedAt != null) {
+        context.push('/todo/detail?id=$parentId');
+        return;
+      }
+      _openTodo(todo);
+    } else if (parentType == 'event') {
+      final event = await (db.select(
+        db.events,
+      )..where((row) => row.id.equals(parentId))).getSingleOrNull();
+      if (!mounted || event == null) return;
+      if (event.deletedAt != null) {
+        context.push('/event/detail?id=$parentId');
+        return;
+      }
+      _openEvent(CalendaEventAdapter.fromDrift(event));
+    }
+  }
+
   @override
   void dispose() {
     _dayCheckTimer?.cancel();
+    _todayTicker?.cancel();
     NotificationService().onNotificationAction = null;
+    NotificationService().onNotificationTapped = null;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -469,17 +560,45 @@ class _HomePageState extends ConsumerState<HomePage>
       },
     );
 
+    final selection = ref.watch(workspaceSelectionProvider);
+    final isDrawerOpen =
+        desktop && canShowDesktopDrawer(context) && selection != null;
+    final inlineDetail = isDrawerOpen && _usesInlineDetail(tab);
+
     if (desktop) {
       final body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _DesktopBar(
-            current: tab,
-            now: _now(),
-            onSelect: (index) => _setTab(index),
-            onCapture: _openComposer,
+          SparkTopBar(clock: widget.clock, onSelect: (index) => _setTab(index)),
+          const SyncStatusBanner(),
+          Expanded(
+            child: inlineDetail
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: page),
+                      _InlineDetailPane(
+                        child: _buildDetailPane(selection, inline: true),
+                      ),
+                    ],
+                  )
+                : Stack(
+                    children: [
+                      Positioned.fill(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.translucent,
+                          onTap: isDrawerOpen ? _clearSelection : null,
+                          child: page,
+                        ),
+                      ),
+                      if (isDrawerOpen)
+                        SpecDrawerOverlay(
+                          width: specDrawerWidth(context),
+                          child: _buildDetailPane(selection),
+                        ),
+                    ],
+                  ),
           ),
-          Expanded(child: page),
         ],
       );
       // Ctrl K is the habit the old rail taught and the bar keeps a search
@@ -496,7 +615,7 @@ class _HomePageState extends ConsumerState<HomePage>
           child: Focus(
             autofocus: true,
             onKeyEvent: _handleEscape,
-            child: Scaffold(backgroundColor: context.ds.bg, body: body),
+            child: Scaffold(backgroundColor: SpecTokens.paper, body: body),
           ),
         ),
       );
@@ -506,17 +625,27 @@ class _HomePageState extends ConsumerState<HomePage>
     return _withSystemBack(
       tab,
       Scaffold(
-        backgroundColor: context.ds.bg,
+        backgroundColor: SpecTokens.paper,
         resizeToAvoidBottomInset: true,
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(child: SafeArea(bottom: false, child: page)),
-            if (!keyboardOpen)
-              _MobileDock(
-                current: tab,
-                onSelect: (index) => _setTab(index),
+            Expanded(
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Mobile has no persistent chrome under the page, so the
+                    // banner carries the short one-line sync state.
+                    const SyncStatusBanner(short: true),
+                    Expanded(child: page),
+                  ],
+                ),
               ),
+            ),
+            if (!keyboardOpen)
+              _MobileDock(current: tab, onSelect: (index) => _setTab(index)),
           ],
         ),
       ),
@@ -540,6 +669,13 @@ class _HomePageState extends ConsumerState<HomePage>
   /// and the pane is a selection rather than a route, so this is its only
   /// keyboard exit.
   KeyEventResult _handleEscape(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.keyK &&
+        (HardwareKeyboard.instance.isMetaPressed ||
+            HardwareKeyboard.instance.isControlPressed)) {
+      _openSearch();
+      return KeyEventResult.handled;
+    }
     if (event is! KeyDownEvent ||
         event.logicalKey != LogicalKeyboardKey.escape) {
       return KeyEventResult.ignored;
@@ -551,79 +687,205 @@ class _HomePageState extends ConsumerState<HomePage>
     return KeyEventResult.handled;
   }
 
+  void _openInboxNoDate() {
+    ref.read(todosInboxNoDateOnlyProvider.notifier).state = true;
+    ref.read(todosViewProvider.notifier).state = const TodosInboxView();
+    _setTab(2);
+  }
+
   Widget _todayPage() {
     return A2TodayPage(
       now: _now(),
       onOpenTodo: _openTodo,
       onOpenEvent: _openEvent,
       onToggleTodo: _toggleTodo,
-      onOpenUnplanned: () {
-        ref.read(todosViewProvider.notifier).state = const TodosInboxView();
+      onOpenUnplanned: _openInboxNoDate,
+      onOpenAll: () {
+        ref.read(todosViewProvider.notifier).state = const TodosAllView();
+        // AppTab is action/calendar/todos: "all" is the Todo destination, not
+        // the Calendar (index 1).
         _setTab(2);
       },
-      onScheduleTodo: (todo) => _openComposer(todo: todo),
+      onScheduleTodo: (todo) => _scheduleTodoWithPlanPicker(todo),
     );
   }
 
   Widget _todoPage(bool desktop) {
     final browseDate = ref.watch(viewedDateProvider);
-    final selection = ref.watch(workspaceSelectionProvider);
+    final dayView = ref.watch(todosViewProvider) is TodosDayView;
+    final key = _rangeKey(_calendarRange());
+    final eventsAsync = ref.watch(eventsInDateRangeProvider(key));
+    final allocationsAsync = ref.watch(taskAllocationsInDateRangeProvider(key));
+    final todosAsync = ref.watch(allTodosProvider);
+    final unplannedAsync = ref.watch(unplannedTodosProvider);
+    final dayAgendaLoading = [
+      eventsAsync,
+      allocationsAsync,
+      todosAsync,
+      unplannedAsync,
+    ].any(_initialLoading);
+    final dayAgendaFailed = [
+      eventsAsync,
+      allocationsAsync,
+      todosAsync,
+      unplannedAsync,
+    ].any((value) => value.hasError);
     return A2TodoPage(
       now: _now(),
       dayAgenda: _dayAgenda(browseDate),
-      detail: desktop && isMasterDetailLayout(context) && selection != null
-          ? _buildDetailPane(selection)
-          : null,
+      dayAgendaLoading: dayAgendaLoading,
+      dayAgendaFailed: dayAgendaFailed,
+      onRetryDayAgenda: () {
+        ref.invalidate(eventsInDateRangeProvider(key));
+        ref.invalidate(taskAllocationsInDateRangeProvider(key));
+        ref.invalidate(allTodosProvider);
+        ref.invalidate(unplannedTodosProvider);
+        ref.invalidate(pendingTodosProvider);
+        ref.invalidate(allActiveTaskAllocationsProvider);
+      },
       onOpenTodo: _openTodo,
       onToggleTodo: _toggleTodo,
       onCapture: (text) => _captureOnTodoPage(text),
+      onCaptureDraft: (text, draft) => _captureOnTodoPageWithDraft(text, draft),
       onPlanDay: (day) => _openComposer(contextDate: day),
-      onScheduleTodo: (todo) => _openComposer(todo: todo),
+      onScheduleTodo: (todo) => _scheduleTodoWithPlanPicker(
+        todo,
+        contextDate: dayView ? browseDate : null,
+      ),
       onOpenEvent: _openEvent,
       onOpenUnplanned: () {
+        ref.read(todosInboxNoDateOnlyProvider.notifier).state = false;
         ref.read(todosViewProvider.notifier).state = const TodosInboxView();
       },
-      trailingActions: [
-        _filterButton(context),
-      ],
     );
+  }
+
+  Future<void> _scheduleTodoWithPlanPicker(
+    Todo todo, {
+    DateTime? contextDate,
+  }) async {
+    final now = _now();
+    final today = DateTime(now.year, now.month, now.day);
+    final anchor = contextDate != null
+        ? DateTime(contextDate.year, contextDate.month, contextDate.day)
+        : today;
+    final initialStart = DateTime(
+      anchor.year,
+      anchor.month,
+      anchor.day,
+      15,
+      15,
+    );
+    final initialEnd = initialStart.add(const Duration(minutes: 45));
+
+    final picked = await SpecPlanPickerDialog.show(
+      context,
+      title: todo.summary,
+      initialStart: initialStart,
+      initialEnd: initialEnd,
+      existingBlocks: (day) async {
+        final start = DateTime(day.year, day.month, day.day);
+        final end = start.add(const Duration(days: 1));
+        final db = ref.read(databaseProvider);
+        final events = await db.eventsDao.getEventCandidates(start, end);
+        final allocations = await fetchTaskAllocationsInDateRange(
+          db,
+          start,
+          end,
+        );
+        final blocks = calDayBlocks(
+          day: start,
+          events: [
+            for (final event in events) CalendaEventAdapter.fromDrift(event),
+          ],
+          allocations: [
+            for (final item in allocations)
+              if (item.todo.id != todo.id)
+                TaskAllocationCalendarAdapter.fromItem(item),
+          ],
+        );
+        return [
+          for (final b in blocks)
+            SpecPlanBlock(start: b.start, end: b.end, title: b.title),
+        ];
+      },
+    );
+
+    if (picked == null || !mounted) return;
+    String? occurrenceId;
+    if (todo.rrule != null && todo.rrule!.isNotEmpty) {
+      try {
+        occurrenceId = await resolveCurrentOccurrenceId(ref, todo);
+      } catch (error) {
+        debugPrint('home: schedule occurrence resolve failed: $error');
+        occurrenceId = null;
+      }
+      if (occurrenceId == null) {
+        if (!mounted) return;
+        final l = AppLocalizations.of(context);
+        if (l != null) {
+          showSpecToast(context, l.schedulingFailed);
+        }
+        return;
+      }
+    }
+    try {
+      await ref.read(createTaskAllocationProvider)(
+        todoId: todo.id,
+        startAt: picked.$1,
+        endAt: picked.$2,
+        occurrenceId: occurrenceId,
+      );
+      ref.invalidate(allActiveTaskAllocationsProvider);
+      ref.invalidate(allTodosProvider);
+      final rangeKey = _rangeKey(_calendarRange());
+      ref.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        showSpecToast(context, l.scheduledTodoSuccess(todo.summary));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        showSpecToast(context, l.schedulingFailed);
+      }
+    }
   }
 
   Widget _calendarPage() {
     final range = _calendarRange();
     final key = _rangeKey(range);
     final eventsAsync = ref.watch(eventsInDateRangeProvider(key));
-    final allocationsAsync = ref.watch(
-      taskAllocationsInDateRangeProvider(key),
-    );
+    final allocationsAsync = ref.watch(taskAllocationsInDateRangeProvider(key));
     final browseDate = ref.watch(viewedDateProvider);
     final calendarColors = {
-      for (final calendar in ref.watch(calendarsProvider).valueOrNull ?? const [])
+      for (final calendar
+          in ref.watch(calendarsProvider).valueOrNull ?? const [])
         calendar.id: ColorUtils.parseHex(calendar.color),
     };
     final deadlineTodos = (ref.watch(allTodosProvider).valueOrNull ?? <Todo>[])
         .where(isCalendarDeadlineCandidate)
         .toList();
-
-    // The grid draws what it has; a day with nothing to show is still a day,
-    // and the toolbar must never wait on a query to appear.
-    if (eventsAsync.hasError) {
-      debugPrint('calendar: events error: ${eventsAsync.error}');
-    }
-    if (allocationsAsync.hasError) {
-      debugPrint('calendar: allocations error: ${allocationsAsync.error}');
-    }
-    final adapters = expandRecurringEvents(
-      eventsAsync.valueOrNull ?? const <Event>[],
-      before: browseDate.subtract(const Duration(days: 60)),
-      after: browseDate.add(const Duration(days: 60)),
-      colorForCalendar: (id) => calendarColors[id],
+    final adaptedEvents = eventsAsync.whenData(
+      (events) => expandRecurringEvents(
+        events,
+        before: browseDate.subtract(const Duration(days: 60)),
+        after: browseDate.add(const Duration(days: 60)),
+        colorForCalendar: (id) => calendarColors[id],
+      ),
     );
     return A2CalendarPage(
-      events: adapters,
+      events: adaptedEvents.valueOrNull ?? const <CalendaEventAdapter>[],
       allocations:
-          allocationsAsync.valueOrNull ??
-          const <TaskAllocationCalendarItem>[],
+          allocationsAsync.valueOrNull ?? const <TaskAllocationCalendarItem>[],
+      eventsAsync: adaptedEvents,
+      allocationsAsync: allocationsAsync,
+      onRetry: () {
+        ref.invalidate(eventsInDateRangeProvider(key));
+        ref.invalidate(taskAllocationsInDateRangeProvider(key));
+      },
       deadlines: [
         for (final todo in deadlineTodos)
           CalendarDeadline(
@@ -632,6 +894,7 @@ class _HomePageState extends ConsumerState<HomePage>
             due: todo.dueDate!,
           ),
       ],
+      onSearch: _openSearch,
       onEventTapped: _openEvent,
       onAllocationTapped: (item) => _openTodo(item.todo),
       onDeadlineTapped: (deadline) {
@@ -717,16 +980,12 @@ class _HomePageState extends ConsumerState<HomePage>
           );
           ref.invalidate(taskAllocationsInDateRangeProvider(rangeKey));
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l.scheduledTodoSuccess(todo.summary))),
-            );
+            showSpecToast(context, l.scheduledTodoSuccess(todo.summary));
           }
         } catch (e) {
           debugPrint('calendar: schedule todo failed: $e');
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l.schedulingFailed)),
-            );
+            showSpecToast(context, l.schedulingFailed);
           }
         }
       },
@@ -741,7 +1000,8 @@ class _HomePageState extends ConsumerState<HomePage>
     final colors = {
       for (final c in calendars) c.id: ColorUtils.parseHex(c.color),
     };
-    final events = ref.watch(eventsInDateRangeProvider(key)).valueOrNull ??
+    final events =
+        ref.watch(eventsInDateRangeProvider(key)).valueOrNull ??
         const <Event>[];
     final allocations =
         ref.watch(taskAllocationsInDateRangeProvider(key)).valueOrNull ??
@@ -776,15 +1036,18 @@ class _HomePageState extends ConsumerState<HomePage>
     final calendars = await ref.read(calendarsProvider.future);
     if (calendars.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.noCalendar)),
-        );
+        showSpecToast(context, l.noCalendar);
       }
       return;
     }
     try {
       await ref.read(createTodoProvider)(
-        calendarId: calendars.first.id,
+        calendarId:
+            resolveNewEntryCalendarId(
+              calendars: calendars,
+              preferredId: ref.read(defaultCalendarIdProvider),
+            ) ??
+            calendars.first.id,
         summary: text,
         priority: 0,
         status: 'NEEDS-ACTION',
@@ -792,11 +1055,13 @@ class _HomePageState extends ConsumerState<HomePage>
     } catch (error) {
       debugPrint('todo: capture failed: $error');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.actionFailedRetry)),
-        );
+        showSpecToast(context, l.actionFailedRetry);
       }
     }
+  }
+
+  Future<bool> _captureOnTodoPageWithDraft(String text, A2CaptureDraft draft) {
+    return submitTodoCapture(ref, context, text, draft);
   }
 
   void _openComposer({
@@ -805,9 +1070,12 @@ class _HomePageState extends ConsumerState<HomePage>
     DateTime? initialStart,
     DateTime? initialEnd,
   }) {
+    final fallback = todo == null
+        ? ref.read(viewedDateProvider)
+        : DateTime(_now().year, _now().month, _now().day);
     showA2Composer(
       context,
-      contextDate: contextDate ?? ref.read(viewedDateProvider),
+      contextDate: contextDate ?? fallback,
       todo: todo,
       initialStart: initialStart,
       initialEnd: initialEnd,
@@ -851,12 +1119,13 @@ class _HomePageState extends ConsumerState<HomePage>
     return true;
   }
 
-  Widget _buildDetailPane(WorkspaceSelection selection) {
+  Widget _buildDetailPane(WorkspaceSelection selection, {bool inline = false}) {
     return switch (selection) {
       TodoSelection(:final todo) => TodoDetailPane(
         key: ValueKey('pane-todo-${todo.id}'),
         todo: todo,
         embedded: true,
+        inlineSummary: true,
         onClose: _clearSelection,
         onDeleted: _clearSelection,
       ),
@@ -864,6 +1133,7 @@ class _HomePageState extends ConsumerState<HomePage>
         key: ValueKey('pane-event-${event.drifId}'),
         event: event,
         embedded: true,
+        inlineSummary: true,
         onClose: _clearSelection,
         onDeleted: _clearSelection,
       ),
@@ -875,19 +1145,22 @@ class _HomePageState extends ConsumerState<HomePage>
   }
 
   void _openSearch() {
-    final router = GoRouter.maybeOf(context);
-    if (router == null) return;
-    if (router.routerDelegate.currentConfiguration.uri.path == '/search') {
-      return;
-    }
-    router.push('/search');
+    showCommandOverlay(context);
   }
 
-  /// Whether a tap can be answered in place. The pane only exists on the Todo
-  /// destination at the master-detail width; every other destination has to
-  /// navigate, or the tap is silently lost.
+  /// Todos and Calendar read detail as a column beside the content once the
+  /// window is wide enough; Today stays an overlay, and a narrow desktop keeps
+  /// the 360 overlay rather than squeezing the content.
+  bool _usesInlineDetail(AppTab tab) =>
+      (tab == AppTab.todos || tab == AppTab.calendar) &&
+      MediaQuery.sizeOf(context).width >= kWideDesktopBreakpoint;
+
+  /// Whether a tap can be answered in place on this destination. Wide desktop
+  /// (>= 1000) shows the detail in place; narrow desktop (< 1000) and mobile
+  /// (< 720) navigate instead.
   bool _rendersSelectionHere(AppTab tab) =>
-      tab == AppTab.todos && isMasterDetailLayout(context);
+      (tab == AppTab.action || tab == AppTab.calendar || tab == AppTab.todos) &&
+      canShowDesktopDrawer(context);
 
   void _openTodo(Todo todo) {
     if (_rendersSelectionHere(ref.read(workspaceTabProvider))) {
@@ -906,491 +1179,32 @@ class _HomePageState extends ConsumerState<HomePage>
     }
     context.push('/event/detail', extra: event);
   }
-
-  int get _filterCount {
-    var count = 0;
-    if (ref.watch(todoCalendarFilterProvider) != null) count++;
-    if (ref.watch(todoTagFilterProvider).isNotEmpty) count++;
-    if (ref.watch(todoPriorityFilterProvider) != null) count++;
-    return count;
-  }
-
-  Widget _filterButton(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
-    final count = _filterCount;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        A2IconAction(
-          icon: CupertinoIcons.slider_horizontal_3,
-          tooltip: l.filterAndDisplay,
-          onPressed: () => _showFilterSheet(context),
-        ),
-        if (count > 0)
-          Positioned(
-            right: 10,
-            top: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: ds.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 9.5,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  color: ds.onPrimary,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _showFilterSheet(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final calendars =
-        ref.read(calendarsProvider).valueOrNull ?? const <Calendar>[];
-    final tags = ref.read(tagsProvider).valueOrNull ?? const <Tag>[];
-    return showDsSheet<void>(
-      context: context,
-      title: l.filterAndDisplay,
-      body: Consumer(
-        builder: (ctx, r, _) {
-          final ds = ctx.ds;
-          final calFilter = r.watch(todoCalendarFilterProvider);
-          final tagFilter = r.watch(todoTagFilterProvider);
-          final prioFilter = r.watch(todoPriorityFilterProvider);
-          final hideCompleted =
-              r.watch(hideCompletedProvider).valueOrNull ?? false;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DsGroupLabel(l.calendar),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final calendar in calendars)
-                      DsChip(
-                        label: calendar.name,
-                        selected: calFilter == calendar.id,
-                        leading: Container(
-                          width: 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: ColorUtils.parseHex(calendar.color),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        onTap: () =>
-                            r.read(todoCalendarFilterProvider.notifier).state =
-                                calFilter == calendar.id ? null : calendar.id,
-                      ),
-                  ],
-                ),
-                if (tags.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  DsGroupLabel(l.tags),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final tag in tags)
-                        DsChip(
-                          label: tag.name,
-                          selected: tagFilter.contains(tag.id),
-                          leading: Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: ColorUtils.parseHex(tag.color),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          onTap: () {
-                            final next = {...tagFilter};
-                            if (!next.remove(tag.id)) next.add(tag.id);
-                            r.read(todoTagFilterProvider.notifier).state = next;
-                          },
-                        ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 16),
-                DsGroupLabel(l.priority),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    DsChip(
-                      label: l.priorityNone,
-                      selected: prioFilter == null,
-                      onTap: () =>
-                          r.read(todoPriorityFilterProvider.notifier).state =
-                              null,
-                    ),
-                    for (final entry in [
-                      (1, l.priorityHigh),
-                      (5, l.priorityMedium),
-                      (9, l.priorityLow),
-                    ])
-                      DsChip(
-                        label: entry.$2,
-                        selected: prioFilter == entry.$1,
-                        onTap: () =>
-                            r.read(todoPriorityFilterProvider.notifier).state =
-                                prioFilter == entry.$1 ? null : entry.$1,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border(top: BorderSide(color: ds.lineSoft)),
-                  ),
-                  child: DsSettingRow(
-                    label: hideCompleted ? l.hideCompleted : l.showCompleted,
-                    trailing: Switch.adaptive(
-                      value: !hideCompleted,
-                      activeTrackColor: ds.primary,
-                      onChanged: (show) =>
-                          r.read(setHideCompletedProvider)(!show),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-      actions: [
-        DsButton(
-          label: l.clearFilters,
-          tone: DsButtonTone.ghost,
-          small: true,
-          onPressed: () {
-            ref.read(todoCalendarFilterProvider.notifier).state = null;
-            ref.read(todoTagFilterProvider.notifier).state = const {};
-            ref.read(todoPriorityFilterProvider.notifier).state = null;
-          },
-        ),
-        DsButton(
-          label: l.done,
-          small: true,
-          onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
-        ),
-      ],
-    );
-  }
 }
 
-/// 56-high desktop bar: brand, date navigation, the clock, the three
-/// destinations, capture and search. There is no sidebar in this product.
-class _DesktopBar extends ConsumerWidget {
-  const _DesktopBar({
-    required this.current,
-    required this.now,
-    required this.onSelect,
-    required this.onCapture,
-  });
+class _InlineDetailPane extends StatelessWidget {
+  const _InlineDetailPane({required this.child});
 
-  final AppTab current;
-  final DateTime now;
-  final ValueChanged<int> onSelect;
-  final VoidCallback onCapture;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
-    final browseDate = ref.watch(viewedDateProvider);
-    final locale = Localizations.localeOf(context).toString();
-    final items = [
-      (l.today, CupertinoIcons.house, AppTab.action),
-      (l.todos, CupertinoIcons.checkmark_circle, AppTab.todos),
-      (l.calendar, CupertinoIcons.calendar, AppTab.calendar),
-    ];
-    // Today answers to the clock, so its date is a read-out rather than a
-    // browsable day: the arrows would move a date the page ignores.
-    final isTodayTab = current == AppTab.action;
-    final monthMode =
-        current == AppTab.calendar &&
-        ref.watch(calendarViewModeProvider) == CalendarViewMode.month;
-    final shownDate = isTodayTab ? now : browseDate;
-    // A wide face in a half-screen window cannot hold the wordmark, the date
-    // and three labelled destinations; below the design's own width the
-    // destinations keep their icons and drop their words.
-    final iconOnly = !isMasterDetailLayout(context);
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: ds.bg,
-        border: Border(bottom: BorderSide(color: ds.line)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 22,
-            height: 22,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: ds.primary,
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: Text(
-              'D',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                height: 1,
-                color: ds.onPrimary,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'DaySpark',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-              color: ds.ink,
-              fontFamilyFallback: AppTypography.fallback,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(width: 1, height: 20, color: ds.line),
-          const SizedBox(width: 8),
-          if (!isTodayTab)
-            _NavStep(
-              icon: CupertinoIcons.chevron_left,
-              tooltip: monthMode ? l.previousPeriod : l.previousDay,
-              onTap: () => _step(ref, browseDate, monthMode, -1),
-            ),
-          Flexible(
-            child: Text(
-              '${DateFormat.MMMMd(locale).format(shownDate)} · '
-              '${DateFormat.E(locale).format(shownDate)}',
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: ds.ink,
-                fontFeatures: AppTypography.tabular,
-                fontFamilyFallback: AppTypography.fallback,
-              ),
-            ),
-          ),
-          if (!isTodayTab)
-            _NavStep(
-              icon: CupertinoIcons.chevron_right,
-              tooltip: monthMode ? l.nextPeriod : l.nextDay,
-              onTap: () => _step(ref, browseDate, monthMode, 1),
-            ),
-          const SizedBox(width: 4),
-          A2Clock(label: DateFormatters.formatTime(now)),
-          const Spacer(),
-          Row(
-            children: [
-              for (final item in items)
-                _DesktopNavItem(
-                  label: item.$1,
-                  icon: item.$2,
-                  iconOnly: iconOnly,
-                  selected: current == item.$3,
-                  onTap: () => onSelect(switch (item.$3) {
-                    AppTab.action => 0,
-                    AppTab.calendar => 1,
-                    AppTab.todos => 2,
-                  }),
-                ),
-            ],
-          ),
-          const SizedBox(width: 8),
-          _QuickCapture(buttonLabel: l.captureQuickAddLabel, onTap: onCapture),
-          const SizedBox(width: 4),
-          SizedBox(
-            width: 36,
-            height: 36,
-            child: IconButton(
-              onPressed: () => context.push('/search'),
-              tooltip: l.search,
-              icon: Icon(CupertinoIcons.search, size: 17, color: ds.ink2),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// A day step barely moves the month grid, so on that surface the bar's
-  /// arrows page the month and keep the browsed day (clamped) — the same
-  /// contract the calendar page's own month header uses.
-  void _step(WidgetRef ref, DateTime from, bool monthMode, int direction) {
-    if (!monthMode) {
-      ref.read(viewedDateProvider.notifier).state = from.add(
-        Duration(days: direction),
-      );
-      return;
-    }
-    final first = DateTime(from.year, from.month + direction, 1);
-    final lastDay = DateTime(first.year, first.month + 1, 0).day;
-    ref.read(viewedDateProvider.notifier).state = DateTime(
-      first.year,
-      first.month,
-      from.day.clamp(1, lastDay),
-    );
-  }
-}
-
-class _NavStep extends StatelessWidget {
-  const _NavStep({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: Icon(icon, size: 14, color: ds.ink3),
+    final width = MediaQuery.sizeOf(context).width;
+    return SizedBox(
+      key: const ValueKey('spec-drawer-inline'),
+      width: width >= kWideDesktopBreakpoint
+          ? kDrawerWidthWide
+          : kDrawerWidthNarrow,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: SpecTokens.paper,
+          border: Border(left: BorderSide(color: SpecTokens.hair)),
         ),
+        child: child,
       ),
     );
   }
 }
 
-class _DesktopNavItem extends StatelessWidget {
-  const _DesktopNavItem({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-    this.iconOnly = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool iconOnly;
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    final color = selected ? ds.primary : ds.ink2;
-    final item = MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: selected ? ds.primarySoft : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: selected ? ds.primary : ds.ink3),
-              if (!iconOnly) ...[
-                const SizedBox(width: 5),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: color,
-                    fontFamilyFallback: AppTypography.fallback,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-    final padded = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 1),
-      child: item,
-    );
-    if (!iconOnly) return padded;
-    return Tooltip(message: label, child: padded);
-  }
-}
-
-class _QuickCapture extends StatelessWidget {
-  const _QuickCapture({required this.buttonLabel, required this.onTap});
-
-  final String buttonLabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final ds = context.ds;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          height: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: ds.surface,
-            border: Border.all(color: ds.line),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            children: [
-              Icon(CupertinoIcons.plus, size: 12, color: ds.primary),
-              const SizedBox(width: 5),
-              Text(
-                buttonLabel,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: ds.ink,
-                  fontFamilyFallback: AppTypography.fallback,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 56-high phone dock: 21px glyph, 11/500 label, primary when selected, no
-/// badge. It is part of the body rather than `bottomNavigationBar` so the
-/// keyboard can replace it instead of stacking above it.
 class _MobileDock extends StatelessWidget {
   const _MobileDock({required this.current, required this.onSelect});
 
@@ -1400,21 +1214,37 @@ class _MobileDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final ds = context.ds;
     final items = [
-      (l.today, CupertinoIcons.house, AppTab.action),
-      (l.calendar, CupertinoIcons.calendar, AppTab.calendar),
-      (l.todos, CupertinoIcons.checkmark_circle, AppTab.todos),
+      (
+        l.today,
+        CupertinoIcons.sun_max,
+        current == AppTab.action,
+        () => onSelect(0),
+      ),
+      (
+        l.todos,
+        CupertinoIcons.checkmark_alt,
+        current == AppTab.todos,
+        () => onSelect(2),
+      ),
+      (
+        l.calendar,
+        CupertinoIcons.calendar,
+        current == AppTab.calendar,
+        () => onSelect(1),
+      ),
+      (l.navMe, CupertinoIcons.person, false, () => context.push('/settings')),
     ];
+
     return Container(
       key: const ValueKey('mobile-tab-bar'),
-      color: ds.navBg,
+      color: const Color(0xFFFBFBF8),
       child: SafeArea(
         top: false,
         child: Container(
           height: 56,
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: ds.line)),
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: SpecTokens.hair, width: 1.0)),
           ),
           child: Row(
             children: [
@@ -1423,12 +1253,8 @@ class _MobileDock extends StatelessWidget {
                   child: _MobileDockSlot(
                     label: item.$1,
                     icon: item.$2,
-                    selected: current == item.$3,
-                    onTap: () => onSelect(switch (item.$3) {
-                      AppTab.action => 0,
-                      AppTab.calendar => 1,
-                      AppTab.todos => 2,
-                    }),
+                    selected: item.$3,
+                    onTap: item.$4,
                   ),
                 ),
             ],
@@ -1454,8 +1280,7 @@ class _MobileDockSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ds = context.ds;
-    final tint = selected ? ds.primary : ds.ink3;
+    final tint = selected ? SpecTokens.ink : SpecTokens.faint;
     return Semantics(
       button: true,
       selected: selected,
@@ -1469,7 +1294,8 @@ class _MobileDockSlot extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(height: 26, child: Icon(icon, size: 21, color: tint)),
+              SizedBox(height: 22, child: Icon(icon, size: 18, color: tint)),
+              const SizedBox(height: 2),
               Text(
                 label,
                 maxLines: 1,
@@ -1477,9 +1303,9 @@ class _MobileDockSlot extends StatelessWidget {
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 9.5,
                   height: 1.2,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: tint,
                   fontFamilyFallback: AppTypography.fallback,
                 ),

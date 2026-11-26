@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
 import 'package:dayspark/domain/providers/database_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/pages/todo/todo_form_page.dart';
 
@@ -82,9 +84,7 @@ void main() {
     await db.close();
   });
 
-  testWidgets('reminders can be added, edited and removed in detail', (
-    tester,
-  ) async {
+  testWidgets('reminders are a draft until save', (tester) async {
     tester.view.physicalSize = const Size(900, 1800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -96,18 +96,28 @@ void main() {
     await _settle(tester);
     await tester.tap(find.text('15 min before'));
     await _settle(tester);
-    var reminders = await db.select(db.reminders).get();
+    expect(
+      await db.select(db.reminders).get(),
+      isEmpty,
+      reason: 'a reminder chosen in edit mode waits for save',
+    );
+    expect(find.text('15 min before'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
+    final reminders = await db.select(db.reminders).get();
     expect(reminders.single.triggerTime, DateTime(2026, 10, 24, 17, 45));
 
-    await tester.tap(find.text('15 min before'));
-    await _settle(tester);
-    await tester.tap(find.text('1 h before'));
-    await _settle(tester);
-    reminders = await db.select(db.reminders).get();
-    expect(reminders.single.triggerTime, DateTime(2026, 10, 24, 17));
-    expect(find.text('1 h before'), findsOneWidget);
-
     await tester.tap(find.byTooltip('Remove reminder'));
+    await _settle(tester);
+    expect(
+      await db.select(db.reminders).get(),
+      hasLength(1),
+      reason: 'removal is also a draft',
+    );
+    expect(find.text('15 min before'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
     await _settle(tester);
     expect(await db.select(db.reminders).get(), isEmpty);
     await _unmount(tester);
@@ -132,15 +142,18 @@ void main() {
     await _settle(tester);
     await tester.enterText(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(DsDialog),
         matching: find.byType(TextField),
       ),
       'First step',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.tap(find.widgetWithText(DsButton, 'Add'));
     await _settle(tester);
 
     expect(find.text('First step'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('todo-detail-save')));
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
+    await _settle(tester);
     final subtasks = await (db.select(
       db.todos,
     )..where((row) => row.parentId.equals(todo.id))).get();
@@ -181,12 +194,170 @@ void main() {
       find.byKey(const ValueKey('todo-detail-title')),
       'Write the final report',
     );
-    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await _settle(tester);
+
+    expect(
+      (await db.select(db.todos).get()).single.summary,
+      'Write the report',
+      reason: 'typing alone does not write',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('todo-detail-save')));
     await _settle(tester);
 
     final rows = await db.select(db.todos).get();
     expect(rows.single.summary, 'Write the final report');
     expect(find.byType(TodoFormPage), findsNothing);
+    await _unmount(tester);
+  });
+
+  testWidgets('the summary plan row opens the spec plan picker', (tester) async {
+    tester.view.physicalSize = const Size(1280, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(db)],
+        child: MaterialApp(
+          localizationsDelegates: const [
+            ...AppLocalizations.localizationsDelegates,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('en'),
+          home: Scaffold(
+            body: TodoDetailPane(todo: todo, inlineSummary: true),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    await tester.tap(find.byKey(const ValueKey('todo-summary-plan')));
+    await _settle(tester);
+
+    // The one plan surface: date, start/end, duration and the day's context,
+    // not the reduced sheet.
+    expect(find.byType(SpecPlanPickerDialog), findsOneWidget);
+    final picker = tester.widget<SpecPlanPicker>(find.byType(SpecPlanPicker));
+    expect(picker.contextText, contains('Nothing scheduled that day'));
+    expect(picker.startLabel.isNotEmpty, isTrue);
+    expect(picker.endLabel.isNotEmpty, isTrue);
+    expect(picker.durationLabel, '0 h 45 min');
+    expect(picker.submitLabel ?? 'Schedule', 'Schedule');
+
+    await tester.tap(find.text('Cancel'));
+    await _settle(tester);
+    expect(find.byType(SpecPlanPickerDialog), findsNothing);
+    expect(await db.select(db.taskAllocations).get(), isEmpty);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('priority chips and primary action expose 48dp hit targets', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_app(db, todo));
+    await _settle(tester);
+
+    final tops = <double>[];
+    for (final value in const [0, 9, 5, 1]) {
+      final key = 'todo-priority-$value';
+      final rect = tester.getRect(find.byKey(ValueKey(key)));
+      expect(rect.width, greaterThanOrEqualTo(48), reason: key);
+      expect(rect.height, greaterThanOrEqualTo(48), reason: key);
+      tops.add(rect.top);
+      final visual = tester.getSize(
+        find.byKey(ValueKey('todo-priority-visual-$value')),
+      );
+      expect(visual.height, 28, reason: key);
+    }
+    expect(tops.toSet(), hasLength(1), reason: 'chips must share one row');
+    expect(tops.length, 4);
+    for (final key in const [
+      'todo-priority-0',
+      'todo-priority-9',
+      'todo-priority-5',
+      'todo-priority-1',
+    ]) {
+      expect(
+        tester.getRect(find.byKey(ValueKey(key))).height,
+        lessThanOrEqualTo(56),
+        reason: key,
+      );
+    }
+
+    final primary = tester.getSize(
+      find.byKey(const ValueKey('todo-detail-save')),
+    );
+    expect(primary.width, greaterThanOrEqualTo(48));
+    expect(primary.height, greaterThanOrEqualTo(48));
+    // The visual is a plain Container now (Ink never painted on this opaque
+    // paper surface), so measure the same box by its widget type.
+    final primaryVisual = tester.getSize(
+      find.descendant(
+        of: find.byKey(const ValueKey('todo-detail-save')),
+        matching: find.byKey(const ValueKey('pane-button-visual')),
+      ),
+    );
+    expect(primaryVisual.height, 36);
+
+    await _unmount(tester);
+  });
+
+  testWidgets('priority chips wrap at 1.4x text without overflowing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    tester.platformDispatcher.textScaleFactorTestValue = 1.4;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    final legacyId = await db
+        .into(db.todos)
+        .insert(
+          TodosCompanion.insert(
+            calendarId: todo.calendarId,
+            summary: 'Legacy recurring task',
+            dueDate: Value(DateTime(2026, 10, 24, 18)),
+            rrule: const Value('FREQ=DAILY'),
+            recurrenceLegacyState: const Value('unknownLegacy'),
+          ),
+        );
+    final legacy = await (db.select(
+      db.todos,
+    )..where((row) => row.id.equals(legacyId))).getSingle();
+
+    await tester.pumpWidget(_app(db, legacy));
+    await _settle(tester);
+
+    final rects = [
+      for (final value in const [0, 9, 5, 1])
+        tester.getRect(find.byKey(ValueKey('todo-priority-$value'))),
+    ];
+    expect(
+      rects.map((rect) => rect.top).toSet().length,
+      greaterThan(1),
+    );
+    final maxBottom = rects
+        .map((rect) => rect.bottom)
+        .reduce((a, b) => a > b ? a : b);
+    final rowHeight = tester
+        .getSize(find.byKey(const ValueKey('todo-priority-row')))
+        .height;
+    expect(rowHeight, greaterThan(56));
+
+    final contentTop = tester.getTopLeft(find.text('Content').first).dy;
+    expect(maxBottom, lessThan(contentTop));
+
     await _unmount(tester);
   });
 }

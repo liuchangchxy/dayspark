@@ -1,48 +1,45 @@
 import 'package:flutter/material.dart';
 
-/// Direction C · Time-first palette: warm paper, near-black ink, one rust accent.
+/// Frozen spec palette: paper, near-black ink, one red accent.
 ///
-/// Two independent palettes — dark is not a tint of light. Do not use raw
-/// Color values elsewhere; import from here or read `context.ds`.
+/// Two independent palettes — dark is not a tint of light. Light values are
+/// `SpecTokens`; surfaceTertiary/separatorSoft/success keep their own values
+/// because the spec defines no token for them. Do not use raw Color values
+/// elsewhere; import from here or read `context.ds`.
 @immutable
 abstract final class AppColors {
   // ---- light ----
-  static const Color lightBackground = Color(0xFFFCFCFA);
+  static const Color lightBackground = Color(0xFFFFFFFF);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceSecondary = Color(0xFFF7F7F2);
+  static const Color lightSurfaceSecondary = Color(0xFFF7F7F4);
   static const Color lightSurfaceTertiary = Color(0xFFF0EFE9);
-  static const Color lightFree = Color(0xFFF5F4EE);
-  static const Color lightTextPrimary = Color(0xFF191A17);
-  static const Color lightTextSecondary = Color(0xFF3F413A);
-  // Secondary and tertiary text carry real copy, so both clear WCAG AA on every
-  // surface they land on: tertiary was #787B72, which measured 4.19:1 on the
-  // page, 4.01:1 on the secondary surface and 3.74:1 on the tertiary one.
-  static const Color lightTextTertiary = Color(0xFF6A6D64);
-  // Faint is for placeholders and disabled marks rather than body copy, so it
-  // holds the 3:1 non-text threshold instead of the 4.5:1 one.
-  static const Color lightTextFaint = Color(0xFF85887D);
-  static const Color lightSeparator = Color(0xFFE8E7E1);
+  static const Color lightFree = Color(0xFFF7F7F4);
+  static const Color lightTextPrimary = Color(0xFF191918);
+  static const Color lightTextSecondary = Color(0xFF45453F);
+  static const Color lightTextTertiary = Color(0xFF6E6E66);
+  static const Color lightTextFaint = Color(0xFF8B8B82);
+  static const Color lightSeparator = Color(0xFFECECE6);
   static const Color lightSeparatorSoft = Color(0xFFF0EFE9);
-  static const Color lightAccent = Color(0xFFC2410C);
-  static const Color lightAccentHover = Color(0xFF9A330A);
-  static const Color lightAccentSoft = Color(0xFFFBEEE7);
-  static const Color lightAccentTint = Color(0xFFFDF4EF);
-  static const Color lightWarm = Color(0xFF8A7B5F);
-  static const Color lightWarmSoft = Color(0xFFF8F5EE);
+  static const Color lightAccent = Color(0xFFC92A1E);
+  static const Color lightAccentHover = Color(0xFFA82318);
+  static const Color lightAccentSoft = Color(0xFFFDF3F1);
+  static const Color lightAccentTint = Color(0xFFFDF3F1);
+  static const Color lightWarm = Color(0xFF9A6A18);
+  static const Color lightWarmSoft = Color(0xFFF7EEDB);
   static const Color lightSuccess = Color(0xFF5E7A64);
   static const Color lightSuccessSoft = Color(0xFFF1F5F1);
-  static const Color lightWarning = Color(0xFF7D5416);
-  static const Color lightWarningSoft = Color(0xFFF4ECDD);
-  static const Color lightError = Color(0xFFA8481E);
-  static const Color lightErrorSoft = Color(0xFFFBF1EB);
-  static const Color lightNavBg = Color(0xFFFCFCFA);
-  static const Color lightNavActive = Color(0xFFFBEEE7);
-  static const Color lightScrim = Color(0x66191A17);
+  static const Color lightWarning = Color(0xFF9A6A18);
+  static const Color lightWarningSoft = Color(0xFFF7EEDB);
+  static const Color lightError = Color(0xFFC92A1E);
+  static const Color lightErrorSoft = Color(0xFFFDF3F1);
+  static const Color lightNavBg = Color(0xFFFFFFFF);
+  static const Color lightNavActive = Color(0xFFF7F7F4);
+  static const Color lightScrim = Color(0x66191918);
   static const Color lightWork = Color(0xFF5F7183);
-  static const Color lightWorkBg = Color(0xFFF3F5F6);
-  static const Color lightDoneInk = Color(0xFFA5A79D);
-  static const Color lightDoneBg = Color(0xFFF7F7F2);
-  static const Color lightDoneLine = Color(0xFFDEDDD5);
+  static const Color lightWorkBg = Color(0xFFF1F3F4);
+  static const Color lightDoneInk = Color(0xFF8B8B82);
+  static const Color lightDoneBg = Color(0xFFF7F7F4);
+  static const Color lightDoneLine = Color(0xFFDEDED7);
 
   // ---- dark ----
   static const Color darkBackground = Color(0xFF131311);
@@ -56,7 +53,7 @@ abstract final class AppColors {
   static const Color darkTextFaint = Color(0xFF6E7069);
   static const Color darkSeparator = Color(0xFF2C2D28);
   static const Color darkSeparatorSoft = Color(0xFF232420);
-  static const Color darkAccent = Color(0xFFE0703C);
+  static const Color darkAccent = Color(0xFFE8695B);
   static const Color darkAccentHover = Color(0xFFF08A55);
   static const Color darkAccentSoft = Color(0xFF33211A);
   static const Color darkAccentTint = Color(0xFF2A1C15);
@@ -192,10 +189,12 @@ class DsColors extends ThemeExtension<DsColors> {
     faint: AppColors.lightTextFaint,
     line: AppColors.lightSeparator,
     lineSoft: AppColors.lightSeparatorSoft,
-    primary: AppColors.lightAccent,
-    primaryHover: AppColors.lightAccentHover,
-    primarySoft: AppColors.lightAccentSoft,
-    primaryTint: AppColors.lightAccentTint,
+    // The frozen spec paints every action and selection in ink, never the
+    // accent; red is reserved for its explicit overdue/today semantics.
+    primary: AppColors.lightTextPrimary,
+    primaryHover: AppColors.lightTextSecondary,
+    primarySoft: AppColors.lightSurfaceSecondary,
+    primaryTint: AppColors.lightSurfaceSecondary,
     onPrimary: Colors.white,
     warm: AppColors.lightWarm,
     warmSoft: AppColors.lightWarmSoft,
@@ -228,16 +227,18 @@ class DsColors extends ThemeExtension<DsColors> {
     faint: AppColors.darkTextFaint,
     line: AppColors.darkSeparator,
     lineSoft: AppColors.darkSeparatorSoft,
-    primary: AppColors.darkAccent,
-    primaryHover: AppColors.darkAccentHover,
-    primarySoft: AppColors.darkAccentSoft,
-    primaryTint: AppColors.darkAccentTint,
-    onPrimary: Colors.white,
+    // Same action/selection hook as light: ink, not the retired accent.
+    primary: AppColors.darkTextPrimary,
+    primaryHover: AppColors.darkTextSecondary,
+    primarySoft: AppColors.darkSurfaceSecondary,
+    primaryTint: AppColors.darkSurfaceSecondary,
+    // The dark "ink" fill is near-white, so its label must be dark ink.
+    onPrimary: Color(0xFF14140F),
     warm: AppColors.darkWarm,
     warmSoft: AppColors.darkWarmSoft,
     warn: AppColors.darkWarning,
     warnSoft: AppColors.darkWarningSoft,
-    danger: AppColors.darkError,
+    danger: Color(0xFFE8695B),
     dangerSoft: AppColors.darkErrorSoft,
     success: AppColors.darkSuccess,
     successSoft: AppColors.darkSuccessSoft,

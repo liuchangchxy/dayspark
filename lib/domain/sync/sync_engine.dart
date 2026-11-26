@@ -16,21 +16,87 @@ import 'sync_payload.dart';
 
 enum SyncPhase { idle, pushing, pulling, error }
 
+enum SyncConflictResolution { keepLocal, keepRemote }
+
+/// One record the server refused because this device's base revision was
+/// stale. The pending outbox op is kept (not overwritten by the server
+/// copy) so a local edit can still be reconciled; banner/settings read
+/// this list instead of the conflict disappearing into a server-wins
+/// overwrite.
+class SyncConflict {
+  const SyncConflict({
+    required this.recordId,
+    required this.type,
+    required this.code,
+    required this.at,
+    this.localPayload,
+    this.serverPayload,
+    this.serverRev,
+    this.serverDeleted = false,
+  });
+
+  final String recordId;
+  final RecordType? type;
+  final String? code;
+  final DateTime at;
+
+  /// The fields this device last tried to push, as captured from the outbox.
+  final Map<String, Object?>? localPayload;
+
+  /// The server's copy that caused the conflict, when the push response
+  /// carried it. Both are display data; two conflicts are equal when their
+  /// identity and time match.
+  final Map<String, Object?>? serverPayload;
+  final int? serverRev;
+  final bool serverDeleted;
+
+  bool get hasServerCopy =>
+      serverPayload != null || (serverDeleted && serverRev != null);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncConflict &&
+          other.recordId == recordId &&
+          other.type == type &&
+          other.code == code &&
+          other.at == at);
+
+  @override
+  int get hashCode => Object.hash(recordId, type, code, at);
+}
+
 class SyncStatus {
   const SyncStatus({
     this.phase = SyncPhase.idle,
     this.lastError,
+    this.lastErrorAt,
     this.lastSyncAt,
     this.lastRejected = const [],
+    this.rejectedCount = 0,
+    this.rejectedCodes = const [],
+    this.conflicts = const [],
   });
 
   final SyncPhase phase;
   final String? lastError;
+  final DateTime? lastErrorAt;
   final DateTime? lastSyncAt;
 
   /// Op verdict codes from the most recent push — `rejected` ops are
   /// dropped (and surfaced here) instead of failing the round.
   final List<String> lastRejected;
+
+  /// Rejected ops never disappear silently: the total is accumulated for
+  /// the engine lifetime and [rejectedCodes] keeps the distinct reasons.
+  final int rejectedCount;
+  final List<String> rejectedCodes;
+
+  /// Conflicts newest-first, one entry per record id.
+  final List<SyncConflict> conflicts;
+
+  SyncConflict? get latestConflict =>
+      conflicts.isEmpty ? null : conflicts.first;
 
   @override
   bool operator ==(Object other) =>
@@ -38,14 +104,26 @@ class SyncStatus {
       (other is SyncStatus &&
           other.phase == phase &&
           other.lastError == lastError &&
+          other.lastErrorAt == lastErrorAt &&
           other.lastSyncAt == lastSyncAt &&
-          _listEq(other.lastRejected, lastRejected));
+          other.rejectedCount == rejectedCount &&
+          _listEq(other.lastRejected, lastRejected) &&
+          _listEq(other.rejectedCodes, rejectedCodes) &&
+          _listEq(other.conflicts, conflicts));
 
   @override
-  int get hashCode =>
-      Object.hash(phase, lastError, lastSyncAt, Object.hashAll(lastRejected));
+  int get hashCode => Object.hash(
+    phase,
+    lastError,
+    lastErrorAt,
+    lastSyncAt,
+    rejectedCount,
+    Object.hashAll(lastRejected),
+    Object.hashAll(rejectedCodes),
+    Object.hashAll(conflicts),
+  );
 
-  static bool _listEq(List<String> a, List<String> b) {
+  static bool _listEq<T>(List<T> a, List<T> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
@@ -102,6 +180,11 @@ class SyncEngine {
   bool _roundQueued = false;
   int _backoffSeconds = 1;
 
+  final List<SyncConflict> _conflicts = [];
+  final Set<String> _conflictedOpIds = {};
+  final Set<String> _rejectedCodes = <String>{};
+  int _rejectedCount = 0;
+
   SyncStatus get status => _status;
 
   Stream<SyncStatus> get statusStream => _statusController.stream;
@@ -109,6 +192,18 @@ class SyncEngine {
   /// True between a successful start() and stop() — the foreground
   /// poller gates on this so a logged-out provider build never arms it.
   bool get isRunning => _started && !_stopped;
+
+  /// Surfaces a failure outside a round (engine/SSE startup) on the same
+  /// status stream the UI reads, instead of leaving it in a debug log.
+  void reportStartupError(Object error) {
+    _emitStatus(
+      phase: SyncPhase.error,
+      lastError: '$error',
+      lastErrorAt: DateTime.now(),
+      lastSyncAt: _status.lastSyncAt,
+      lastRejected: _status.lastRejected,
+    );
+  }
 
   /// Wires the outbox trigger and runs the first round. No-ops until
   /// tokens exist ("engine runs only when configured"): T6 login writes
@@ -197,12 +292,10 @@ class SyncEngine {
         }
       }
 
-      _emit(
-        SyncStatus(
-          phase: SyncPhase.pushing,
-          lastSyncAt: _status.lastSyncAt,
-          lastRejected: _status.lastRejected,
-        ),
+      _emitStatus(
+        phase: SyncPhase.pushing,
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: _status.lastRejected,
       );
 
       final storedCursor = await cursorStore.read();
@@ -291,26 +384,63 @@ class SyncEngine {
                 await _applyRemote(result.serverRecord!, tx);
               }
               await _dropOps([result.opId]);
-            case OpStatus.conflict:
-              // Server wins: overwrite local with serverRecord and drop
-              // this record's pending ops from the push snapshot. Ops
-              // enqueued after the snapshot (in-flight race) survive and
-              // push their newer payload next round.
-              if (result.serverRecord != null) {
-                await _applyRemote(result.serverRecord!, tx);
+              final resolvedId = recordIdByOp[result.opId];
+              if (resolvedId != null) {
+                _conflicts.removeWhere((c) => c.recordId == resolvedId);
               }
+            case OpStatus.conflict:
+              // Do not overwrite the local row: the pending op is the only
+              // copy of this device's newer intent. Keep both the row and
+              // its op, stop re-pushing that op until a fresh edit mints a
+              // new op id, and surface the conflict to the UI.
               final recordId =
-                  recordIdByOp[result.opId] ?? result.serverRecord?.id;
-              final snapshotIds = [
-                if (recordId != null)
-                  for (final e in entries)
-                    if (e.recordId == recordId) e.opId,
-              ];
-              await _dropOps(
-                snapshotIds.isNotEmpty ? snapshotIds : [result.opId],
+                  recordIdByOp[result.opId] ??
+                  result.serverRecord?.id ??
+                  result.opId;
+              RecordType? conflictType;
+              for (final e in entries) {
+                if (e.opId == result.opId) {
+                  conflictType = recordTypeFromJson(e.type, 'outbox type');
+                  break;
+                }
+              }
+              conflictType ??= result.serverRecord?.type;
+              Map<String, Object?>? localPayload;
+              for (final e in entries) {
+                if (e.recordId != recordId || e.payloadJson == null) continue;
+                try {
+                  final decoded = jsonDecode(e.payloadJson!);
+                  if (decoded is Map<String, dynamic>) {
+                    localPayload = Map<String, Object?>.from(decoded);
+                  }
+                } on FormatException catch (error) {
+                  debugPrint('sync: unreadable outbox payload: $error');
+                }
+                break;
+              }
+              final server = result.serverRecord;
+              _conflicts.removeWhere((c) => c.recordId == recordId);
+              _conflicts.insert(
+                0,
+                SyncConflict(
+                  recordId: recordId,
+                  type: conflictType,
+                  code: result.code,
+                  at: DateTime.now(),
+                  localPayload: localPayload,
+                  serverPayload: server?.payload,
+                  serverRev: server?.rev,
+                  serverDeleted: server?.deleted ?? false,
+                ),
               );
+              _conflictedOpIds.add(result.opId);
+              for (final e in entries) {
+                if (e.recordId == recordId) _conflictedOpIds.add(e.opId);
+              }
             case OpStatus.rejected:
               await _dropOps([result.opId]);
+              _rejectedCount++;
+              if (result.code != null) _rejectedCodes.add(result.code!);
               rejected.add(result.code ?? 'rejected');
           }
         }
@@ -323,12 +453,10 @@ class SyncEngine {
       });
 
       // --- pull ---
-      _emit(
-        SyncStatus(
-          phase: SyncPhase.pulling,
-          lastSyncAt: _status.lastSyncAt,
-          lastRejected: rejected,
-        ),
+      _emitStatus(
+        phase: SyncPhase.pulling,
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: rejected,
       );
       while (true) {
         final before = await cursorStore.read() ?? 0;
@@ -363,22 +491,19 @@ class SyncEngine {
       );
 
       _backoffSeconds = 1;
-      _emit(
-        SyncStatus(
-          phase: SyncPhase.idle,
-          lastSyncAt: DateTime.now(),
-          lastRejected: rejected,
-        ),
+      _emitStatus(
+        phase: SyncPhase.idle,
+        lastSyncAt: DateTime.now(),
+        lastRejected: rejected,
       );
       return true;
     } catch (e) {
-      _emit(
-        SyncStatus(
-          phase: SyncPhase.error,
-          lastError: '$e',
-          lastSyncAt: _status.lastSyncAt,
-          lastRejected: _status.lastRejected,
-        ),
+      _emitStatus(
+        phase: SyncPhase.error,
+        lastError: '$e',
+        lastErrorAt: DateTime.now(),
+        lastSyncAt: _status.lastSyncAt,
+        lastRejected: _status.lastRejected,
       );
       _scheduleRetry();
       return false;
@@ -391,7 +516,11 @@ class SyncEngine {
   }) async {
     final ops = <PushOp>[];
     final converged = <String>[];
+    _conflictedOpIds.removeWhere(
+      (id) => !entries.any((entry) => entry.opId == id),
+    );
     for (final entry in entries) {
+      if (_conflictedOpIds.contains(entry.opId)) continue;
       final type = recordTypeFromJson(entry.type, 'outbox type');
       if (type == RecordType.taskAllocation &&
           !serverCapabilities.contains(SyncCapability.taskAllocationV1)) {
@@ -453,6 +582,107 @@ class SyncEngine {
         SyncSnapshot(rev: record.rev, payload: record.payload),
       );
     }
+  }
+
+  /// The user chose this device's version. The stored server payload becomes
+  /// the new diff base and the gated outbox op is released, so the next round
+  /// re-applies this device's fields on top of the server's latest revision.
+  /// If the server copy was not returned, nothing is invented: the conflict
+  /// stays visible.
+  Future<void> resolveConflictKeepLocal(String recordId) async {
+    final conflict = _conflicts
+        .where((c) => c.recordId == recordId)
+        .firstOrNull;
+    if (conflict == null) return;
+    final server = conflict.serverPayload;
+    final rev = conflict.serverRev;
+    if (server == null || rev == null) {
+      if (!conflict.serverDeleted) {
+        throw StateError('the server copy is unavailable');
+      }
+      await snapshots.remove(recordId);
+    } else {
+      await snapshots.write(
+        recordId,
+        SyncSnapshot(rev: rev, payload: server),
+      );
+    }
+
+    final entries = await (db.select(
+      db.syncOutbox,
+    )..where((t) => t.recordId.equals(recordId))).get();
+    if (entries.isEmpty) {
+      _forgetConflict(recordId);
+      throw StateError('this record no longer has a pending local change');
+    }
+    for (final entry in entries) {
+      _conflictedOpIds.remove(entry.opId);
+    }
+    if (rev != null) {
+      await (db.update(
+        db.syncOutbox,
+      )..where((t) => t.recordId.equals(recordId))).write(
+        SyncOutboxCompanion(baseRev: Value(rev)),
+      );
+    }
+    _forgetConflict(recordId);
+    _emitCurrentStatus();
+    await requestRound();
+  }
+
+  /// The user chose the server's version. Apply that exact copy locally and
+  /// drop this record's pending op; no merge and no re-push.
+  Future<void> resolveConflictKeepRemote(String recordId) async {
+    final conflict = _conflicts
+        .where((c) => c.recordId == recordId)
+        .firstOrNull;
+    if (conflict == null) return;
+    final type = conflict.type;
+    if (type == null) throw StateError('the conflict has no record type');
+    if (conflict.serverDeleted && conflict.serverRev == null) {
+      throw StateError('the server copy is unavailable');
+    }
+    if (!conflict.serverDeleted && conflict.serverPayload == null) {
+      throw StateError('the server copy is unavailable');
+    }
+
+    await RecordScope.run(db, (tx) async {
+      final entries = await (db.select(
+        db.syncOutbox,
+      )..where((t) => t.recordId.equals(recordId))).get();
+      await _dropOps(entries.map((e) => e.opId).toList(growable: false));
+      await _applyRemote(
+        SyncRecord(
+          id: recordId,
+          type: type,
+          payload: conflict.serverPayload ?? const {},
+          rev: conflict.serverRev ?? 0,
+          deleted: conflict.serverDeleted,
+          serverTs: conflict.at,
+        ),
+        tx,
+      );
+    });
+    _forgetConflict(recordId);
+    _emitCurrentStatus();
+    await requestRound();
+  }
+
+  void _forgetConflict(String recordId) {
+    _conflicts.removeWhere((c) => c.recordId == recordId);
+    // Any op id still parked for this record is pruned from the gate by the
+    // next _buildOps (ids no longer present in the outbox are dropped), and
+    // keepRemote has already deleted the rows outright.
+  }
+
+  void _emitCurrentStatus() {
+    _emitStatus(
+      phase: _status.phase,
+      lastError: _status.lastError,
+      lastErrorAt: _status.lastErrorAt,
+      lastSyncAt: _status.lastSyncAt,
+      lastRejected: _status.lastRejected,
+    );
   }
 
   Future<int?> _liveServerRev(RecordType type, String recordId) async {
@@ -534,6 +764,27 @@ class SyncEngine {
     _retryTimer = Timer(Duration(seconds: delay), () {
       if (!_stopped) unawaited(requestRound());
     });
+  }
+
+  void _emitStatus({
+    required SyncPhase phase,
+    String? lastError,
+    DateTime? lastErrorAt,
+    DateTime? lastSyncAt,
+    List<String> lastRejected = const [],
+  }) {
+    _emit(
+      SyncStatus(
+        phase: phase,
+        lastError: lastError,
+        lastErrorAt: lastErrorAt,
+        lastSyncAt: lastSyncAt,
+        lastRejected: lastRejected,
+        rejectedCount: _rejectedCount,
+        rejectedCodes: List.unmodifiable(_rejectedCodes),
+        conflicts: List.unmodifiable(_conflicts),
+      ),
+    );
   }
 
   void _emit(SyncStatus next) {

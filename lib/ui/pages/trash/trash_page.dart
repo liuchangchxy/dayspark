@@ -2,11 +2,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/default_calendar_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
+import 'package:dayspark/ui/pages/settings/settings_ui.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/widgets/empty_state.dart';
 import 'package:dayspark/core/utils/date_formatters.dart';
@@ -16,17 +20,181 @@ import 'package:dayspark/core/theme/app_typography.dart';
 import 'package:dayspark/domain/providers/default_tab_provider.dart';
 import 'package:dayspark/ui/shell/workspace_navigation.dart';
 
-class TrashPage extends ConsumerWidget {
-  const TrashPage({super.key});
+class TrashPage extends ConsumerStatefulWidget {
+  const TrashPage({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TrashPage> createState() => _TrashPageState();
+}
+
+class _TrashPageState extends ConsumerState<TrashPage> {
+  ({String message, bool isRed})? _feedback;
+
+  void _showFeedback(String message, {bool isRed = false}) {
+    setState(() => _feedback = (message: message, isRed: isRed));
+  }
+
+  Widget _feedbackBanner() {
+    final feedback = _feedback!;
+    return InlineAlert(message: feedback.message, isRed: feedback.isRed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final deletedAsync = ref.watch(deletedTodosProvider);
     final deletedEventsAsync = ref.watch(deletedEventsProvider);
     final todos = deletedAsync.valueOrNull ?? [];
     final events = deletedEventsAsync.valueOrNull ?? [];
     final hasAny = todos.isNotEmpty || events.isNotEmpty;
+
+    final content = deletedAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => _loadFailure(context, ref, l),
+      data: (todoRows) => deletedEventsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => _loadFailure(context, ref, l),
+        data: (eventRows) {
+          if (todoRows.isEmpty && eventRows.isEmpty) {
+            final empty = EmptyState(
+              icon: CupertinoIcons.trash,
+              title: l.trashEmpty,
+              hint: l.trashEmptyHint,
+              action: DsButton(
+                // "Back to todos" has to land on Todos — the Home root
+                // defaults to whichever tab was last open.
+                label: l.trashEmptyAction,
+                onPressed: () {
+                  ref.read(workspaceTabProvider.notifier).setTab(AppTab.todos);
+                  context.go('/?tab=2');
+                },
+              ),
+            );
+            if (widget.embedded) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_feedback != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.s4,
+                      ),
+                      child: _feedbackBanner(),
+                    ),
+                  empty,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_feedback != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s4,
+                    ),
+                    child: _feedbackBanner(),
+                  ),
+                Expanded(child: empty),
+              ],
+            );
+          }
+          if (widget.embedded) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_feedback != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s4,
+                      0,
+                      AppSpacing.s4,
+                      0,
+                    ),
+                    child: _feedbackBanner(),
+                  ),
+                if (todoRows.isNotEmpty) ...[
+                  _sectionHeader(l.todos, todoRows.length),
+                  for (final todo in todoRows)
+                    _buildTodoTile(context, ref, l, todo),
+                ],
+                if (eventRows.isNotEmpty) ...[
+                  _sectionHeader(l.events, eventRows.length),
+                  for (final event in eventRows)
+                    _buildEventTile(context, ref, l, event),
+                ],
+                if (hasAny)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s4,
+                      AppSpacing.s3,
+                      AppSpacing.s4,
+                      AppSpacing.s1,
+                    ),
+                    child: DsButton(
+                      label: l.emptyTrash,
+                      icon: CupertinoIcons.delete,
+                      tone: DsButtonTone.danger,
+                      expand: true,
+                      onPressed: () => _confirmEmptyTrash(
+                        context,
+                        ref,
+                        l,
+                        todos.length + events.length,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          }
+          return CustomScrollView(
+            slivers: [
+              if (_feedback != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s4,
+                    ),
+                    child: _feedbackBanner(),
+                  ),
+                ),
+              if (todoRows.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: _sectionHeader(l.todos, todoRows.length),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        _buildTodoTile(context, ref, l, todoRows[index]),
+                    childCount: todoRows.length,
+                  ),
+                ),
+              ],
+              if (eventRows.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: _sectionHeader(l.events, eventRows.length),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) =>
+                        _buildEventTile(context, ref, l, eventRows[index]),
+                    childCount: eventRows.length,
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+
+    if (widget.embedded) {
+      return content;
+    }
 
     return WorkspacePage(
       title: l.trash,
@@ -37,66 +205,15 @@ class TrashPage extends ConsumerWidget {
             label: l.emptyTrash,
             tone: DsButtonTone.danger,
             small: true,
-            onPressed: () =>
-                _confirmEmptyTrash(context, ref, l, todos.length + events.length),
+            onPressed: () => _confirmEmptyTrash(
+              context,
+              ref,
+              l,
+              todos.length + events.length,
+            ),
           ),
       ],
-      child: deletedAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _loadFailure(context, ref, l),
-        data: (todoRows) => deletedEventsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _loadFailure(context, ref, l),
-          data: (eventRows) {
-            if (todoRows.isEmpty && eventRows.isEmpty) {
-              return EmptyState(
-                icon: CupertinoIcons.trash,
-                title: l.trashEmpty,
-                hint: l.trashEmptyHint,
-                action: DsButton(
-                  // "Back to todos" has to land on Todos — the Home root
-                  // defaults to whichever tab was last open.
-                  label: l.trashEmptyAction,
-                  onPressed: () {
-                    ref
-                        .read(workspaceTabProvider.notifier)
-                        .setTab(AppTab.todos);
-                    context.go('/?tab=2');
-                  },
-                ),
-              );
-            }
-            return CustomScrollView(
-              slivers: [
-                if (todoRows.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: _sectionHeader(l.todos, todoRows.length),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _buildTodoTile(context, ref, l, todoRows[index]),
-                      childCount: todoRows.length,
-                    ),
-                  ),
-                ],
-                if (eventRows.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: _sectionHeader(l.events, eventRows.length),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _buildEventTile(context, ref, l, eventRows[index]),
-                      childCount: eventRows.length,
-                    ),
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
+      child: content,
     );
   }
 
@@ -106,21 +223,44 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
     Todo todo,
   ) {
-    // No swipe-to-delete: on a desktop pointer a swipe is a mistimed drag, and
-    // the row already carries two explicit buttons.
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    final calName = calendars
+            .where((c) => c.id == todo.calendarId)
+            .map((c) => c.name)
+            .firstOrNull ??
+        '';
+
     return DsRow(
       key: ValueKey('trash-todo-${todo.id}'),
       title: todo.summary,
       meta: DsMeta(
         parts: [
+          DsMetaPart(l.todos),
+          if (calName.isNotEmpty) DsMetaPart(calName),
           if (todo.deletedAt != null)
             DsMetaPart(l.deletedOn(DateFormatters.formatDate(todo.deletedAt!))),
         ],
       ),
       trailing: _restoreDeleteActions(
         l,
-        onRestore: () => ref.read(restoreTodoProvider)(todo.id),
-        onDelete: () => ref.read(permanentDeleteTodoProvider)(todo.id),
+        onRestore: () async {
+          final cals = ref.read(calendarsProvider).valueOrNull ?? const [];
+          if (cals.isNotEmpty && !cals.any((c) => c.id == todo.calendarId)) {
+            final defaultCalId = ref.read(defaultCalendarIdProvider) ?? cals.first.id;
+            try {
+              await ref.read(updateTodoProvider)(
+                todo.id,
+                TodosCompanion(calendarId: Value(defaultCalId)),
+              );
+            } catch (_) {}
+          }
+          await ref.read(restoreTodoProvider)(todo.id);
+          if (mounted) _showFeedback(l.trashRestoredBanner(todo.summary));
+        },
+        onDelete: () async {
+          await ref.read(permanentDeleteTodoProvider)(todo.id);
+          if (mounted) _showFeedback(l.trashDeletedBanner(todo.summary));
+        },
         confirmDelete: () => _confirmPermanentDelete(context, l),
       ),
     );
@@ -132,20 +272,47 @@ class TrashPage extends ConsumerWidget {
     AppLocalizations l,
     Event event,
   ) {
+    final calendars = ref.watch(calendarsProvider).valueOrNull ?? const [];
+    final calName = calendars
+            .where((c) => c.id == event.calendarId)
+            .map((c) => c.name)
+            .firstOrNull ??
+        '';
+
     return DsRow(
       key: ValueKey('trash-event-${event.id}'),
       title: event.summary,
       meta: DsMeta(
         parts: [
+          DsMetaPart(l.events),
+          if (calName.isNotEmpty) DsMetaPart(calName),
           DsMetaPart(DateFormatters.formatDateTime(event.startDt)),
           if (event.deletedAt != null)
-            DsMetaPart(l.deletedOn(DateFormatters.formatDate(event.deletedAt!))),
+            DsMetaPart(
+              l.deletedOn(DateFormatters.formatDate(event.deletedAt!)),
+            ),
         ],
       ),
       trailing: _restoreDeleteActions(
         l,
-        onRestore: () => ref.read(restoreEventProvider)(event.id),
-        onDelete: () => ref.read(hardDeleteEventWithChildrenProvider)(event.id),
+        onRestore: () async {
+          final cals = ref.read(calendarsProvider).valueOrNull ?? const [];
+          if (cals.isNotEmpty && !cals.any((c) => c.id == event.calendarId)) {
+            final defaultCalId = ref.read(defaultCalendarIdProvider) ?? cals.first.id;
+            try {
+              await ref.read(updateEventProvider)(
+                event.id,
+                EventsCompanion(calendarId: Value(defaultCalId)),
+              );
+            } catch (_) {}
+          }
+          await ref.read(restoreEventProvider)(event.id);
+          if (mounted) _showFeedback(l.trashRestoredBanner(event.summary));
+        },
+        onDelete: () async {
+          await ref.read(hardDeleteEventWithChildrenProvider)(event.id);
+          if (mounted) _showFeedback(l.trashDeletedBanner(event.summary));
+        },
         confirmDelete: () => _confirmPermanentDelete(context, l),
       ),
     );
@@ -252,12 +419,11 @@ class TrashPage extends ConsumerWidget {
               try {
                 await ref.read(emptyTrashProvider)();
                 await ref.read(emptyEventTrashProvider)();
+                if (mounted) _showFeedback(l.trashClearedBanner);
               } catch (error) {
                 debugPrint('trash: empty error: $error');
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(l.error)));
+                  showSpecToast(context, l.error);
                 }
               }
             },
@@ -298,17 +464,10 @@ class _TrashActionsState extends State<_TrashActions> {
     setState(() => _busy = true);
     try {
       await widget.onRestore();
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(widget.l.restoreTodo)));
-      }
     } catch (error) {
       debugPrint('trash: restore error: $error');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(widget.l.error)));
+        showSpecToast(context, widget.l.error);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -324,9 +483,7 @@ class _TrashActionsState extends State<_TrashActions> {
     } catch (error) {
       debugPrint('trash: delete error: $error');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(widget.l.error)));
+        showSpecToast(context, widget.l.error);
       }
     } finally {
       if (mounted) setState(() => _busy = false);

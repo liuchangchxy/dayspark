@@ -1,44 +1,52 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:dayspark/core/theme/app_spacing.dart';
 import 'package:dayspark/core/theme/app_theme.dart';
 import 'package:dayspark/core/theme/app_typography.dart';
+import 'package:dayspark/core/theme/spec_tokens.dart';
 import 'package:dayspark/core/utils/color_utils.dart';
 import 'package:dayspark/data/local/database/app_database.dart';
+import 'package:dayspark/domain/providers/attachments_provider.dart';
 import 'package:dayspark/domain/providers/events_provider.dart';
+import 'package:dayspark/domain/providers/reminders_provider.dart';
 import 'package:dayspark/domain/providers/tags_provider.dart';
+import 'package:dayspark/domain/providers/task_allocations_provider.dart';
 import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/todo_recurrence.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
+import 'package:dayspark/domain/models/calendar_event_adapter.dart';
+import 'package:dayspark/domain/models/task_allocation_calendar_adapter.dart';
+import 'package:dayspark/domain/providers/database_provider.dart';
+import 'package:dayspark/ui/design/a2.dart' show FocusableTap;
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
+import 'package:dayspark/ui/design/spec_toast.dart';
 import 'package:dayspark/ui/shell/workspace_page.dart';
 import 'package:dayspark/ui/shell/workspace_scaffold.dart';
 import 'package:dayspark/ui/widgets/attachment_list.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_picker.dart';
+import 'package:dayspark/ui/widgets/calendar/calendar_shared.dart';
 import 'package:dayspark/ui/widgets/reminder/reminders_section.dart';
 import 'package:dayspark/ui/widgets/schedule/execution_schedule_section.dart';
 import 'package:dayspark/ui/widgets/schedule/repeat_editor.dart';
 import 'package:dayspark/ui/widgets/schedule/schedule_pickers.dart';
 import 'package:dayspark/ui/widgets/tag_chips.dart';
 import 'package:dayspark/ui/widgets/todo/todo_completion.dart';
+import 'package:dayspark/ui/widgets/todo/todo_occurrence_picker_sheet.dart';
+import 'package:dayspark/ui/widgets/undo_bar.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/timezone.dart' as tz;
 
-import 'a2_composer.dart';
-
 /// A todo that is editable where it is read.
 ///
-/// The old split — list, read-only detail, edit page — made changing a word
-/// cost two page transitions. Detail and edit are now the same surface: every
-/// field writes as soon as it is committed, and there is no second step to
-/// reach. The same [TodoDetailPane] is the mobile page body and the desktop
-/// right-hand pane, so the two platforms cannot drift apart.
+/// The same [TodoDetailPane] is the mobile page body and the desktop right-hand
+/// pane, so the two platforms cannot drift apart. Edits are a draft: only the
+/// footer's save writes them, and cancel discards them.
 class TodoDetailPage extends StatelessWidget {
   const TodoDetailPage({super.key, required this.todo, this.clock});
 
@@ -65,6 +73,7 @@ class TodoDetailPane extends ConsumerStatefulWidget {
     super.key,
     required this.todo,
     this.embedded = false,
+    this.inlineSummary = false,
     this.onClose,
     this.onDeleted,
     this.clock,
@@ -75,6 +84,10 @@ class TodoDetailPane extends ConsumerStatefulWidget {
   /// True inside the desktop split view: no page chrome, a close affordance.
   final bool embedded;
 
+  /// The wide-desktop inline column opens on a read-only summary and only
+  /// shows the draft editor after its edit action, so reading never writes.
+  final bool inlineSummary;
+
   final VoidCallback? onClose;
   final VoidCallback? onDeleted;
   final DateTime Function()? clock;
@@ -83,40 +96,117 @@ class TodoDetailPane extends ConsumerStatefulWidget {
   ConsumerState<TodoDetailPane> createState() => _TodoDetailPaneState();
 }
 
+class _DraftSubtaskItem {
+  final int? id;
+  final String summary;
+  final bool isCompleted;
+  const _DraftSubtaskItem({this.id, required this.summary, this.isCompleted = false});
+
+  @override
+  bool operator ==(Object other) =>
+      other is _DraftSubtaskItem &&
+      other.id == id &&
+      other.summary == summary &&
+      other.isCompleted == isCompleted;
+
+  @override
+  int get hashCode => Object.hash(id, summary, isCompleted);
+}
+
 class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   final _summary = TextEditingController();
   final _description = TextEditingController();
   final _summaryFocus = FocusNode();
   final _descriptionFocus = FocusNode();
-  Timer? _summaryTimer;
-  Timer? _descriptionTimer;
-  late String _savedSummary;
-  late String _savedDescription;
-  final Set<String> _savingText = {};
+  late _TodoDraft _snapshot;
+  late _TodoDraft _draft;
+  bool _dirty = false;
+  bool _saving = false;
+  bool _titleError = false;
+  bool _repeatError = false;
+  bool _saveFailed = false;
   bool _deleting = false;
   bool _deletedNotified = false;
+  bool _editing = false;
+  Set<int> _tagDraft = const {};
+  List<DraftReminder> _reminderDraft = const [];
+  List<DraftExecution> _scheduleDraft = const [];
+  List<_DraftSubtaskItem> _subtaskDraft = const [];
+  Set<int> _deletedSubtaskIds = const {};
+  List<DraftAttachment>? _attachmentDraft;
+  List<DraftAttachment> _initialAttachments = const [];
 
   String get _todoId => '${widget.todo.id}';
 
   @override
   void initState() {
     super.initState();
-    _savedSummary = widget.todo.summary;
-    _savedDescription = widget.todo.description ?? '';
-    _summary.text = _savedSummary;
-    _description.text = _savedDescription;
-    _summaryFocus.addListener(_flushSummary);
-    _descriptionFocus.addListener(_flushDescription);
+    _snapshot = _TodoDraft.fromTodo(widget.todo);
+    _draft = _snapshot;
+    _summary.text = _draft.summary;
+    _description.text = _draft.description;
+    _editing = !(widget.inlineSummary || widget.embedded);
+    if (_editing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _initDraftItems(widget.todo);
+      });
+    }
   }
+
+  Future<void> _initDraftItems(Todo live) async {
+    final subtasksFuture = ref.read(subtasksProvider(live.id).future);
+    final attachmentsFuture = ref.read(todoAttachmentsProvider(live.id).future);
+    final tagsFuture = ref.read(todoTagsProvider(live.id).future);
+    final remindersFuture = ref.read(todoRemindersProvider(live.id).future);
+    final allocationsFuture = ref.read(
+      taskAllocationsForTodoProvider(live.id).future,
+    );
+    final currentSubtasks = await subtasksFuture;
+    final currentAttachments = await attachmentsFuture;
+    final assigned = await tagsFuture;
+    final reminders = await remindersFuture;
+    final allocations = await allocationsFuture;
+    if (!mounted || _dirty) return;
+    final attachmentDraftList = [
+      for (final a in currentAttachments) DraftAttachment.fromRow(a),
+    ];
+    setState(() {
+      _tagDraft = assigned.map((tag) => tag.id).toSet();
+      _reminderDraft = _reminderDraftsFrom(reminders);
+      _scheduleDraft = _scheduleDraftsFrom(allocations);
+      _subtaskDraft = [
+        for (final s in currentSubtasks)
+          _DraftSubtaskItem(
+            id: s.id,
+            summary: s.summary,
+            isCompleted: s.status == 'COMPLETED',
+          ),
+      ];
+      _deletedSubtaskIds = const {};
+      _initialAttachments = attachmentDraftList;
+      _attachmentDraft = List.of(attachmentDraftList);
+    });
+  }
+
+  List<DraftReminder> _reminderDraftsFrom(List<Reminder> reminders) => [
+    for (final reminder in reminders)
+      DraftReminder(triggerTime: reminder.triggerTime, id: reminder.id),
+  ];
+
+  List<DraftExecution> _scheduleDraftsFrom(List<TaskAllocation> allocations) => [
+    for (final allocation in allocations)
+      if (allocation.state == 'active')
+        DraftExecution(
+          id: allocation.id,
+          start: allocation.startAt,
+          end: allocation.endAt,
+          occurrenceId: allocation.occurrenceId,
+        ),
+  ];
 
   @override
   void dispose() {
-    _flushSummary();
-    _flushDescription();
-    _summaryTimer?.cancel();
-    _descriptionTimer?.cancel();
-    _summaryFocus.removeListener(_flushSummary);
-    _descriptionFocus.removeListener(_flushDescription);
     _summaryFocus.dispose();
     _descriptionFocus.dispose();
     _summary.dispose();
@@ -125,24 +215,83 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   }
 
   void _syncFromLive(Todo live) {
+    if (_dirty || _saving || _deleting) return;
+    final next = _TodoDraft.fromTodo(live);
+    if (_sameDraft(next, _draft)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!_savingText.contains('summary') &&
-          !_summaryFocus.hasFocus &&
-          _summary.text == _savedSummary &&
-          _summary.text != live.summary) {
-        _summary.text = live.summary;
-        _savedSummary = live.summary;
+      if (!mounted || _dirty || _saving) return;
+      setState(() {
+        _snapshot = next;
+        _draft = next;
+      });
+      if (!_summaryFocus.hasFocus && _summary.text != next.summary) {
+        _summary.text = next.summary;
       }
-      final description = live.description ?? '';
-      if (!_savingText.contains('description') &&
-          !_descriptionFocus.hasFocus &&
-          _description.text == _savedDescription &&
-          _description.text != description) {
-        _description.text = description;
-        _savedDescription = description;
+      if (!_descriptionFocus.hasFocus &&
+          _description.text != next.description) {
+        _description.text = next.description;
       }
     });
+  }
+
+  void _setDraft(_TodoDraft next) {
+    setState(() {
+      _draft = next;
+      _dirty = true;
+      _saveFailed = false;
+    });
+  }
+
+  _TodoDraft _withDraft({
+    String? summary,
+    String? description,
+    Object? dueDate = _unsetDraft,
+    Object? startDate = _unsetDraft,
+    Object? rrule = _unsetDraft,
+    int? calendarId,
+    int? priority,
+  }) {
+    return _TodoDraft(
+      summary: summary ?? _draft.summary,
+      description: description ?? _draft.description,
+      dueDate: identical(dueDate, _unsetDraft)
+          ? _draft.dueDate
+          : dueDate as DateTime?,
+      startDate: identical(startDate, _unsetDraft)
+          ? _draft.startDate
+          : startDate as DateTime?,
+      rrule: identical(rrule, _unsetDraft) ? _draft.rrule : rrule as String?,
+      calendarId: calendarId ?? _draft.calendarId,
+      priority: priority ?? _draft.priority,
+    );
+  }
+
+  Future<bool> _confirmDiscardIfNeeded() async {
+    if (!_dirty) return true;
+    final l = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      animationStyle: AnimationStyle.noAnimation,
+      context: context,
+      builder: (ctx) => DsDialog(
+        title: l.discardChanges,
+        width: 380,
+        actions: [
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
+            onPressed: () => Navigator.of(ctx).pop(false),
+          ),
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.discard,
+            onPressed: () => Navigator.of(ctx).pop(true),
+          ),
+        ],
+        child: Text(l.discardChangesBody),
+      ),
+    );
+    return confirmed ?? false;
   }
 
   @override
@@ -169,11 +318,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         );
       }
       if (all.hasError) {
-        return _loadFailure(
-          context,
-          l,
-          () => ref.invalidate(allTodosProvider),
-        );
+        return _loadFailure(context, l, () => ref.invalidate(allTodosProvider));
       }
       return const Center(child: CircularProgressIndicator());
     }
@@ -189,18 +334,18 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final calendars =
         ref.watch(calendarsProvider).valueOrNull ?? const <Calendar>[];
     final currentCalendar = calendars
-        .where((calendar) => calendar.id == live.calendarId)
+        .where((calendar) => calendar.id == _draft.calendarId)
         .firstOrNull;
     final calendarColor = currentCalendar == null
         ? ds.ink3
         : ColorUtils.parseHex(currentCalendar.color);
     final today = DateTime(now.year, now.month, now.day);
-    final dueDay = live.dueDate == null
+    final dueDay = _draft.dueDate == null
         ? null
         : DateTime(
-            live.dueDate!.year,
-            live.dueDate!.month,
-            live.dueDate!.day,
+            _draft.dueDate!.year,
+            _draft.dueDate!.month,
+            _draft.dueDate!.day,
           );
     final days = dueDay?.difference(today).inDays;
     final String status;
@@ -219,23 +364,111 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       statusColor = ds.danger;
     } else if (days == 0) {
       status = l.today;
-      statusColor = ds.primaryHover;
+      statusColor = ds.danger;
     } else {
       status = l.upcoming;
       statusColor = ds.ink3;
     }
-    final startLabel = live.startDate == null
+    final startLabel = _draft.startDate == null
         ? null
-        : formatDeadline(context, live.startDate!);
-    final dueLabel = live.dueDate == null
+        : formatDeadline(context, _draft.startDate!);
+    final dueLabel = _draft.dueDate == null
         ? null
-        : formatDeadline(context, live.dueDate!);
+        : formatDeadline(context, _draft.dueDate!);
     final leftDate = startLabel ?? dueLabel;
     final rightDate = startLabel == null ? null : dueLabel;
+    final recurring = live.rrule != null || live.recurrenceRule != null;
+    final isSummary = (widget.inlineSummary || widget.embedded) && !_editing;
+    final summaryTagsAsync = isSummary
+        ? ref.watch(todoTagsProvider(live.id))
+        : null;
+    final summaryRemindersAsync = isSummary
+        ? ref.watch(todoRemindersProvider(live.id))
+        : null;
+    final allocationsAsync = isSummary
+        ? ref.watch(taskAllocationsForTodoProvider(live.id))
+        : null;
+    final summaryTags = summaryTagsAsync?.valueOrNull;
+    final summaryReminders = summaryRemindersAsync?.valueOrNull;
+    final allocations = allocationsAsync?.valueOrNull;
+    final relatedLoading =
+        isSummary &&
+        [summaryTagsAsync, summaryRemindersAsync, allocationsAsync].any(
+          (state) => state != null && state.isLoading && !state.hasValue,
+        );
+    final relatedError =
+        isSummary &&
+        [summaryTagsAsync, summaryRemindersAsync, allocationsAsync].any(
+          (state) => state != null && state.hasError && !state.hasValue,
+        );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    final pageContent = isSummary
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _drawerHead(context, l),
+              if (relatedLoading || relatedError)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: relatedError
+                        ? context.ds.dangerSoft
+                        : context.ds.surface2,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          relatedError ? l.relatedPartial : l.relatedLoading,
+                          style: AppTypography.small.copyWith(
+                            color: context.ds.ink2,
+                          ),
+                        ),
+                      ),
+                      if (relatedError)
+                        TextButton(
+                          onPressed: () {
+                            ref.invalidate(todoTagsProvider(live.id));
+                            ref.invalidate(todoRemindersProvider(live.id));
+                            ref.invalidate(
+                              taskAllocationsForTodoProvider(live.id),
+                            );
+                          },
+                          child: Text(l.retry),
+                        ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: _summaryBody(
+                  context,
+                  l,
+                  live,
+                  completed: completed,
+                  recurring: recurring,
+                  status: status,
+                  statusColor: statusColor,
+                  leftDate: leftDate,
+                  rightDate: rightDate,
+                  currentCalendar: currentCalendar,
+                  calendarColor: calendarColor,
+                  tags: summaryTags ?? const <Tag>[],
+                  reminders: summaryReminders ?? const <Reminder>[],
+                  allocations: allocations ?? const <TaskAllocation>[],
+                ),
+              ),
+              _summaryFooter(context, l, live),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.embedded) _drawerHead(context, l),
         Expanded(
           child: ListView(
             key: PageStorageKey<String>('todo-detail-$_todoId'),
@@ -246,12 +479,14 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
               24,
             ),
             children: [
+              if (_saveFailed) _saveErrorBanner(context, l),
               _header(
                 context,
                 l,
                 live,
                 currentCalendar?.name,
                 calendarColor,
+                recurring,
               ),
               _status(
                 context,
@@ -266,31 +501,63 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                 padding: const EdgeInsets.only(top: 16, bottom: 6),
               ),
               Container(height: 1, color: ds.line),
-              _deadlineRow(context, l, live, rowHeight, mobile),
+              _deadlineRow(context, l, rowHeight, mobile),
               const SizedBox(height: 8),
               if (legacy) ...[
                 _legacyNotice(context, l, live),
               ] else ...[
-                ExecutionScheduleSection(todo: live, deadline: live.dueDate),
-                RepeatRow(
-                  rrule: live.rrule,
-                  anchorDate: live.startDate ?? live.dueDate,
-                  onChanged: (value) =>
-                      _saveSchedule(setRule: true, rule: value),
-                  startDate: live.startDate,
-                  onStartDateChanged: (value) => _saveSchedule(
-                    setStart: true,
-                    start: value,
-                    setRule: value == null,
-                    rule: value == null ? null : live.rrule,
-                  ),
-                  needsDate: live.startDate == null && live.dueDate == null,
+                ExecutionScheduleSection(
+                  todo: live,
+                  draft: _scheduleDraft,
+                  onDraftChanged: (value) {
+                    setState(() {
+                      _scheduleDraft = value;
+                      _dirty = true;
+                      _saveFailed = false;
+                    });
+                  },
+                  deadline: _draft.dueDate,
+                  enabled: !widget.inlineSummary,
                 ),
+                RepeatRow(
+                  rrule: _draft.rrule,
+                  anchorDate: _draft.startDate ?? _draft.dueDate,
+                  onChanged: (value) => _setDraft(_withDraft(rrule: value)),
+                  startDate: _draft.startDate,
+                  onStartDateChanged: (value) => _setDraft(
+                    _withDraft(
+                      startDate: value,
+                      rrule: value == null ? null : _draft.rrule,
+                    ),
+                  ),
+                  needsDate: _draft.startDate == null && _draft.dueDate == null,
+                ),
+                if (_repeatError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: _fieldError(context, l.repeatNeedsDate),
+                  ),
+                if (_draft.rrule != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 2, 0, 10),
+                    child: Text(
+                      l.repeatSeriesNotice,
+                      style: AppTypography.small.copyWith(color: ds.ink3),
+                    ),
+                  ),
               ],
               RemindersSection(
                 parentType: 'todo',
                 parentId: live.id,
-                anchorTime: live.dueDate,
+                anchorTime: _draft.dueDate,
+                draft: _reminderDraft,
+                onDraftChanged: (value) {
+                  setState(() {
+                    _reminderDraft = value;
+                    _dirty = true;
+                    _saveFailed = false;
+                  });
+                },
               ),
               DsSectionLabel(
                 l.sectionOrganize,
@@ -301,29 +568,542 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                 _calendarRow(
                   context,
                   l,
-                  live,
                   currentCalendar,
                   calendarColor,
                   rowHeight,
                 ),
-              _priorityRow(context, l, live, rowHeight),
+              _priorityRow(context, l, rowHeight),
               const SizedBox(height: 12),
-              _tags(context, live),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TagChips(
+                  selectedIds: _tagDraft,
+                  onSelectedIdsChanged: (value) {
+                    setState(() {
+                      _tagDraft = value;
+                      _dirty = true;
+                      _saveFailed = false;
+                    });
+                  },
+                ),
+              ),
               DsSectionLabel(
                 l.sectionContent,
                 padding: const EdgeInsets.only(top: 16, bottom: 6),
               ),
               _notes(context, l),
               const SizedBox(height: 16),
-              _subtasks(context, l, live),
+              _subtasks(context, l, live, readOnly: false),
               const SizedBox(height: 12),
-              AttachmentList(parentType: 'todo', parentId: live.id),
+              AttachmentList(
+                parentType: 'todo',
+                parentId: live.id,
+                draft: _attachmentDraft,
+                onDraftChanged: (items) {
+                  setState(() {
+                    _attachmentDraft = items;
+                    _dirty = true;
+                  });
+                },
+                enabled: true,
+              ),
               const SizedBox(height: 8),
             ],
           ),
         ),
-        _footer(context, l, live, completed, mobile, side),
+        _footer(context, l, live, completed, recurring, mobile, side),
       ],
+    );
+
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _confirmDiscardIfNeeded();
+        if (shouldPop && mounted) {
+          if (widget.embedded) {
+            widget.onClose?.call();
+          } else {
+            Navigator.of(this.context).pop();
+          }
+        }
+      },
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () async {
+            if (_dirty) {
+              final shouldPop = await _confirmDiscardIfNeeded();
+              if (shouldPop && mounted) {
+                if (widget.embedded) {
+                  widget.onClose?.call();
+                } else {
+                  Navigator.of(this.context).maybePop();
+                }
+              }
+            } else {
+              if (widget.embedded) {
+                widget.onClose?.call();
+              } else {
+                Navigator.of(this.context).maybePop();
+              }
+            }
+          },
+        },
+        child: Focus(
+          autofocus: true,
+          child: pageContent,
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerHead(BuildContext context, AppLocalizations l) {
+    final ds = context.ds;
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.only(left: 18, right: 12),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: ds.line)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            widget.inlineSummary && _editing
+                ? '${l.todos} · ${l.edit}'
+                : l.todos,
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.09 * 9.5,
+              color: ds.ink3,
+            ),
+          ),
+          _PaneCloseButton(onPressed: widget.onClose, tooltip: l.close),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryBody(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live, {
+    required bool completed,
+    required bool recurring,
+    required String status,
+    required Color statusColor,
+    required String? leftDate,
+    required String? rightDate,
+    required Calendar? currentCalendar,
+    required Color calendarColor,
+    required List<Tag> tags,
+    required List<Reminder> reminders,
+    required List<TaskAllocation> allocations,
+  }) {
+    final ds = context.ds;
+    final locale = Localizations.localeOf(context).toString();
+    final anchor = live.dueDate ?? live.startDate;
+    final date = anchor == null
+        ? null
+        : '${DateFormat.MMMd(locale).format(anchor)} '
+              '${DateFormat.E(locale).format(anchor)}';
+    final eyebrow = [
+      currentCalendar?.name ?? l.todoDetails,
+      if (date != null) date,
+    ].join(' · ');
+    final completionLabel = completed
+        ? l.markIncomplete
+        : recurring
+        ? l.completeThisOccurrence
+        : l.markComplete;
+    final priorityLabels = <int, String>{
+      0: l.priorityNone,
+      9: l.priorityLow,
+      5: l.priorityMedium,
+      1: l.priorityHigh,
+    };
+    final activeAllocations = allocations
+        .where((item) => item.state == 'active')
+        .toList();
+    final plan = activeAllocations.isEmpty
+        ? l.notScheduled
+        : activeAllocations
+              .map(
+                (item) =>
+                    formatExecutionRange(context, item.startAt, item.endAt),
+              )
+              .join(' · ');
+    final repeatLabel = describeRepeat(
+      context,
+      live.rrule ?? live.recurrenceRule,
+    );
+    final reminderLabel = reminders.isEmpty
+        ? l.noReminders
+        : reminders
+              .map((item) => formatDeadline(context, item.triggerTime))
+              .join(' · ');
+    final tagLabel = tags.isEmpty
+        ? l.noTags
+        : tags.map((tag) => tag.name).join(' · ');
+    final note = (live.description ?? '').trim();
+    final side = widget.embedded ? 18.0 : 24.0;
+    const rowHeight = 58.0;
+    return ListView(
+      key: PageStorageKey<String>('todo-summary-$_todoId'),
+      padding: EdgeInsets.fromLTRB(side, 18, side, 24),
+      children: [
+        Row(
+          children: [
+            _PaneDot(color: calendarColor),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                eyebrow,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, height: 16 / 11, color: ds.ink3),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          live.summary,
+          key: const ValueKey('todo-detail-summary-title'),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            height: 26 / 20,
+            letterSpacing: 0.2,
+            color: completed ? ds.ink3 : ds.ink,
+            decoration: completed ? TextDecoration.lineThrough : null,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            DsCheck(
+              checked: completed,
+              size: 18,
+              compact: true,
+              label: completionLabel,
+              onChanged: (_) => _toggleCompletion(live, completed),
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                completionLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, height: 18 / 12, color: ds.ink3),
+              ),
+            ),
+          ],
+        ),
+        _status(
+          context,
+          status,
+          statusColor,
+          completed ? 1.0 : 0.0,
+          leftDate,
+          rightDate,
+        ),
+        const SizedBox(height: 10),
+        _PaneFieldRow(
+          key: const ValueKey('todo-summary-deadline'),
+          label: l.deadline,
+          height: rowHeight,
+          value: live.dueDate == null
+              ? l.noDeadline
+              : formatDeadline(context, live.dueDate!),
+          leading: Icon(CupertinoIcons.flag, size: 12, color: ds.ink3),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('todo-summary-plan'),
+          label: l.executionSchedule,
+          height: rowHeight,
+          value: plan,
+          leading: Icon(CupertinoIcons.clock, size: 12, color: ds.ink3),
+          // The spec makes 计划执行 a row that opens the one plan picker: date,
+          // start/end, duration and the chosen day's blocks in one surface.
+          // Finished or deleted work has nothing schedulable to edit.
+          onTap: live.deletedAt == null &&
+                  live.status != 'COMPLETED' &&
+                  live.status != 'CANCELLED'
+              ? () => _scheduleWithPlanPicker(live)
+              : null,
+          showChevron: live.deletedAt == null &&
+              live.status != 'COMPLETED' &&
+              live.status != 'CANCELLED',
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('todo-summary-repeat'),
+          label: l.repeatField,
+          height: rowHeight,
+          value: repeatLabel,
+          leading: Icon(CupertinoIcons.repeat, size: 12, color: ds.ink3),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('todo-summary-reminders'),
+          label: l.reminders,
+          height: rowHeight,
+          value: reminderLabel,
+          leading: Icon(CupertinoIcons.bell, size: 12, color: ds.ink3),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('todo-summary-calendar'),
+          label: l.calendarField,
+          height: rowHeight,
+          value: currentCalendar?.name ?? l.calendarUnavailable,
+          leading: _PaneDot(color: calendarColor, size: 7),
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('todo-summary-priority'),
+          label: l.priority,
+          height: rowHeight,
+          value: priorityLabels[live.priority] ?? l.priorityNone,
+        ),
+        _PaneFieldRow(
+          key: const ValueKey('todo-summary-tags'),
+          label: l.tags,
+          height: rowHeight,
+          value: tagLabel,
+        ),
+        DsSectionLabel(
+          l.notes,
+          padding: const EdgeInsets.only(top: 16, bottom: 6),
+        ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: ds.bg,
+            border: Border.all(color: ds.lineSoft),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            note.isEmpty ? '—' : note,
+            key: const ValueKey('todo-summary-notes'),
+            style: TextStyle(fontSize: 13, height: 22 / 13, color: ds.ink2),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _subtasks(context, l, live, readOnly: true),
+        const SizedBox(height: 12),
+        AttachmentList(parentType: 'todo', parentId: live.id, enabled: false),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _summaryFooter(BuildContext context, AppLocalizations l, Todo live) {
+    final ds = context.ds;
+    return Container(
+      decoration: BoxDecoration(
+        color: ds.surface,
+        border: Border(top: BorderSide(color: ds.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 16),
+        child: SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('todo-detail-edit'),
+                  label: l.edit,
+                  height: 48,
+                  primary: true,
+                  onPressed: () => _beginEdit(live),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('todo-detail-schedule'),
+                  label: l.addTaskAllocation,
+                  height: 48,
+                  onPressed: () => _scheduleWithPlanPicker(live),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _PaneButton(
+                  key: const ValueKey('todo-detail-delete-summary'),
+                  label: l.deleteToTrashAction,
+                  height: 48,
+                  danger: true,
+                  onPressed: () => _delete(live),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _scheduleWithPlanPicker(Todo live) async {
+    final now = widget.clock?.call() ?? DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialStart = DateTime(today.year, today.month, today.day, 15, 15);
+    final initialEnd = initialStart.add(const Duration(minutes: 45));
+
+    final picked = await SpecPlanPickerDialog.show(
+      context,
+      title: live.summary,
+      initialStart: initialStart,
+      initialEnd: initialEnd,
+      existingBlocks: (day) async {
+        final start = DateTime(day.year, day.month, day.day);
+        final end = start.add(const Duration(days: 1));
+        final db = ref.read(databaseProvider);
+        final events = await db.eventsDao.getEventCandidates(start, end);
+        final allocations = await fetchTaskAllocationsInDateRange(db, start, end);
+        final blocks = calDayBlocks(
+          day: start,
+          events: [
+            for (final event in events) CalendaEventAdapter.fromDrift(event),
+          ],
+          allocations: [
+            for (final item in allocations)
+              if (item.todo.id != live.id)
+                TaskAllocationCalendarAdapter.fromItem(item),
+          ],
+        );
+        return [
+          for (final b in blocks)
+            SpecPlanBlock(start: b.start, end: b.end, title: b.title),
+        ];
+      },
+    );
+
+    if (picked == null || !mounted) return;
+
+    final isRecurring = live.rrule != null && live.rrule!.isNotEmpty;
+    String? occurrenceId;
+    if (isRecurring) {
+      final selectedInstance = await TodoOccurrencePickerSheet.show(
+        context,
+        ref: ref,
+        todo: live,
+        anchorDate: picked.$1,
+      );
+      if (selectedInstance == null || !mounted) return;
+      occurrenceId = selectedInstance.occurrenceId;
+    }
+
+    try {
+      await ref.read(createTaskAllocationProvider)(
+        todoId: live.id,
+        occurrenceId: occurrenceId,
+        startAt: picked.$1,
+        endAt: picked.$2,
+      );
+      ref.invalidate(allActiveTaskAllocationsProvider);
+      ref.invalidate(allTodosProvider);
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        showSpecToast(context, l.scheduledTodoSuccess(live.summary));
+      }
+    } catch (e) {
+      debugPrint('todo_detail: schedule allocation failed: $e');
+      if (!mounted) return;
+      final l = AppLocalizations.of(context);
+      if (l != null) {
+        showSpecToast(context, l.schedulingFailed);
+      }
+    }
+  }
+
+  Future<void> _beginEdit(Todo live) async {
+    final assignedFuture = ref.read(todoTagsProvider(live.id).future);
+    final remindersFuture = ref.read(todoRemindersProvider(live.id).future);
+    final subtasksFuture = ref.read(subtasksProvider(live.id).future);
+    final attachmentsFuture = ref.read(todoAttachmentsProvider(live.id).future);
+    final allocationsFuture = ref.read(
+      taskAllocationsForTodoProvider(live.id).future,
+    );
+    final assigned = await assignedFuture;
+    final reminders = await remindersFuture;
+    final currentSubtasks = await subtasksFuture;
+    final currentAttachments = await attachmentsFuture;
+    final allocations = await allocationsFuture;
+    if (!mounted) return;
+    final attachmentDraftList = [
+      for (final a in currentAttachments) DraftAttachment.fromRow(a),
+    ];
+    final snapshot = _TodoDraft.fromTodo(live);
+    setState(() {
+      _snapshot = snapshot;
+      _draft = snapshot;
+      _summary.text = snapshot.summary;
+      _description.text = snapshot.description;
+      _tagDraft = assigned.map((tag) => tag.id).toSet();
+      _reminderDraft = _reminderDraftsFrom(reminders);
+      _scheduleDraft = _scheduleDraftsFrom(allocations);
+      _subtaskDraft = [
+        for (final s in currentSubtasks)
+          _DraftSubtaskItem(
+            id: s.id,
+            summary: s.summary,
+            isCompleted: s.status == 'COMPLETED',
+          ),
+      ];
+      _deletedSubtaskIds = const {};
+      _initialAttachments = attachmentDraftList;
+      _attachmentDraft = List.of(attachmentDraftList);
+      _dirty = false;
+      _saving = false;
+      _deleting = false;
+      _titleError = false;
+      _repeatError = false;
+      _saveFailed = false;
+      _editing = true;
+    });
+  }
+
+  Widget _fieldError(BuildContext context, String message) {
+    return Text(
+      message,
+      style: TextStyle(fontSize: 11, height: 16 / 11, color: context.ds.danger),
+    );
+  }
+
+  Widget _saveErrorBanner(BuildContext context, AppLocalizations l) {
+    final ds = context.ds;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: ds.dangerSoft,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l.saveFailedNotWritten,
+              style: TextStyle(
+                fontSize: 12,
+                height: 18 / 12,
+                fontWeight: FontWeight.w600,
+                color: ds.danger,
+              ),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('todo-detail-retry-save'),
+            onPressed: _saving ? null : _save,
+            child: Text(l.retrySave),
+          ),
+        ],
+      ),
     );
   }
 
@@ -333,10 +1113,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     Todo live,
     String? calendarName,
     Color calendarColor,
+    bool recurring,
   ) {
     final ds = context.ds;
     final locale = Localizations.localeOf(context).toString();
-    final anchor = live.dueDate ?? live.startDate;
+    final anchor = _draft.dueDate ?? _draft.startDate;
     final date = anchor == null
         ? null
         : '${DateFormat.MMMd(locale).format(anchor)} '
@@ -345,6 +1126,11 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       calendarName ?? l.todoDetails,
       if (date != null) date,
     ].join(' · ');
+    final completionLabel = live.status == 'COMPLETED'
+        ? l.markIncomplete
+        : recurring
+        ? l.completeThisOccurrence
+        : l.markComplete;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -377,9 +1163,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                     checked: live.status == 'COMPLETED',
                     size: 18,
                     compact: true,
-                    label: live.status == 'COMPLETED'
-                        ? l.markIncomplete
-                        : l.markComplete,
+                    label: completionLabel,
                     onChanged: (_) =>
                         _toggleCompletion(live, live.status == 'COMPLETED'),
                   ),
@@ -403,26 +1187,28 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                       maxLines: null,
                       textCapitalization: TextCapitalization.sentences,
                       onChanged: (value) {
-                        _summaryTimer?.cancel();
-                        if (value.trim().isEmpty) return;
-                        _summaryTimer = Timer(
-                          const Duration(milliseconds: 600),
-                          _flushSummary,
-                        );
+                        if (!_dirty) {
+                          setState(() => _dirty = true);
+                        }
+                        if (_titleError && value.trim().isNotEmpty) {
+                          setState(() => _titleError = false);
+                        }
                       },
-                      onSubmitted: (_) => _flushSummary(),
                       decoration: InputDecoration(
                         hintText: l.title,
                         isDense: true,
-                        // The title sits on the page, not in a box: the theme
-                        // fills every field, and a white patch behind the one
-                        // line of 20px type reads as a stray input.
                         filled: false,
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
                         hintStyle: TextStyle(fontSize: 20, color: ds.ink3),
+                        errorText: _titleError ? l.titleRequired : null,
+                        errorStyle: TextStyle(
+                          fontSize: 11,
+                          height: 16 / 11,
+                          color: ds.danger,
+                        ),
                       ),
                     ),
                   ),
@@ -431,10 +1217,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ],
           ),
         ),
-        if (widget.embedded) ...[
-          const SizedBox(width: 8),
-          _PaneCloseButton(onPressed: widget.onClose, tooltip: l.close),
-        ],
       ],
     );
   }
@@ -479,8 +1261,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ],
           ),
         ),
-        // A todo has no progress to show while it is open: an empty bar under
-        // the status reads as a control that failed to load.
         if (fraction > 0) ...[
           const SizedBox(height: 10),
           ClipRRect(
@@ -518,22 +1298,21 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Widget _deadlineRow(
     BuildContext context,
     AppLocalizations l,
-    Todo live,
     double rowHeight,
     bool mobile,
   ) {
     return _PaneFieldRow(
       label: l.deadline,
       height: rowHeight,
-      value: live.dueDate == null
+      value: _draft.dueDate == null
           ? l.noDeadline
-          : formatDeadline(context, live.dueDate!),
-      onTap: () => _pickDue(live),
+          : formatDeadline(context, _draft.dueDate!),
+      onTap: _pickDue,
       showChevron: true,
-      trailing: live.dueDate == null
+      trailing: _draft.dueDate == null
           ? null
           : _PaneInlineClear(
-              onPressed: () => _saveSchedule(setDue: true),
+              onPressed: _clearDue,
               tooltip: l.clearDeadline,
               size: mobile ? 44 : 32,
             ),
@@ -543,7 +1322,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Widget _calendarRow(
     BuildContext context,
     AppLocalizations l,
-    Todo live,
     Calendar? currentCalendar,
     Color calendarColor,
     double rowHeight,
@@ -553,7 +1331,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       height: rowHeight,
       leading: _PaneDot(color: calendarColor, size: 7),
       value: currentCalendar?.name ?? l.calendarUnavailable,
-      onTap: () => _pickCalendar(live),
+      onTap: _pickCalendar,
       showChevron: true,
     );
   }
@@ -561,24 +1339,20 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Widget _priorityRow(
     BuildContext context,
     AppLocalizations l,
-    Todo live,
     double rowHeight,
   ) {
     return _PaneFieldRow(
+      key: const ValueKey('todo-priority-row'),
       label: l.priority,
       height: rowHeight,
       valueChild: Align(
         alignment: Alignment.centerLeft,
-        child: _priorityChips(context, l, live),
+        child: _priorityChips(context, l),
       ),
     );
   }
 
-  Widget _priorityChips(
-    BuildContext context,
-    AppLocalizations l,
-    Todo live,
-  ) {
+  Widget _priorityChips(BuildContext context, AppLocalizations l) {
     final labels = <int, String>{
       0: l.priorityNone,
       9: l.priorityLow,
@@ -590,11 +1364,33 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       runSpacing: AppSpacing.s1,
       children: [
         for (final value in const [0, 9, 5, 1])
-          DsChip(
-            label: labels[value]!,
-            selected: live.priority == value,
-            compact: true,
-            onTap: () => _savePriority(value),
+          Semantics(
+            button: true,
+            selected: _draft.priority == value,
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                key: ValueKey('todo-priority-$value'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _setDraft(_withDraft(priority: value)),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                  child: Align(
+                    widthFactor: 1,
+                    heightFactor: 1,
+                    child: DsChip(
+                      key: ValueKey('todo-priority-visual-$value'),
+                      label: labels[value]!,
+                      selected: _draft.priority == value,
+                      compact: true,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
       ],
     );
@@ -605,8 +1401,6 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // The section label above already names this block; a second overline
-        // six pixels lower read as a stray duplicate rather than a heading.
         const SizedBox(height: 10),
         Container(
           width: double.infinity,
@@ -642,11 +1436,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             maxLines: null,
             textCapitalization: TextCapitalization.sentences,
             onChanged: (_) {
-              _descriptionTimer?.cancel();
-              _descriptionTimer = Timer(
-                const Duration(milliseconds: 600),
-                _flushDescription,
-              );
+              if (!_dirty) setState(() => _dirty = true);
             },
           ),
         ),
@@ -659,40 +1449,28 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     AppLocalizations l,
     Todo live,
     bool completed,
+    bool recurring,
     bool mobile,
     double side,
   ) {
     final ds = context.ds;
     final height = mobile ? 48.0 : 36.0;
-    final primaryLabel = completed ? l.markIncomplete : l.markComplete;
-    final scheduleDisabledReason = completed
-        ? l.completed
-        : live.status == 'CANCELLED'
-        ? l.cancelledTaskAllocation
-        : null;
-    final primary = _PaneButton(
+    final primaryLabel = _saveFailed ? l.retrySave : l.save;
+    final save = _PaneButton(
+      key: const ValueKey('todo-detail-save'),
       label: primaryLabel,
       height: height,
       primary: true,
-      onPressed: () => _toggleCompletion(live, completed),
+      onPressed: _saving ? null : _save,
     );
-    final schedule = _PaneButton(
-      label: l.schedule,
+    final cancel = _PaneButton(
+      key: const ValueKey('todo-detail-cancel'),
+      label: l.cancel,
       height: height,
-      onPressed: scheduleDisabledReason == null
-          ? () => showA2Composer(
-              context,
-              contextDate: widget.clock?.call() ?? DateTime.now(),
-              todo: live,
-            )
-          : null,
-    );
-    final edit = _PaneButton(
-      label: l.edit,
-      height: height,
-      onPressed: () => context.push('/todo/edit', extra: live),
+      onPressed: _saving ? null : _cancel,
     );
     final remove = _PaneButton(
+      key: const ValueKey('todo-detail-delete'),
       label: l.moveToTrash,
       height: height,
       danger: true,
@@ -707,94 +1485,37 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
       child: SafeArea(
         top: false,
         minimum: EdgeInsets.only(bottom: mobile ? 12 : 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (scheduleDisabledReason != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  '${l.schedule} · $scheduleDisabledReason',
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 16 / 11,
-                    color: ds.ink3,
-                  ),
-                ),
-              ),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final fontSize = height >= 44 ? 14.0 : 12.0;
-                final singleRow =
-                    _estimatedWidth(primaryLabel, fontSize) +
-                        _estimatedWidth(l.schedule, fontSize) +
-                        _estimatedWidth(l.edit, fontSize) +
-                        _estimatedWidth(l.moveToTrash, fontSize) +
-                        24 <=
-                    constraints.maxWidth;
-                if (singleRow) {
-                  return SizedBox(
-                    height: height,
-                    child: Row(
-                      children: [
-                        Expanded(child: primary),
-                        const SizedBox(width: 8),
-                        schedule,
-                        const SizedBox(width: 8),
-                        edit,
-                        const SizedBox(width: 8),
-                        remove,
-                      ],
-                    ),
-                  );
-                }
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      height: height,
-                      child: Row(children: [Expanded(child: primary)]),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: height,
-                      child: Row(
-                        children: [
-                          Expanded(child: schedule),
-                          const SizedBox(width: 8),
-                          Expanded(child: edit),
-                          const SizedBox(width: 8),
-                          Expanded(child: remove),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
+        child: SizedBox(
+          height: height < 48 ? 48 : height,
+          child: Row(
+            children: [
+              Expanded(flex: 2, child: save),
+              const SizedBox(width: 8),
+              Expanded(child: cancel),
+              const SizedBox(width: 8),
+              Expanded(flex: 2, child: remove),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  double _estimatedWidth(String label, double fontSize) =>
-      label.runes.length * fontSize + 22;
-
-  Future<void> _pickCalendar(Todo live) async {
+  Future<void> _pickCalendar() async {
     final picked = await pickCalendar(
       context,
       ref,
-      selectedId: live.calendarId,
+      selectedId: _draft.calendarId,
     );
-    if (picked != null) await _writeBasics(calendarId: picked);
+    if (picked != null && mounted) {
+      _setDraft(_withDraft(calendarId: picked));
+    }
   }
 
   bool _isUnknownLegacy(Todo row) {
     try {
       return TodoRecurrence.fromTodo(row).isUnknownLegacy;
-    } on Object {
+    } catch (_) {
       return false;
     }
   }
@@ -818,32 +1539,60 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     );
   }
 
-  Widget _subtasks(BuildContext context, AppLocalizations l, Todo live) {
-    final subtasks = ref.watch(subtasksProvider(live.id)).valueOrNull ?? const [];
+  Widget _subtasks(
+    BuildContext context,
+    AppLocalizations l,
+    Todo live, {
+    bool readOnly = false,
+  }) {
     final ds = context.ds;
+    final List<_DraftSubtaskItem> items;
+    if (readOnly) {
+      final liveSubtasks =
+          ref.watch(subtasksProvider(live.id)).valueOrNull ?? const [];
+      items = [
+        for (final s in liveSubtasks)
+          _DraftSubtaskItem(
+            id: s.id,
+            summary: s.summary,
+            isCompleted: s.status == 'COMPLETED',
+          ),
+      ];
+    } else {
+      items = _subtaskDraft;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Text(
-              l.subtasks,
-              style: AppTypography.small.copyWith(
-                color: ds.ink2,
-                fontWeight: FontWeight.w500,
+            Expanded(
+              child: Text(
+                l.subtasks,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.small.copyWith(
+                  color: ds.ink2,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-            const Spacer(),
-            DsButton(
-              label: l.addSubtask,
-              tone: DsButtonTone.ghost,
-              small: true,
-              icon: CupertinoIcons.add,
-              onPressed: () => _addSubtask(context, l, live),
-            ),
+            if (!readOnly) ...[
+              const SizedBox(width: 8),
+              Flexible(
+                child: DsButton(
+                  label: l.addSubtask,
+                  tone: DsButtonTone.ghost,
+                  small: true,
+                  icon: CupertinoIcons.add,
+                  onPressed: () => _addSubtask(context, l, live),
+                ),
+              ),
+            ],
           ],
         ),
-        if (subtasks.isEmpty)
+        if (items.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
@@ -852,19 +1601,18 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
             ),
           )
         else
-          for (final sub in subtasks)
+          for (final sub in items)
             SizedBox(
               height: 40,
               child: Row(
                 children: [
                   DsCheck(
-                    checked: sub.status == 'COMPLETED',
+                    checked: sub.isCompleted,
                     size: 17,
                     compact: true,
-                    onChanged: (_) => ref.read(toggleTodoProvider)(
-                      id: sub.id,
-                      isCompleted: sub.status != 'COMPLETED',
-                    ),
+                    onChanged: readOnly
+                        ? null
+                        : (_) => _toggleSubtaskDraft(sub),
                   ),
                   const SizedBox(width: AppSpacing.s2),
                   Expanded(
@@ -872,27 +1620,53 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
                       sub.summary,
                       style: AppTypography.body.copyWith(
                         fontSize: 14,
-                        decoration: sub.status == 'COMPLETED'
+                        decoration: sub.isCompleted
                             ? TextDecoration.lineThrough
                             : null,
-                        color: sub.status == 'COMPLETED'
-                            ? ds.ink3
-                            : ds.ink,
+                        color: sub.isCompleted ? ds.ink3 : ds.ink,
                       ),
                     ),
                   ),
-                  DsIconButton(
-                    icon: CupertinoIcons.xmark,
-                    size: 14,
-                    compact: true,
-                    tooltip: l.removeSubtask,
-                    onPressed: () => ref.read(deleteTodoProvider)(sub.id),
-                  ),
+                  if (!readOnly)
+                    DsIconButton(
+                      icon: CupertinoIcons.xmark,
+                      size: 14,
+                      compact: true,
+                      tooltip: l.removeSubtask,
+                      onPressed: () => _removeSubtask(sub),
+                    ),
                 ],
               ),
             ),
       ],
     );
+  }
+
+  void _toggleSubtaskDraft(_DraftSubtaskItem sub) {
+    setState(() {
+      _subtaskDraft = [
+        for (final item in _subtaskDraft)
+          if (item == sub)
+            _DraftSubtaskItem(
+              id: item.id,
+              summary: item.summary,
+              isCompleted: !item.isCompleted,
+            )
+          else
+            item,
+      ];
+      _dirty = true;
+    });
+  }
+
+  void _removeSubtask(_DraftSubtaskItem sub) {
+    setState(() {
+      _subtaskDraft = _subtaskDraft.where((item) => item != sub).toList();
+      if (sub.id != null) {
+        _deletedSubtaskIds = {..._deletedSubtaskIds, sub.id!};
+      }
+      _dirty = true;
+    });
   }
 
   Future<void> _addSubtask(
@@ -904,49 +1678,40 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     final text = await showDialog<String>(
       animationStyle: AnimationStyle.noAnimation,
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.addSubtask),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(hintText: l.subtaskHint),
-          onSubmitted: (value) => Navigator.of(ctx).pop(value),
-        ),
+      builder: (ctx) => DsDialog(
+        title: l.addSubtask,
+        width: 380,
         actions: [
-          TextButton(
+          const Spacer(),
+          DsButton(
+            label: l.cancel,
+            tone: DsButtonTone.ghost,
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l.cancel),
           ),
-          FilledButton(
+          const SizedBox(width: AppSpacing.s2),
+          DsButton(
+            label: l.add,
             onPressed: () => Navigator.of(ctx).pop(controller.text),
-            child: Text(l.add),
           ),
         ],
+        child: DsTextField(
+          controller: controller,
+          autofocus: true,
+          hint: l.subtaskHint,
+          onSubmitted: (value) => Navigator.of(ctx).pop(value),
+        ),
       ),
     );
     controller.dispose();
     final title = text?.trim();
     if (title == null || title.isEmpty) return;
-    await ref.read(createTodoProvider)(
-      calendarId: live.calendarId,
-      summary: title,
-      priority: 0,
-      status: 'NEEDS-ACTION',
-      parentId: live.id,
-    );
-  }
-
-  Widget _tags(BuildContext context, Todo live) {
-    final assigned =
-        ref.watch(todoTagsProvider(live.id)).valueOrNull ?? const [];
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TagChips(
-        parentType: 'todo',
-        parentId: live.id,
-        assignedTags: assigned,
-      ),
-    );
+    setState(() {
+      _subtaskDraft = [
+        ..._subtaskDraft,
+        _DraftSubtaskItem(summary: title),
+      ];
+      _dirty = true;
+    });
   }
 
   Todo? get _currentRow {
@@ -964,135 +1729,286 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     }
   }
 
-  void _flushSummary() {
-    if (!mounted) return;
-    _summaryTimer?.cancel();
-    _summaryTimer = null;
-    final text = _summary.text.trim();
-    if (text.isEmpty) {
-      _summary.text = _savedSummary;
+  Future<void> _save() async {
+    if (_saving) return;
+    final title = _summary.text.trim();
+    if (title.isEmpty) {
+      setState(() {
+        _titleError = true;
+        _saveFailed = false;
+      });
+      _summaryFocus.requestFocus();
       return;
     }
-    if (text == _savedSummary || !_savingText.add('summary')) return;
-    unawaited(
-      _writeBasics(summary: text).then((saved) {
-        _savingText.remove('summary');
-        if (!saved) return;
-        _savedSummary = text;
-        if (mounted && _summary.text.trim() != text) _flushSummary();
-      }),
-    );
-  }
-
-  void _flushDescription() {
-    if (!mounted) return;
-    _descriptionTimer?.cancel();
-    _descriptionTimer = null;
-    final text = _description.text.trim();
-    if (text == _savedDescription || !_savingText.add('description')) return;
-    unawaited(
-      _writeBasics(description: text).then((saved) {
-        _savingText.remove('description');
-        if (!saved) return;
-        _savedDescription = text;
-        if (mounted && _description.text.trim() != text) {
-          _flushDescription();
-        }
-      }),
-    );
-  }
-
-  Future<bool> _writeBasics({
-    String? summary,
-    String? description,
-    int? priority,
-    int? calendarId,
-  }) async {
-    try {
-      await ref.read(updateTodoProvider)(
-        widget.todo.id,
-        TodosCompanion(
-          summary: summary != null ? Value(summary) : const Value.absent(),
-          description: description != null
-              ? Value(description.isEmpty ? null : description)
-              : const Value.absent(),
-          priority: priority != null ? Value(priority) : const Value.absent(),
-          calendarId: calendarId != null
-              ? Value(calendarId)
-              : const Value.absent(),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
-      return true;
-    } on Object catch (error) {
-      debugPrint('todo_detail: update failed: $error');
-      _showError();
-      return false;
+    final anchor = _draft.startDate ?? _draft.dueDate;
+    if (_draft.rrule != null && anchor == null) {
+      setState(() {
+        _repeatError = true;
+        _saveFailed = false;
+      });
+      return;
     }
-  }
-
-  Future<void> _savePriority(int value) async {
-    final current = _currentRow;
-    if (current == null || current.priority == value) return;
-    await _writeBasics(priority: value);
-  }
-
-  Future<void> _pickDue(Todo live) async {
-    final now = DateTime.now();
-    final picked = await pickDeadline(
-      context,
-      initial: live.dueDate ?? DateTime(now.year, now.month, now.day, 9),
-      withTime:
-          live.dueDate != null &&
-          !(live.dueDate!.hour == 0 && live.dueDate!.minute == 0),
-    );
-    if (picked == null || !mounted) return;
-    await _saveSchedule(setDue: true, due: picked);
-  }
-
-  /// Deadline, start and rule are one projection: a recurring todo refuses a
-  /// half-updated anchor, so they are always written together as a spec.
-  Future<void> _saveSchedule({
-    bool setDue = false,
-    DateTime? due,
-    bool setStart = false,
-    DateTime? start,
-    bool setRule = false,
-    String? rule,
-  }) async {
+    final description = _description.text.trim();
     final current = _currentRow ?? widget.todo;
-    if (_isUnknownLegacy(current)) return;
-    final nextDue = setDue ? due : current.dueDate;
-    final nextStart = setStart ? start : current.startDate;
-    final nextRule = setRule ? rule : current.rrule;
-    if (nextRule != null && nextStart == null && nextDue == null) {
-      _showMessage(AppLocalizations.of(context)!.repeatNeedsDate);
-      return;
-    }
+    final legacy = _isUnknownLegacy(current);
     RecurrenceSpec? spec;
-    try {
-      spec = _specFor(current, nextRule, nextStart, nextDue);
-    } on Object catch (error) {
-      debugPrint('todo_detail: recurrence spec failed: $error');
-      _showError();
-      return;
+    if (!legacy) {
+      try {
+        spec = _specFor(
+          current,
+          _draft.rrule,
+          _draft.startDate,
+          _draft.dueDate,
+        );
+      } catch (error) {
+        debugPrint('todo_detail: recurrence spec failed: $error');
+        if (!mounted) return;
+        setState(() {
+          _saveFailed = true;
+          _saving = false;
+        });
+        return;
+      }
     }
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+      _titleError = false;
+      _repeatError = false;
+    });
     try {
       await ref.read(updateTodoProvider)(
         current.id,
         TodosCompanion(
-          dueDate: Value(nextDue),
-          startDate: Value(nextStart),
-          rrule: Value(nextRule),
+          summary: Value(title),
+          description: Value(description.isEmpty ? null : description),
+          dueDate: Value(_draft.dueDate),
+          startDate: Value(_draft.startDate),
+          rrule: Value(_draft.rrule),
+          calendarId: Value(_draft.calendarId),
+          priority: Value(_draft.priority),
           updatedAt: Value(DateTime.now()),
         ),
         recurrenceSpec: spec,
-        replaceRecurrence: true,
+        replaceRecurrence: !legacy,
       );
-    } on Object catch (error) {
-      debugPrint('todo_detail: schedule update failed: $error');
-      _showError();
+      await _saveAssociations(current.id, _draft.calendarId);
+      await _refreshAssociationDrafts(current.id);
+    } catch (error) {
+      debugPrint('todo_detail: save failed: $error');
+      if (!mounted) return;
+      setState(() {
+        _saveFailed = true;
+        _saving = false;
+      });
+      return;
     }
+    if (!mounted) return;
+    final saved = _TodoDraft(
+      summary: title,
+      description: description,
+      dueDate: _draft.dueDate,
+      startDate: _draft.startDate,
+      rrule: _draft.rrule,
+      calendarId: _draft.calendarId,
+      priority: _draft.priority,
+    );
+    setState(() {
+      _snapshot = saved;
+      _draft = saved;
+      _dirty = false;
+      _saving = false;
+      _summary.text = title;
+      if (widget.inlineSummary || widget.embedded) {
+        _editing = false;
+        _subtaskDraft = const [];
+        _deletedSubtaskIds = const {};
+        _attachmentDraft = null;
+        _initialAttachments = const [];
+      } else {
+        _deletedSubtaskIds = const {};
+      }
+    });
+  }
+
+  Future<void> _saveAssociations(int todoId, int calendarId) async {
+    final assigned = await ref.read(todoTagsProvider(todoId).future);
+    final assignedIds = assigned.map((tag) => tag.id).toSet();
+    final addTag = ref.read(addTagToTodoProvider);
+    final removeTag = ref.read(removeTagFromTodoProvider);
+    for (final tagId in _tagDraft.difference(assignedIds)) {
+      await addTag(todoId: todoId, tagId: tagId);
+    }
+    for (final tagId in assignedIds.difference(_tagDraft)) {
+      await removeTag(todoId: todoId, tagId: tagId);
+    }
+
+    final stored = await ref.read(todoRemindersProvider(todoId).future);
+    final byId = {for (final reminder in stored) reminder.id: reminder};
+    final kept = <int>{};
+    for (final draft in _reminderDraft) {
+      final id = draft.id;
+      if (id == null) {
+        await ref.read(createReminderProvider)(
+          parentType: 'todo',
+          parentId: todoId,
+          triggerTime: draft.triggerTime,
+        );
+        continue;
+      }
+      kept.add(id);
+      final row = byId[id];
+      if (row != null && row.triggerTime != draft.triggerTime) {
+        await ref.read(updateReminderProvider)(id, draft.triggerTime);
+      }
+    }
+    for (final row in stored) {
+      if (!kept.contains(row.id)) {
+        await ref.read(deleteReminderProvider)(row.id);
+      }
+    }
+
+    final storedAllocations = (await ref.read(
+      taskAllocationsForTodoProvider(todoId).future,
+    )).where((item) => item.state == 'active').toList();
+    final allocationsById = {
+      for (final item in storedAllocations) item.id: item,
+    };
+    final keptAllocationIds = <int>{};
+    for (final draft in _scheduleDraft) {
+      final id = draft.id;
+      if (id == null) {
+        await ref.read(createTaskAllocationProvider)(
+          todoId: todoId,
+          startAt: draft.start,
+          endAt: draft.end,
+          occurrenceId: draft.occurrenceId,
+        );
+        continue;
+      }
+      keptAllocationIds.add(id);
+      final row = allocationsById[id];
+      if (row != null &&
+          (row.startAt != draft.start || row.endAt != draft.end)) {
+        await ref.read(rescheduleTaskAllocationProvider)(
+          id: id,
+          startAt: draft.start,
+          endAt: draft.end,
+        );
+      }
+    }
+    for (final row in storedAllocations) {
+      if (!keptAllocationIds.contains(row.id)) {
+        await ref.read(cancelTaskAllocationProvider)(row.id);
+      }
+    }
+
+    // Commit subtask changes
+    for (final id in _deletedSubtaskIds) {
+      await ref.read(deleteTodoProvider)(id);
+    }
+    for (final item in _subtaskDraft.where((s) => s.id == null)) {
+      await ref.read(createTodoProvider)(
+        calendarId: calendarId,
+        summary: item.summary,
+        priority: 0,
+        status: item.isCompleted ? 'COMPLETED' : 'NEEDS-ACTION',
+        parentId: todoId,
+      );
+    }
+    for (final item in _subtaskDraft.where((s) => s.id != null)) {
+      await ref.read(toggleTodoProvider)(
+        id: item.id!,
+        isCompleted: item.isCompleted,
+      );
+    }
+
+    // Commit attachment changes
+    if (_attachmentDraft != null) {
+      final keptAttachmentIds = _attachmentDraft!
+          .map((a) => a.id)
+          .whereType<int>()
+          .toSet();
+      for (final a in _initialAttachments) {
+        if (a.id != null && !keptAttachmentIds.contains(a.id)) {
+          await ref.read(deleteAttachmentProvider)(a.id!);
+        }
+      }
+      for (final a in _attachmentDraft!.where((item) => item.id == null)) {
+        await ref.read(createAttachmentProvider)(
+          parentType: 'todo',
+          parentId: todoId,
+          fileName: a.fileName,
+          mimeType: a.mimeType,
+          bytes: a.bytes,
+          sourcePath: a.sourcePath,
+        );
+      }
+    }
+  }
+
+  Future<void> _refreshAssociationDrafts(int todoId) async {
+    final db = ref.read(databaseProvider);
+    final reminders = await (db.select(db.reminders)..where(
+          (row) => row.parentType.equals('todo') & row.parentId.equals(todoId),
+        ))
+        .get();
+    final allocations = await (db.select(
+      db.taskAllocations,
+    )..where((row) => row.todoId.equals(todoId))).get();
+    if (!mounted) return;
+    setState(() {
+      _reminderDraft = _reminderDraftsFrom(reminders);
+      _scheduleDraft = _scheduleDraftsFrom(allocations);
+    });
+  }
+
+  void _cancel() {
+    setState(() {
+      _draft = _snapshot;
+      _dirty = false;
+      _saving = false;
+      _titleError = false;
+      _repeatError = false;
+      _saveFailed = false;
+      _summary.text = _snapshot.summary;
+      _description.text = _snapshot.description;
+      _tagDraft = const {};
+      _reminderDraft = const [];
+      _scheduleDraft = const [];
+      _subtaskDraft = const [];
+      _deletedSubtaskIds = const {};
+      _attachmentDraft = null;
+      _initialAttachments = const [];
+      if (widget.inlineSummary || widget.embedded) _editing = false;
+    });
+    _summaryFocus.unfocus();
+    _descriptionFocus.unfocus();
+    if (widget.inlineSummary || (widget.embedded && !_editing)) return;
+    if (widget.embedded) {
+      widget.onClose?.call();
+      return;
+    }
+    _leaveToSource(context);
+  }
+
+  Future<void> _pickDue() async {
+    final now = DateTime.now();
+    final initial = _draft.dueDate ?? DateTime(now.year, now.month, now.day, 9);
+    final picked = await pickDeadline(
+      context,
+      initial: initial,
+      withTime:
+          _draft.dueDate != null &&
+          !(_draft.dueDate!.hour == 0 && _draft.dueDate!.minute == 0),
+    );
+    if (picked == null || !mounted) return;
+    _setDraft(_withDraft(dueDate: picked));
+  }
+
+  void _clearDue() {
+    final rule = _draft.startDate == null ? null : _draft.rrule;
+    _setDraft(_withDraft(dueDate: null, rrule: rule));
   }
 
   RecurrenceSpec? _specFor(
@@ -1136,8 +2052,9 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
         ref,
         todo: live,
         completed: !completed,
+        anchorDate: widget.clock?.call(),
       );
-    } on Object catch (error) {
+    } catch (error) {
       if (mounted) showCompletionError(context, error);
     }
   }
@@ -1145,26 +2062,16 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
   Future<void> _delete(Todo live) async {
     if (_deleting) return;
     final l = AppLocalizations.of(context)!;
-    final confirmed = await showDialog<bool>(
-      animationStyle: AnimationStyle.noAnimation,
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.moveToTrash),
-        content: Text(l.confirmDelete),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.moveToTrash),
-          ),
-        ],
-      ),
+    final title = _summary.text.trim().isEmpty
+        ? live.summary
+        : _summary.text.trim();
+    final series = live.rrule != null || live.recurrenceRule != null;
+    final confirmed = await SpecDeleteConfirmDialog.show(
+      context,
+      title: l.deleteTodoConfirm(title),
+      message: series ? l.deleteSeriesTrashNotice : l.deleteTrashNotice,
+      cancelLabel: l.cancel,
+      confirmLabel: l.moveToTrash,
     );
     if (confirmed != true || !mounted) return;
     final id = live.id;
@@ -1172,7 +2079,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     setState(() => _deleting = true);
     try {
       await ref.read(deleteTodoProvider)(id);
-    } on Object catch (error) {
+    } catch (error) {
       debugPrint('todo_detail: delete failed: $error');
       if (!mounted) return;
       setState(() => _deleting = false);
@@ -1181,18 +2088,17 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
     }
     if (!mounted) return;
     _deletedNotified = true;
+    showUndoBar(
+      context,
+      message: l.deleted,
+      undoLabel: l.undo,
+      onUndo: () => restore(id),
+    );
     if (widget.onDeleted != null) {
       widget.onDeleted!();
     } else {
       _leaveToSource(context);
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l.deleted),
-        duration: const Duration(seconds: 5),
-        action: SnackBarAction(label: l.undo, onPressed: () => restore(id)),
-      ),
-    );
   }
 
   Widget _loadFailure(
@@ -1219,10 +2125,7 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
               children: [
                 TextButton(onPressed: retry, child: Text(l.retry)),
                 const SizedBox(width: AppSpacing.s2),
-                TextButton(
-                  onPressed: _leaveFromFailure,
-                  child: Text(l.close),
-                ),
+                TextButton(onPressed: _leaveFromFailure, child: Text(l.close)),
               ],
             ),
           ],
@@ -1244,15 +2147,52 @@ class _TodoDetailPaneState extends ConsumerState<TodoDetailPane> {
 
   void _showError() {
     if (!mounted) return;
-    _showMessage(AppLocalizations.of(context)!.actionFailedRetry);
+    showSpecToast(context, AppLocalizations.of(context)!.actionFailedRetry);
+  }
+}
+
+const Object _unsetDraft = Object();
+
+class _TodoDraft {
+  const _TodoDraft({
+    required this.summary,
+    required this.description,
+    required this.dueDate,
+    required this.startDate,
+    required this.rrule,
+    required this.calendarId,
+    required this.priority,
+  });
+
+  factory _TodoDraft.fromTodo(Todo todo) {
+    return _TodoDraft(
+      summary: todo.summary,
+      description: todo.description ?? '',
+      dueDate: todo.dueDate,
+      startDate: todo.startDate,
+      rrule: todo.rrule,
+      calendarId: todo.calendarId,
+      priority: todo.priority,
+    );
   }
 
-  void _showMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
+  final String summary;
+  final String description;
+  final DateTime? dueDate;
+  final DateTime? startDate;
+  final String? rrule;
+  final int calendarId;
+  final int priority;
+}
+
+bool _sameDraft(_TodoDraft a, _TodoDraft b) {
+  return a.summary == b.summary &&
+      a.description == b.description &&
+      a.dueDate == b.dueDate &&
+      a.startDate == b.startDate &&
+      a.rrule == b.rrule &&
+      a.calendarId == b.calendarId &&
+      a.priority == b.priority;
 }
 
 /// A deleted object cannot stay on screen. Pop the detail route so the user
@@ -1300,15 +2240,18 @@ class _PaneCloseButton extends StatelessWidget {
               : SystemMouseCursors.click,
           child: Material(
             color: Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            shape: const CircleBorder(),
+            clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: onPressed,
               hoverColor: ds.surface2,
-              borderRadius: BorderRadius.circular(6),
+              customBorder: const CircleBorder(),
               child: SizedBox(
                 width: 28,
                 height: 28,
-                child: Icon(CupertinoIcons.xmark, size: 16, color: ds.ink3),
+                child: Center(
+                  child: Icon(CupertinoIcons.xmark, size: 13, color: ds.ink3),
+                ),
               ),
             ),
           ),
@@ -1361,6 +2304,7 @@ class _PaneInlineClear extends StatelessWidget {
 
 class _PaneFieldRow extends StatelessWidget {
   const _PaneFieldRow({
+    super.key,
     required this.label,
     required this.height,
     this.value,
@@ -1383,8 +2327,8 @@ class _PaneFieldRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final content = SizedBox(
-      height: height,
+    final content = ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height),
       child: Row(
         children: [
           SizedBox(
@@ -1393,11 +2337,7 @@ class _PaneFieldRow extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                height: 16 / 11,
-                color: ds.ink3,
-              ),
+              style: TextStyle(fontSize: 11, height: 16 / 11, color: ds.ink3),
             ),
           ),
           Expanded(
@@ -1456,6 +2396,7 @@ class _PaneFieldRow extends StatelessWidget {
 
 class _PaneButton extends StatelessWidget {
   const _PaneButton({
+    super.key,
     required this.label,
     required this.onPressed,
     required this.height,
@@ -1472,49 +2413,45 @@ class _PaneButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = context.ds;
-    final bg = primary ? ds.primary : ds.surface;
-    final fg = primary ? ds.onPrimary : (danger ? ds.danger : ds.ink2);
+    final bg = primary ? SpecTokens.ink : ds.surface;
+    final fg = primary ? Colors.white : (danger ? ds.danger : ds.ink2);
     final enabled = onPressed != null;
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      child: MouseRegion(
-        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        child: Opacity(
-          opacity: enabled ? 1 : 0.45,
-          child: Material(
-            color: bg,
-            borderRadius: BorderRadius.circular(6),
-            child: InkWell(
-              onTap: onPressed,
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                height: height,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: primary ? Colors.transparent : ds.line,
-                  ),
-                ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: height >= 44 ? 14 : 12,
-                    fontWeight: height >= 44
-                        ? FontWeight.w600
-                        : FontWeight.w500,
-                    color: fg,
-                    height: 1.2,
-                  ),
-                ),
-              ),
-            ),
+    // A plain Container, not Ink: these footers sit on an opaque paper
+    // surface with no Material for the ink layer, so Ink's fill and border
+    // never painted and the primary button's white label vanished.
+    final visual = Container(
+      key: const ValueKey('pane-button-visual'),
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: primary ? Colors.transparent : ds.line),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: height >= 44 ? 14 : 12,
+            fontWeight: height >= 44 ? FontWeight.w600 : FontWeight.w500,
+            color: fg,
+            height: 1.2,
           ),
+        ),
+      ),
+    );
+    return FocusableTap(
+      onTap: onPressed,
+      semanticsLabel: label,
+      borderRadius: BorderRadius.circular(6),
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          child: Center(child: visual),
         ),
       ),
     );

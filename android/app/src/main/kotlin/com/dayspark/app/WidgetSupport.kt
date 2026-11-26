@@ -21,10 +21,9 @@ internal enum class WidgetSize { SMALL, MEDIUM, LARGE }
 
 // A tap lands on the deepest view under the finger. A TextView without a click
 // handler lets the event bubble to the row, but the reverse — a child that
-// consumes the tap — silently kills that part of the row. Binding the row's open
-// action to every informational child makes the hit area explicit instead of
-// depending on launcher-inflated view behaviour, and leaves the checkbox as the
-// only different action.
+// consumes the tap — silently kills that part of the row. The widgets are
+// read-only now, so every informational child AND the state glyph (the check
+// circle) bind the same deep-link action: the whole row opens the item.
 internal object WidgetRows {
   val TODO_OPEN_IDS = intArrayOf(
     R.id.todo_item,
@@ -99,9 +98,12 @@ internal object WidgetSupport {
     return sizeFor(width, height)
   }
 
+  // The master's Android cells are 2x2 / 4x2 / 4x4, so width picks the
+  // layout family: a 4x2 pin is ~250x110 and used to fall into SMALL because
+  // its height sat below 140, drawing the 2x2 layout in a four-column frame.
   fun sizeFor(width: Int, height: Int): WidgetSize = when {
     width >= 220 && height >= 220 -> WidgetSize.LARGE
-    width >= 220 && height >= 140 -> WidgetSize.MEDIUM
+    width >= 220 -> WidgetSize.MEDIUM
     else -> WidgetSize.SMALL
   }
 
@@ -162,18 +164,6 @@ internal object WidgetSupport {
     if (height <= 0) return nominal
     val remaining = height - calendarChromeDp(large) - cellDp * rows
     return (remaining / CALENDAR_LIST_ROW_DP).coerceIn(0, if (large) 6 else 2)
-  }
-
-  // Day mode replaces the grid with the day bar, so the list owns the height.
-  // Only the compact (non-large) card has a day mode, so there is one geometry.
-  fun calendarDayRows(height: Int): Int {
-    if (height <= 0) return 2
-    val remaining = height -
-      16 -
-      CALENDAR_HEADER_DP -
-      CALENDAR_LIST_ROW_DP -
-      CALENDAR_TITLE_DP
-    return (remaining / CALENDAR_LIST_ROW_DP).coerceIn(1, 6)
   }
 
   fun calendarCellLayout(cellDp: Int): Int = when {
@@ -252,74 +242,6 @@ internal object WidgetSupport {
   fun newEventUri(dateIso: String): Uri =
     Uri.parse("dayspark://open/new-event?date=$dateIso")
 
-  fun stateIntent(
-    context: Context,
-    appWidgetId: Int,
-    action: String,
-    extraKey: String? = null,
-    extraValue: String? = null,
-  ): PendingIntent {
-    val intent = Intent(context, WidgetActionReceiver::class.java).apply {
-      this.action = action
-      data = Uri.parse("dayspark://widget-state/$appWidgetId/$action/${extraValue ?: ""}")
-      putExtra(WidgetActionReceiver.EXTRA_APP_WIDGET_ID, appWidgetId)
-      if (extraKey != null && extraValue != null) putExtra(extraKey, extraValue)
-    }
-    val requestCode = (appWidgetId * 131 + action.hashCode() + (extraValue?.hashCode() ?: 0)) and 0x7FFFFFFF
-    return PendingIntent.getBroadcast(
-      context,
-      requestCode,
-      intent,
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
-  }
-
-  fun template(template: String, count: Int): String =
-    template.replace("{n}", count.toString())
-
-  fun togglePendingIntent(
-    context: Context,
-    target: String,
-    todoId: Int,
-    todoSyncId: String?,
-    occurrenceId: String?,
-    allocationId: String?,
-    command: String = WidgetSnapshot.ACTION_COMPLETE,
-  ): PendingIntent {
-    val occPart = occurrenceId ?: "single"
-    val allocPart = allocationId ?: "none"
-    val intent = Intent(context, WidgetActionReceiver::class.java).apply {
-      action = WidgetSnapshot.ACTION_COMPLETE_ACTION
-      data = Uri.parse("dayspark://widget-toggle/$command/$target/$todoId/$occPart/$allocPart")
-      putExtra(WidgetSnapshot.EXTRA_TARGET, target)
-      putExtra(WidgetSnapshot.EXTRA_ACTION, command)
-      putExtra(WidgetSnapshot.EXTRA_TODO_ID, todoId)
-      if (!todoSyncId.isNullOrEmpty()) putExtra(WidgetSnapshot.EXTRA_TODO_SYNC_ID, todoSyncId)
-      if (!occurrenceId.isNullOrEmpty()) putExtra(WidgetSnapshot.EXTRA_OCCURRENCE_ID, occurrenceId)
-      if (!allocationId.isNullOrEmpty()) putExtra(WidgetSnapshot.EXTRA_SOURCE_ALLOCATION_ID, allocationId)
-    }
-    val requestCode = (todoId * 37 + occPart.hashCode() + allocPart.hashCode()) and 0x7FFFFFFF
-    return PendingIntent.getBroadcast(
-      context,
-      requestCode,
-      intent,
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
-  }
-
-  fun isPending(
-    targets: WidgetSnapshot.PendingTargets,
-    target: String,
-    todoId: Int,
-    occurrenceId: String?,
-  ): Boolean {
-    return if (target == "taskInstance") {
-      targets.instanceKeys.contains("$todoId:${occurrenceId ?: ""}")
-    } else {
-      targets.todoIds.contains(todoId)
-    }
-  }
-
   fun applyRoot(
     context: Context,
     views: RemoteViews,
@@ -366,8 +288,6 @@ internal object WidgetSupport {
     return WidgetSnapshot.parseHexColor(hex) ?: fallback
   }
 
-  fun dayColor(hex: String?, fallback: Int): Int = parseColor(hex, fallback)
-
   fun isoDate(date: Date): String =
     SimpleDateFormat("yyyy-MM-dd", Locale.US).format(date)
 
@@ -384,8 +304,6 @@ internal object WidgetSupport {
     }.getOrNull() ?: return iso
     return SimpleDateFormat("MMM d EEE", Locale.getDefault()).format(parsed)
   }
-
-  fun isLocalToday(iso: String): Boolean = iso == isoDate(Date())
 
   // A todo row's minimum is 48dp, but its lines (and the tag dots) grow with
   // the font scale, and how far they grow depends on the script: on a real
@@ -506,8 +424,4 @@ internal object WidgetSupport {
   }
 
   fun todayIso(context: Context): String = isoDate(Date())
-
-  fun setVisible(views: RemoteViews, viewId: Int, visible: Boolean) {
-    views.setViewVisibility(viewId, if (visible) View.VISIBLE else View.GONE)
-  }
 }

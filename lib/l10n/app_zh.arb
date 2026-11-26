@@ -34,7 +34,9 @@
   "categoryCount": "{count} 个",
   "@categoryCount": {
     "placeholders": {
-      "count": { "type": "int" }
+      "count": {
+        "type": "int"
+      }
     }
   },
   "newCalendar": "新建日历",
@@ -77,7 +79,11 @@
   "plannedShort": "计划",
   "overdueDays": "逾期 {count} 天",
   "@overdueDays": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "dayItemCount": "{count} 项",
   "deadlineLane": "截止（不占用时间） · {count}",
@@ -124,7 +130,7 @@
   "day": "日",
   "week": "周",
   "month": "月",
-  "overdue": "已逾期",
+  "overdue": "逾期",
   "tomorrow": "明天",
   "notSet": "未设置",
   "events": "日程",
@@ -142,7 +148,6 @@
   "scheduledLabel": "已排",
   "freeLabel": "空闲",
   "remainingMinutes": "还剩 {minutes} 分钟",
-  "overdue": "逾期",
   "eventsAndFree": "{count} 项日程",
   "nextUp": "接下来",
   "syncedAt": "已同步 {time}",
@@ -210,6 +215,89 @@
   "importFailed": "导入失败",
   "importedResult": "已导入 {events} 条日程和 {todos} 条待办",
   "importedResultWithFailed": "已导入 {events} 条日程和 {todos} 条待办（{failed} 条失败）",
+  "importPreviewTitle": "导入预览",
+  "importPreviewSummary": "从 {fileName} 读到 {events} 个事件、{todos} 个待办。",
+  "@importPreviewSummary": {
+    "placeholders": {
+      "events": {
+        "type": "int"
+      },
+      "todos": {
+        "type": "int"
+      },
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "importPreviewCounts": "新增 {create} 项 · 重复 {duplicate} 项 · 跳过 {skipped} 项",
+  "@importPreviewCounts": {
+    "placeholders": {
+      "create": {
+        "type": "int"
+      },
+      "duplicate": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewNew": "新增",
+  "importPreviewDuplicate": "重复",
+  "importPreviewSkipped": "跳过",
+  "importPreviewMore": "另有 {count} 项",
+  "@importPreviewMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailedRows": "导入时另有 {count} 项失败",
+  "@importFailedRows": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importFailureDetail": "没有写入任何内容。文件：{fileName}",
+  "@importFailureDetail": {
+    "placeholders": {
+      "fileName": {
+        "type": "String"
+      }
+    }
+  },
+  "startImport": "开始导入",
+  "importInProgress": "正在读取并导入…",
+  "importResultTitle": "导入结果",
+  "importResultSummary": "新建 {created} 项 · 更新 {updated} 项 · 跳过 {skipped} 项",
+  "@importResultSummary": {
+    "placeholders": {
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
+    }
+  },
+  "importNothing": "这个文件里没有事件或待办。",
+  "backupInProgress": "正在备份…",
+  "backupComplete": "备份完成：{filename}",
+  "@backupComplete": {
+    "placeholders": {
+      "filename": {
+        "type": "String"
+      }
+    }
+  },
   "importExportDesc": "将日程和待办导出为 .ics 文件，或从 .ics 文件导入。",
   "error": "出错了，请重试。",
   "endBeforeStart": "结束时间必须晚于开始时间",
@@ -278,6 +366,31 @@
       }
     }
   },
+  "calendarMonthDay": "{month} 月 {day} 日",
+  "@calendarMonthDay": {
+    "placeholders": {
+      "month": {
+        "type": "String"
+      },
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarDateRange": "{start} – {end}",
+  "@calendarDateRange": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarWeekSummary": "本周 · 7 天",
+  "calendarWeekEmpty": "这一周没有安排。",
+  "calendarWeekEmptyHint": "从捕获或日历时间槽开始。",
   "openUpdatePage": "查看更新",
   "checkUpdate": "检查更新",
   "upToDate": "已是最新版本",
@@ -306,7 +419,9 @@
   "deletedOn": "删除于 {date}",
   "@deletedOn": {
     "placeholders": {
-      "date": { "type": "String" }
+      "date": {
+        "type": "String"
+      }
     }
   },
   "snoozedFor": "已延后 {duration}",
@@ -596,6 +711,7 @@
   "notScheduled": "未安排",
   "execution": "执行",
   "repeatAdvanced": "重复选项",
+  "repeatField": "重复",
   "seriesTimeZoneShort": "全部重复使用的时区",
   "startsAtHint": "最早可以开始做的日子",
   "noDeadline": "无截止",
@@ -652,9 +768,9 @@
   "executionRow": "计划执行",
   "deadlineRow": "截止",
   "remindOnTime": "准时",
-  "remindMinutesBefore": "提前 {count} 分钟",
-  "remindHoursBefore": "提前 {count} 小时",
-  "remindDaysBefore": "提前 {count} 天",
+  "remindMinutesBefore": "{count} 分钟前",
+  "remindHoursBefore": "{count} 小时前",
+  "remindDaysBefore": "{count} 天前",
   "remindCustom": "自定义时间",
   "reminderNeedsAnchor": "先设置截止时间或开始时间，提醒才能相对它计算。",
   "actionEarlierToday": "今日早前",
@@ -757,15 +873,27 @@
   "todoAllContext": "共 {count} 项未完成",
   "calendarTags": "日历与标签",
   "other": "其他",
-  "capturePlaceholder": "记一笔 · 回车直接进「未安排」",
+  "capturePlaceholder": "记一件事，回车记下",
   "captureHintEnter": "⏎ 进未安排",
   "captureHintSubmit": "加入",
   "captureAddedToast": "已加入「未安排」· 继续输入",
   "justAddedLabel": "刚加入",
   "groupCountItems": "{count} 项",
-  "@groupCountItems": {"placeholders": {"count": {"type": "int"}}},
+  "@groupCountItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "expandRemaining": "还有 {count} 项 · 展开全部",
-  "@expandRemaining": {"placeholders": {"count": {"type": "int"}}},
+  "@expandRemaining": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "collapseLabel": "收起",
   "sectionNow": "现在",
   "sectionUpcoming": "接下来",
@@ -774,51 +902,185 @@
   "scheduleAction": "去安排",
   "noExecutionSlot": "未安排执行时段",
   "plannedRangeLabel": "计划执行 {range}",
-  "@plannedRangeLabel": {"placeholders": {"range": {"type": "String"}}},
+  "@plannedRangeLabel": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
   "plannedShortRangeLabel": "计划 {range}",
-  "@plannedShortRangeLabel": {"placeholders": {"range": {"type": "String"}}},
+  "@plannedShortRangeLabel": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      }
+    }
+  },
   "dueValueLabel": "截止 {value}",
-  "@dueValueLabel": {"placeholders": {"value": {"type": "String"}}},
+  "@dueValueLabel": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "dueTodayTimeLabel": "截止今天 {time}",
-  "@dueTodayTimeLabel": {"placeholders": {"time": {"type": "String"}}},
+  "@dueTodayTimeLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "allDayLabel": "全天",
   "emptyTodayTitle": "今天还没有安排",
   "emptyTodayHint": "想好的事随时记下来，回车直接进「未安排」",
-  "emptyUnplannedTitle": "未安排里什么都没有",
-  "emptyUnplannedHint": "捕获一条，回车就进这里",
-  "emptyDateTitle": "这一天还没有安排",
-  "emptyDateHint": "用下面的「安排到这一天」加一条",
+  "emptyUnplannedTitle": "未安排是空的",
+  "emptyUnplannedHint": "从今天或这里捕获的待办会先落到这里。",
+  "emptyDateTitle": "这一天还没有计划",
+  "emptyDateHint": "把待办拖 / 安排到这一天，或先从捕获开始。",
   "allDueTodaySection": "今天截止",
   "allPastDueSection": "已过截止",
   "allLaterSection": "之后",
   "allUnplannedNoDueSection": "无截止",
   "withDueUnplannedSection": "带截止 · 未安排",
   "noDueSection": "无截止",
+  "noDateGroupSection": "无日期",
   "datePlannedSection": "计划执行",
   "dateDueSection": "截止",
-  "dateEventsSection": "事件",
+  "dateEventsSection": "当天日程",
+  "dayEventsBgSub": "{count} 项 · 只做时间背景",
+  "@dayEventsBgSub": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoAllActiveSummary": "{active} 项待办 · {completed} 项已完成",
+  "@todoAllActiveSummary": {
+    "placeholders": {
+      "active": {
+        "type": "int"
+      },
+      "completed": {
+        "type": "int"
+      }
+    }
+  },
+  "viewNoDateCount": "查看无日期 {count} 项",
+  "@viewNoDateCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filter": "筛选",
+  "filterEmptyHint": "清除筛选后显示全部。",
+  "filterEmptyTitle": "没有符合条件的待办",
+  "filterAppliedCount": "已筛选 · {count} 项",
+  "@filterAppliedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filterReset": "重置",
+  "filterApply": "应用",
+  "emptyInboxNoDateTitle": "没有无日期的待办",
+  "emptyInboxNoDateHint": "所有未安排项都带截止日期。",
+  "todoInboxNoDateContext": "{count} 项 · 无日期",
+  "@todoInboxNoDateContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "todoInboxNoDateBanner": "来自今天 · 只看无日期",
+  "todoInboxViewAll": "查看全部未安排",
   "todoUnplannedContext": "{count} 项 · 含 {withDue} 项带截止",
-  "@todoUnplannedContext": {"placeholders": {"count": {"type": "int"}, "withDue": {"type": "int"}}},
+  "@todoUnplannedContext": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "withDue": {
+        "type": "int"
+      }
+    }
+  },
   "todoAllSummary": "{count} 项 · 进行中 {active}",
-  "@todoAllSummary": {"placeholders": {"count": {"type": "int"}, "active": {"type": "int"}}},
+  "@todoAllSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "active": {
+        "type": "int"
+      }
+    }
+  },
   "byDateTitle": "按日期",
   "byDateContext": "待办 · 与日历共享浏览日期",
   "planThisDay": "安排到这一天",
   "planToDate": "安排到 {date}",
-  "@planToDate": {"placeholders": {"date": {"type": "String"}}},
+  "@planToDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "inDaysCount": "{count} 天后",
-  "@inDaysCount": {"placeholders": {"count": {"type": "int"}}},
+  "@inDaysCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "daysAgo": "{count} 天前",
-  "@daysAgo": {"placeholders": {"count": {"type": "int"}}},
+  "@daysAgo": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "yearMonthTitle": "{year} 年 {month}",
-  "@yearMonthTitle": {"placeholders": {"year": {"type": "String"}, "month": {"type": "String"}}},
+  "@yearMonthTitle": {
+    "placeholders": {
+      "year": {
+        "type": "String"
+      },
+      "month": {
+        "type": "String"
+      }
+    }
+  },
   "yearLabel": "年",
   "composerPlaceholder": "要做什么？",
   "saveToUnplanned": "保存到未安排",
   "savePlannedTo": "计划执行到 {date}",
-  "@savePlannedTo": {"placeholders": {"date": {"type": "String"}}},
+  "@savePlannedTo": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "saveWithDueDate": "保存（截止 {date}）",
-  "@saveWithDueDate": {"placeholders": {"date": {"type": "String"}}},
+  "@saveWithDueDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "composerHintNoSlot": "不选时段直接保存，这条会进「未安排」。",
   "composerHintAlloc": "这是「计划执行」，不是截止；需要截止请单独设置。",
   "composerHintDue": "截止 = 最晚完成时间，过了算逾期；计划执行 = 你选定的执行时段。",
@@ -827,7 +1089,13 @@
   "composerCustomSlot": "自定…",
   "moreActions": "更多",
   "weekNumberLabel": "第 {week} 周",
-  "@weekNumberLabel": {"placeholders": {"week": {"type": "int"}}},
+  "@weekNumberLabel": {
+    "placeholders": {
+      "week": {
+        "type": "int"
+      }
+    }
+  },
   "daySegmentLabel": "日",
   "captureQuickAddLabel": "记一笔",
   "calendarTodayHint": "回到今天",
@@ -836,16 +1104,959 @@
   "moreItemsHint": "更多",
   "startPlanning": "去安排",
   "eventCountLabel": "{count}",
-  "@eventCountLabel": {"placeholders": {"count": {"type": "int"}}},
+  "@eventCountLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "composerOptional": "可选",
   "previousDay": "前一天",
   "nextDay": "后一天",
   "undoOccurrence": "撤销 · {label}",
-  "@undoOccurrence": {"placeholders": {"label": {"type": "String"}}},
+  "@undoOccurrence": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "backToNow": "回到现在",
   "dawnQuiet": "{start}–{end} · 凌晨无事",
-  "@dawnQuiet": {"placeholders": {"start": {"type": "String"}, "end": {"type": "String"}}},
+  "@dawnQuiet": {
+    "placeholders": {
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
   "slotRangeExistingEvent": "已有日程",
   "slotRangeDefaultEditable": "默认，可改",
-  "slotEmptyCreateHint": "暂无可安排的待办，新建后会直接排到这个时段。"
+  "slotEmptyCreateHint": "暂无可安排的待办，新建后会直接排到这个时段。",
+  "navMe": "我的",
+  "todayCleanTitle": "今天清空了",
+  "todayCleanSub": "用下面的捕获条记下一件事，它会先进未安排。",
+  "todayEmptyTime": "今天没有时间安排。",
+  "todayEmptyTimeWithHint": "今天没有时间安排。可以从日历把待办安排到时间上。",
+  "captureInputPlaceholder": "记一件事，回车记下",
+  "captureTypeTodo": "待办",
+  "captureDefaultDate": "无日期 · 个人",
+  "captureTitle": "记一件事",
+  "captureSaveTodo": "记下待办",
+  "plannedTodosMovedToTimeline": "另有 {count} 项已安排，显示在右侧时间区。",
+  "@plannedTodosMovedToTimeline": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteConfirmTitle": "删除「{title}」？",
+  "@deleteConfirmTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteConfirmBody": "删除后将移至回收站。",
+  "todaySummary": "{overdue} 逾期 · {due} 今天截止 · {unplanned} 无日期 · {done} 已完成",
+  "@todaySummary": {
+    "placeholders": {
+      "overdue": {
+        "type": "int"
+      },
+      "due": {
+        "type": "int"
+      },
+      "unplanned": {
+        "type": "int"
+      },
+      "done": {
+        "type": "int"
+      }
+    }
+  },
+  "todaySummaryEmpty": "今天没有安排",
+  "todayCompletedGroup": "今日已完成",
+  "todayEarlyGroup": "今日早前",
+  "todayNowGroup": "现在",
+  "todayUpcomingGroup": "接下来",
+  "todayOverdueGroup": "已逾期",
+  "todayDueGroup": "今天截止",
+  "todayUnplannedGroup": "无日期",
+  "expandTodayDone": "今日已完成 {count} · 展开",
+  "@expandTodayDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "expandTodayEarly": "今日早前 {count} · 展开",
+  "@expandTodayEarly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "collapseTodayEarly": "今日早前 {count} · 收起",
+  "@collapseTodayEarly": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "viewAllNItems": "查看全部 {count} 项",
+  "@viewAllNItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plannedBitsNote": "另有 {items}，显示在右侧时间区。",
+  "@plannedBitsNote": {
+    "placeholders": {
+      "items": {
+        "type": "String"
+      }
+    }
+  },
+  "plannedBitsOverdue": "{count} 项已逾期 / 已遗漏",
+  "@plannedBitsOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "plannedBitsDue": "{count} 项今天截止",
+  "@plannedBitsDue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "sortDeadline": "按截止日排序",
+  "nItemsOverdue": "{count} 项已逾期",
+  "@nItemsOverdue": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "markedCompleted": "已标记完成 · {title}",
+  "@markedCompleted": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "tasksZoneLabel": "任务",
+  "timeZoneLabel": "时间",
+  "captureDefaultSub": "无日期 · 个人",
+  "planTagLabel": "计划",
+  "todayDateSubtitle": "{date} · {weekday}",
+  "@todayDateSubtitle": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "weekday": {
+        "type": "String"
+      }
+    }
+  },
+  "showCalendars": "显示日历",
+  "restoreAllCalendars": "全部恢复",
+  "hiddenCalendarsSummary": "已隐藏 {count} 个日历",
+  "@hiddenCalendarsSummary": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "selectAll": "全选",
+  "hiddenBadge": "已隐藏",
+  "repeatEndLabel": "结束",
+  "repeatNeverEnd": "永不结束",
+  "repeatOnDate": "在日期",
+  "repeatAfterCount": "在次数",
+  "repeatEndDate": "结束日期",
+  "repeatCount": "次数",
+  "repeatSeriesNotice": "修改频率或结束会应用到整个系列。",
+  "planTodoModalTitle": "安排「{title}」",
+  "@planTodoModalTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planTodoSub": "只写计划执行，不改截止。",
+  "planEditSub": "正在编辑时间；只改计划执行。",
+  "planDate": "计划日期",
+  "planStartTime": "开始",
+  "planEndTime": "结束",
+  "planDuration": "时长",
+  "planSubmitAction": "安排",
+  "planSaveTimeAction": "保存时间",
+  "planNoConflict": "没有时间冲突",
+  "planConflictWith": "与 {title} 重叠",
+  "@planConflictWith": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planDayEmpty": "当天还没有安排",
+  "planDayExisting": "当天已有",
+  "planOverlapBlocks": "{range} 有 {count} 项重叠",
+  "@planOverlapBlocks": {
+    "placeholders": {
+      "range": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planOverlapNote": "允许重叠；不会把截止当成占用。",
+  "planDurationMinutes": "{count} 分钟",
+  "@planDurationMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "planDurationHours": "{hours} 小时",
+  "@planDurationHours": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "planDurationHoursMinutes": "{hours} 小时 {minutes} 分钟",
+  "@planDurationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "detailEmptyTitle": "未选择待办",
+  "detailEmptyHint": "从左侧列表选择待办查看详情。",
+  "completeThisOccurrence": "完成这一次",
+  "completedThisOccurrence": "本次已完成",
+  "missedOccurrencesNote": "当前实例 {date} · 已遗漏 {count} 次",
+  "@missedOccurrencesNote": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missedCardSubtitle": "{repeat} · 已遗漏 {count} 次 · 完成只影响这一次",
+  "@missedCardSubtitle": {
+    "placeholders": {
+      "repeat": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "missedCardRepeatWeekly": "每周{day}",
+  "@missedCardRepeatWeekly": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteToTrashAction": "删除到回收站",
+  "cancelAction": "取消",
+  "saveAction": "保存",
+  "titleRequired": "标题不能为空。",
+  "endTimeAfterStartTime": "结束时间必须晚于开始时间。",
+  "timeArrangementsCount": "{count} 项时间安排",
+  "@timeArrangementsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "dayAgendaContextNotice": "当天日程 {count} 项 · 只做时间背景",
+  "@dayAgendaContextNotice": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "moreUnplannedItems": "查看无日期 {count} 项",
+  "@moreUnplannedItems": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "defaultCalendar": "默认日历",
+  "defaultCalendarDesc": "只决定“新条目默认落到哪里”，不会改已有条目的日历。",
+  "defaultCalendarSettingDesc": "新待办和捕获默认放到这里；没设置时用第一个日历，不存在“未分类”。",
+  "defaultCalendarAlert": "没有“未分类”：如果这里没有设置，就使用列表中的第一个日历。",
+  "saveDefaultCalendar": "保存默认日历",
+  "defaultCalendarSaved": "已保存默认日历",
+  "badgeDefault": "默认",
+  "settingsSubtitle": "默认日历、数据与偏好",
+  "settingsHomeDesc": "先确认账号与默认日历，再管数据、AI 和同步。",
+  "general": "通用",
+  "generalDesc": "决定新待办落到哪里，以及打开应用时先看到什么。",
+  "themeDesc": "暖灰纸面、白色内容面；选中与操作用墨色。",
+  "accentColorDesc": "只影响操作和选中，不影响日历色。",
+  "accentWarmGray": "暖灰",
+  "startupViewDesc": "冷启动进入哪个一级入口。",
+  "languageDesc": "界面文案语言。",
+  "calendarManagementDesc": "日历是事件和待办的共享分组 / 颜色空间。",
+  "deleteCalendarNotice": "删除日历时必须选择：迁移内容到另一个日历，或连同内容一起删除。",
+  "newCalendarDesc": "先定名称和颜色；新日历不会自动成为默认日历，创建后到「默认日历」里选择。",
+  "editCalendarDesc": "正在编辑「{name}」；名称、颜色。默认日历在单独设置里改。",
+  "@editCalendarDesc": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteCalendarHeader": "删除「{name}」前，必须决定 {count} 项内容去哪里。",
+  "@deleteCalendarHeader": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteCalendarWarning": "不会静默删除内容。删除日历后，事件和待办需要迁移，或和日历一起删除。",
+  "migrateTo": "迁移到",
+  "migrateItemCount": "{name} · 迁移 {count} 项",
+  "@migrateItemCount": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteWithContents": "连同 {count} 项内容一起删除（进回收站）",
+  "@deleteWithContents": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "confirmMigrateAndDelete": "确认迁移并删除",
+  "calendarPlaceholder": "例如：副业",
+  "tagPlaceholder": "例如：等待回复",
+  "tagManagementDesc": "标签不是日历；它用于跨日历的横向筛选。",
+  "tagEditDesc": "正在编辑「{name}」；标签跨日历使用，改名不会改变条目。",
+  "@tagEditDesc": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "tagDeleteBanner": "删除标签只会移除标签，不会删除条目。",
+  "trashDesc": "删除的待办和日程先放这里；恢复会回到原来的日历。",
+  "trashRestoredBanner": "已恢复「{title}」，它已经回到原来的日历。",
+  "@trashRestoredBanner": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashPermanentDeleteConfirm": "永久删除「{title}」？不能撤销，也不会同步到其他设备。",
+  "@trashPermanentDeleteConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashDeletedBanner": "已永久删除「{title}」，回收站里不再保留这一项。",
+  "@trashDeletedBanner": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "trashClearedBanner": "回收站已清空，没有可以恢复的条目。",
+  "ioSectionDesc": "ICS 用于和别的日历交换；备份用于搬回 DaySpark。",
+  "ioCardImportDesc": "选择目标日历；事件和带日期的待办会按 ICS 字段读入。",
+  "ioCardExportDesc": "导出全部日历；不静默漏掉任何一个。",
+  "ioCardBackupDesc": "包含所有日历、待办、日程、标签、提醒与附件索引。",
+  "notifySectionDesc": "提醒是每个条目自己的事实；这里只管系统权限。",
+  "notifyDeniedBanner": "系统通知权限已关闭。提醒仍保存，到点不会弹。",
+  "openSystemSettings": "打开系统设置",
+  "notificationAllowed": "已允许",
+  "notificationOff": "已关闭",
+  "notificationUnknown": "未知",
+  "inAppReminders": "应用内提醒",
+  "inAppRemindersDesc": "前台仍可显示",
+  "available": "可用",
+  "syncSectionDesc": "DaySpark 自托管多设备同步。",
+  "syncLoggedOutBanner": "还没有登录。本地仍可用；登录后才多设备同步。",
+  "syncFailedBanner": "同步失败。服务器超时；本地修改等待重试。",
+  "syncOfflineBanner": "离线。本地修改会先保存，联网后自动重试。",
+  "syncOfflinePending": "离线 · {count} 条本地修改待同步。",
+  "syncPendingUploads": "{count} 条待上传",
+  "syncFailedAt": "{time} · {reason}",
+  "syncConflicts": "冲突",
+  "syncConflictCount": "{count} 条待处理",
+  "syncConflictLast": "最近：{id}",
+  "syncServerRejections": "服务器拒绝",
+  "syncRejectedTotal": "{count} 条被拒绝",
+  "retryNow": "立即重试",
+  "localStatus": "本地状态",
+  "localPriority": "本地优先",
+  "keepLocal": "保留本地",
+  "keepServer": "保留服务器",
+  "mergeConflict": "合并",
+  "acceptDeletion": "接受删除",
+  "aboutDesc": "DaySpark · 本地优先的个人时间管理工具。",
+  "dataLocation": "数据",
+  "dataLocationDesc": "本地优先 · 自托管同步",
+  "license": "许可",
+  "viewLicense": "查看",
+  "commandPlaceholder": "搜索待办、日程，或输入动作",
+  "commandHintRecent": "最近",
+  "commandHintActions": "动作",
+  "commandHintTodos": "待办",
+  "commandHintEvents": "日程",
+  "commandCreateTodo": "新建待办",
+  "commandCreateEvent": "新建日程",
+  "commandGoSettings": "去设置",
+  "commandGoSettingsDesc": "默认日历、数据与偏好",
+  "commandNotFound": "没有找到「{query}」",
+  "@commandNotFound": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "commandFootSelect": "↑↓ 选择",
+  "commandFootOpen": "↵ 打开",
+  "commandFootClose": "esc 关闭",
+  "commandFootHint": "内容优先，动作在后",
+  "commandFootSelected": "当前选中第 {index} 条",
+  "@commandFootSelected": {
+    "placeholders": {
+      "index": {
+        "type": "int"
+      }
+    }
+  },
+  "commandActionTitleQuery": "标题“{query}”",
+  "@commandActionTitleQuery": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "commandCaptureTodoDesc": "进入捕获 · 待办模式",
+  "commandCaptureEventDesc": "进入捕获 · 日程模式",
+  "commandSideAction": "动作",
+  "commandSideTodo": "待办",
+  "commandSideEvent": "日程",
+  "currentCalendarIsDefault": "当前日历是默认日历",
+  "currentDefaultPrefix": "当前默认：",
+  "goToSettings": "去设置",
+  "orAlternative": "或者",
+  "calendarColorLabel": "颜色",
+  "noSchedule": "无安排",
+  "deadlineMarkerLabel": "{time} 截止 · {title}",
+  "@deadlineMarkerLabel": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarTimeRowPlanned": "{timeRange} · 计划执行",
+  "@calendarTimeRowPlanned": {
+    "placeholders": {
+      "timeRange": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarRepeatBadge": "↻",
+  "calendarRepeatBadgeSemantics": "重复",
+  "calendarSeriesCurrentInstance": "当前实例 {timeRange}",
+  "@calendarSeriesCurrentInstance": {
+    "placeholders": {
+      "timeRange": {
+        "type": "String"
+      }
+    }
+  },
+  "calendarSeriesHint": "重复日程 · 点条目打开详情",
+  "todaySummaryOverdue": "逾期",
+  "todayNoDateGroup": "无日期",
+  "todayViewNoDate": "查看无日期 {count} 项",
+  "@todayViewNoDate": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importAndBackup": "导入与备份",
+  "userAccount": "账号",
+  "dataSectionDesc": "标签、回收站、导入导出和备份。",
+  "accountSectionDesc": "当前登录账号与设备会话管理。",
+  "aiSectionDesc": "智能建议与助手设置。",
+  "notify": "通知",
+  "versionLabel": "版本",
+  "versionDesc": "当前构建。",
+  "dataDesc": "存储位置。",
+  "licenseDesc": "开源许可。",
+  "mobileGeneralDesc": "默认日历、启动时打开",
+  "mobileCalendarsDesc": "{count} 个日历",
+  "@mobileCalendarsDesc": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "mobileDataDesc": "标签 / 回收站 / 导入",
+  "mobileNotifyDesc": "权限与提醒",
+  "mobileSyncDesc": "账号、失败、冲突",
+  "sync": "同步",
+  "mobileAboutDesc": "版本与许可",
+  "captureParsedTypeTodoTitle": "类型仍是待办",
+  "captureParsedTypeTodoSub": "识别到时间只作为“计划执行”建议，不会自动变成日程，也不会写截止。",
+  "captureParsedSuggestTitle": "建议安排",
+  "captureParsedSuggestEventTitle": "日程安排",
+  "captureParsedSuggestRemoved": "时间建议已移除",
+  "captureParsedSuggestSub": "已预选；保存后写为“计划执行”。可以移除。",
+  "captureParsedSuggestEventSub": "已改为日程；保存后直接写入日历。",
+  "captureParsedSuggestSubRemoved": "保存后只记标题；无日期、无计划、无截止。",
+  "captureActionRemove": "移除",
+  "captureActionRestore": "恢复",
+  "captureActionChangeToEvent": "改为日程",
+  "captureActionChangeToTodo": "改回待办",
+  "captureActionExpandFields": "展开字段",
+  "captureActionBackToCompact": "回到紧凑",
+  "captureActionSaveLater": "先记到未安排",
+  "captureHintParsed": "默认：待办 · 无日期 · 个人\n截止仍为空",
+  "captureHintExpanded": "保存前所有事实可见；没有被点开的字段不写入。",
+  "captureHintEvent": "只有主动切换“日程”，或从 Calendar 时间槽进入，才是日程。",
+  "captureHintDate": "只写日期，不写时间；不会自动变成日程。",
+  "captureHintPlan": "允许重叠；不会把截止改成 16:00。",
+  "captureHintCalendar": "默认日历来自设置；没有“未分类”。",
+  "captureHintReminder": "提醒是条目自己的事实，不影响截止。",
+  "captureHintValidation": "校验错误贴着字段，不弹全局错误。",
+  "captureHintSaveError": "失败态不关闭 Capture，不吞输入。",
+  "captureHintDiscard": "危险动作先确认。",
+  "captureHintKeyboard": "焦点可见；Esc 走放弃确认。",
+  "captureValidationEmptyTitle": "标题不能为空。写一个能让你明天看懂的动作。",
+  "captureValidationAlert": "保存前先补标题；其他字段已经保留。",
+  "captureSaveErrorServer": "没有连上服务器。",
+  "captureSaveErrorDraftHint": "“{title}”还在这条草稿里；可以重试或先留在未安排。",
+  "@captureSaveErrorDraftHint": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDiscardTitle": "放弃这次输入？",
+  "captureDiscardSub": "“{title}”还没有保存",
+  "@captureDiscardSub": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDiscardLineTitle": "关闭后草稿会消失",
+  "captureDiscardLineSub": "继续编辑会保留标题、日期和提醒。",
+  "captureKeyboardTitle": "键盘操作",
+  "captureKeyboardSub": "桌面：Tab 切字段 · Enter 保存 · Esc 放弃",
+  "captureKeyboardHelp": "焦点在标题；Tab 到截止、计划、提醒。",
+  "captureChoiceTitleDate": "选择日期",
+  "captureChoiceTitlePlan": "选择计划执行",
+  "captureChoiceTitleCalendar": "选择日历",
+  "captureChoiceTitleReminder": "提醒",
+  "captureChoiceSubCalendar": "新待办默认落到这里",
+  "captureChoiceFooter": "只改这一项；其他事实保持不变。",
+  "captureFieldDateToday": "今天",
+  "captureFieldDateTomorrow": "明天",
+  "captureFieldDateNextMonday": "下周一",
+  "captureFieldDateOther": "其他日期",
+  "captureFieldDateOpenCalendar": "打开日历",
+  "captureSelectedTag": "选中",
+  "planPickerTitle": "安排待办",
+  "planPickerTarget": "安排「{title}」",
+  "@planPickerTarget": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "planPickerEmpty": "没有可安排的待办",
+  "planPickerEmptySub": "从捕获条添加待办后，再安排计划执行。",
+  "planPickerContext": "当天已有",
+  "saveFailedNotWritten": "保存失败 · 未写入",
+  "retrySave": "重试保存",
+  "deleteTodoConfirm": "删除「{title}」？",
+  "@deleteTodoConfirm": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteSeriesTrashNotice": "这是重复任务，会删除整个系列并移入回收站，可恢复。",
+  "deleteTrashNotice": "会移入回收站，可恢复。",
+  "backupConflictTitle": "检测到 {count} 项数据冲突",
+  "@backupConflictTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "backupConflictDesc": "备份中的部分记录与本机已有记录存在冲突。请逐项选择合并策略：",
+  "backupKeepLocal": "保留本机",
+  "backupKeepRemote": "覆盖为备份",
+  "backupApplyResolutions": "应用选择",
+  "importStepFile": "1 · 选择文件",
+  "importStepCalendar": "2 · 目标日历",
+  "importStepPreview": "3 · 预览与写入",
+  "importFileHelp": "支持 .ics；不会覆盖同 UID 的事件。",
+  "importCalendarHelp": "目标日历 · 当前 {count} 项",
+  "@importCalendarHelp": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "importPreviewHelp": "先看将新增 / 跳过 / 重复的条目。",
+  "importNextStep": "下一步",
+  "importChangeFile": "重新选择",
+  "importChangeCalendar": "更改日历",
+  "calendarHiddenSingleSummary": "已隐藏『{name}』日历 · {count} 项",
+  "@calendarHiddenSingleSummary": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "calendarHiddenMultipleSummary": "已隐藏 {calCount} 个日历 · {count} 项",
+  "@calendarHiddenMultipleSummary": {
+    "placeholders": {
+      "calCount": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "multiDaySpanLabel": "跨天",
+  "multiDayEventSpanSummary": "{title} · {start}–{end} · {days} 天",
+  "@multiDayEventSpanSummary": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "start": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "filterOverdueOnly": "只看已逾期",
+  "filterMatchedCount": "匹配 {count} 项",
+  "@filterMatchedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "captureParsedDefaultTitle": "明天下午三点交报告",
+  "captureParsedDefaultSub": "待办 · 无日期 · 个人（默认）",
+  "captureSubExpanded": "需要时再展开；默认不写日期。",
+  "captureTitleEvent": "新建日程",
+  "captureSubEvent": "日程 · 工作",
+  "captureSubDate": "待办 · 个人（默认）",
+  "captureSubPlan": "只写计划执行，不改截止。",
+  "captureSubReminder": "提醒是条目自身的事实，不影响截止。",
+  "captureSaveErrorTitle": "保存失败",
+  "captureSaveErrorSub": "草稿还在，不会丢",
+  "captureFieldTaskTitle": "待办标题",
+  "captureFieldDeadline": "截止",
+  "captureFieldPlanExecution": "计划执行",
+  "captureFieldCalendar": "日历",
+  "captureFieldReminder": "提醒",
+  "captureFieldPriority": "优先级",
+  "captureFieldEventTitle": "标题",
+  "captureFieldEventTime": "时间",
+  "captureFieldEventAllDay": "全天",
+  "captureFieldEventRepeat": "重复",
+  "captureFieldDuration": "时长",
+  "captureFieldDayExisting": "当天已有",
+  "captureFieldNotFilled": "未填写",
+  "captureFieldNoDeadline": "无截止",
+  "captureFieldNotScheduled": "未安排",
+  "captureFieldNoReminder": "无提醒",
+  "captureFieldNoRepeat": "不重复",
+  "captureFieldNoOverlap": "无重叠日程",
+  "captureFieldNone": "无",
+  "captureFieldYes": "是",
+  "captureFieldNo": "否",
+  "captureFieldHigh": "高",
+  "captureFieldMedium": "中",
+  "captureActionCreateEvent": "创建日程",
+  "captureActionApply": "应用",
+  "captureActionEnterSave": "Enter 保存",
+  "captureActionKeepEditing": "继续编辑",
+  "captureActionDiscard": "放弃",
+  "captureActionRetry": "重试",
+  "captureCalPersonal": "个人",
+  "captureCalPersonalDefault": "个人 · 默认",
+  "captureCalDefaultSelected": "默认 · 选中",
+  "captureCalWork": "工作",
+  "captureCalWorkCalendar": "工作日历",
+  "captureCalHome": "家事",
+  "captureCalHomeCalendar": "生活日历",
+  "captureCalHealth": "健康",
+  "captureCalHealthCalendar": "健康日历",
+  "captureReminderNoReminder": "不提醒",
+  "captureReminder5mBefore": "5 分钟前",
+  "captureReminder15mBefore": "15 分钟前",
+  "captureReminder1hBefore": "1 小时前",
+  "captureReminder1dBefore": "1 天前",
+  "captureDateSelectedSuffix": "{date} · 选中",
+  "@captureDateSelectedSuffix": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "captureDateNextWeek": "下周",
+  "closeTooltip": "关闭",
+  "backupConflictSkipAssociated": "保留本机将跳过 {count} 个关联项",
+  "@backupConflictSkipAssociated": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "newTodoPageTitle": "记一件事",
+  "newItemPageSub": "Capture 的整页形态：字段和浮动捕获完全一致；不点开的字段不写入。",
+  "createTodoAction": "记下待办",
+  "createEventAction": "创建日程",
+  "newTodoPlaceholder": "写一个明天能看懂的动作",
+  "newEventPlaceholder": "给这段日程起个名字",
+  "newTodoFootnote": "标签、子任务、附件可以创建后再加；它们不属于捕获必填项。",
+  "newEventFootnote": "地点和备注可以创建后再加。",
+  "typeNoteTodo": "默认是待办；只有主动切到日程才会变。",
+  "typeNoteEvent": "从时间槽进入，所以是日程。",
+  "notFilled": "未填写",
+  "itemTypeTodo": "待办",
+  "itemTypeEvent": "日程",
+  "eventLocationUnset": "未填写",
+  "newItemSaveFailedNote": "这一页的内容还在；检查网络后重试。",
+  "newItemRepeatLabel": "重复",
+  "timePickerHint": "直接输入数字；回车确定。不使用表盘。",
+  "timePickerInvalid": "小时需在 00–23、分钟需在 00–59；修正后才能确定。",
+  "pickTimeHint": "选择时间",
+  "calendarOverlapCount": "{count} 项重叠",
+  "calendarOverlapNote": "并排显示，不合并、不覆盖；点任一项打开详情。",
+  "calendarDragReleaseHint": "松手 · {time} 安排",
+  "deadlinePointNote": "点状标记，不占时间",
+  "slotCaptureFrom": "从时间槽进入",
+  "slotCaptureHint": "入口不同，Capture 表面相同；时间已预填。",
+  "slotOtherWays": "其他安排方式",
+  "monthItemsOverflow": "{count} 项未展开",
+  "savingLabel": "保存中…",
+  "settingsHomeAccountDesc": "登录、服务器与登录状态。",
+  "settingsHomeGeneralDesc": "默认日历、启动页、主题与语言。",
+  "settingsHomeCalendarsDesc": "{count} 个日历 · 1 个默认。",
+  "settingsHomeDataDesc": "标签、回收站、导入导出、备份。",
+  "settingsHomeAiDesc": "可选功能；需要自己的模型 Key。",
+  "settingsHomeNotifyDesc": "系统闹钟与权限。",
+  "settingsHomeSyncDesc": "服务器、账号、失败与冲突。",
+  "settingsHomeAboutDesc": "版本、许可与反馈入口。",
+  "settingsValueEnter": "进入",
+  "settingsValueOpen": "打开",
+  "settingsValueManage": "管理",
+  "settingsValueView": "查看",
+  "accountNotLoggedIn": "未登录",
+  "aiEnableFull": "启用 AI 助手",
+  "aiEnableDesc": "关闭后隐藏「打开助手」与对话入口；已创建的待办不受影响。",
+  "aiModelRow": "模型配置",
+  "aiKeyLocalOnly": "只在本机保存",
+  "aiModelDialogTitle": "AI 模型",
+  "aiBaseUrlHelp": "Key 只保存在这台设备；不会同步到服务器。检测会请求 /models。",
+  "aiKeyCheckFailedTitle": "Key 校验失败。",
+  "aiKeyCheck401Body": "服务端返回 401；没有保存这次修改。",
+  "aiKeyCheckFailedBody": "请求服务商失败（{status}）；没有保存这次修改。",
+  "aiUnconfiguredAlertTitle": "还没有可用的模型。",
+  "aiUnconfiguredAlertBody": "填好 Base URL 和 Key 并保存后，才能发送消息。",
+  "aiOffAlertBody": "AI 助手已关闭；设置里保留这一页，方便随时重新打开。",
+  "aiConfiguredWithModel": "已配置 · {model}",
+  "aiConnectedModel": "已连接 · 模型 {model} · 仅在本机保存 Key",
+  "aiChatSubtitleFallback": "对话是内容页；不是搜索，也不是命令框。",
+  "aiReplyInProgress": "正在回复…",
+  "syncConflictDesc": "同一个条目在本地和服务器都改过；逐项选择。",
+  "syncConflictRecord": "冲突记录 {id} · {type}",
+  "syncConflictLocalServer": "本地：此设备的修改仍保留。服务器：版本已变化，服务器拒绝了覆盖。",
+  "syncConflictApply": "应用选择",
+  "syncConflictMergeHint": "同步层没有字段级合并；选择「合并」不会改写任一版本。",
+  "capturePlanTo": "计划到 {date}",
+  "syncConflictKeepLocalResult": "已保留本地版本；下次编辑这条记录时会作为新修改重新上传。",
+  "capturePlanDayEmpty": "当天还没有安排",
+  "syncConflictRemoteUnavailable": "同步层没有暴露服务器副本；没有应用「保留服务器」的选择。",
+  "capturePlanOverlapCount": "与 {count} 项重叠",
+  "syncConflictMergeUnavailable": "同步层没有字段级合并；没有应用「合并」的选择，也没有伪造合并结果。",
+  "captureSuggestionTitle": "{range} · 建议安排",
+  "syncConflictBack": "返回同步",
+  "syncServerUnreachable": "不可达",
+  "syncPendingBoth": "{uploads} 条待上传 · {downloads} 条待下载",
+  "syncRetryDesc": "立即重试同步。",
+  "backupProgressTitle": "正在备份",
+  "backupProgressPacking": "打包日历、待办、日程、标签与附件索引。",
+  "backupProgressWriting": "正在写入 {filename}",
+  "backupProgressPercent": "{percent}%",
+  "backupIncludes": "包含",
+  "backupIncludesCounts": "{calendars} 个日历 · {todos} 个待办 · {events} 个日程 · 附件索引 {attachments} 个",
+  "backupSavedLocation": "文件已保存到你选择的位置。",
+  "captureEventCreatedToast": "已创建日程 · {range}",
+  "backupFailedTitle": "备份失败",
+  "overdueToolbarEarliest": "最早 {date}",
+  "backupFailedBody": "目标位置不可写。",
+  "timelineMissedPill": "已遗漏 {count} 次",
+  "backupNoPartial": "没有生成半成品文件。",
+  "pastDueOrMissedSection": "已逾期 / 已遗漏",
+  "importErrorTitle": "导入失败",
+  "importSeeReport": "查看报告",
+  "importSkipRows": "跳过错误行并继续",
+  "importCannotSkip": "整份文件无法解析，无法只跳过错误行；修正文件后重试。",
+  "importReportTitle": "导入报告",
+  "importReportSkipped": "将跳过 {count} 行",
+  "importReportEmpty": "这份文件没有需要报告的坏行。",
+  "importReportError": "解析错误：{error}",
+  "exactAlarmNotActive": "未生效",
+  "systemNotification": "系统通知",
+  "feedbackCharCount": "{count} 字 · 不会自动附带日志",
+  "feedbackMetaReady": "可以复制，或带到 GitHub",
+  "filterAppliedSummary": "已筛选：{criteria} · {count} 项",
+  "feedbackMetaEmpty": "写点内容才能继续",
+  "listSeparator": "、",
+  "feedbackNoSilentSubmit": "DaySpark 不会在后台自动提交任何内容。复制之后，你可以贴到任意渠道；GitHub 会打开一个空白 issue，正文已填好。",
+  "pickTimeTitle": "选择时间",
+  "feedbackLinkErrorTitle": "没能打开浏览器。",
+  "feedbackLinkErrorBody": "内容还在，可以重试，或先复制到剪贴板再手动打开。",
+  "aiOffValue": "已关闭",
+  "aiDisabledTitle": "AI 助手已关闭",
+  "aiDisabledHint": "这是一个可选功能；打开开关并配置模型后，才会出现对话入口。",
+  "aiOpenSettings": "打开设置",
+  "aiConfigureModel": "配置模型",
+  "settingsCalendarsCountOne": "{count} 个日历 · 1 个默认",
+  "defaultCalendarBadgeValue": "默认",
+  "settingsCurrentDefault": "当前默认：{name}",
+  "settingsDefaultCalSavedPlaceholder": "保存默认日历",
+  "chatModelAction": "模型",
+  "chatClearAction": "清空对话",
+  "settingsBetaBadge": "候选版本",
+  "aiPrivacyFooter": "对话只在本机保存；模型请求直接发往你填的服务商。DaySpark 服务器不参与，也不保存 Key。",
+  "aiKeyChecking": "正在校验 Key…",
+  "aiKeyMissing": "先填写 API Key 再保存。",
+  "syncConflictTitle": "同步冲突",
+  "syncConflictLocal": "本地",
+  "syncConflictServer": "服务器",
+  "backupDoneTitle": "备份完成",
+  "backupMergeHint": "合并保留两边：本机条目不动，备份里的版本作为新条目导入。",
+  "aiNotConfiguredTitle": "还没有配置模型",
+  "aiChatNotConfiguredHint": "填一个 OpenAI 兼容的 Base URL 和 API Key；Key 只保存在本机，不会上传到 DaySpark 服务器。",
+  "feedbackWriteLabel": "写点什么",
+  "feedbackPlaceholder": "发生了什么、你期望什么；如果方便，写上机型和版本。",
+  "syncConflictApplied": "已应用选择。",
+  "syncConflictApplyFailed": "没能应用全部选择：{error}",
+  "saveSeriesTitle": "保存到整个系列？",
+  "saveSeriesBody": "这次修改会写入系列锚点，所有实例一起更新。只想跳过这一次，请用“删除 · 仅此次”。",
+  "saveSeriesConfirm": "保存整个系列",
+  "timedDeadline": "定时截止",
+  "outOfRangeNote": "时间轴固定 08:00–20:00；更早或更晚的事件贴在两端，点开详情看真实时间。跨午夜事件留在跨天条目里。",
+  "staleCalendarTitle": "没读到服务器上的日历",
+  "staleCalendarBody": "下面仍是上次看到的数据；重试成功后再替换。",
+  "trashedItemTitle": "这一项已在回收站",
+  "trashedItemBody": "链接对应的条目已移入回收站；恢复后才能继续编辑。",
+  "goToTrash": "去回收站",
+  "startupFailedTitle": "DaySpark 没能打开",
+  "startupFailedBody": "本地数据库没有打开，数据仍在磁盘上。先重试，或导出诊断后再处理。",
+  "exportDiagnostics": "导出诊断",
+  "endDateOfEvent": "结束日期",
+  "dayCountLabel": "天数",
+  "syncOfflineShort": "离线，改动等待上传。",
+  "syncFailedShort": "同步失败，本地数据没有丢。",
+  "syncConflictShort": "发现冲突，去同步里逐项选择。",
+  "relatedLoading": "正在读取标签、提醒与安排…",
+  "relatedPartial": "部分关联内容没读到。"
 }

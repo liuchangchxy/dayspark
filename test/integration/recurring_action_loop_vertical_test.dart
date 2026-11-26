@@ -12,9 +12,10 @@ import 'package:dayspark/domain/providers/todos_provider.dart';
 import 'package:dayspark/domain/records/record_scope.dart';
 import 'package:dayspark/domain/records/writers/todo_writer.dart';
 import 'package:dayspark/l10n/app_localizations.dart';
-import 'package:dayspark/ui/design/a2.dart';
 import 'package:dayspark/ui/design/ds.dart';
+import 'package:dayspark/ui/design/spec_components.dart';
 import 'package:dayspark/ui/pages/home/today_page.dart';
+import 'package:dayspark/ui/pages/todo/todo_detail_page.dart';
 import 'package:dayspark/ui/widgets/calendar/calendar_slot_sheet.dart';
 import 'package:dayspark_recurrence/dayspark_recurrence.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
@@ -214,8 +215,8 @@ void main() {
           .inDays;
       final occurrenceTile = find
           .descendant(
-            of: find.byType(AlertDialog),
-            matching: find.byType(ListTile),
+            of: find.byType(DsDialog),
+            matching: find.byType(DsSettingRow),
           )
           .at(occurrenceOffset);
       expect(occurrenceTile, findsOneWidget);
@@ -315,23 +316,34 @@ void main() {
       // -------------------------------------------------------------
       // 5. Action projection UI execution: complete through Action UI
       // -------------------------------------------------------------
+      Todo? openedTodo;
       await tester.pumpWidget(
         _wrapWithScope(
           container: container,
-          child: A2TodayPage(
-            now: slotStart,
-            onOpenTodo: (_) {},
-            onOpenEvent: (_) {},
-            onToggleTodo: (todo, occurrenceId, completed) async {
-              await container.read(toggleTodoProvider)(
-                id: todo.id,
-                isCompleted: completed,
-                occurrenceId: occurrenceId,
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              if (openedTodo != null) {
+                return TodoDetailPage(
+                  todo: openedTodo!,
+                  clock: () => slotStart,
+                );
+              }
+              return A2TodayPage(
+                now: slotStart,
+                onOpenTodo: (t) => setState(() => openedTodo = t),
+                onOpenEvent: (_) {},
+                onToggleTodo: (todo, occurrenceId, completed) async {
+                  await container.read(toggleTodoProvider)(
+                    id: todo.id,
+                    isCompleted: completed,
+                    occurrenceId: occurrenceId,
+                  );
+                  return true;
+                },
+                onOpenUnplanned: () {},
+                onScheduleTodo: (_) {},
               );
-              return true;
             },
-            onOpenUnplanned: () {},
-            onScheduleTodo: (_) {},
           ),
         ),
       );
@@ -341,20 +353,16 @@ void main() {
 
       expect(find.text('Daily Sprint Standup'), findsWidgets);
 
-      // The series' pending instance is a block on the day's timeline; its
-      // completion circle is the tick target. Today also lists missed
-      // instances from the last 30 days under their own head, so the same
-      // series title can appear twice; the timeline block is the one bound to
-      // today's occurrence.
-      final instanceCheck = find.descendant(
-        of: find.byType(A2TimelineItem),
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is DsCheck && widget.label == 'Daily Sprint Standup',
-        ),
-      );
-      expect(instanceCheck, findsOneWidget);
-      await tester.tap(instanceCheck);
+      // Mobile SpecTimeBlock has no checkbox (button-only); tap it to open detail,
+      // then complete the occurrence inside detail.
+      final timeBlock = find.byType(SpecTimeBlock);
+      expect(timeBlock, findsOneWidget);
+      await tester.tap(timeBlock);
+      await tester.pumpAndSettle();
+
+      final detailCheck = find.byType(DsCheck);
+      expect(detailCheck, findsOneWidget);
+      await tester.tap(detailCheck);
       await tester.pumpAndSettle();
 
       // -------------------------------------------------------------
