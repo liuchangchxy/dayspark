@@ -12199,18 +12199,20 @@ END:VCALENDAR`);
   }
   // Missed = occurrences before today that are still pending: not completed,
   // not skipped, not truncated away. They stay actionable; nothing auto-skips.
-  function missedInstances(t, days) {
+  function missedInstances(t, days, offset) {
     const out = [];
     if (!t || !t.repeat) return out;
     const m = P.repeatMath;
     if (!m) return out;
     const anchor = anchorOf(t);
     if (!anchor) return out;
-    const from = addDays(TODAY, -Math.max(1, days || 30));
-    const end = addDays(TODAY, -1);
+    const span = Math.max(1, days || 30);
+    const skip = Math.max(0, offset || 0);
+    const from = addDays(TODAY, -(skip + span));
+    const end = addDays(TODAY, -skip - 1);
     let d = anchor >= from ? anchor : from;
     for (let i = 0; i < 400 && d <= end; i++) {
-      if (m.repeatMatch(anchor, d, t.repeat, t) && !state.doneInstances.includes(key(t.id, d)) && !state.skipped.includes(key(t.id, d))) {
+      if (d <= end && m.repeatMatch(anchor, d, t.repeat, t) && !state.doneInstances.includes(key(t.id, d)) && !state.skipped.includes(key(t.id, d))) {
         out.push(d);
       }
       d = addDays(d, 1);
@@ -12614,21 +12616,50 @@ END:VCALENDAR`);
     return list;
   };
 
-  function missedEntry(t) {
-    const list = DS3.missedInstances(t, 30);
-    if (!list.length) { toast('最近 30 天没有遗漏的实例'); return; }
-    modal({
+  function missedEntry(t, offset) {
+    const page = Math.max(0, offset || 0);
+    const list = DS3.missedInstances(t, 30, page);
+    const older = DS3.missedInstances(t, 30, page + 30);
+    if (!list.length && !page) { toast('最近 30 天没有遗漏的实例'); return; }
+    const body = document.createElement('div');
+    function paint() {
+      body.innerHTML = `<div class="proto-note" style="margin-top:0">${esc(t.repeat)} · ${page ? '更早' : '最近'} 30 天有 ${list.length} 次没有完成。它们仍然可以补完成，不会自动跳过。</div>`        + `<div class="proto-list">${list.length ? list.map((d) => `<div class="proto-list-row"><span class="grow">${d}<small>${weekday(d)} · 仍然待完成</small></span><button type="button" class="proto-btn" data-miss="${d}">完成这一次</button></div>`).join('') : '<div class="proto-note">这 30 天没有遗漏的实例。</div>'}</div>`;
+    }
+    paint();
+    const scrim = modal({
       title: '遗漏的实例 · ' + t.title,
-      body: `<div class="proto-note" style="margin-top:0">${esc(t.repeat)} · 最近 30 天有 ${list.length} 次没有完成。它们仍然可以补完成，不会自动跳过。</div>`
-        + `<div class="proto-list">${list.map((d) => `<div class="proto-list-row"><span class="grow">${d}<small>${weekday(d)} · 仍然待完成</small></span><button type="button" class="proto-btn" data-miss="${d}">完成这一次</button></div>`).join('')}</div>`,
-      actions: [{ label: '关闭' }, { label: '查看全部实例', onClick: () => { P.showInstances && P.showInstances(t); } }],
-    }).addEventListener('click', (e) => {
+      body,
+      actions: [
+        { label: '关闭' },
+        { label: '查看全部实例', onClick: () => { P.showInstances && P.showInstances(t); } },
+      ],
+    });
+    // Footer buttons live outside the body, so listen on the dialog.
+    scrim.addEventListener('click', (e) => {
+      const more = e.target.closest('[data-missed-older]');
+      if (more) {
+        const prev = DS3.missedInstances(t, 30, page + 30);
+        if (!prev.length) { toast('再往前没有遗漏的实例'); return; }
+        scrim.remove();
+        missedEntry(t, page + 30);
+        return;
+      }
+    });
+    body.addEventListener('click', (e) => {
       const done = e.target.closest('[data-miss]');
       if (done) {
         DS3.toggleDone(t.id, done.dataset.miss);
         render(); toast('已完成 ' + done.dataset.miss + ' 这一次');
+        scrim.remove();
       }
     });
+    if (older.length) {
+      const foot = q('.proto-modal-foot', scrim);
+      const more = document.createElement('button');
+      more.type = 'button'; more.className = 'proto-btn'; more.textContent = '更早遗漏（' + older.length + '）';
+      more.dataset.missedOlder = '1';
+      foot.insertBefore(more, q('.proto-btn.primary', foot) || null);
+    }
   }
 
   registerEnhancer((root) => {
@@ -12637,6 +12668,8 @@ END:VCALENDAR`);
     qa('.missed', root).forEach((el) => {
       if (el.dataset.protoAction) return;
       const row = el.closest('[data-id]');
+      // The demo card has a data-id too; only the newest-first card offset
+      // should start on the older page.
       const id = (row && row.dataset.id) || (state.drawer && state.drawer.id);
       if (!id) return;
       el.dataset.protoAction = 'missed-open';
@@ -12664,6 +12697,7 @@ END:VCALENDAR`);
           b.type = 'button'; b.textContent = '更早遗漏';
           b.dataset.missedMore = '1';
           b.dataset.protoAction = 'missed-open';
+          b.dataset.offset = '30';
           b.dataset.id = btn ? btn.dataset.id : '';
           acts.appendChild(b);
         }
@@ -12674,7 +12708,7 @@ END:VCALENDAR`);
   registerAction('missed-open', (el) => {
     const t = todoById(el.dataset.id || (state.drawer && state.drawer.id) || '');
     if (!t) return;
-    if (t.repeat) missedEntry(t);
+    if (t.repeat) missedEntry(t, Number(el.dataset.offset) || 0);
     else toast('这项没有遗漏实例');
   });
 

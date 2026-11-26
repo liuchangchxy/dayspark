@@ -165,18 +165,20 @@
   }
   // Missed = occurrences before today that are still pending: not completed,
   // not skipped, not truncated away. They stay actionable; nothing auto-skips.
-  function missedInstances(t, days) {
+  function missedInstances(t, days, offset) {
     const out = [];
     if (!t || !t.repeat) return out;
     const m = P.repeatMath;
     if (!m) return out;
     const anchor = anchorOf(t);
     if (!anchor) return out;
-    const from = addDays(TODAY, -Math.max(1, days || 30));
-    const end = addDays(TODAY, -1);
+    const span = Math.max(1, days || 30);
+    const skip = Math.max(0, offset || 0);
+    const from = addDays(TODAY, -(skip + span));
+    const end = addDays(TODAY, -skip - 1);
     let d = anchor >= from ? anchor : from;
     for (let i = 0; i < 400 && d <= end; i++) {
-      if (m.repeatMatch(anchor, d, t.repeat, t) && !state.doneInstances.includes(key(t.id, d)) && !state.skipped.includes(key(t.id, d))) {
+      if (d <= end && m.repeatMatch(anchor, d, t.repeat, t) && !state.doneInstances.includes(key(t.id, d)) && !state.skipped.includes(key(t.id, d))) {
         out.push(d);
       }
       d = addDays(d, 1);
