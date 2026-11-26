@@ -129,11 +129,15 @@
     muts.forEach((m) => Array.from(m.addedNodes || []).forEach((n) => {
       if (!n || n.nodeType !== 1) return;
       const scrim = n.classList && n.classList.contains('proto-modal-scrim') ? n : q('.proto-modal-scrim', n);
-      if (!scrim || q('[data-arrange]', scrim)) return;
+      if (!scrim) return;
       const head = q('.proto-modal-head span', scrim);
       if (!head || head.textContent.trim() !== '新建日程') return;
       const foot = q('.proto-modal-foot', scrim);
       if (!foot) return;
+      if (scrim.__v3arr) {
+        if (!q('[data-arrange]', foot)) foot.insertBefore(scrim.__v3arr, q('.proto-btn.primary', foot) || null);
+        return;
+      }
       const note = q('.proto-note', scrim);
       const day = ((note && note.textContent.match(/\d{4}-\d{2}-\d{2}/)) || [])[0] || state.selectedDate || TODAY;
       const b = document.createElement('button');
@@ -144,6 +148,7 @@
         if (scrim._close) scrim._close(); else scrim.remove();
         openArrange(day, start, end);
       });
+      scrim.__v3arr = b;
       const primary = q('.proto-btn.primary', foot);
       foot.insertBefore(b, primary || null);
     }));
@@ -226,6 +231,20 @@
     }
   }, true);
 
+  // A rendered row keeps its own occurrence, so opening it can name that
+  // instance even in a repeating series.
+  registerEnhancer((root) => {
+    qa('.task-row[data-id], .todo-row[data-id]', root).forEach((row) => {
+      if (row.dataset.v3occhint) return;
+      row.dataset.v3occhint = '1';
+      row.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-action="toggle-done"], [data-action="plan-todo"], [data-proto-action]')) return;
+        state.occurId = row.dataset.id;
+        state.occurDate = state.selectedDate || TODAY;
+      }, true);
+    });
+  });
+
   /* ---------------- multiple reminders (one item, many reminders) ---------------- */
   function hasAnchor(t) {
     if (!t) return false;
@@ -269,29 +288,32 @@
     if (!ref || ref.type !== 'todo' || state.drawerEdit) return;
     const t = todoById(ref.id);
     if (!t) return;
-    const remindRow = qa('.field-row', root).find((r) => (q('.f-label', r) || {}).textContent === '提醒');
+    // Desktop drawer uses field-row; the phone drawer uses m-form-row.
+    const mobile = !!q('.m-detail-scroll', root);
+    const remindRow = qa(mobile ? '.m-form-row' : '.field-row', root)
+      .find((r) => ((q(mobile ? '.m-form-label' : '.f-label', r) || {}).textContent || '').trim() === '提醒');
     if (!remindRow) return;
     if (!q('[data-remind-add]', remindRow)) {
-      const v = q('.f-value', remindRow);
-      if (v) {
-        const b = document.createElement('button');
-        b.type = 'button'; b.className = 'mini'; b.textContent = '＋ 再加一个';
-        b.dataset.remindAdd = '1'; b.dataset.protoAction = 'remind-add'; b.dataset.id = t.id;
-        v.appendChild(document.createTextNode(' '));
-        v.appendChild(b);
-      }
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'mini'; b.textContent = '＋ 再加一个';
+      b.dataset.remindAdd = '1'; b.dataset.protoAction = 'remind-add'; b.dataset.id = t.id;
+      const v = q(mobile ? '.m-form-value' : '.f-value', remindRow);
+      if (v) { v.appendChild(document.createTextNode(' ')); v.appendChild(b); }
+      else { remindRow.appendChild(b); }
     }
     // Extra reminders render as their own rows (each removable) so the
     // primary reminder stays where the master put it.
     qa('[data-remind-extra]', root).forEach((n) => n.remove());
     const extras = (t.reminders || []).filter((r) => r && r !== t.remind);
-    const list = q('.field-list', root);
+    const list = q(mobile ? '.m-form' : '.field-list', root) || remindRow.parentElement;
     if (extras.length && list) {
       extras.forEach((r) => {
         const row = document.createElement('div');
-        row.className = 'field-row';
+        row.className = mobile ? 'm-form-row' : 'field-row';
         row.dataset.remindExtra = '1';
-        row.innerHTML = '<span class="f-label">提醒</span><span class="f-value">' + esc(r) + ' <button type="button" class="mini" data-proto-action="remind-remove" data-id="' + esc(t.id) + '" data-remind="' + esc(r) + '">移除</button></span>';
+        row.innerHTML = mobile
+          ? '<span class="m-form-label">提醒</span><span class="m-form-value">' + esc(r) + ' <button type="button" class="mini" data-proto-action="remind-remove" data-id="' + esc(t.id) + '" data-remind="' + esc(r) + '">移除</button></span>'
+          : '<span class="f-label">提醒</span><span class="f-value">' + esc(r) + ' <button type="button" class="mini" data-proto-action="remind-remove" data-id="' + esc(t.id) + '" data-remind="' + esc(r) + '">移除</button></span>';
         list.insertBefore(row, remindRow.nextSibling);
       });
     }

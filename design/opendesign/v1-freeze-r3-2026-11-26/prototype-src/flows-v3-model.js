@@ -341,24 +341,32 @@
       }
     });
     if (t.repeat && !editing && !q('[data-proto-action="occurrence-history"]', root)) {
-      const host = q('.d-sec, .field-list', root);
+      const host = q('.d-sec, .field-list, .m-form', root);
       if (host) {
         const row = document.createElement('div');
-        row.className = 'field-row';
-        row.innerHTML = '<span class="f-label">重复实例</span><span class="f-value"><button type="button" class="mini" data-proto-action="occurrence-history" data-id="' + esc(t.id) + '">查看实例 / 遗漏</button></span>';
+        // Desktop uses field-row; the phone drawer renders m-form-row.
+        row.className = root.querySelector('.m-detail-scroll') ? 'm-form-row' : 'field-row';
+        row.innerHTML = (row.className === 'm-form-row'
+          ? '<span class="m-form-label">重复实例</span><span class="m-form-value"><button type="button" class="mini" data-proto-action="occurrence-history" data-id="'
+          : '<span class="f-label">重复实例</span><span class="f-value"><button type="button" class="mini" data-proto-action="occurrence-history" data-id="')
+          + esc(t.id) + '">查看实例 / 遗漏</button></span>';
         host.appendChild(row);
       }
     }
     const plans = activePlans(t);
     if (!editing && plans.length && !q('[data-proto-action="alloc-open"]', root)) {
-      const fr = qa('.field-row', root).find((r) => (q('.f-label', r) || {}).textContent === '计划执行');
+      const fr = qa('.field-row, .m-form-row', root).find((r) => ((q('.f-label, .m-form-label', r) || {}).textContent || '').trim() === '计划执行');
       if (fr) {
-        const v = q('.f-value', fr);
-        v.innerHTML = v.innerHTML + ' <button type="button" class="mini" data-proto-action="alloc-open" data-id="' + esc(t.id) + '">' + (plans.length > 1 ? '共 ' + plans.length + ' 段' : '再安排一段') + '</button>';
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'mini';
+        b.dataset.protoAction = 'alloc-open'; b.dataset.id = t.id;
+        b.textContent = plans.length > 1 ? '共 ' + plans.length + ' 段' : '再安排一段';
+        const v = q('.f-value, .m-form-value', fr);
+        if (v) { v.appendChild(document.createTextNode(' ')); v.appendChild(b); } else fr.appendChild(b);
       }
     }
     if ((t.legacyRrule) && !t.legacyConfirmed && !q('[data-proto-action="legacy-migrate"]', root)) {
-      const body = q('.drawer-body', root);
+      const body = q('.drawer-body, .m-detail-scroll', root);
       if (body) {
         const box = document.createElement('div');
         box.className = 'inline-alert';
