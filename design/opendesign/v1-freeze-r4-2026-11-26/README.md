@@ -7,7 +7,7 @@
 
 | 顺序 | 文件 | 用途 |
 |---|---|---|
-| 1 | `DAYS_PARK_ACCEPTANCE_ROUND4.md` | 第四轮验收记录：35 条真实入口操作 + 17 项缺陷逐条结论 + 复现方式 |
+| 1 | `DAYS_PARK_ACCEPTANCE_ROUND4.md` | 第四轮验收记录：36 条真实入口操作 + 17 项缺陷逐条结论 + 复现方式 |
 | 2 | `DAYS_PARK_MODEL_CONVERGENCE.md` | 模型收敛结果：每个事实的唯一写入路径、旧路径处理、保留边界 |
 | 3 | `DAYS_PARK_PRODUCT_SPEC.md` | 产品规格 v1.0 **rev.4**（分配记录为事实源、实例身份、提醒锚点、快速添加契约、备份补齐） |
 | 4 | `DAYS_PARK_209_DECISIONS.md` | 209 项裁定（本轮未改范围） |
