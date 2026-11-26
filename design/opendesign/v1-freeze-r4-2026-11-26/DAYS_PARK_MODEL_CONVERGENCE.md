@@ -23,7 +23,7 @@
 | 展示投影 | `window.plansOn(day)` 唯一实现在 `flows-v3-model.js`，每个 allocation 一条，携带 `allocId` | `flows-v2-calendar.js` 的第二个 `plansOn` 包装已删除；master 仅在流脚本加载前的首帧用旧投影兜底，加载后立即被 `flows-v3-model.js` 覆盖，所有交互都走分配感知实现 |
 | 历史 | `t.plans` 中 `cancelled/invalidated` 记录保留；详情“查看全部/历史”入口始终存在 | 取消最后一段后不再把入口一起消失 |
 
-**编辑器草稿**：详情/新建里的“计划执行”只改 `state.draft.plans`（临时 id）或按 `state.planAllocId` 改指定段；保存时 `commitDraft` 才把草稿写回源对象；取消则整份草稿丢弃。新增一段绝不覆盖第一段。
+**编辑器草稿**：详情/新建里的“计划执行”只改 `state.draft.plans`（临时 id）或按 `state.planAllocId` 改指定段；保存时 `commitDraft` 通过 `DS3.applyDraftAllocations` 按 id 应用：保留段更新、移除的活动段转 `cancelled` 历史、历史不被清空，再由 `syncProjection` 重算 `t.plan`；取消则整份草稿丢弃。新增一段绝不覆盖第一段。
 
 ## 三、重复实例
 

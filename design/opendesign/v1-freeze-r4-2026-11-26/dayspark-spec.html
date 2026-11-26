@@ -1611,7 +1611,16 @@ function commitDraft(){
   if(!ref||!state.draft||state.draftKey!==ref.type+':'+ref.id)return false;
   const target=detailSource(ref);
   if(!target)return false;
-  Object.assign(target,state.draft);
+  // Plans are an allocation log, not a plain field. Apply them through the
+  // model so removed active rows become cancelled history and the projection
+  // is recomputed; everything else can be copied as ordinary draft fields.
+  const draftPlans=Array.isArray(state.draft.plans)?state.draft.plans.slice():null;
+  const copy=Object.assign({},state.draft);
+  delete copy.plans;delete copy.plan;
+  Object.assign(target,copy);
+  if(ref.type==='todo'&&draftPlans&&window.DS3&&window.DS3.applyDraftAllocations){
+    window.DS3.applyDraftAllocations(target,draftPlans);
+  }
   return true;
 }
 function restorePlan(){

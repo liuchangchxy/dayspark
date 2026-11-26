@@ -137,6 +137,47 @@
     syncProjection(t);
     return true;
   }
+  // Save an editor draft without replacing the allocation log wholesale.
+  // Draft rows that still exist are updated in place; active rows removed from
+  // the draft become cancelled history; history rows not touched by the draft
+  // stay history. A cleared draft therefore cancels instead of deleting.
+  function applyDraftAllocations(t, draftPlans) {
+    if (!t) return false;
+    ensureAllocations(t);
+    const incoming = (Array.isArray(draftPlans) ? draftPlans : []).filter((p) => p && p.id && p.start && p.end);
+    const byId = new Map(incoming.map((p) => [p.id, p]));
+    const now = Date.now();
+    t.plans.forEach((p) => {
+      if (!p) return;
+      const src = byId.get(p.id);
+      if (src) {
+        if (src.date) p.date = src.date;
+        if (src.start) p.start = src.start;
+        if (src.end) p.end = src.end;
+        if (src.occurrenceDate !== undefined) p.occurrenceDate = src.occurrenceDate;
+        if (src.state) p.state = src.state;
+        if (src.legacy !== undefined) p.legacy = !!src.legacy;
+        else delete p.legacy;
+        return;
+      }
+      if (p.state === 'active') {
+        p.state = 'cancelled';
+        p.cancelledAt = now;
+      }
+    });
+    incoming.forEach((src) => {
+      if (t.plans.some((p) => p && p.id === src.id)) return;
+      if (t.repeat && !src.occurrenceDate) return;
+      t.plans.push(normalizeAllocation(t, {
+        id: src.id, date: src.date || TODAY, start: src.start, end: src.end,
+        occurrenceDate: t.repeat ? src.occurrenceDate : null,
+        state: src.state || 'active', createdAt: src.createdAt || now,
+        ...(src.legacy === true ? { legacy: true } : {}),
+      }));
+    });
+    syncProjection(t);
+    return true;
+  }
   function cancelAllocation(t, id) {
     if (!t || !id) return false;
     const p = allocations(t).find((x) => x && x.id === id);
@@ -372,7 +413,7 @@
 
   const DS3 = window.DS3 = {
     allocations, activeAllocations, planById,
-    addAllocation, updateAllocation, cancelAllocation,
+    addAllocation, updateAllocation, cancelAllocation, applyDraftAllocations,
     invalidateAfter, syncProjection, allocationStatus,
     requireOccurrence, ensureSeriesAnchor,
     // Compatibility aliases for the other prototype layers.
