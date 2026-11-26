@@ -1207,10 +1207,13 @@ class _SpecViewSwitch extends StatelessWidget {
         children: [
           for (var i = 0; i < options.length; i++) ...[
             if (i > 0) const SizedBox(width: 2),
-            _SpecSwitchButton(
-              label: options[i].$2,
-              selected: options[i].$1 == mode,
-              onTap: () => onSelected(options[i].$1),
+            Tooltip(
+              message: options[i].$2,
+              child: _SpecSwitchButton(
+                label: options[i].$2,
+                selected: options[i].$1 == mode,
+                onTap: () => onSelected(options[i].$1),
+              ),
             ),
           ],
         ],

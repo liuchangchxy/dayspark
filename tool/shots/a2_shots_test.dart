@@ -377,7 +377,7 @@ void main() {
     final db = await _seed();
     await boot(tester, db, tab: 2);
 
-    await tester.tap(find.text('Plan this day'));
+    await tester.tap(find.byKey(const ValueKey('capture-send-target')).last);
     await _settle(tester, 8);
     await _shoot(tester, 'p-composer-empty');
 
