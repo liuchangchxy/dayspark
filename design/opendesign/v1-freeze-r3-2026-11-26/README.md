@@ -45,6 +45,6 @@
 
 ## 校验
 
-- 原型 `dayspark-prototype.html` SHA-256：`41247c7d647b99ed1f7e66534a00422d00f165e1f7c09e880df87b6566226fa6`
+- 原型 `dayspark-prototype.html` SHA-256：`d77855450cd55812ca16dfb1bf5daafb983e635b953cd44457c6801499ebd480`
 - 母版 `dayspark-spec.html` SHA-256：`a04260e7e985eac7010d726a8f8fc3f173fce80cfff0cda19c374974ce349820`
 - 母版：88 屏 / 360 变体 / 39 个表面；原型由 15 个脚本构建

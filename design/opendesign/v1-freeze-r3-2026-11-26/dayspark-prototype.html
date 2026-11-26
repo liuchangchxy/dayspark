@@ -12799,10 +12799,11 @@ END:VCALENDAR`);
     const day = state.planDateHint || state.selectedDate || TODAY;
     const start = (t.plan && t.plan.start) || '15:15';
     const end = (t.plan && t.plan.end) || '16:00';
-    pickInstance(t, occurrenceDate || day, start, end);
+    pickInstance(t, day, start, end);
   }, true);
 
-  function toPlanPicker(t, occurrenceDate, day, start, end) {    const back = { screen: state.screen || 'cal-day', variant: state.variant || 'normal' };
+  function toPlanPicker(t, occurrenceDate, day, start, end) {
+    const back = { screen: state.screen || 'cal-day', variant: state.variant || 'normal' };
     // The master's go('plan-picker') resets plan defaults and planReturn, so
     // the slot day/time and the return screen are applied after it.
     P.baseGo('plan-picker');
