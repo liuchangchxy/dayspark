@@ -1,5 +1,5 @@
 labels ["2026-11-20 15:15–16:00即将开始改期取消","2026-11-20 09:00–10:00已结束改期取消"]
-plans [["alloc-1","active"],["alloc-2","active"]] plan {"id":"alloc-2","date":"2026-11-20","start":"09:00","end":"10:00","occurrenceDate":null,"state":"active","createdAt":1795694148247}
+plans [["alloc-1","active"],["alloc-2","active"]] plan {"id":"alloc-2","date":"2026-11-20","start":"09:00","end":"10:00","occurrenceDate":null,"state":"active","createdAt":1795694505385}
 list text  计划执行 · 提交周报给林总 2026-11-20 15:15–16:00即将开始改期取消2026-11-20 09:00–10:00已结束改期取消＋ 再安排一段 关闭
 field ["计划执行 11 月 20 日 09:00–10:00 · 共 2 段 查看全部"]
 btn ["查看全部"]

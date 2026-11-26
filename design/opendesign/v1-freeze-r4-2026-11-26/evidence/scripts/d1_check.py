@@ -27,6 +27,6 @@ async def m():
     print('before',await e("JSON.stringify({btn:[...document.querySelectorAll('.drawer [data-action=toggle-done]')].map(b=>b.textContent.trim()),undo:!!document.querySelector('[data-action=undo-done]')})"))
     await e("document.querySelector('.drawer [data-action=toggle-done]').click(); 'ok'"); await asyncio.sleep(.3)
     await e("document.querySelector('[data-occ=\"2026-11-27\"]').click(); 'ok'"); await asyncio.sleep(.4)
-    print('after',await e("JSON.stringify({done:state.doneInstances,btn:[...document.querySelectorAll('.drawer [data-action=toggle-done]')].map(b=>b.textContent.trim()),undo:!!document.querySelector('[data-action=undo-done]'),toast:(document.querySelector('.toast')||{}).textContent})"))
+    print('after',await e("JSON.stringify({done:state.doneInstances,btn:[...document.querySelectorAll('.drawer [data-action=toggle-done]')].map(b=>b.textContent.trim()),undo:!!document.querySelector('[data-action=undo-done]'),seriesDone:isDone(todoById('recurring')),toast:(document.querySelector('.toast')||{}).textContent})"))
   p.terminate()
 asyncio.run(m())

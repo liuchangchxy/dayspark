@@ -327,9 +327,9 @@
       if (!day) {
         // Refuse to guess TODAY / selectedDate / plan date. Ask which instance.
         requireOccurrence(t, (picked) => {
-          // The user just named this occurrence; keep it bound so the drawer
-          // can offer the matching undo without asking again.
-          state.occurId = id; state.occurDate = picked;
+          // Do not bind state.occurId here: that projection also feeds isDone()
+          // for the whole series. The undo record is enough for the drawer to
+          // show this instance's result without hiding the parent series.
           if (toggleDone(id, picked) && typeof render === 'function') render();
         }, { title: '完成哪一次 · ' + t.title });
         return false;
@@ -671,7 +671,10 @@
       if (!id) return;
       const todo = t && t.id === id ? t : todoById(id);
       if (!todo || !todo.repeat) return;
-      const bound = boundDay || (state.occurId === todo.id && state.occurDate) || null;
+      const bound = boundDay
+        || (state.occurId === todo.id && state.occurDate)
+        || (state.undoKind === 'instance' && state.undoId === todo.id && state.undoInstance)
+        || null;
       if (bound) {
         b.dataset.date = bound;
         const done = state.doneInstances.includes(key(todo.id, bound));

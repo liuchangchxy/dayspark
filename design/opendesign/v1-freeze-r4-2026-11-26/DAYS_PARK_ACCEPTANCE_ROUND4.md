@@ -19,7 +19,7 @@
 | 9 | 同一待办同一时间两段 | `plansOn` 返回两条不同 `allocId`；日历出现两个块 | `results/plan_dupe_same_time.txt` |
 | 10 | 缩放第二段下缘 | `alloc-2` 11:00–12:00 → 11:00–12:30；`alloc-1` 不变 | `results/resize_second.txt` |
 | 11 | 连续拖动偏移 | +30 分钟后 −30 分钟回到 `15:15–16:00`；再 +60 分钟到 `16:15–17:00`，不是累计 17:15 | `results/drag_delta.txt` |
-| 12 | 重复待办从详情完成 | 无绑定实例时只显示“选择这一次实例”，弹窗必须点具体日期；选 11/27 只写 `recurring@2026-11-27`；撤销需再选同一实例 | `results/repeat_detail_done.txt` |
+| 12 | 重复待办从详情完成 | 无绑定实例时只显示“选择这一次实例”，弹窗必须点具体日期；选 11/27 只写 `recurring@2026-11-27`；抽屉立即显示“本次已完成”，可直接撤销同一次（父系列仍不完成） | `results/repeat_detail_done.txt` |
 | 13 | 重复待办从手机日历完成 | 块绑定 `occurrenceDate=2026-11-27`，所在列是 11/26；完成按钮写 `recurring@2026-11-27` | `results/mobile_repeat_final.txt` |
 | 14 | 重复待办从 AI 安排 | 先选具体实例，再写 `alloc-3`；普通待办追加，不覆盖第一段 | `results/ai_repeat_plan.txt`、`results/ai_repeat_requires_instance.txt` |
 | 15 | 今天的重复实例完成 | `11-20` 完成，`11-27`、`12-04` 仍待完成 | `results/repeat_next_pending.txt` |

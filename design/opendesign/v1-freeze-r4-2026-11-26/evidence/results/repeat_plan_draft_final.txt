@@ -3,7 +3,7 @@ modals ["安排哪一次 · 整理周会纪要并群发"]
 pick27 ok
 screen plan-picker occ 2026-11-27 date 2026-11-27
 submit ok
-draft {"src":0,"draft":[{"id":"draft-alloc-1795694155790-970","date":"2026-11-27","start":"09:00","end":"10:00","state":"active","occurrenceDate":"2026-11-27","createdAt":1795694155790}],"edit":true}
+draft {"src":0,"draft":[{"id":"draft-alloc-1795694512289-23","date":"2026-11-27","start":"09:00","end":"10:00","state":"active","occurrenceDate":"2026-11-27","createdAt":1795694512289}],"edit":true}
 cancel ok
 after cancel 0
 errs []
