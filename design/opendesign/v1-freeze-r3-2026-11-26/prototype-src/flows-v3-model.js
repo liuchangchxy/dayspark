@@ -223,7 +223,7 @@
     return out;
   };
 
-  
+
   // Master completion hooks (toggle-done / undo-done) call these.
   /* ---------------- surface wiring: instance history, allocations, legacy ---------------- */
   registerAction('occurrence-history', (el) => {
