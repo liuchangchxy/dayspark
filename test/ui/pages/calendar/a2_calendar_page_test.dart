@@ -1308,7 +1308,7 @@ void main() {
     await tester.pump(Duration.zero);
   });
 
-  testWidgets('a timed deadline is a marker, not a phone week deadline row', (
+  testWidgets('a timed deadline is a row on the phone week view', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -1321,7 +1321,7 @@ void main() {
       deadlines: [
         CalendarDeadline(
           todoId: 7,
-          title: 'Timed',
+          title: 'Dentist call',
           due: DateTime(2026, 11, 15, 18),
         ),
         CalendarDeadline(
@@ -1333,11 +1333,13 @@ void main() {
     );
     await tester.pumpWidget(_app(page, db: db));
     await _settle(tester);
+    await tester.tap(find.text('Week'));
+    await _settle(tester);
 
-    // The phone week has no hour axis for a point marker, so a timed deadline
-    // must not become a deadline row; only the date-only one is a row.
+    // The phone week lists a timed deadline in its day group with the time in
+    // the left column; a date-only deadline stays a row of its own.
+    expect(find.textContaining('Dentist call'), findsOneWidget);
     expect(find.textContaining('Date only'), findsOneWidget);
-    expect(find.text('Timed'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(Duration.zero);
