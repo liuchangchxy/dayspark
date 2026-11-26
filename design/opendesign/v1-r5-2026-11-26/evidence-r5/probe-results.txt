@@ -1,0 +1,36 @@
+R5 final verification · 2026-11-26
+
+Artifact
+  dayspark-prototype.html 1,118,589 bytes
+  SHA-256 d79985e67d2ec3e7f079c5783a7ae59225d876849f872c3ecb1dbc6257ec1427
+  build source 15 script files → 1,020,525 chars
+
+Evidence capture (headless Chrome 1440×1000 / 1024×768 / 390×844)
+  routes: today, todo-all, cal-week, cal-day, settings-home, settings-account,
+          settings-mcp, widgets, capture, new — all render
+  console errors: []
+  Proto.lastEnhancerError: null
+
+Targeted probes
+  todayStats desktop: done 2 / total 7 / planned 1 / due 2 / overdue 3 / unplanned 5
+  second allocation on same todo: planned 1 → 2; blocks alloc-3 + alloc-2
+  complete plain todo: stats 2/7 → 3/7; calendar history row shows "已失效"
+  complete repeat instance: isInstanceDone(recurring, TODAY)=true; isDone(series)=false
+  legacy repeat: 1 anchor block today, 0 future blocks; banner "1 个旧版重复计划待确认"
+  mobile deadline: 3 default rows → 14 after expand; aria-expanded=true; button "收起"
+  mobile dock: 今天 / 待办 / 添加 / 日历 / 我的; center add opens capture sheet
+  widget toggle: writes back to todoById('report').status
+  MCP toggle: state.mcpEnabled=false; page "服务已暂停"; toast shown
+  MCP write scope: state.mcpWrite toggles; revoke present
+  quick capture: time→event; save-as-todo→no due/plan/reminder; date→due only; cross-midnight→end next day
+  backup merge: multi-plan, reminders, instance done/missed, tags, localTodos restored; no plaintext AI key in snapshot/localStorage
+  AI key: P.data.ai.key = "sk-••••3456"; snapshot/localStorage no plaintext
+  legacy repeat migration: cancel keeps rule; confirm writes 每周五 / 2026-11-06 / Asia/Shanghai
+
+Round-4 regression subset (all passed)
+  d1_check, d2_check, d3_check, d5_check, qa_force, backup_roundtrip, ai_probe, legacy_ui
+
+Known script caveat
+  repeat_detail_done.py expects an old second occurrence picker on undo.
+  Current behavior undoes the bound instance directly; product behavior correct,
+  assertion not updated.
