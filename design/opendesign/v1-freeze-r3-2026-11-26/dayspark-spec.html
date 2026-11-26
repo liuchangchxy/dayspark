@@ -2412,7 +2412,8 @@ function detailDrawer(ref,inline=false){
       <div class="d-eyebrow"><span class="cal-dot" style="background:${c.color}"></span>${c.name}${done?' · 已完成':''}</div>
       <h2 class="d-title ${done?'is-done':''}">${esc(item.title)}</h2>
       <div class="d-sub">${todoStatusLine(item)}</div>
-      <button type="button" class="d-complete" data-action="toggle-done" data-id="${item.id}"><span class="check ${done?'is-on':''}">${done?ico('check',9):''}</span>${done?'本次已完成':item.repeat?'完成这一次':'标记完成'}</button>      <div class="field-list">
+      <button type="button" class="d-complete" data-action="toggle-done" data-id="${item.id}"><span class="check ${done?'is-on':''}">${done?ico('check',9):''}</span>${done?'本次已完成':item.repeat?'完成这一次':'标记完成'}</button>
+      <div class="field-list">
         <div class="field-row"><span class="f-label">截止</span><span class="f-value ${item.due&&!done?'is-due':''}">${item.due?ico('flag',12)+' '+dueText(item):'无截止'}</span></div>
         <div class="field-row"><span class="f-label">计划执行</span><span class="f-value ${plan?'is-plan':''}">${plan?ico('clock',12)+' '+md(plan.date)+' '+fmt(mins(plan.start))+'–'+fmt(mins(plan.end)):'未安排'}</span></div>
         <div class="field-row"><span class="f-label">重复</span><span class="f-value">${item.repeat?ico('repeat',12)+' '+esc(repeatSummary(item))+'<span style="color:var(--ink-4);font-weight:400"> · 完成只影响这一次</span>':'不重复'}</span></div>
