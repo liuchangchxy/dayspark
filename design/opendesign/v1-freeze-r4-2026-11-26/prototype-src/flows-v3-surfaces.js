@@ -312,11 +312,14 @@
     const slot = reminderSlot();
     if (!slot || !slot.obj) return;
     const list = remindersOf(slot.obj);
+    const hasAnchor = hasAnchorFor(slot.obj, slot.kind);
+    const addLabel = hasAnchor ? '＋ 再加一个' : '＋ 加绝对提醒';
+    const addTitle = hasAnchor ? '' : '没有时间锚点；只能添加具体时间';
     if (slot.newForm) {
       const row = qa('.cp-field', root).find((r) => ((q('.k', r) || {}).textContent || '').trim() === '提醒');
       if (!row) return;
       const v = q('.v', row);
-      if (v) v.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add">＋ 再加一个</button>';
+      if (v) v.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';
       qa('.cp-remind-extra', root).forEach((n) => n.remove());
       const host = row.parentElement;
       list.slice(1).forEach((r) => {
@@ -341,12 +344,12 @@
       // reminders are appended as their own removable rows.
       if (!q('[data-remind-add]', remindRow)) {
         const b = document.createElement('button');
-        b.type = 'button'; b.className = 'mini'; b.textContent = '＋ 再加一个';
+        b.type = 'button'; b.className = 'mini'; b.textContent = addLabel; b.title = addTitle;
         b.dataset.remindAdd = '1'; b.dataset.protoAction = 'remind-add';
         select.insertAdjacentElement('afterend', b);
       }
     } else if (valueEl) {
-      valueEl.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add">＋ 再加一个</button>';
+      valueEl.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';
     }
     qa('[data-remind-extra]', root).forEach((n) => n.remove());
     const host = q(mobile ? '.m-form' : '.field-list, .form-grid', root) || remindRow.parentElement;

@@ -168,8 +168,9 @@
     incoming.forEach((src) => {
       if (t.plans.some((p) => p && p.id === src.id)) return;
       if (t.repeat && !src.occurrenceDate) return;
+      const nextId = /^draft-/.test(String(src.id)) ? newAllocId() : src.id;
       t.plans.push(normalizeAllocation(t, {
-        id: src.id, date: src.date || TODAY, start: src.start, end: src.end,
+        id: nextId, date: src.date || TODAY, start: src.start, end: src.end,
         occurrenceDate: t.repeat ? src.occurrenceDate : null,
         state: src.state || 'active', createdAt: src.createdAt || now,
         ...(src.legacy === true ? { legacy: true } : {}),
@@ -325,7 +326,12 @@
       if (!day && state.occurId === t.id && state.occurDate) day = state.occurDate;
       if (!day) {
         // Refuse to guess TODAY / selectedDate / plan date. Ask which instance.
-        requireOccurrence(t, (picked) => toggleDone(id, picked), { title: '完成哪一次 · ' + t.title });
+        requireOccurrence(t, (picked) => {
+          // The user just named this occurrence; keep it bound so the drawer
+          // can offer the matching undo without asking again.
+          state.occurId = id; state.occurDate = picked;
+          if (toggleDone(id, picked) && typeof render === 'function') render();
+        }, { title: '完成哪一次 · ' + t.title });
         return false;
       }
       const k = key(id, day);

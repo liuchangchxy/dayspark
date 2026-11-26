@@ -6596,6 +6596,17 @@ render();
     if (!ref) return;
     const item = ref.type === 'event' ? eventById(ref.id) : todoById(ref.id);
     if (!item || !item.repeat) return;
+    // A plan-only edit changes instance-scoped allocation records, not the
+    // series anchor or future instance content. Let the normal save path apply
+    // it without a misleading "save to the whole series" confirmation.
+    const draft = state.draft;
+    if (draft && state.draftKey === ref.type + ':' + ref.id) {
+      const draftOther = Object.assign({}, draft);
+      const liveOther = Object.assign({}, item);
+      delete draftOther.plans; delete draftOther.plan;
+      delete liveOther.plans; delete liveOther.plan;
+      if (JSON.stringify(draftOther) === JSON.stringify(liveOther)) return;
+    }
     e.preventDefault();
     e.stopPropagation();
     modal({
@@ -9118,7 +9129,21 @@ render();
     const isEvent = ref && ref.type === 'event';
     const item = ref ? detailSource(ref) : null;
     if (!item) return;
-    const anchor = isEvent ? (item.date || item.startDate || TODAY) : ((item.plan && item.plan.date) || item.due || TODAY);
+    // Todo deletion is series-level by contract; it never enters the event
+    // occurrence-scope picker and therefore cannot derive an instance from a
+    // plan date. Event scope still uses its own date/start.
+    if (!isEvent) {
+      if (!state.deletedTodos.includes(item.id)) state.deletedTodos.push(item.id);
+      state.trashExtra.push({
+        id: item.id, title: item.title,
+        sub: '待办 · ' + calOf(item.cal).name + ' · 刚刚删除',
+        snap: JSON.parse(JSON.stringify(item)),
+      });
+      state.drawer = null; state.drawerEdit = false; state.confirmDelete = false;
+      render(); toast('已删除整个系列');
+      return;
+    }
+    const anchor = item.date || item.startDate || TODAY;
     const occDay = (state.occurId === item.id && state.occurDate) ? state.occurDate : anchor;
     const calName = calOf(item.cal).name;
     const original = JSON.parse(JSON.stringify(item));
@@ -9377,7 +9402,7 @@ render();
     // Repeating item: route delete through the scope picker.
     const ref = activeEditRef() || state.drawer;
     const item = ref ? detailSource(ref) : null;
-    if (item && item.repeat) {
+    if (item && item.repeat && ref && ref.type === 'event') {
       qa('[data-action="delete"]', root).forEach((b) => { b.dataset.protoAction = 'delete-scope'; });
     }
   });
@@ -12580,8 +12605,9 @@ END:VCALENDAR`);
     incoming.forEach((src) => {
       if (t.plans.some((p) => p && p.id === src.id)) return;
       if (t.repeat && !src.occurrenceDate) return;
+      const nextId = /^draft-/.test(String(src.id)) ? newAllocId() : src.id;
       t.plans.push(normalizeAllocation(t, {
-        id: src.id, date: src.date || TODAY, start: src.start, end: src.end,
+        id: nextId, date: src.date || TODAY, start: src.start, end: src.end,
         occurrenceDate: t.repeat ? src.occurrenceDate : null,
         state: src.state || 'active', createdAt: src.createdAt || now,
         ...(src.legacy === true ? { legacy: true } : {}),
@@ -12737,7 +12763,12 @@ END:VCALENDAR`);
       if (!day && state.occurId === t.id && state.occurDate) day = state.occurDate;
       if (!day) {
         // Refuse to guess TODAY / selectedDate / plan date. Ask which instance.
-        requireOccurrence(t, (picked) => toggleDone(id, picked), { title: '完成哪一次 · ' + t.title });
+        requireOccurrence(t, (picked) => {
+          // The user just named this occurrence; keep it bound so the drawer
+          // can offer the matching undo without asking again.
+          state.occurId = id; state.occurDate = picked;
+          if (toggleDone(id, picked) && typeof render === 'function') render();
+        }, { title: '完成哪一次 · ' + t.title });
         return false;
       }
       const k = key(id, day);
@@ -13679,11 +13710,14 @@ END:VCALENDAR`);
     const slot = reminderSlot();
     if (!slot || !slot.obj) return;
     const list = remindersOf(slot.obj);
+    const hasAnchor = hasAnchorFor(slot.obj, slot.kind);
+    const addLabel = hasAnchor ? '＋ 再加一个' : '＋ 加绝对提醒';
+    const addTitle = hasAnchor ? '' : '没有时间锚点；只能添加具体时间';
     if (slot.newForm) {
       const row = qa('.cp-field', root).find((r) => ((q('.k', r) || {}).textContent || '').trim() === '提醒');
       if (!row) return;
       const v = q('.v', row);
-      if (v) v.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add">＋ 再加一个</button>';
+      if (v) v.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';
       qa('.cp-remind-extra', root).forEach((n) => n.remove());
       const host = row.parentElement;
       list.slice(1).forEach((r) => {
@@ -13708,12 +13742,12 @@ END:VCALENDAR`);
       // reminders are appended as their own removable rows.
       if (!q('[data-remind-add]', remindRow)) {
         const b = document.createElement('button');
-        b.type = 'button'; b.className = 'mini'; b.textContent = '＋ 再加一个';
+        b.type = 'button'; b.className = 'mini'; b.textContent = addLabel; b.title = addTitle;
         b.dataset.remindAdd = '1'; b.dataset.protoAction = 'remind-add';
         select.insertAdjacentElement('afterend', b);
       }
     } else if (valueEl) {
-      valueEl.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add">＋ 再加一个</button>';
+      valueEl.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';
     }
     qa('[data-remind-extra]', root).forEach((n) => n.remove());
     const host = q(mobile ? '.m-form' : '.field-list, .form-grid', root) || remindRow.parentElement;

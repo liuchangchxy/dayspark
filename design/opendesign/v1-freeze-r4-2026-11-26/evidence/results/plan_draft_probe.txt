@@ -5,7 +5,7 @@ after 1 {"src":1,"draft":2,"plan":"09:00","screen":"today","edit":true}
 open plan ok
 screen plan-picker returnEdit True
 submit ok
-after 2 {"src":1,"draft":[["alloc-1","15:15"],["draft-alloc-1795692179915-799","09:00"],["draft-alloc-1795692180540-737","11:00"]],"plan":"09:00"}
+after 2 {"src":1,"draft":[["alloc-1","15:15"],["draft-alloc-1795694136327-995","09:00"],["draft-alloc-1795694136979-403","11:00"]],"plan":"09:00"}
 cancel ok
 src after cancel 1
 open plan ok
@@ -13,7 +13,7 @@ screen plan-picker returnEdit True
 submit ok
 src still 1 draft 2
 save ok
-src after save [["alloc-1","15:15","16:00","active"],["draft-alloc-1795692182081-268","09:00","10:00","active"]]
-plan derive {"id":"draft-alloc-1795692182081-268","date":"2026-11-20","start":"09:00","end":"10:00","occurrenceDate":null,"state":"active","createdAt":1795692182081}
-cal blocks [["alloc-1",915,960],["draft-alloc-1795692182081-268",540,600]]
+src after save [["alloc-1","15:15","16:00","active"],["alloc-2","09:00","10:00","active"]]
+plan derive {"id":"alloc-2","date":"2026-11-20","start":"09:00","end":"10:00","occurrenceDate":null,"state":"active","createdAt":1795694138520}
+cal blocks [["alloc-1",915,960],["alloc-2",540,600]]
 errs []

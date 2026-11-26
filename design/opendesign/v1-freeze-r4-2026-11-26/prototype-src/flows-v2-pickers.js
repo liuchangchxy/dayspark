@@ -406,7 +406,21 @@
     const isEvent = ref && ref.type === 'event';
     const item = ref ? detailSource(ref) : null;
     if (!item) return;
-    const anchor = isEvent ? (item.date || item.startDate || TODAY) : ((item.plan && item.plan.date) || item.due || TODAY);
+    // Todo deletion is series-level by contract; it never enters the event
+    // occurrence-scope picker and therefore cannot derive an instance from a
+    // plan date. Event scope still uses its own date/start.
+    if (!isEvent) {
+      if (!state.deletedTodos.includes(item.id)) state.deletedTodos.push(item.id);
+      state.trashExtra.push({
+        id: item.id, title: item.title,
+        sub: '待办 · ' + calOf(item.cal).name + ' · 刚刚删除',
+        snap: JSON.parse(JSON.stringify(item)),
+      });
+      state.drawer = null; state.drawerEdit = false; state.confirmDelete = false;
+      render(); toast('已删除整个系列');
+      return;
+    }
+    const anchor = item.date || item.startDate || TODAY;
     const occDay = (state.occurId === item.id && state.occurDate) ? state.occurDate : anchor;
     const calName = calOf(item.cal).name;
     const original = JSON.parse(JSON.stringify(item));
@@ -665,7 +679,7 @@
     // Repeating item: route delete through the scope picker.
     const ref = activeEditRef() || state.drawer;
     const item = ref ? detailSource(ref) : null;
-    if (item && item.repeat) {
+    if (item && item.repeat && ref && ref.type === 'event') {
       qa('[data-action="delete"]', root).forEach((b) => { b.dataset.protoAction = 'delete-scope'; });
     }
   });

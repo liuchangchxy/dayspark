@@ -301,6 +301,17 @@
     if (!ref) return;
     const item = ref.type === 'event' ? eventById(ref.id) : todoById(ref.id);
     if (!item || !item.repeat) return;
+    // A plan-only edit changes instance-scoped allocation records, not the
+    // series anchor or future instance content. Let the normal save path apply
+    // it without a misleading "save to the whole series" confirmation.
+    const draft = state.draft;
+    if (draft && state.draftKey === ref.type + ':' + ref.id) {
+      const draftOther = Object.assign({}, draft);
+      const liveOther = Object.assign({}, item);
+      delete draftOther.plans; delete draftOther.plan;
+      delete liveOther.plans; delete liveOther.plan;
+      if (JSON.stringify(draftOther) === JSON.stringify(liveOther)) return;
+    }
     e.preventDefault();
     e.stopPropagation();
     modal({

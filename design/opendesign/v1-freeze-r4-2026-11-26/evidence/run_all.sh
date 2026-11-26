@@ -13,7 +13,7 @@ for f in \
   mobile_repeat_final mobile_probe backup_probe backup_retry_final backup_single_plan_merge merge_probe2 ai_probe \
   backup_roundtrip rem_plan_not_anchor repeat_detail_done drag_delta drag_second_keeps_first \
   resize_second plan_dupe_same_time repeat_anchor_not_plan repeat_next_pending \
-  quickadd_removed menu_plan_append; do
+  quickadd_removed menu_plan_append d1_check d2_check d3_check d5_check; do
   echo "===== $f"
   timeout 120 python3 "$f.py" 2>&1 | tee "$OUT/$f.txt" | tail -3
 done

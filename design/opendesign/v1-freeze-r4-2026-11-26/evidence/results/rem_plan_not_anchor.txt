@@ -1,5 +1,5 @@
 add plan ok
-draft plan {"plans":[{"id":"draft-alloc-1795692282988-838","date":"2026-11-20","start":"09:00","end":"10:00","state":"active","occurrenceDate":null,"createdAt":1795692282988}],"plan":"09:00","due":""}
+draft plan {"plans":[{"id":"draft-alloc-1795694240195-421","date":"2026-11-20","start":"09:00","end":"10:00","state":"active","occurrenceDate":null,"createdAt":1795694240195}],"plan":"09:00","due":""}
 picker disabled with plan only false,true,true,true,true,true,true
 picker note 还没有可锚定的时间：相对提醒需要先设置日程开始或带时刻的截止，现在只能选“不提醒”或一个具体时间。
 save ok
