@@ -633,8 +633,13 @@
     const planList = incomingPlans ? incomingPlans.slice() : [];
     if (singlePlan && !planList.some((p) => p && p.id === singlePlan.id)) planList.push(singlePlan);
     if (planList.length) target.plans = mergePlans(target.plans, planList);
-    if (window.DS3 && window.DS3.syncProjection) window.DS3.syncProjection(target);
-    else if (singlePlan) target.plan = plainClone(singlePlan);
+    if (window.DS3 && window.DS3.syncProjection) {
+      // t.plan is a derived projection. Drop the old reference before merging
+      // plans, otherwise a fresh unnormalised seed can re-adopt it and undo the
+      // incoming single plan.
+      delete target.plan;
+      window.DS3.syncProjection(target);
+    } else if (singlePlan) target.plan = plainClone(singlePlan);
   }
   function maxSeqFromPlans(todos, seed) {
     let max = seed;

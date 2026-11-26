@@ -175,6 +175,7 @@
         ...(src.legacy === true ? { legacy: true } : {}),
       }));
     });
+    delete t.plan;
     syncProjection(t);
     return true;
   }

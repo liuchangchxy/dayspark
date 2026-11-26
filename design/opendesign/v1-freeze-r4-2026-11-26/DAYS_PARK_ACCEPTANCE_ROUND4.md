@@ -43,6 +43,7 @@
 | 33 | 备份恢复（真实文件） | 导出→清空 localStorage→重载→选择同一文件合并：两段计划、提醒、标签、重复实例分配、`doneInstances/skipped/deletedTodos/localTodos/planSeq` 全部恢复；刷新后仍在 | `results/backup_roundtrip.txt` |
 | 34 | 备份合并字段级 | `doneInstances/skipped/localTodos/planSeq/done/deletedTodos/hiddenCals` 恢复；AI 无明文 | `results/merge_probe2.txt` |
 | 35 | AI Key 不落盘 | 输入真实 Key 后 `P.data.ai.key` 仅掩码；快照/localStorage/备份均无明文；会话内仍可用 | `results/ai_probe.txt` |
+| 36 | 备份合并单段计划 | 已有同 id 条目的单段计划从 15:15 被备份的 09:00 覆盖，`updated=1`，`t.plan` 派生到 09:00 | `results/backup_single_plan_merge.txt` |
 
 ## 2. 已知缺陷逐项结论
 

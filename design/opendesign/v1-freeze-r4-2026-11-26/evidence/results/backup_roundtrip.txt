@@ -6,7 +6,7 @@ backup keys ['v', 'todos', 'events', 'cal', 'state', 'data', 'screen'] ai {'mode
 backup state keys ['calView', 'completedOpen', 'earlyOpen', 'localTodos', 'localNo', 'planDate', 'planStart', 'planEnd', 'hiddenCals', 'filterApplied', 'filterCal', 'filterTag', 'filterPriority', 'filterOverdue', 'defaultCal', 'inboxNoDate', 'deletedTodos', 'deletedEvents', 'trashExtra', 'trashRemoved', 'deleteMigrate', 'deletedCals', 'aiInput', 'aiSent', 'fbText', 'aiEnabled', 'aiConfigured', 'skipped', 'doneInstances', 'planSeq', 'done']
 reset ok
 reset screen {"screen":"settings-backup","todos":14,"report":true,"local":0}
-after reset {"alloc":1,"local":0,"done":[]}
+after reset raw {"hasPlans":false,"rawPlan":["15:15","16:00"],"local":0,"done":[]}
 merge screen ok
 click merge ok
 node 449

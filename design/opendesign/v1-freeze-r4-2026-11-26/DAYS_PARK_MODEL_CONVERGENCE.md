@@ -61,7 +61,7 @@
 
 - **日历拖拽**：固定拖拽起点计算候选时间，连续拖动不累计偏移；写回只改 `allocation.id` 对应记录，改期保留 `occurrenceDate`；事件路径保持原行为。
 - **备份导出**：`flows-v3-data.js` 唯一 `backup-export`，真实 Blob + 下载；从失败态重试也真实生成文件；导出前经 `P.redactForBackup` 与本文件兜底清洗凭据。
-- **备份合并**：`flows-v3-data.js` 唯一 `backup-merge`，按 id **补齐已有条目**的业务字段并合并分配/提醒/标签（不再把同 id 的示例条目整体跳过），同时恢复 `doneInstances/skipped/localTodos/planSeq/done/deleted*/hiddenCals/purgedIds/trash*`；合并后立即持久化；解析失败不部分写入。真实 `input[type=file]` 入口已做导出→清空→重载→合并回归。
+- **备份合并**：`flows-v3-data.js` 唯一 `backup-merge`，按 id **补齐已有条目**的业务字段并合并分配/提醒/标签（不再把同 id 的示例条目整体跳过），同时恢复 `doneInstances/skipped/localTodos/planSeq/done/deleted*/hiddenCals/purgedIds/trash*`；合并后立即持久化；解析失败不部分写入。真实 `input[type=file]` 入口已做导出→清空→重载→合并回归；单段计划合并也会丢弃旧 `t.plan` 引用，避免未归一化的种子把备份时间重新覆盖。
 - **AI 凭据**：真实 Key 只存在页面会话的模块变量 `sessionSecret`，不写入 `P.data/state/TODOS/EVENTS`；`P.data.ai.key` 只保留掩码；旧版明文启动时迁移并清洗；整份备份经 `P.redactForBackup` 去除 `secret/password/token/apiKey` 等字段。
 - **AI 计划**：重复待办先 `DS3.requireOccurrence`，写入 `DS3.addAllocation`；普通待办追加第二段不覆盖第一段；AI 消息动作锁定该消息自己的 `todoId`。
 

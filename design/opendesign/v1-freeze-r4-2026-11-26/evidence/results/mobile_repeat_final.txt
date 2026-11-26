@@ -1,5 +1,5 @@
 plansOn [["recurring","alloc-2",540]]
-all [{"id":"alloc-2","date":"2026-11-26","start":"09:00","end":"10:00","occurrenceDate":"2026-11-27","state":"active","createdAt":1795691419848}]
+all [{"id":"alloc-2","date":"2026-11-26","start":"09:00","end":"10:00","occurrenceDate":"2026-11-27","state":"active","createdAt":1795692228355}]
 mblocks [["recurring","alloc-2","整理周会纪要并群发 计划09:00–10:00 · 计划执行 · 已遗漏 2 次"]]
 click block ok
 occ ["recurring","2026-11-27"] drawer {"type":"todo","id":"recurring"}
