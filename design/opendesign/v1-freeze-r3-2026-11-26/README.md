@@ -18,8 +18,10 @@
 
 ## 在线试用
 
-- 原型 <https://raw.githack.com/liuchangchxy/dayspark/80ea16e2/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-prototype.html>
-- 母版 <https://raw.githack.com/liuchangchxy/dayspark/80ea16e2/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-spec.html>
+- 原型 <https://htmlpreview.github.io/?https://raw.githubusercontent.com/liuchangchxy/dayspark/80ea16e2/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-prototype.html>
+- 母版 <https://htmlpreview.github.io/?https://raw.githubusercontent.com/liuchangchxy/dayspark/80ea16e2/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-spec.html>
+
+> 说明：raw.githack 当前对本仓库会返回“One more step”的人机校验页，不能直接运行；上面两用 GitHub 的 HTML 预览服务打开真实页面。若你本机直接下载评审包，双击 `dayspark-prototype.html` 即可，无需任何网络。
 
 ## 这轮真正改变的产品语义
 
