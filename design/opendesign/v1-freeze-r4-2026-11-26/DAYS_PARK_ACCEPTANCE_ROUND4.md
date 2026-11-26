@@ -83,6 +83,5 @@ python3 backup_roundtrip.py
 
 ## 4. 说明
 
-- `plain_done_probe.txt` 首行 `before {'ERR': ...}` 是该探针自身读取未定义集合的调试行，不是产品异常；其后的完成/撤销写入均正常，`errs []`。
 - 拖动探针早期在 1000px 高窗口把块拖到视口外会导致下一次按不到块；`drag_delta.txt` 使用块内可点击点并做 +30/−30 回归，产品坐标计算本身固定起点。
 - 独立 Reviewer 的复验记录见 `REVIEWER_ROUND4.md`（若评审包中存在）。
