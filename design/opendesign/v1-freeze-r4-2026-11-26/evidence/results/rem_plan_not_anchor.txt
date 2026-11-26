@@ -1,0 +1,10 @@
+add plan ok
+draft plan {"plans":[{"id":"draft-alloc-1795690602560-875","date":"2026-11-20","start":"09:00","end":"10:00","state":"active","occurrenceDate":null,"createdAt":1795690602560}],"plan":"09:00","due":""}
+picker disabled with plan only false,true,true,true,true,true,true
+picker note 还没有可锚定的时间：相对提醒需要先设置日程开始或带时刻的截止，现在只能选“不提醒”或一个具体时间。
+save ok
+saved {"plans":[["09:00","10:00"]]}
+report remind before {"r":"15 分钟前","rs":[]}
+after add 1h {"r":"15 分钟前","rs":["1 小时前"]}
+after plan move {"r":"15 分钟前","rs":["1 小时前"],"plans":[["10:30","11:30"]]}
+errs []

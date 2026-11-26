@@ -1,0 +1,7 @@
+addbtn True
+click ok
+pick ok
+draft {"r":"30 分钟前"}
+cancel ok
+src {}
+errs []

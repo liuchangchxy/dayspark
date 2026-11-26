@@ -1,0 +1,22 @@
+addbtn True
+clickadd ok
+picker rows 不提醒当前|准时|5 分钟前|15 分钟前|30 分钟前|1 小时前|1 天前
+pick30 ok
+todo rem {"r":"15 分钟前","rs":["30 分钟前"]}
+extras 1
+new add True 截止
+new click ok
+new picker 不提醒当前,false|准时没有时间锚点,true|5 分钟前没有时间锚点,true|15 分钟前没有时间锚点,true|30 分钟前没有时间锚点,true|1 小时前没有时间锚点,true|1 天前没有时间锚点,true
+pick abs? ok
+new event add True
+new event click ok
+event picker 不提醒当前,false|准时,false|5 分钟前,false|15 分钟前,false|30 分钟前,false|1 小时前,false|1 天前,false
+pick15 ok
+draft {"r":"15 分钟前","rs":[]}
+crets 0
+event detail add True
+event detail click ok
+event detail picker 不提醒当前,false|准时,false|5 分钟前,false|15 分钟前,false|30 分钟前,false|1 小时前,false|1 天前,false
+event pick30 ok
+event rem {"r":"30 分钟前"}
+errs []

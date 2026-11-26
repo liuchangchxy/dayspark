@@ -1,0 +1,6 @@
+before {'ERR': 'Uncaught', 'd': 'TypeError: undefined is not iterable (cannot read property Symbol(Symbol.iterator))\n    at Array.from (<anonymous>)\n    at <anonymous>:1:28'}
+done {"done":["report"],"plans":[["15:15","invalidated"],["09:00","active"]],"undo":"todo"}
+undo {"done":[],"plans":[["15:15","invalidated"],["09:00","active"]]}
+plant un {"status":"open","done":[],"isDone":false}
+plant re {"status":"open","done":["plant"],"isDone":true}
+errs []

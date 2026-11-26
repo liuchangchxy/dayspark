@@ -1,0 +1,21 @@
+seed {"plans":2,"local":1,"seq":3}
+backup screen ok
+click export ok
+file /tmp/r4-evidence/downloads/2026-11-20.dayspark.json
+backup keys ['v', 'todos', 'events', 'cal', 'state', 'data', 'screen'] ai {'model': 'gpt-4o-mini', 'key': 'sk-••••4f2a', 'base': 'https://api.openai.com/v1'}
+backup state keys ['calView', 'completedOpen', 'earlyOpen', 'localTodos', 'localNo', 'planDate', 'planStart', 'planEnd', 'hiddenCals', 'filterApplied', 'filterCal', 'filterTag', 'filterPriority', 'filterOverdue', 'defaultCal', 'inboxNoDate', 'deletedTodos', 'deletedEvents', 'trashExtra', 'trashRemoved', 'deleteMigrate', 'deletedCals', 'aiInput', 'aiSent', 'fbText', 'aiEnabled', 'aiConfigured', 'skipped', 'doneInstances', 'planSeq', 'done']
+reset ok
+reset screen {"screen":"settings-backup","todos":14,"report":true,"local":0}
+after reset {"alloc":1,"local":0,"done":[]}
+merge screen ok
+click merge ok
+node 449
+setFile ok
+after merge screen {"screen":"settings-backup","variant":"merge-success"}
+after merge report {"alloc":[["15:15","16:00"],["09:00","10:00"]],"rem":["30 分钟前"],"tags":["备份验证"]}
+after merge recurring [["2026-11-26","2026-11-27"]]
+after merge state {"done":["recurring@2026-11-06"],"skip":["weekly@2026-11-13"],"del":["gone"],"local":["local-1"],"seq":3,"tag":true}
+secret leaks {"snap":false,"local":false}
+reload ok
+persisted {"alloc":2,"rem":["30 分钟前"],"done":["recurring@2026-11-06"],"local":1,"seq":3}
+errs ['Log.entryAdded']
