@@ -19,8 +19,8 @@
 
 ## 在线试用
 
-- 原型：`https://htmlpreview.github.io/?https://raw.githubusercontent.com/liuchangchxy/dayspark/0639b8d1/design/opendesign/v1-freeze-r4-2026-11-26/dayspark-prototype.html`
-- 母版：`https://htmlpreview.github.io/?https://raw.githubusercontent.com/liuchangchxy/dayspark/0639b8d1/design/opendesign/v1-freeze-r4-2026-11-26/dayspark-spec.html`
+- 原型：`https://htmlpreview.github.io/?https://raw.githubusercontent.com/liuchangchxy/dayspark/65fdf776/design/opendesign/v1-freeze-r4-2026-11-26/dayspark-prototype.html`
+- 母版：`https://htmlpreview.github.io/?https://raw.githubusercontent.com/liuchangchxy/dayspark/65fdf776/design/opendesign/v1-freeze-r4-2026-11-26/dayspark-spec.html`
 
 > 若在线预览服务不可用，下载本目录后双击 `dayspark-prototype.html` 即可，无需构建或网络。
 
@@ -51,4 +51,4 @@ python3 prototype-src/build.py /tmp/dayspark-r4
 - 原型 `dayspark-prototype.html` SHA-256：`fe3aa531ae5c948c58e31067ca004e4126a850d3f82105a8297259bdce639333`
 - 母版 `dayspark-spec.html` SHA-256：`87416724ae983de675b0f19295d6dc792fc0168eacb53bd1c91eacb04cedf079`
 - 原型由 15 个脚本构建，产物 1,024,391 bytes（UTF-8；构建器报告 928,115 字符）。
-- 评审包提交：`0639b8d1`
+- 评审包提交：`65fdf776`
