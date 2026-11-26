@@ -1,0 +1,9 @@
+screen settings-ai
+open ok
+dlg True sk-••••4f2a
+set ok
+save ok
+data {"model":"gpt-4o-mini","key":"sk-••••3456","base":"https://api.openai.com/v1"} session True
+snap False local False
+redact false|{"model":"gpt-4o-mini","key":"sk-••••3456","base":"https://api.openai.com/v1"}
+errs []

@@ -1,0 +1,14 @@
+banner True
+migrate btn True
+click ok
+modal  这条重复规则需要确认 「旧规则待办」来自旧版本，只存了一条旧规则（FREQ=WEEKLY;BYDAY=FR），没有可确认的时区、锚点日期和结束条件。确认后才会写入新的重复规则；确认前不会改写它。 时区选择时区Asia/ShanghaiAsia/TokyoEurope/LondonAmerica/New_YorkUTC
+cancel ok
+after cancel {"l":"FREQ=WEEKLY;BYDAY=FR"}
+tz opts |Asia/Shanghai|Asia/Tokyo|Europe/London|America/New_York|UTC
+rule click ok
+pick week ok
+pick fri ok
+apply rule ok
+write ok
+after write {"r":"每周五","a":"2026-11-06","tz":"Asia/Shanghai"}
+errs []

@@ -1,0 +1,10 @@
+frame product mobile screen today
+drawer mobile True
+rem add True
+alloc False
+history True
+click remind ok
+rem {}
+new mobile True True
+new rem add True
+errs []
