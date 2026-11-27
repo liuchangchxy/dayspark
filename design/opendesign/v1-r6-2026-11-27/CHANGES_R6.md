@@ -88,8 +88,8 @@ cd design/opendesign/v1-r6-2026-11-27
 python3 prototype-src/build.py /tmp/dayspark-r6
 ```
 
-- 原型 `03ced8696914789dcaf22af6450fcdf6aad3f82c02924bddd024c37d87ff3bce`
-- 母版 `849b46a617f2d98bee1604206789e0e00ef258569b9085e35e945505e5fa76ae`
+- 第一轮产物 `03ced869…fbce`、母版 `849b46a6…6ae`（保留为历史快照）
+- **当前最终产物 `4dd2f92f2f80e6b076fa9e3588325c3b24a767dee9de6b7d2ff438c7b8244351`，母版 `b44043df…dd51`（1,160,733 bytes）**
 - R4 基线 `fe3aa531ae5c948c58e31067ca004e4126a850d3f82105a8297259bdce639333`
 
 ---
