@@ -47,7 +47,7 @@ def vertical(title, a, b):
     im = Image.new('RGB', (w + pad * 2, h), BG)
     d = ImageDraw.Draw(im)
     d.text((pad, 16), title, font=f_title, fill=INK)
-    d.text((pad + d.textlength(title, font=f_title) + 14, 25), '同一演示数据与视口；上为基线，下为 R6', font=f_note, fill=MUTED)
+    d.text((pad + d.textlength(title, font=f_title) + 14, 25), '同一演示数据与视口；上为 R6 基线，下为 R7', font=f_note, fill=MUTED)
     y = head
     for label, img, accent in ((label_a := 'R6 基线（#119 · 95b63eb）', a, MUTED), ('R7 收敛', b, RED)):
         d.rectangle([pad, y, pad + 4, y + bar - 8], fill=accent)
@@ -65,7 +65,7 @@ def horizontal(title, a, b):
     im = Image.new('RGB', (w, h), BG)
     d = ImageDraw.Draw(im)
     d.text((pad, 16), title, font=f_title, fill=INK)
-    d.text((pad + d.textlength(title, font=f_title) + 14, 25), '左为基线，右为 R6', font=f_note, fill=MUTED)
+    d.text((pad + d.textlength(title, font=f_title) + 14, 25), '左为 R6 基线，右为 R7', font=f_note, fill=MUTED)
     x = pad
     for label, img, accent in (('R6 基线（#119 · 95b63eb）', a, MUTED), ('R7 收敛', b, RED)):
         d.rectangle([x, head, x + 4, head + bar - 8], fill=accent)
