@@ -208,14 +208,14 @@
     pushRecent('todo', el.dataset.id);
     const qtext = state.cmdQuery || '';
     P.openTodo(el.dataset.id);
-    state.drawerReturn = { screen: 'command', cmdQuery: qtext, variant: 'result' };
+    state.drawerReturn = { screen: 'command', cmdQuery: qtext, variant: 'result', selectedDate: state.cmdReturnDate };
   });
   registerAction('search-open-event', (el) => {
     window.__v2SearchOpen = true;
     pushRecent('event', el.dataset.id);
     const qtext = state.cmdQuery || '';
     P.openEvent(el.dataset.id);
-    state.drawerReturn = { screen: 'command', cmdQuery: qtext, variant: 'result' };
+    state.drawerReturn = { screen: 'command', cmdQuery: qtext, variant: 'result', selectedDate: state.cmdReturnDate };
   });
   registerAction('search-ai', () => {
     P.baseGo('ai-chat');

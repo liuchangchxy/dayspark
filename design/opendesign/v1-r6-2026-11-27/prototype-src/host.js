@@ -372,6 +372,17 @@
   function enhance() {
     const root = document.getElementById('frame');
     if (!root) return;
+    // The master renders the new-item header as plain data-action buttons.
+    // Without this bridge a real click on 记下待办/创建日程/取消 did nothing,
+    // while direct Proto.actions calls in tests still passed.
+    $$('.new-page [data-action="new-save"], .new-page [data-action="new-cancel"]', root).forEach((el) => {
+      if (!el.dataset.protoAction) protoAction(el, el.dataset.action);
+    });
+    // Same bridge for the two settings surfaces that the master renders with
+    // a plain data-action: their real handlers live in flows-v3-data.
+    $$('[data-action="backup-export"], [data-action="backup-merge"]', root).forEach((el) => {
+      if (!el.dataset.protoAction) protoAction(el, el.dataset.action);
+    });
     $$('[data-action="noop"]', root).forEach((el) => {
       if (el.dataset.protoAction) return;
       wireNoop(el, root);

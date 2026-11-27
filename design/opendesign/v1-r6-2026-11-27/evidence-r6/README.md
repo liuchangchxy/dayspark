@@ -4,12 +4,12 @@
 
 ## 目录
 
-- `screens/` — 最终产物 51 张（浅色 / 暖灰 / 深色，四档视口）。
-- `baseline-r4/` — R4 基线 13 张（产物 `fe3aa531…9333`，同视口同状态）。
+- `screens/` — 主索引 51 张（`final_shots.py … r6` 重拍，浅色 / 暖灰 / 深色，四档视口）+ 定点补图（`r3-*`、`polish-*`、`batch-*`），共 133 张。
+- `baseline-r4/` — R4 基线 13 张（产物 `fe3aa531…9333`，同视口同状态，`final_shots.py … r4` 对 R4 构建重拍）。
 - `compare/` — 12 组前后对比；桌面为上下堆叠（上基线、下 R6），手机为左右并排（左基线、右 R6）。
 - `scripts/` — 可复跑的截图与操作脚本（含捕获文案、AI 动作、交互冒烟）。
 
-## 截图索引（screens/）
+## 截图索引（主集，screens/）
 
 | 文件 | 视口 | 主题 | 状态 |
 |---|---|---|---|
@@ -57,7 +57,8 @@ python3 scripts/make_compare.py
 
 ## 说明
 
-- 51 张截图与 12 组对比由第一轮产物 `a2472751…d940` 渲染；第二轮的日历与表单修正另以 `r3-*.png` 与刷新后的 `polish-*.png` 定点重拍（最终产物 `3528bfb3…eaa0`）。
+- 主集 51 张与 12 组对比的 R6 一侧，均由当前最终产物 `4dd2f92f…4351` 重新渲染（2026-11-27 第三轮）；R4 一侧由 R4 冻结产物 `fe3aa531…9333` 在同一视口与状态重拍，因此两侧尺寸一致。
 - `r3-tags-list.png`、`r3-tag-edit-light/dark.png`、`r3-tags-after.png`、`r3-detail-attach.png`、`r3-m-detail-edit.png`、`r3-m-detail-bottom.png`、`r3-attach-failed.png`、`r3-cal-deadlines.png`、`r3-crossday-edit.png`、`r3-ctx-plan.png`、`r3-shortcuts.png`、`r3-m-tags.png`、`r3-vp-*.png` 是本轮新增的证据图。
+- 视口补图已按“文件名 = 真实页面 + 真实主题 + 真实视口”逐张重拍并核对：`r3-vp-360-today/day/date/new.png`、`r3-vp-390-settings.png` 为手机外壳（`mobile:true`，720/780 宽），`r3-vp-768-week.png` 是 768 宽的周视图，`r3-vp-1024/1920-today.png` 为桌面今天。早期误拍的「360 宽桌面待办」「768 今天」「深色实为浅色」等图已替换。
 - 截图前隐藏右下角「预览」胶囊，避免调试控件进入证据；实际体验时它默认可见。
 - 每张截图前都校验 `innerWidth` 与 `document.body.dataset.protoTheme`，避免设备模拟残留或主题未生效。

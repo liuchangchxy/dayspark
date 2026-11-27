@@ -43,11 +43,19 @@
         due: (pre && pre.due) || '', dueTime: (pre && pre.dueTime) || '',
         plan: null, plans: [], tags: [], note: '',
         repeatUntil: '', repeatCount: 0,
+        // Bind the draft to the proposal that opened it. Save reads this and
+        // only then marks that AI card 已执行; cancel drops the draft, so a
+        // cancelled proposal can never be completed by an unrelated save.
+        aiProposal: pre && Number.isFinite(pre.proposalIdx) ? { idx: pre.proposalIdx, kind: pre.kind } : null,
       };
       if (pre) delete P.data.aiPrefill;
     }
     return P.data.newDraft;
   }
+  // Single canonical draft factory. The older v2/editing layers used to
+  // create their own draft first (without the AI marker), so a save could
+  // never close the proposal. They now call this factory instead.
+  P.newDraftEnsure = draft;
 
   function snap(obj, keys) {
     const out = {};
@@ -304,6 +312,9 @@
       if (!side) return;
       let badge = q('.prio-badge', side);
       const lab = priorityLabel(v);
+      // 中 is the product default; drawing “中” on every row was noise. 高/低
+      // stay as exceptions. (A row marked 中 explicitly also shows nothing,
+      // because the value is the same as the default.)
       const show = lab === '高' || lab === '低';
       if (!show) { if (badge) badge.remove(); return; }
       if (!badge) {
@@ -311,11 +322,12 @@
         badge.className = 'prio-badge';
         side.insertBefore(badge, side.firstChild);
       }
-      badge.textContent = lab;
+      const high = lab === '高';
+      badge.textContent = high ? '高优先级' : lab === '低' ? '低优先级' : lab;
       badge.title = '优先级 ' + lab;
-      badge.style.cssText = lab === '高'
-        ? 'font-size:9px;line-height:1;padding:3px 5px;border-radius:4px;background:var(--ink);color:#fff;margin-right:2px;flex:none'
-        : 'font-size:9px;line-height:1;padding:3px 5px;border-radius:4px;border:1px solid var(--hair-2);color:var(--muted);margin-right:2px;flex:none';
+      // Theme-aware: colours live in host.css so dark mode can invert them.
+      badge.classList.toggle('is-high', high);
+      badge.style.cssText = 'font-size:10px;line-height:1;padding:3px 6px;border-radius:4px;margin-right:3px;flex:none';
     });
     qa('.group-head', root).forEach((head) => {
       const rows = runsAfter(head);

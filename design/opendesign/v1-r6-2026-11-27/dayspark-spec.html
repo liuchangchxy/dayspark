@@ -2786,7 +2786,7 @@ function calBlock(b){
   const planDue=isPlan&&b.todo&&b.todo.due?` · <span style="color:${isOverdue(b.todo)?'var(--red)':'var(--amber)'}">截止 ${dueText(b.todo)}</span>`:'';
   const planMissed=isPlan&&b.todo&&b.todo.missed?` · <span class="missed">已遗漏 ${b.todo.missed}</span>`:'';
   const allocAttr=isPlan&&b.allocId?` data-alloc="${esc(b.allocId)}"`:'';
-  return `<button type="button" class="cal-block ${isPlan?'is-plan':''} ${short?'is-short':''} ${narrow?'is-narrow':''} ${isSeries?'is-series':''}"${allocAttr} data-action="${isPlan?'open-todo':'open-event'}" data-id="${b.id}" style="top:${pct(b.start)}%;height:${Math.max(100*15/1440,h)}%;left:${b.lane/b.lanes*100}%;width:${100/b.lanes}%;${isPlan?`--bar:${c.color}`:`--bar:${c.color};--bg:${c.bg}`}">
+  return `<button type="button" class="cal-block ${isPlan?'is-plan':''} ${short?'is-short':''} ${narrow?'is-narrow':''} ${isSeries?'is-series':''}"${allocAttr} data-action="${isPlan?'open-todo':'open-event'}" data-id="${b.id}" title="${esc(b.title)} · ${fmt(b.start)}–${fmt(b.end)}" style="top:${pct(b.start)}%;height:${Math.max(100*15/1440,h)}%;left:calc(${b.lane/b.lanes*100}% + ${b.lane?1:0}px);width:calc(${100/b.lanes}% - ${b.lanes>1?2:0}px);${isPlan?`--bar:${c.color}`:`--bar:${c.color};--bg:${c.bg}`}">
     <span class="cb-title">${esc(b.title)}${isSeries?'<span class="series-badge">系列</span>':b.repeat?' <span class="repeat-badge">'+ico('repeat',8)+'</span>':''}</span><span class="cb-meta">${isPlan?'计划 · ':''}${fmt(b.start)}–${fmt(b.end)}${planDue}${planMissed}</span>
     ${isPlan&&(isOverdue(b.todo)||b.todo.missed)?'<span class="overdue-dot" aria-label="已逾期"></span>':''}
   </button>`;
@@ -4179,7 +4179,7 @@ function mobileDock(active){
   </nav>`;
 }
 function mobileCapture(){
-  return `<div class="m-capture"><span class="cap-type">${ico('check',9)} 待办</span><span class="cap-date is-empty">无日期 · 个人</span><input class="cap-input" id="cap-input" placeholder="记一件事，回车记下" aria-label="快速捕获"><button type="button" class="cap-send" data-action="capture-expand">${ico('plus',14)}</button></div>`;
+  return `<div class="m-capture"><span class="cap-type">${ico('check',9)} 待办</span><span class="cap-date is-empty">无日期</span><input class="cap-input" id="cap-input" placeholder="记一件事…" aria-label="快速捕获"><button type="button" class="cap-send" data-action="capture-expand">${ico('plus',14)}</button></div>`;
 }
 function mobileCaptureSheet(kind){
   const headMap={parsed:'明天下午三点交报告',removed:'明天下午三点交报告',expanded:'记一件事',event:'新建日程',date:'选择日期',plan:'选择计划执行',calendar:'选择日历',reminder:'选择提醒',validation:'记一件事',['save-error']:'保存失败',discard:'放弃这次输入？',keyboard:'记一件事'};
@@ -4252,23 +4252,28 @@ function mobileTaskSections(){
   if(state.variant==='overdue')overdue=overdue.slice().sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'));
   const overdueIds=new Set(overdue.map(t=>t.id));
   const dueAll=all.filter(t=>!hasPlanToday(t)&&t.due===TODAY&&!overdueIds.has(t.id));
-  const due=dueAll.slice(0,3);
+  const due=dueAll.slice(0,2);
   const unplanned=noDateTodos();
   let out='';
   if(hideMissed&&missed.length)out+=missed.map(missedCard).join('');
   if(state.variant==='overdue'&&overdue.length)out+=overdueToolbar(overdue);
+  const overdueAll=state.variant==='overdue';
   if(overdue.length){
-    out+=`<div class="m-group is-red"><span>已逾期</span><span class="count">${overdue.length}</span></div>`+overdue.slice(0,2).map(t=>taskRow(t)).join('');
-    if(overdue.length>2)out+=`<button type="button" class="more-row" data-action="show-overdue" style="width:100%">${ico('arrowright',10)} 还有 ${overdue.length-2} 项已逾期 · 只看逾期</button>`;
+    // Keep one real overdue row on the first screen; the rest stay one tap
+    // away. Showing two tall rows pushed 今天截止 below the fold entirely.
+    // “只看逾期” is an explicit drill-down: it shows every overdue row.
+    const overdueShown=overdueAll?overdue:(dueAll.length?overdue.slice(0,1):overdue.slice(0,2));
+    out+=`<div class="m-group is-red"><span>已逾期</span><span class="count">${overdue.length}</span></div>`+overdueShown.map(t=>taskRow(t)).join('');
+    if(overdue.length>overdueShown.length)out+=`<button type="button" class="more-row" data-action="show-overdue" style="width:100%">${ico('arrowright',10)} 还有 ${overdue.length-overdueShown.length} 项已逾期 · 只看逾期</button>`;
   }
-  if(due.length)out+=`<div class="m-group"><span>今天截止</span><span class="count">${dueAll.length}</span></div>`+due.map(t=>taskRow(t)).join('');
+  if(due.length)out+=`<div class="m-group"><span>今天截止</span><span class="count">${dueAll.length}</span></div>`+due.slice(0,2).map(t=>taskRow(t)).join('');
   const plannedDue=all.filter(t=>hasPlanToday(t)&&t.due===TODAY);
   const plannedOverdue=all.filter(t=>hasPlanToday(t)&&(isOverdue(t)||t.missed));
   const plannedBits=[];
   if(plannedOverdue.length)plannedBits.push(`${plannedOverdue.length} 项已逾期 / 已遗漏`);
   if(plannedDue.length)plannedBits.push(`${plannedDue.length} 项今天截止`);
   if(plannedBits.length)out+=`<button type="button" class="state-note state-note-link" data-action="nav" data-route="todo-date" style="width:100%">另有 ${plannedBits.join('、')} · 已排进时间轴，查看今天全部 <span aria-hidden="true">→</span></button>`;
-  if(dueAll.length>3)out+=`<button type="button" class="more-row" data-action="nav" data-route="todo-date" style="width:100%">${ico('arrowright',10)} 还有 ${dueAll.length-3} 项今天截止 · 查看全部</button>`;
+  if(dueAll.length>2)out+=`<button type="button" class="more-row" data-action="nav" data-route="todo-date" style="width:100%">${ico('arrowright',10)} 还有 ${dueAll.length-2} 项今天截止 · 查看全部</button>`;
   if(unplanned.length){
     out+=`<div class="m-group"><span>无日期</span><span class="count">${unplanned.length}</span></div>`+unplanned.slice(0,3).map(t=>taskRow(t)).join('');
     if(unplanned.length>3)out+=`<button type="button" class="more-row" data-action="inbox-nodate" style="width:100%">${ico('arrowright',10)} 还有 ${unplanned.length-3} 项无日期 · 去未安排</button>`;
@@ -4940,8 +4945,8 @@ document.addEventListener('click',(e)=>{
   const act=a.dataset.action;
   if(act==='nav'){go(a.dataset.route);return;}
   if(act==='shortcuts-help'){if(window.Proto&&Proto.openShortcuts)Proto.openShortcuts();return;}
-  if(act==='cmd'){if(state.screen!=='command')state.cmdReturn=state.screen;state.screen='command';state.variant='result';state.cmdQuery='周报';render();return;}
-  if(act==='close-cmd'){state.screen=state.cmdReturn||'today';state.variant='normal';state.drawer=null;render();return;}
+  if(act==='cmd'){if(state.screen!=='command'){state.cmdReturn=state.screen;state.cmdReturnDate=state.selectedDate;}state.screen='command';state.variant='result';state.cmdQuery='周报';render();return;}
+  if(act==='close-cmd'){state.screen=state.cmdReturn||'today';if(state.cmdReturnDate)state.selectedDate=state.cmdReturnDate;state.variant='normal';state.drawer=null;render();return;}
   if(act==='capture-expand'||act==='capture-todo'||act==='capture-event'||act==='capture-parsed'||act==='capture-compact'||act==='capture-expanded'||act==='capture-submit'||act==='capture-later'||act==='remove-suggestion'||act==='restore-suggestion'){
     if(act==='remove-suggestion'){state.suggestionRemoved=true;render();return;}
     if(act==='restore-suggestion'){state.suggestionRemoved=false;render();return;}
@@ -5430,10 +5435,10 @@ window.addEventListener('keydown',(e)=>{
     setTimeout(()=>{state.toast=null;render();},2200);
     return;
   }
-  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(state.screen!=='command')state.cmdReturn=state.screen;state.screen='command';state.variant='result';state.cmdQuery='周报';render();}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(state.screen!=='command'){state.cmdReturn=state.screen;state.cmdReturnDate=state.selectedDate;}state.screen='command';state.variant='result';state.cmdQuery='周报';render();}
   if(e.key==='Escape'){
     if(document.querySelector('.confirm-modal')){state.confirmDelete=false;state.deleteRef=null;if(state.variant==='delete')state.variant='normal';render();return;}
-    if(state.screen==='command'){state.screen=state.cmdReturn||'today';state.variant='normal';state.drawer=null;render();return;}
+    if(state.screen==='command'){state.screen=state.cmdReturn||'today';if(state.cmdReturnDate)state.selectedDate=state.cmdReturnDate;state.variant='normal';state.drawer=null;render();return;}
     if(state.screen==='plan-picker'){restorePlan();render();return;}
     if(['filter','filter-empty','date-picker','plan','calendars','slot'].includes(state.variant)){state.variant='normal';render();return;}
     if(state.drawer||state.screen.startsWith('detail-')||state.variant==='detail'){
@@ -5442,6 +5447,20 @@ window.addEventListener('keydown',(e)=>{
       if(state.screen==='detail-todo')state.screen='today';
       if(state.screen==='detail-event')state.screen='cal-day';
       state.variant='normal';
+      const back=state.drawerReturn;
+      if(back&&back.screen){
+        if(back.screen!==state.screen)state.screen=back.screen;
+        if(back.selectedDate)state.selectedDate=back.selectedDate;
+        if(back.todoMode)state.todoMode=back.todoMode;
+        if(back.calScroll)state.calScroll=back.calScroll;
+        if(back.filterApplied!==undefined){
+          state.filterApplied=back.filterApplied;state.filterCal=back.filterCal||'';
+          state.filterTag=back.filterTag||'';state.filterPriority=back.filterPriority||'';
+          state.filterOverdue=!!back.filterOverdue;
+        }
+        if(back.cmdQuery!==undefined){state.cmdQuery=back.cmdQuery;state.variant=back.variant||'result';}
+        state.drawerReturn=null;
+      }
       render();
     }
   }

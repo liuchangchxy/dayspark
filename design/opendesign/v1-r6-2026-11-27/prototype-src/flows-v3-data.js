@@ -441,6 +441,7 @@
    *    post-process the saved event into the two-day cross-midnight span.
    * ------------------------------------------------------------------ */
   function ensureDraft() {
+    if (!P.data.newDraft && typeof P.newDraftEnsure === 'function') return P.newDraftEnsure();
     if (!P.data.newDraft) {
       P.data.newDraft = {
         cal: state.defaultCal || 'personal', date: TODAY_ISO(), start: '11:00', end: '12:00',
@@ -500,13 +501,28 @@
   });
 
   const prevNewSave = P.actions['new-save'];
+  // A save that really grew the store is the only thing that may close an AI
+  // proposal. Validation errors and demo save failures leave it 待确认.
+  function completeProposalAfterSave(proposal, isEvent, beforeTodos, beforeEvents) {
+    if (!proposal || typeof P.aiProposalSaved !== 'function') return;
+    const todoRows = TODOS.length + ((state.localTodos && state.localTodos.length) || 0);
+    const grew = isEvent ? EVENTS.length > beforeEvents : todoRows > beforeTodos;
+    if (!grew) return;
+    const detail = (isEvent ? '已创建日程' : '已记下待办') +
+      (proposal.title ? ' · ' + proposal.title : '');
+    P.aiProposalSaved(isEvent ? 'event' : 'todo', proposal.idx, detail);
+  }
   registerAction('new-save', () => {
     const d = P.data.newDraft;
     const isEvent = state.screen === 'new-event';
+    const proposal = d && d.aiProposal ? Object.assign({ title: d.title || '' }, d.aiProposal) : null;
+    const beforeTodos = TODOS.length + ((state.localTodos && state.localTodos.length) || 0);
+    const beforeEvents = EVENTS.length;
     const cross = !!(isEvent && d && !d.allDay && d.start && d.end && d.end < d.start);
     if (!cross) {
-      if (typeof prevNewSave === 'function') return prevNewSave();
-      return;
+      const result = typeof prevNewSave === 'function' ? prevNewSave() : undefined;
+      completeProposalAfterSave(proposal, isEvent, beforeTodos, beforeEvents);
+      return result;
     }
     const before = EVENTS.length;
     const beforeIds = EVENTS.map((e) => e.id).join('|');
@@ -526,6 +542,7 @@
     delete ev.date;
     render();
     toast('已创建跨午夜日程 · ' + (ev.start || d.start) + '–次日 ' + (ev.end || d.end));
+    completeProposalAfterSave(proposal, true, beforeTodos, beforeEvents);
   });
 
   /* A light enhancer keeps the saved draft's time text honest on the page. */
@@ -713,8 +730,11 @@
     const incLocal = Array.isArray(payload.state && payload.state.localTodos) ? payload.state.localTodos : [];
     const purged = new Set([].concat(state.purgedIds || [], payload.state && payload.state.purgedIds || []));
     let add = 0, overwrite = 0, skip = 0;
+    const seenIds = new Set();
     incTodos.concat(incLocal).forEach((t) => {
       if (!t || typeof t !== 'object' || !t.id) return;
+      if (seenIds.has(t.id)) return;
+      seenIds.add(t.id);
       if (purged.has(t.id)) { skip++; return; }
       const exists = TODOS.some((x) => x && x.id === t.id) || (state.localTodos || []).some((x) => x && x.id === t.id);
       if (exists) overwrite++; else add++;
@@ -750,10 +770,12 @@
     }
     let added = 0, updated = 0;
     const purgedNow = new Set([].concat(state.purgedIds || [], incState.purgedIds || []));
+    const mergedTodoIds = new Set();
     incTodos.forEach((t) => {
       if (!t || typeof t !== 'object' || !t.id) return;
       // A permanent delete is a tombstone: an older backup must not bring it back.
       if (purgedNow.has(t.id)) return;
+      mergedTodoIds.add(t.id);
       const existing = nextTodos.find((x) => x && x.id === t.id);
       const existingLocal = nextLocal.find((x) => x && x.id === t.id);
       if (existing || existingLocal) {
@@ -802,6 +824,8 @@
     incLocal.forEach((t) => {
       if (!t || typeof t !== 'object' || !t.id) return;
       if (purgedNow.has(t.id)) return;
+      // incTodos already merged this row; count it once, not twice.
+      if (mergedTodoIds.has(t.id)) return;
       const existing = nextTodos.find((x) => x && x.id === t.id) || nextLocal.find((x) => x && x.id === t.id);
       if (existing) {
         const list = nextTodos.includes(existing) ? nextTodos : nextLocal;
@@ -825,14 +849,44 @@
       maxSeqFromPlans(nextLocal, 0)
     );
     const nextLocalNo = Math.max(Number(state.localNo) || 0, Number(incState.localNo) || 0);
+    // ---- tombstones (computed BEFORE commit, from pre-merge local state) ----
+    // Soft deletion keeps the row in TODOS/EVENTS and marks the id here, so
+    // "row exists" is NOT the same as "row is live". Using row presence here
+    // erased local tombstones on every merge and resurrected trash items.
+    //
+    // Local tombstones always survive. An incoming tombstone is adopted only
+    // when the id was not live locally; if the user restored or recreated the
+    // item after the backup was taken, the live local copy wins.
+    const prevDeletedTodos = new Set(state.deletedTodos || []);
+    const prevDeletedEvents = new Set(state.deletedEvents || []);
+    const localLiveTodoIds = new Set([].concat(TODOS.slice(), state.localTodos || [])
+      .filter((x) => x && !prevDeletedTodos.has(x.id)).map((x) => x.id));
+    const localLiveEventIds = new Set(EVENTS
+      .filter((x) => x && !prevDeletedEvents.has(x.id)).map((x) => x.id));
+    const incomingDeletedTodos = Array.isArray(incState.deletedTodos) ? incState.deletedTodos : [];
+    const incomingDeletedEvents = Array.isArray(incState.deletedEvents) ? incState.deletedEvents : [];
+    const nextDeletedTodos = mergeUniqueArray(
+      state.deletedTodos,
+      incomingDeletedTodos.filter((id) => id && !localLiveTodoIds.has(id))
+    );
+    const nextDeletedEvents = mergeUniqueArray(
+      state.deletedEvents,
+      incomingDeletedEvents.filter((id) => id && !localLiveEventIds.has(id))
+    );
+    // A restored live row loses its trash snapshot; a soft-deleted row is not
+    // live and keeps it.
+    const finalDeleted = new Set([].concat(nextDeletedTodos || [], nextDeletedEvents || []));
     const nextTrashExtra = (state.trashExtra || []).slice();
     pushUniqueById(nextTrashExtra, incState.trashExtra);
-    state.trashExtra = nextTrashExtra;
-    {
-      const live = new Set([].concat([].slice.call(nextTodos), [].slice.call(nextLocal), [].slice.call(nextEvents)).map((x) => x && x.id));
-      state.trashExtra = nextTrashExtra.filter((x) => !(x && live.has(x.id)));
+    const visibleIds = new Set([].concat([].slice.call(nextTodos), [].slice.call(nextLocal), [].slice.call(nextEvents))
+      .filter((x) => x && !finalDeleted.has(x.id)).map((x) => x.id));
+    const trimmedTrash = nextTrashExtra.filter((x) => !(x && visibleIds.has(x.id)));
+    const nextHiddenCals = mergeUniqueArray(state.hiddenCals, incState.hiddenCals);
+    const nextDeletedCals = mergeUniqueArray(state.deletedCals, incState.deletedCals);
+    const nextPurgedIds = mergeUniqueArray(state.purgedIds, incState.purgedIds);
+    const nextTrashRemoved = mergeUniqueArray(state.trashRemoved, incState.trashRemoved);
 
-    // ---- commit ----
+    // ---- commit: nothing above this line mutates live app state ----
     TODOS.splice(0, TODOS.length, ...nextTodos);
     state.localTodos = nextLocal;
     EVENTS.splice(0, EVENTS.length, ...nextEvents);
@@ -845,17 +899,13 @@
     state.done = nextDone;
     state.planSeq = nextPlanSeq;
     state.localNo = nextLocalNo;
-    // A backup taken before a restore still lists the id as deleted. Keep the
-    // live rows visible: a tombstone only survives if the row is not present.
-    const liveTodoIds = new Set(nextTodos.map((x) => x && x.id).concat(nextLocal.map((x) => x && x.id)));
-    const liveEventIds = new Set(nextEvents.map((x) => x && x.id));
-    state.deletedTodos = mergeUniqueArray(state.deletedTodos, incState.deletedTodos).filter((id) => !liveTodoIds.has(id));
-    state.deletedEvents = mergeUniqueArray(state.deletedEvents, incState.deletedEvents).filter((id) => !liveEventIds.has(id));
-    state.hiddenCals = mergeUniqueArray(state.hiddenCals, incState.hiddenCals);
-    state.deletedCals = mergeUniqueArray(state.deletedCals, incState.deletedCals);
-    state.purgedIds = mergeUniqueArray(state.purgedIds, incState.purgedIds);
-    state.trashRemoved = mergeUniqueArray(state.trashRemoved, incState.trashRemoved);
-    }
+    state.deletedTodos = nextDeletedTodos;
+    state.deletedEvents = nextDeletedEvents;
+    state.trashExtra = trimmedTrash;
+    state.hiddenCals = nextHiddenCals;
+    state.deletedCals = nextDeletedCals;
+    state.purgedIds = nextPurgedIds;
+    state.trashRemoved = nextTrashRemoved;
     return { added, updated };
   }
   // Exposed for verification only; the UI always goes through a real file.

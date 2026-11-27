@@ -340,7 +340,7 @@
     if (!slot || !slot.obj) return;
     const list = remindersOf(slot.obj);
     const hasAnchor = hasAnchorFor(slot.obj, slot.kind);
-    const addLabel = hasAnchor ? '＋ 再加一个' : '＋ 加绝对提醒';
+    const addLabel = hasAnchor ? '＋ 添加' : '＋ 加绝对提醒';
     const addTitle = hasAnchor ? '' : '没有时间锚点；只能添加具体时间';
     if (slot.newForm) {
       const row = qa('.cp-field', root).find((r) => ((q('.k', r) || {}).textContent || '').trim() === '提醒');
@@ -368,12 +368,21 @@
     const select = q('select[data-mfield="remind"]', remindRow);
     if (select) {
       // Detail editor keeps its native primary-reminder select; the extra
-      // reminders are appended as their own removable rows.
+      // reminders are appended as their own removable rows. The add action
+      // must share the select's row, otherwise the grid drops it onto a
+      // full-width line of its own.
       if (!q('[data-remind-add]', remindRow)) {
         const b = document.createElement('button');
         b.type = 'button'; b.className = 'mini'; b.textContent = addLabel; b.title = addTitle;
         b.dataset.remindAdd = '1'; b.dataset.protoAction = 'remind-add';
-        select.insertAdjacentElement('afterend', b);
+        let wrap = select.parentElement;
+        if (!wrap || !wrap.classList || !wrap.classList.contains('v2-select-row')) {
+          wrap = document.createElement('div');
+          wrap.className = 'v2-select-row';
+          select.parentNode.insertBefore(wrap, select);
+          wrap.appendChild(select);
+        }
+        wrap.appendChild(b);
       }
     } else if (valueEl) {
       valueEl.innerHTML = (list[0] ? reminderLabel(slot.obj, slot.kind, list[0]) : esc('不提醒')) + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';

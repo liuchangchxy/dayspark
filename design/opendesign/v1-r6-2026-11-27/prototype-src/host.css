@@ -374,6 +374,17 @@ body[data-proto-theme="dark"] .product .set-row,
 body[data-proto-theme="dark"] .product .m-settings-row { border-color: var(--hair-soft); }
 body[data-proto-theme="dark"] .product .check { background: transparent; border-color: #5b5c53; color: var(--paper); }
 body[data-proto-theme="dark"] .product .check.is-on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+/* Priority badges and priority chips are real state, not decoration: on dark
+   paper a light chip must carry dark ink, and the selected chip must read as
+   selected (dark ink block with pale text), same as priority 中 in light. */
+/* Row priority badge. 高 = 高优先级 in ink, 低 = 低优先级 outline; both read as
+   metadata chips beside the due pill, not a second warning colour. */
+.product .prio-badge { border: 1px solid var(--hair-2); color: var(--muted); background: transparent; }
+.product .prio-badge.is-high { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+body[data-proto-theme="dark"] .prio-badge { border-color: var(--hair-2); color: var(--ink-2); background: transparent; }
+body[data-proto-theme="dark"] .prio-badge.is-high { border-color: var(--ink); background: var(--ink); color: #171815; }
+body[data-proto-theme="dark"] .f-chip.is-on { background: var(--ink); color: #171815; border-color: var(--ink); }
+
 body[data-proto-theme="dark"] .product .tool.primary,
 body[data-proto-theme="dark"] .product .save-bar .btn.primary,
 body[data-proto-theme="dark"] .product .cp-actions .btn.primary,
@@ -509,3 +520,59 @@ body[data-proto-theme="dark"] .attach-open:hover span{text-decoration-color:var(
 
 /* Selected colour swatch: the ring must not vanish on dark paper. */
 .product .swatch.is-on,body[data-proto-theme="dark"] .product .swatch.is-on{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--ink)}
+
+/* 360px Today: one recent schedule, one overdue and today's deadline must
+   coexist above the capture bar. Compress chrome, never the facts. */
+.product.mobile .m-date{font-size:28px}
+.product.mobile .m-sub{margin-top:2px}
+.product.mobile .m-sum{margin-top:2px}
+.product.mobile .m-now{margin:10px 0 0}
+.product.mobile .m-now-head{padding:8px 12px;font-size:12px}
+.product.mobile .m-now-item{padding:6px 12px}
+.product.mobile .m-now-foot{padding:6px 12px;font-size:11px}
+.product.mobile .m-group{margin-top:9px;min-height:29px}
+.product.mobile .m-capture{gap:6px}
+.product.mobile .m-capture .cap-date{display:block;max-width:88px;overflow:hidden;text-overflow:ellipsis}
+.product.mobile .m-capture .cap-input{min-width:0}
+
+/* Mobile detail secondary actions read as one system: a 30px pill, not
+   loose 10px text stacked beside long values. */
+.product.mobile .m-form-row .mini{flex:none;min-height:30px;padding:0 9px;border:1px solid var(--hair-2);border-radius:7px;background:var(--paper);color:var(--ink-2);font-size:11.5px;line-height:28px;white-space:nowrap}
+.product.mobile .m-form-row .mini:hover{background:var(--wash);color:var(--ink);text-decoration:none}
+.product.mobile .m-form-row .m-form-value{gap:8px}
+.product.mobile .v2-select-row .mini{min-height:30px;padding:0 8px;border:1px solid var(--hair-2);border-radius:7px;background:var(--paper);font-size:11px;line-height:28px}
+
+/* Week blocks: a 15-minute event keeps its true 13px height, but its hit
+   area grows 4px above/below so it can still be opened without lying about
+   geometry. Side-by-side lanes get a 2px seam instead of touching. */
+.product .cal-block.is-short{overflow:visible}
+.product .cal-block.is-short::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+.product .cal-block.is-short .cb-title{overflow:hidden;text-overflow:ellipsis}
+.product .cal-block.is-narrow{padding-left:3px;padding-right:2px}
+
+/* Plan blocks carry a local --ink for the light theme. In dark that local
+   value made the title dark-on-dark; reset it on the same element. */
+body[data-proto-theme="dark"] .product .cal-block.is-plan,
+body[data-proto-theme="dark"] .product .tl-block.plan,
+body[data-proto-theme="dark"] .product .m-block.is-plan,
+body[data-proto-theme="dark"] .product .m-overlap-lane.is-plan {
+  --ink:#f2f1ea;
+  color:#f2f1ea;
+}
+body[data-proto-theme="dark"] .product .cal-block.is-plan .cb-meta,
+body[data-proto-theme="dark"] .product .m-block.is-plan .m-block-meta { color:#c9c8bf; }
+
+/* Phone day blocks: the plan deadline and time range are facts, not
+   decoration. Let them wrap instead of clipping the end of “截止 …”. */
+.product.mobile .m-block-title{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.product.mobile .m-block-meta{white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+
+/* Hardcoded white surfaces inside the calendar axis. */
+body[data-proto-theme="dark"] .product .time-axis{background:var(--paper);border-right-color:var(--hair)}
+
+/* 768px desktop: keep all seven days visible instead of clipping Sunday
+   behind a horizontal scroll. Below 700px the phone week list takes over. */
+@media (max-width:900px){
+  .product .cal-main{padding:0 12px}
+  .product .week{min-width:744px}
+}

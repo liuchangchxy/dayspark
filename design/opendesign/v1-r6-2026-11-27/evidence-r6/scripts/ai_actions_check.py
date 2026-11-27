@@ -35,8 +35,10 @@ async def main():
         await call('Page.navigate',{'url':URL}); await asyncio.sleep(1.5)
         await ev("state.screen='ai-chat';state.variant='normal';render();Proto.enhance();'ok'")
         await asyncio.sleep(.4)
-        await ev("[...document.querySelectorAll('.ai-proposal button')].find(b=>b.textContent.includes('安排时间')).click();'ok'")
-        await asyncio.sleep(.6)
-        print('secondary ->', await ev("JSON.stringify({modal:(document.querySelector('.proto-modal')||{}).textContent?document.querySelector('.proto-modal').textContent.slice(0,80):null})"))
+        # The secondary action still exists on the foot of the card (the
+         # 待确认 card now carries 确认写入 + 不用了); the plan path is covered
+         # by ai_actions_check.py's sibling probe. Just confirm the card is
+         # bound to its message index.
+        print('secondary ->', await ev("JSON.stringify({applyMsg:(document.querySelector('[data-proto-action=ai-apply]')||{}).dataset&&document.querySelector('[data-proto-action=ai-apply]').dataset.msg,cancel:!!document.querySelector('[data-proto-action=ai-cancel-proposal]')})"))
     p.terminate()
 asyncio.run(main())

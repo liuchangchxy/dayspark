@@ -668,8 +668,10 @@
           inp.blur();
         });
       });
-      // Custom repeat / reminder affordances next to the native selects.
-      qa('select[data-mfield="repeat"], select[data-mfield="remind"]', root).forEach((sel) => {
+      // Custom repeat affordance next to the native select. Reminders already
+      // have the richer 添加 picker (relative + absolute), so a second
+      // 自定义… button next to the same select was pure clutter.
+      qa('select[data-mfield="repeat"]', root).forEach((sel) => {
         if (sel.dataset.v2) return;
         sel.dataset.v2 = '1';
         const b = document.createElement('button');
@@ -677,7 +679,7 @@
         b.className = 'mini';
         b.style.marginLeft = '6px';
         b.textContent = '自定义…';
-        b.dataset.protoAction = sel.dataset.mfield === 'repeat' ? 'detail-repeat-custom' : 'detail-remind-custom';
+        b.dataset.protoAction = 'detail-repeat-custom';
         const wrap = document.createElement('div');
         wrap.className = 'v2-select-row';
         sel.parentNode.insertBefore(wrap, sel);
@@ -740,6 +742,7 @@
 
   /* ---------------- composer: extra fields, real pickers, dirty guard ---------------- */
   function draft() {
+    if (!P.data.newDraft && typeof P.newDraftEnsure === 'function') return P.newDraftEnsure();
     if (!P.data.newDraft) {
       P.data.newDraft = {
         cal: state.defaultCal || 'personal', date: TODAY, start: '11:00', end: '12:00',
@@ -964,11 +967,47 @@
     }
   });
 
-  registerAction('new-cancel', () => {
+  function newDraftDirty() {
     const d = P.data.newDraft;
     const title = (q('#new-title') || q('.new-page .form-input') || q('.m-detail-scroll .m-form-input') || {}).value || '';
-    const dirty = !!title.trim() || !!(d && ((d.title || '').trim() || d.note || d.due || d.plan || (d.plans || []).length || d.repeat || d.loc || d.allDay || (d.tags || []).length || (d.reminders || []).length || d.cal !== (state.defaultCal || 'personal') || d.priority !== '中' || d.remind !== (state.screen === 'new-event' ? '15 分钟前' : '不提醒')));
-    if (!dirty) { goBackFromNew(); return; }
+    return !!title.trim() || !!(d && ((d.title || '').trim() || d.note || d.due || d.plan || (d.plans || []).length || d.repeat || d.loc || d.allDay || (d.tags || []).length || (d.reminders || []).length || d.cal !== (state.defaultCal || 'personal') || d.priority !== '中' || d.remind !== (state.screen === 'new-event' ? '15 分钟前' : '不提醒')));
+  }
+  function confirmLeaveNew(goDest) {
+    modal({
+      title: '离开这张表单？',
+      body: '<div class="proto-note">标题和已填的字段还没有保存；离开会丢弃这次输入。</div>',
+      actions: [
+        { label: '留下', primary: true },
+        { label: '丢弃并离开', danger: true, onClick: () => { P.data.newDraft = null; goDest(); } },
+      ],
+    });
+  }
+  // Navigation is another way to leave the new-item form. It used to drop a
+  // typed draft without asking; only the 取消 button was guarded.
+  document.addEventListener('click', (e) => {
+    if (state.screen !== 'new-todo' && state.screen !== 'new-event') return;
+    const dest = e.target.closest('[data-action="nav"], [data-action="go-settings"], [data-action="cmd"]');
+    if (!dest) return;
+    if (!newDraftDirty()) return;
+    e.preventDefault(); e.stopPropagation();
+    const goDest = () => {
+      const route = dest.dataset.route;
+      if (route) { P.baseGo(route); P.syncHash(true); return; }
+      if (dest.dataset.action === 'go-settings') { P.baseGo('settings-home'); P.syncHash(true); return; }
+      if (dest.dataset.action === 'cmd') { state.cmdReturn = state.screen; state.cmdReturnDate = state.selectedDate; state.screen = 'command'; state.variant = 'result'; state.cmdQuery = '周报'; render(); }
+    };
+    confirmLeaveNew(goDest);
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
+    if (state.screen !== 'new-todo' && state.screen !== 'new-event') return;
+    if (!((e.metaKey || e.ctrlKey) && e.key && e.key.toLowerCase() === 'k')) return;
+    if (!newDraftDirty()) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    confirmLeaveNew(() => { state.cmdReturn = state.screen; state.cmdReturnDate = state.selectedDate; state.screen = 'command'; state.variant = 'result'; state.cmdQuery = '周报'; render(); });
+  }, true);
+  registerAction('new-cancel', () => {
+    if (!newDraftDirty()) { goBackFromNew(); return; }
     modal({
       title: '离开这张表单？',
       body: '<div class="proto-note">标题和已填的字段还没有保存；离开会丢弃这次输入。</div>',

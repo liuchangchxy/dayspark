@@ -482,6 +482,7 @@
   const qa = (s, r) => Array.from((r || document).querySelectorAll(s));
 
   function draft() {
+    if (!P.data.newDraft && typeof P.newDraftEnsure === 'function') return P.newDraftEnsure();
     if (!P.data.newDraft) {
       P.data.newDraft = {
         cal: state.defaultCal || 'personal', date: TODAY, start: '11:00', end: '12:00',

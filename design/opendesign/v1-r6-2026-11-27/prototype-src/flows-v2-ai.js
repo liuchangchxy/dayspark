@@ -11,8 +11,18 @@
     AI_THREAD.splice(0, AI_THREAD.length, ...P.data.aiMessages);
   }
   function saveThread() {
-    if (typeof AI_THREAD !== 'undefined') P.data.aiMessages = AI_THREAD.map((m) => ({ role: m.role, text: m.text, actions: !!m.actions, act: m.act || null }));
+    if (typeof AI_THREAD === 'undefined') return;
+    // Persist the proposal lifecycle too. Dropping proposalState here was why
+    // an executed card came back as 待确认 after reopening the transcript.
+    P.data.aiMessages = AI_THREAD.map((m) => {
+      const out = { role: m.role, text: m.text, actions: !!m.actions, act: m.act || null };
+      ['proposalKind', 'proposal', 'proposalState', 'proposalDoneAt', 'proposalResult'].forEach((k) => {
+        if (m[k] != null) out[k] = m[k];
+      });
+      return out;
+    });
   }
+  P.saveAiThread = saveThread;
   function fmtM(n) { const x = Math.max(0, Math.min(1439, Math.round(n))); return String(Math.floor(x / 60)).padStart(2, '0') + ':' + String(x % 60).padStart(2, '0'); }
   function minsM(t) { const a = String(t || '0:0').split(':').map(Number); return a[0] * 60 + a[1]; }
   function openTodos() {
@@ -31,7 +41,13 @@
   }
   function findTarget(text) {
     const list = openTodos();
-    const scored = list.map((t) => [t, titleScore(t.title, text)]).sort((a, b) => b[1] - a[1]);
+    const scored = list.map((t) => {
+      let score = titleScore(t.title, text);
+      // Tags are user-authored keywords: “把周报拆成…” should find the todo
+      // tagged 周报 even when only one title bigram matches.
+      (t.tags || []).forEach((tag) => { if (tag && text.includes(tag)) score += 2; });
+      return [t, score];
+    }).sort((a, b) => b[1] - a[1]);
     if (scored.length && scored[0][1] >= 2) return scored[0][0];
     if (state.drawer && state.drawer.type === 'todo') {
       const t = todoById(state.drawer.id);
@@ -64,7 +80,8 @@
     const m = /拆成[：:]?(.+)$/.exec(text);
     if (m) {
       const parts = m[1].split(/[、,，]/).map((s) => s.trim()).filter(Boolean);
-      if (parts.length) return parts;
+      // “拆成三条要点” is a count, not a single subtask named 三条要点.
+      if (!(parts.length === 1 && /^(三条|三个|3\s*条|几条|要点|三条要点)$/.test(parts[0]))) return parts;
     }
     return ['梳理「' + t.title + '」需要的材料', '完成初稿', '检查并提交'];
   }
@@ -72,7 +89,9 @@
     const target = findTarget(text);
     // "安排一下提交周报" is a scheduling request first; do not let the
     // 周报 keyword turn it into a summary reply with no writable act payload.
-    if (/周报|总结|纪要/.test(text) && !/安排|排一下|计划/.test(text)) {
+    // "把周报拆成三条要点" is a subtask request, not a summary request; the
+    // 周报 keyword used to win first and return a reply with no writable act.
+    if (/周报|总结|纪要/.test(text) && !/安排|排一下|计划|拆|子任务/.test(text)) {
       return { text: target
         ? '可以。我会围绕「' + target.title + '」整理要点；需要的话可以在下一步拆成子任务。'
         : '可以。告诉我具体是哪一条待办，我会围绕它整理要点。' };
@@ -97,6 +116,18 @@
       return {
         text: '可以把「' + target.title + '」拆成：' + items.join('、') + '。要创建这些子任务吗？',
         act: { kind: 'subtasks', todoId: target.id, items },
+      };
+    }
+    // Explicit calendar wording produces an event proposal. Keep it opt-in:
+    // a plain “新建…” request still defaults to a todo, never guesses type.
+    if (/新建日程|创建日程|加个?日程|记成日程|排个日程/.test(text)) {
+      const title = text
+        .replace(/^(请|帮我|把|将)?(新建|创建|加个?|记成|排个)\s*(一条|一个)?\s*日程[：:，,]?\s*/, '')
+        .trim() || text;
+      const slot = nextFreeSlot(TODAY, 60);
+      return {
+        text: '可以把它整理成一条日程，标题先写作「' + title + '」；写入前会让你确认日期、起止和日历。',
+        act: { kind: 'event', title, date: TODAY, start: slot.start, end: slot.end },
       };
     }
     if (/新建|创建|记成/.test(text)) {
@@ -137,7 +168,7 @@
       scrim.remove(); onPick(t);
     });
   }
-  function planModal(act) {
+  function planModal(act, onDone) {
     let target = act && act.todoId ? todoById(act.todoId) : null;
     if (target && isDone(target)) target = null;
     let day = act && act.date || TODAY;
@@ -179,8 +210,12 @@
             occurrenceDate: target.repeat ? occ : null,
           });
           if (!alloc) { toast('没有写入计划：缺少日期、时间或实例'); return true; }
+          const when = (target.repeat ? occ + ' ' : day + ' ') + start + '–' + end;
           render();
-          toast('已写入计划 · ' + target.title + ' · ' + (target.repeat ? occ + ' ' : '') + start + '–' + end);
+          toast('已写入计划 · ' + target.title + ' · ' + when);
+          // Completion is reported only after addAllocation returned a real
+          // allocation. Cancel/validation failure never reaches this line.
+          if (typeof onDone === 'function') onDone({ todoId: target.id, date: target.repeat ? occ : day, start, end, allocId: alloc.id, when });
         } },
       ],
     });
@@ -199,7 +234,7 @@
     });
     return scrim;
   }
-  function subtasksModal(act) {
+  function subtasksModal(act, onDone) {
     let target = act && act.todoId ? todoById(act.todoId) : null;
     let items = (act && act.items && act.items.length ? act.items.slice() : (target ? deriveSubtasks(lastUser(), target) : [])).slice();
     const body = document.createElement('div');
@@ -219,8 +254,13 @@
           const list = qa('[data-sub]', body).map((i) => i.value.trim()).filter(Boolean);
           if (!list.length) { toast('至少写一条子任务'); return true; }
           target.subtasks = target.subtasks || [];
-          list.forEach((x) => { if (!target.subtasks.some((s) => s.title === x)) target.subtasks.push({ title: x, done: false }); });
-          render(); toast('已写入 ' + list.length + ' 条子任务 · ' + target.title);
+          let added = 0;
+          list.forEach((x) => {
+            if (!target.subtasks.some((s) => s.title === x)) { target.subtasks.push({ title: x, done: false }); added++; }
+          });
+          render();
+          toast(added ? '已写入 ' + added + ' 条子任务 · ' + target.title : '这些子任务已经存在 · 没有重复写入');
+          if (typeof onDone === 'function') onDone({ todoId: target.id, added, total: list.length });
         } },
       ],
     });
@@ -232,12 +272,23 @@
       if (e.target.closest('[data-sub-add]')) { items = qa('[data-sub]', body).map((i) => i.value); items.push(''); paint(); return; }
       const del = e.target.closest('[data-sub-del]');
       if (del) { items = qa('[data-sub]', body).map((i) => i.value); items.splice(Number(del.dataset.subDel), 1); paint(); return; }
-      if (e.target.closest('[data-proto-action="ai-sub-target"]')) targetPicker((t) => { target = t; paint(); });
+      if (e.target.closest('[data-proto-action="ai-sub-target"]')) targetPicker((t) => {
+        target = t;
+        // When the ask did not name a target, the items were empty; derive
+        // them now from the sentence and the chosen todo instead of leaving
+        // an empty editor the user cannot submit.
+        if (!items.length) items = deriveSubtasks(lastUser(), t);
+        paint();
+      });
     });
     return scrim;
   }
 
   registerAction('ai-insert-proto', (el) => {
+    // The v3 layer renders one proposal card per reply (确认写入 / 不用了).
+    // A generic chip row would be a second, unbound action surface, so this
+    // handler only serves the master's legacy card and never a stale chip.
+    if (!el.dataset.msg) return;
     const label = (el.textContent || '').trim();
     const act = lastAct();
     if (label.includes('安排')) { planModal(act && act.kind === 'plan' ? act : null); return; }

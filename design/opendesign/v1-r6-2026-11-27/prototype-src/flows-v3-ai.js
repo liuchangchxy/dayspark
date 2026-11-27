@@ -122,13 +122,29 @@
     if (!m) return;
     m.proposalState = st;
     if (extra && typeof extra === 'object') Object.assign(m, extra);
-    if (typeof saveThread === 'function') saveThread();
+    if (typeof P.saveAiThread === 'function') P.saveAiThread();
   }
   registerAction('ai-cancel-proposal', (el) => {
     const idx = Number(el.dataset.msg);
     setProposalState(idx, 'cancelled');
     render();
   });
+  // Called by the four real write paths only after the write succeeded.
+  // `kind` is 'todo' | 'event' | 'plan' | 'subtasks'; the message's own act
+  // kind must agree, so a stale marker can never close another proposal.
+  P.aiProposalSaved = function (kind, idx, detail) {
+    const { m } = proposalTarget(idx);
+    if (!m) return false;
+    if (m.proposalState && m.proposalState !== 'pending') return false;
+    const actKind = (m.act && m.act.kind) || 'create';
+    const expected = kind === 'event' ? 'event' : kind === 'plan' ? 'plan' : kind === 'subtasks' ? 'subtasks' : 'create';
+    if (actKind !== expected) return false;
+    setProposalState(idx, 'done', {
+      proposalDoneAt: Date.now(),
+      proposalResult: String(detail || ''),
+    });
+    return true;
+  };
   registerAction('ai-apply', (el) => {
     const idx = Number(el.dataset.msg);
     const { m } = proposalTarget(idx);
@@ -140,12 +156,18 @@
     const act = m.act || {};
     if (act.kind === 'plan') {
       if (typeof P.aiOpenPlan !== 'function') { toast('安排器没有加载'); return; }
-      P.aiOpenPlan(act);
+      P.aiOpenPlan(act, (info) => {
+        P.aiProposalSaved('plan', idx, '已写入计划 · ' + (info && info.when ? info.when : ''));
+        if (state.screen === 'ai-chat') render();
+      });
       return;
     }
     if (act.kind === 'subtasks') {
       if (typeof P.aiOpenSubtasks !== 'function') { toast('子任务编辑器没有加载'); return; }
-      P.aiOpenSubtasks(act);
+      P.aiOpenSubtasks(act, (info) => {
+        P.aiProposalSaved('subtasks', idx, '写入 ' + (info ? info.added : 0) + ' 条子任务');
+        if (state.screen === 'ai-chat') render();
+      });
       return;
     }
     // Create todo / event go through the product's own editor with the
@@ -154,10 +176,10 @@
     const suggested = act.title || textForMessage(idx);
     P.data.newDraft = null;
     if (act.kind === 'event') {
-      P.data.aiPrefill = { kind: 'event', title: suggested, date: act.date || TODAY, start: act.start || '15:00', end: act.end || '16:00', cal: act.cal || null };
+      P.data.aiPrefill = { kind: 'event', proposalIdx: idx, title: suggested, date: act.date || TODAY, start: act.start || '15:00', end: act.end || '16:00', cal: act.cal || null };
       P.baseGo('new-event'); P.syncHash(true);
     } else {
-      P.data.aiPrefill = { kind: 'todo', title: suggested, due: act.due || '', dueTime: act.dueTime || '', cal: act.cal || null };
+      P.data.aiPrefill = { kind: 'todo', proposalIdx: idx, title: suggested, due: act.due || '', dueTime: act.dueTime || '', cal: act.cal || null };
       P.baseGo('new-todo'); P.syncHash(true);
     }
     setTimeout(() => {
