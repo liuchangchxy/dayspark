@@ -42,7 +42,7 @@ python3 prototype-src/build.py /tmp/dayspark-r6
 
 - 原型 SHA-256：`a247275161f6c0a280e46b2c896ad3e9c6f95bbb52ec61cf80e8de289b64d940`
 - 母版 SHA-256：`dadaf6af297270d9e0d14c3c3923462c0b464e13480badaa74829bf1a3405515`
-- 原型由 15 个脚本构建；产物 1,054,260 bytes（UTF-8；构建器报告 957,263 字符）。
+- 原型由 15 个脚本构建；产物 1,054,260 bytes（UTF-8；构建器报告 957,377 字符）。
 - 重复执行 `build.py` 到不同目录得到同一 SHA，可复现。
 - 基线（R4，PR #117）：`fe3aa531…9333`；前后对比均以该产物为「前」。
 
