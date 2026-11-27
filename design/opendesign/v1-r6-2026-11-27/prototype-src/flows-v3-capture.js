@@ -30,14 +30,21 @@
 
   function draft() {
     if (!P.data.newDraft) {
+      const pre = P.data.aiPrefill && P.data.aiPrefill.kind === (state.screen === 'new-event' ? 'event' : 'todo') ? P.data.aiPrefill : null;
       P.data.newDraft = {
-        cal: state.defaultCal || 'personal', date: TODAY, start: '11:00', end: '12:00',
+        cal: (pre && pre.cal) || state.defaultCal || 'personal',
+        date: (pre && pre.date) || TODAY,
+        start: (pre && pre.start) || '11:00',
+        end: (pre && pre.end) || '12:00',
         allDay: false, endDate: '', loc: '', repeat: '', repeatEnd: '永不结束',
         remind: state.screen === 'new-event' ? '15 分钟前' : '不提醒',
         reminders: [],
-        priority: '中', due: '', dueTime: '', plan: null, plans: [], tags: [], note: '',
+        priority: '中',
+        due: (pre && pre.due) || '', dueTime: (pre && pre.dueTime) || '',
+        plan: null, plans: [], tags: [], note: '',
         repeatUntil: '', repeatCount: 0,
       };
+      if (pre) delete P.data.aiPrefill;
     }
     return P.data.newDraft;
   }
@@ -244,6 +251,38 @@
       input.addEventListener('input', () => { if (P.data.newDraft) P.data.newDraft.title = input.value; });
     }
     if (d.title == null) d.title = input.value || '';
+  });
+
+  /* Capture bar: the chip tells the truth about what Enter will write. */
+  registerEnhancer((root) => {
+    const input = q('#cap-input', root);
+    if (!input) return;
+    const box = input.closest('.capture');
+    if (!box) return;
+    const typeEl = q('.cap-type', box), dateEl = q('.cap-date', box);
+    function paintHint() {
+      const raw = (input.value || '').trim();
+      const parsed = P.parseQuickSentence ? P.parseQuickSentence(raw) : { date: '', explicitDate: false, time: null, start: '', end: '' };
+      const asEvent = state.capture === 'event' || !!parsed.time;
+      const cal = calOf(state.defaultCal || 'personal').name;
+      if (typeEl) typeEl.innerHTML = ico(asEvent ? 'calendar' : 'check', 10) + ' ' + (asEvent ? '日程' : '待办');
+      if (dateEl) {
+        if (asEvent) {
+          dateEl.classList.remove('is-empty');
+          dateEl.textContent = parsed.time
+            ? mdShort(parsed.date || TODAY) + ' ' + parsed.start + '–' + parsed.end
+            : mdShort(parsed.date || TODAY) + ' · 全天';
+        } else if (parsed.explicitDate && parsed.date) {
+          dateEl.classList.remove('is-empty');
+          dateEl.textContent = '截止 ' + mdShort(parsed.date) + ' · ' + cal;
+        } else {
+          dateEl.classList.add('is-empty');
+          dateEl.textContent = '无日期 · ' + cal;
+        }
+      }
+    }
+    input.addEventListener('input', paintHint);
+    paintHint();
   });
 
   /* ---------------- priority markers + "high floats up" in todo lists ---------------- */

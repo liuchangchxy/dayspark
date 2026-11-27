@@ -59,24 +59,82 @@
     return !!v && v !== '不提醒' && !/^绝对/.test(v);
   }
 
+  /* Real trigger time for a reminder label. Relative reminders are only
+     meaningful next to the anchor they count back from; showing the computed
+     clock time is what makes "15 分钟前" verifiable before saving. */
+  function anchorParts(obj, kind) {
+    if (!obj || !obj) return null;
+    if (kind === 'event') {
+      if (obj.allDay || !obj.start) return null;
+      const day = obj.date || obj.startDate || (P.data && P.data.today) || '';
+      return day ? { day, time: obj.start } : null;
+    }
+    if (!obj.due || !obj.dueTime) return null;
+    return { day: obj.due, time: obj.dueTime };
+  }
+  function reminderTriggerText(obj, kind, label) {
+    if (!label || label === '不提醒') return '';
+    if (/^绝对/.test(label)) {
+      const m = /^绝对\s*·\s*(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})/.exec(label);
+      return m ? (typeof P.mdShort === 'function' ? P.mdShort(m[1]) : (typeof mdShort === 'function' ? mdShort(m[1]) : m[1])) + ' ' + m[2] : '';
+    }
+    const a = anchorParts(obj, kind);
+    if (!a) return '';
+    const base = a.day + 'T' + a.time + ':00';
+    const d = new Date(base);
+    if (isNaN(d.getTime())) return '';
+    const m = /^(\d+)\s*(分钟|小时|天)前/.exec(label);
+    let back = 0;
+    if (label === '准时') back = 0;
+    else if (m) back = Number(m[1]) * (m[2] === '分钟' ? 1 : m[2] === '小时' ? 60 : 1440);
+    else return '';
+    const when = new Date(d.getTime() - back * 60000);
+    const pad = (n) => String(n).padStart(2, '0');
+    const iso = when.getFullYear() + '-' + pad(when.getMonth() + 1) + '-' + pad(when.getDate());
+    const shortDate = typeof P.mdShort === 'function' ? P.mdShort(iso) : (typeof mdShort === 'function' ? mdShort(iso) : iso);
+    return shortDate + ' ' + pad(when.getHours()) + ':' + pad(when.getMinutes());
+  }
+  function reminderTriggerFull(obj, kind, label) {
+    const text = reminderTriggerText(obj, kind, label);
+    return text ? text : '';
+  }
+  P.reminderTriggerText = reminderTriggerText;
+  P.anchorParts = anchorParts;
+
   /* ---------------- reminder picker ---------------- */
   P.openReminderPicker = function (opts) {
     opts = opts || {};
     const hasAnchor = opts.hasAnchor === undefined ? !!contextAnchor() : !!opts.hasAnchor;
     const relative = ['准时', '5 分钟前', '15 分钟前', '30 分钟前', '1 小时前', '1 天前'];
     const cur = opts.value || '不提醒';
+    const anchor = contextAnchor();
+    const anchorObj = contextDraft();
+    const anchorKind = contextKind();
     const body = document.createElement('div');
-    const rows = [`<button type="button" class="proto-list-row" data-remind="不提醒"><span class="grow">不提醒</span>${cur === '不提醒' ? '<span class="proto-badge">当前</span>' : ''}</button>`]
-      .concat(relative.map((o) => {
-        const dis = !hasAnchor;
-        const on = cur === o;
-        return `<button type="button" class="proto-list-row${dis ? ' proto-disabled' : ''}" data-remind="${o}" ${dis ? 'disabled title="先设置日程开始，或带时刻的截止"' : ''}><span class="grow">${o}${dis ? '<small>没有时间锚点</small>' : ''}</span>${on && !dis ? '<span class="proto-badge">当前</span>' : ''}</button>`;
-      }))
-      .join('');
-    const absCur = /^绝对/.test(cur) ? cur : '';
-    body.innerHTML = `<div class="proto-list">${rows}</div>
-      <div class="proto-field" style="margin-top:8px"><label>具体时间</label><button type="button" class="proto-input" data-remind-abs style="text-align:left">${absCur ? P.esc(absCur) : '选择一个具体时间…'}</button></div>
-      <div class="proto-note">${hasAnchor ? '提醒只锚定日程开始或待办的截止时刻；计划执行不作为提醒锚点，改计划不会改变提醒。' : '还没有可锚定的时间：相对提醒需要先设置日程开始或带时刻的截止，现在只能选“不提醒”或一个具体时间。'}</div>`;
+    function triggerOf(label) {
+      const text = reminderTriggerText(anchorObj, anchorKind, label);
+      return text ? text : '';
+    }
+    function paint() {
+      const rows = [`<button type="button" class="proto-list-row" data-remind="不提醒"><span class="grow">不提醒</span>${cur === '不提醒' ? '<span class="proto-badge">当前</span>' : ''}</button>`]
+        .concat(relative.map((o) => {
+          const dis = !hasAnchor;
+          const on = cur === o;
+          const when = dis ? '' : triggerOf(o);
+          return `<button type="button" class="proto-list-row${dis ? ' proto-disabled' : ''}" data-remind="${o}" ${dis ? 'disabled' : ''}><span class="grow">${o}${when ? '<small>触发于 ' + P.esc(when) + '</small>' : ''}${dis ? '<small>没有可锚定的时间</small>' : ''}</span>${on && !dis ? '<span class="proto-badge">当前</span>' : ''}</button>`;
+        }))
+        .join('');
+      const absCur = /^绝对/.test(cur) ? cur : '';
+      const absLabel = absCur ? absCur.replace(/^绝对\s*·\s*/, '') : '';
+      body.innerHTML = `<div class="proto-list">${rows}
+          <button type="button" class="proto-list-row" data-remind-custom-row><span class="grow">自定义提前<small>${hasAnchor ? '例如提前 45 分钟、2 小时' : '没有可锚定的时间，暂不可用'}</small></span><span class="proto-badge">＋</span></button>
+        </div>
+        <div class="proto-field" style="margin-top:8px"><label>具体日期与时间</label><button type="button" class="proto-input" data-remind-abs style="text-align:left">${absLabel ? P.esc(absLabel) : '选择一个具体时刻…'}</button>
+          <div class="proto-inline-row" style="margin-top:6px"><input type="date" class="proto-input" id="rm-abs-date" value="${absLabel ? absLabel.slice(0, 10) : (anchorObj && anchorObj.due ? anchorObj.due : TODAY)}" aria-label="提醒日期"><input type="time" class="proto-input" id="rm-abs-time" value="${absLabel ? absLabel.slice(11, 16) : (anchor && anchor.time ? anchor.time : '09:00')}" aria-label="提醒时间"></div>
+        </div>
+        <div class="proto-note" id="rm-note">${hasAnchor ? (anchor ? '相对提醒从 ' + P.esc((P.mdShort ? P.mdShort(anchor.day) : anchor.day) + ' ' + anchor.time) + ' 起算；计划执行不作为锚点，改计划不会改变提醒。' : '') : '相对提醒需要一个时间锚点：先设置日程开始，或给待办填上截止时刻。也可以直接用上面的具体日期与时间。'}</div>`;
+    }
+    paint();
     const scrim = modal({ title: '提醒', body, actions: [{ label: '取消' }] });
     body.addEventListener('click', (e) => {
       const b = e.target.closest('[data-remind]');
@@ -85,19 +143,49 @@
         opts.onPick(b.dataset.remind === '不提醒' ? '' : b.dataset.remind);
         return;
       }
-      if (e.target.closest('[data-remind-abs]')) {
-        P.openTimeOfDay({
-          title: '指定提醒时间', value: absCur ? absCur.replace(/^绝对\s*·\s*/, '') : '09:00',
-          onPick: (v) => {
-            if (!v) return;
+      const custom = e.target.closest('[data-remind-custom-row]');
+      if (custom) {
+        if (!hasAnchor) { toast('先设置日程开始，或给待办填上截止时刻'); return; }
+        const box = document.createElement('div');
+        box.innerHTML = `<div class="proto-inline-row"><input type="number" min="1" max="10080" class="proto-input" id="rm-off-n" value="45" aria-label="提前数量"><select class="proto-input" id="rm-off-u" aria-label="单位"><option value="分钟">分钟</option><option value="小时">小时</option><option value="天">天</option></select></div><div class="proto-note">从 ${P.esc((P.mdShort ? P.mdShort(anchor.day) : anchor.day) + ' ' + anchor.time)} 往前算。</div>`;
+        modal({ title: '自定义提前提醒', body: box, actions: [
+          { label: '取消' },
+          { label: '使用', primary: true, onClick: (root) => {
+            const n = Math.max(1, Math.min(10080, Number((q('#rm-off-n', root) || {}).value || 0)));
+            const u = (q('#rm-off-u', root) || {}).value || '分钟';
+            const label = n + ' ' + u + '前';
+            const when = reminderTriggerText(anchorObj, anchorKind, label);
             scrim.remove();
-            opts.onPick('绝对 · ' + v);
-          },
-        });
+            opts.onPick(label);
+            if (when) toast('提醒 · ' + label + ' · 触发于 ' + when);
+            return false;
+          } },
+        ] });
+        return;
+      }
+      if (e.target.closest('[data-remind-abs]')) {
+        // Absolute reminders need a real date and a real time; a bare HH:MM
+        // silently pointed at the wrong day.
+        const dateEl = q('#rm-abs-date', body), timeEl = q('#rm-abs-time', body);
+        const day = (dateEl && dateEl.value) || TODAY;
+        const time = (timeEl && timeEl.value) || '09:00';
+        scrim.remove();
+        opts.onPick('绝对 · ' + day + ' ' + time);
       }
     });
     return scrim;
   };
+
+  /* When the anchor goes away (all-day, cleared due time), a relative
+     reminder would fire nowhere. Drop it instead of saving a dead label. */
+  function normaliseReminders(obj, kind) {
+    if (!obj) return;
+    if (anchorOf(obj, kind)) return;
+    const kill = (v) => !!v && v !== '不提醒' && !/^绝对/.test(v);
+    if (kill(obj.remind)) obj.remind = '';
+    if (Array.isArray(obj.reminders)) obj.reminders = obj.reminders.filter((v) => !kill(v));
+  }
+  P.normaliseReminders = normaliseReminders;
 
   registerAction('detail-remind-custom', () => {
     const d = contextDraft(); if (!d) return;

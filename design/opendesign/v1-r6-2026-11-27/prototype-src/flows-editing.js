@@ -1,5 +1,7 @@
 /* Editing flows: create, detail associations, tags, calendars. */
 (function () {
+  const P = window.Proto;
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
   const { registerAction, registerEnhancer, toast, modal, protoAction } = window.Proto;
   const q = (s, r) => (r || document).querySelector(s);
   const qa = (s, r) => Array.from((r || document).querySelectorAll(s));
@@ -28,9 +30,27 @@
   function currentDraft() {
     return state.draft && state.draftKey ? state.draft : null;
   }
+  /* The row being edited is either the draft (unsaved) or the live object
+     (view drawer). Both need real controls; only the draft delays the write. */
+  function editTarget() {
+    const draft = currentDraft();
+    if (draft) return draft;
+    const ref = typeof activeEditRef === 'function' ? activeEditRef() : state.drawer;
+    if (!ref) return null;
+    return ref.type === 'event' ? eventById(ref.id) : todoById(ref.id);
+  }
+  function isDraftTarget(obj) { return !!obj && !!state.draft && obj === state.draft; }
+  function attsOf(obj) {
+    if (!obj) return [];
+    if (Array.isArray(obj.attachments)) return obj.attachments;
+    if (obj.attach) obj.attachments = [{ id: 'legacy', name: obj.attach, state: 'local', size: '' }];
+    else obj.attachments = [];
+    return obj.attachments;
+  }
+  function findAtt(obj, id) { return attsOf(obj).find((a) => a.id === id); }
 
   registerAction('detail-add-tag', () => {
-    const draft = currentDraft();
+    const draft = editTarget();
     if (!draft) return;
     const tags = window.Proto.data.tags.slice();
     const body = document.createElement('div');
@@ -74,7 +94,7 @@
   });
 
   registerAction('detail-subtask-add', () => {
-    const draft = currentDraft();
+    const draft = editTarget();
     if (!draft) return;
     window.Proto.prompt({
       title: '添加子任务',
@@ -85,33 +105,134 @@
         draft.subtasks = draft.subtasks || [];
         draft.subtasks.push({ title: value, done: false });
         render();
-        toast('已添加子任务');
+        toast(isDraftTarget(draft) ? '已添加子任务 · 保存后生效' : '已添加子任务');
       },
     });
   });
 
-  registerAction('detail-attach', () => {
-    const draft = currentDraft();
-    if (!draft) return;
-    const files = ['本周数据.xlsx', '会议纪要.pdf', '设计稿-v4.fig'];
+  let attSeq = 0;
+  registerAction('attach-add', () => {
+    const obj = editTarget();
+    if (!obj) { toast('先打开一项待办或日程'); return; }
+    const files = ['本周数据.xlsx|86 KB', '会议纪要.pdf|1.2 MB', '设计稿-v4.fig|4.8 MB'];
     const body = document.createElement('div');
     body.className = 'proto-list';
-    files.forEach((name) => {
+    const note = document.createElement('div');
+    note.className = 'proto-note';
+    note.style.marginTop = '0';
+    note.textContent = '可以连续添加多个；选择后仍在列表里，点「完成」关闭。';
+    body.appendChild(note);
+    files.forEach((spec) => {
+      const [name, size] = spec.split('|');
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'proto-list-row';
-      b.innerHTML = `<span class="grow">${name}<small>本地文件 · 模拟上传</small></span><span class="proto-badge">选择</span>`;
+      b.innerHTML = `<span class="grow">${esc(name)}<small>${esc(size)} · 本机文件</small></span><span class="proto-badge">添加</span>`;
       b.addEventListener('click', () => {
-        draft.attach = name;
-        render();
-        toast('已添加附件 · ' + name);
+        const list = attsOf(obj);
+        if (list.some((a) => a.name === name)) { toast('这个文件已经在附件里'); return; }
+        const offline = !!(P.demo && P.demo.offline);
+        list.push({ id: 'att-' + (++attSeq), name, size, state: offline ? 'failed' : 'local' });
+        if (isDraftTarget(obj)) toast(offline ? '上传失败 · 文件留在本机，可重试' : '已添加附件 · 保存后生效');
+        else { render(); toast('已添加附件 · ' + name); }
+        const badge = q('.proto-badge', b);
+        if (badge) { badge.textContent = '已添加'; b.disabled = true; b.classList.add('proto-disabled'); }
       });
       body.appendChild(b);
     });
+    modal({ title: '添加附件', body, actions: [{ label: '完成', primary: true, onClick: () => { render(); } }] });
+  });
+  registerAction('detail-attach', () => { P.actions['attach-add'](); });
+
+  registerAction('attach-open', (el) => {
+    const obj = editTarget();
+    const att = obj && findAtt(obj, el.dataset.att);
+    if (!att) { toast('这个附件已经不在列表里'); return; }
+    const stateText = att.state === 'failed' ? '上传失败 · 没有服务器副本' : att.state === 'ready' ? '已保存 · 可在其他设备打开' : '本机文件 · 尚未同步到服务器';
     modal({
-      title: '添加附件',
-      body,
-      actions: [{ label: '取消' }],
+      title: att.name,
+      body: `<div class="proto-list">
+        <div class="proto-list-row"><span class="grow">大小<small>本地记录，不是真实文件内容</small></span><span class="proto-badge">${esc(att.size || '未知')}</span></div>
+        <div class="proto-list-row"><span class="grow">状态<small>${esc(stateText)}</small></span><span class="proto-badge">${att.state === 'failed' ? '失败' : att.state === 'ready' ? '可用' : '本机'}</span></div>
+      </div><div class="proto-note">原型只模拟打开和下载；不会读取真实文件，也不会真的写磁盘。</div>`,
+      actions: [
+        { label: '关闭' },
+        { label: '下载', primary: true, onClick: () => { toast('已保存到本机 · ' + att.name + '（模拟）'); } },
+      ],
+    });
+  });
+  registerAction('attach-retry', (el) => {
+    const obj = editTarget();
+    const att = obj && findAtt(obj, el.dataset.att);
+    if (!att) return;
+    if (P.demo && P.demo.offline) { toast('仍然离线；文件留在本机，联网后再重试'); return; }
+    att.state = 'ready';
+    render();
+    toast('已重新上传 · ' + att.name);
+  });
+  registerAction('attach-remove', (el) => {
+    const obj = editTarget();
+    const att = obj && findAtt(obj, el.dataset.att);
+    if (!att) return;
+    modal({
+      title: '移除「' + att.name + '」？',
+      body: '<div class="proto-note">只会从这一项移除附件记录；本机文件不会被删除。</div>',
+      actions: [
+        { label: '取消' },
+        { label: '移除', primary: true, danger: true, onClick: () => {
+          obj.attachments = attsOf(obj).filter((a) => a.id !== att.id);
+          if (obj.attach === att.name) obj.attach = '';
+          render();
+          toast(isDraftTarget(obj) ? '已移除附件 · 保存后生效' : '已移除附件');
+        } },
+      ],
+    });
+  });
+
+  /* ---------------- subtasks: complete, rename, delete ---------------- */
+  registerAction('subtask-toggle', (el) => {
+    const obj = editTarget();
+    const i = Number(el.dataset.i);
+    if (!obj || !Array.isArray(obj.subtasks) || !obj.subtasks[i]) return;
+    const s = obj.subtasks[i];
+    s.done = !s.done;
+    render();
+    toast((s.done ? '已完成子任务' : '已取消完成') + (isDraftTarget(obj) ? ' · 保存后生效' : ''));
+  });
+  registerAction('subtask-rename', (el) => {
+    const obj = editTarget();
+    const i = Number(el.dataset.i);
+    if (!obj || !Array.isArray(obj.subtasks) || !obj.subtasks[i]) return;
+    const s = obj.subtasks[i];
+    window.Proto.prompt({
+      title: '重命名子任务',
+      label: '子任务标题',
+      value: s.title,
+      confirm: '保存',
+      onConfirm: (v) => {
+        if (!v) { toast('子任务标题不能为空'); return; }
+        s.title = v;
+        render();
+        toast(isDraftTarget(obj) ? '子任务已改名 · 保存后生效' : '子任务已改名');
+      },
+    });
+  });
+  registerAction('subtask-remove', (el) => {
+    const obj = editTarget();
+    const i = Number(el.dataset.i);
+    if (!obj || !Array.isArray(obj.subtasks) || !obj.subtasks[i]) return;
+    const s = obj.subtasks[i];
+    modal({
+      title: '删除子任务「' + s.title + '」？',
+      body: '<div class="proto-note">只删除这一条子任务，不影响父待办。</div>',
+      actions: [
+        { label: '取消' },
+        { label: '删除', primary: true, danger: true, onClick: () => {
+          obj.subtasks.splice(i, 1);
+          render();
+          toast(isDraftTarget(obj) ? '已删除子任务 · 保存后生效' : '已删除子任务');
+        } },
+      ],
     });
   });
 
@@ -235,8 +356,9 @@
       else if (label.startsWith('子任务')) protoAction(add, 'detail-subtask-add');
     });
 
-    // Extra / renamed tags in both settings and the standalone tag page.
-    if (section === 'tags' || state.screen === 'tags-page') {
+    // The standalone sample tag page still needs its rows wired here; the
+    // settings tag list is rendered from real data and only needs search.
+    if (state.screen === 'tags-page') {
       const container = q('.set-content', root) || q('.simple-wrap', root);
       if (!container) return;
       const addRow = q('.add-row, .simple-add', container);
@@ -278,6 +400,27 @@
         row.dataset.tag = name;
       });
       if (addRow) protoAction(addRow, 'tag-new');
+    }
+    if (section === 'tags') {
+      const search = q('#tag-search', root);
+      if (!search) return;
+      const container = q('#tag-list', root) || root;
+      if (search.dataset.v3) return;
+      search.dataset.v3 = '1';
+      const apply = () => {
+        const term = (search.value || '').trim().toLowerCase();
+        let shown = 0;
+        qa('.tag-row', container).forEach((row) => {
+          const name = row.dataset.name || (q('.tag-name', row) || {}).textContent || '';
+          const hit = !term || name.toLowerCase().includes(term);
+          row.hidden = !hit;
+          if (hit) shown++;
+        });
+        const none = q('#tag-none', root);
+        if (none) none.hidden = !(term && !shown);
+      };
+      search.addEventListener('input', apply);
+      apply();
     }
   });
 
@@ -401,6 +544,20 @@
       ? firstPlan.date + ' ' + firstPlan.start + '–' + firstPlan.end + (draftPlans.length > 1 ? ' · 共 ' + draftPlans.length + ' 段' : '') + (draftHistory ? ' · 历史 ' + draftHistory : '')
       : (draftHistory ? '没有进行中的计划 · 历史 ' + draftHistory + ' 段' : (d.plan ? d.plan.date + ' ' + d.plan.start + '–' + d.plan.end : '未安排')));
     set('优先级', d.priority || '中');
+    // The fact strip above the fields is the same draft. Repaint it so it never
+    // contradicts the rows (or what save will actually write).
+    const facts = q('#new-facts', root);
+    if (facts) {
+      const calName = calOf(d.cal).name;
+      const whenText = state.screen === 'new-event'
+        ? (d.allDay
+          ? (d.endDate && d.endDate !== d.date ? '全天 · ' + mdShort(d.date) + '–' + mdShort(d.endDate) : '全天 · ' + mdShort(d.date))
+          : mdShort(d.date) + ' ' + (d.start || '') + '–' + (d.end || ''))
+        : (d.due ? '截止 ' + mdShort(d.due) + (d.dueTime ? ' ' + d.dueTime : '') : '无截止');
+      const trig = reminderList.length && P.reminderTriggerText ? P.reminderTriggerText(d, state.screen === 'new-event' ? 'event' : 'todo', reminderList[0]) : '';
+      const remindText = reminderList.length ? reminderList[0] + (trig ? ' · ' + trig : '') : '不提醒';
+      facts.innerHTML = `<span class="new-fact"><i class="cal-dot" style="background:${calOf(d.cal).color}"></i>${esc(calName)}</span><span class="new-fact">${ico('clock',10)} ${esc(whenText)}</span><span class="new-fact">${ico('bell',10)} ${esc(remindText)}</span>`;
+    }
   });
 
   // new-field is owned by the later pickers/capture chain; no second writer here.

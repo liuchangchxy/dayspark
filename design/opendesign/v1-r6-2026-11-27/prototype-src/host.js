@@ -57,13 +57,22 @@
       if (!TRANSIENT.has(k) && k !== 'done') stateOut[k] = state[k];
     }
     stateOut.done = state.done instanceof Set ? Array.from(state.done) : [];
+    // The AI key is session-only: snapshots (localStorage, backups, conflict
+    // views) must never carry plaintext, even if a key was typed.
+    let dataOut = Proto.data;
+    try {
+      dataOut = JSON.parse(JSON.stringify(Proto.data));
+      if (dataOut && dataOut.ai && typeof dataOut.ai.key === 'string' && dataOut.ai.key && dataOut.ai.key.indexOf('•') < 0) {
+        dataOut.ai.key = 'sk-••••' + dataOut.ai.key.slice(-4);
+      }
+    } catch (_) { dataOut = Proto.data; }
     return {
       v: 1,
       todos: TODOS,
       events: EVENTS,
       cal: CAL,
       state: stateOut,
-      data: Proto.data,
+      data: dataOut,
       screen: state.screen,
     };
   }
@@ -267,6 +276,7 @@
 
   function showError(kind, detail) {
     state.protoError = { kind: kind || 'missing', detail: detail || '' };
+    if (detail && window.console) console.warn('[deep link]', detail);
     render();
   }
   Proto.showError = showError;
@@ -291,7 +301,7 @@
         ${startup ? `<button type="button" class="page-state-btn" data-proto-action="error-retry">重试</button>` : ''}
         <button type="button" class="page-state-btn" data-proto-action="error-home">返回首页</button>
       </div>
-      ${e.detail ? `<p style="font-size:9px;color:var(--faint);word-break:break-all">${String(e.detail).slice(0, 120)}</p>` : ''}
+      ${''/* The raw route is for diagnosis, not for the reader. */}
     </div></div></div>`;
     if (state.device === 'mobile') {
       frame.innerHTML = `<div class="m-app"><div class="m-status"><span>15:00</span><span class="m-status-icons"><i></i><i></i><i></i></span></div><header class="m-top"><div class="m-title">DaySpark</div></header><div class="m-scroll">${body}</div></div>`;
@@ -397,7 +407,9 @@
   function wireNoop(el, root) {
     const text = (el.textContent || '').trim();
     const page = el.closest('.new-page');
-    const settings = el.closest('.settings-page, .page.settings-page');
+    // The phone shell is not .settings-page, but the same settings semantics
+    // apply; without this every import/backup button on mobile fell through.
+    const settings = el.closest('.settings-page, .page.settings-page') || (state.screen.startsWith('settings-') ? el.closest('.m-app') : null);
     const section = state.screen.startsWith('settings-') ? state.screen.replace('settings-', '') : '';
 
     if (state.screen === 'new-todo' || state.screen === 'new-event') {
@@ -439,6 +451,7 @@
       if (text.includes('应用选择')) return protoAction(el, 'sync-apply');
     }
     if (settings && section.startsWith('notify')) {
+      if (text === '发送' || text.includes('发送测试')) return protoAction(el, 'notify-test');
       if (text.includes('打开设置')) return protoAction(el, 'notify-open-settings');
       if (text.includes('已允许') || text.includes('未生效') || text.includes('可用')) {
         return protoAction(el, 'notify-toggle');
@@ -541,7 +554,7 @@
     toolbar.className = 'proto-bar';
     toolbar.innerHTML = `
       <button type="button" class="proto-pill" data-proto-tool="toggle" aria-expanded="false" aria-label="打开预览选项">预览 · 桌面</button>
-      <div class="proto-menu" hidden>
+      <div class="proto-menu proto-bar-menu" hidden>
         <button type="button" data-proto-tool="desktop">桌面</button>
         <button type="button" data-proto-tool="mobile">手机</button>
         <span class="proto-sep"></span>
@@ -653,7 +666,20 @@
   Proto.enhance = enhance;
   Proto.snapshot = snapshot;
   Proto.settingsSection = () => state.screen.startsWith('settings-') ? state.screen.replace('settings-', '') : '';
+  // One navigation wrapper: keeps the URL, the per-screen scroll memory and
+  // the enhancer pass consistent for every entry (nav, deep link, widget).
+  Proto.navigate = (screen, opts) => {
+    opts = opts || {};
+    const before = state.screen + '|' + String(state.drawer && state.drawer.id || '');
+    Proto.baseGo(screen);
+    if (opts.drawer) state.drawer = opts.drawer;
+    if (opts.date) state.selectedDate = opts.date;
+    render();
+    Proto.syncHash(!!opts.push);
+    return before;
+  };
   Proto.openTodo = (id, opts) => {
+    if (Proto.recordRecent) Proto.recordRecent('todo', id);
     const t = typeof todoById === 'function' ? todoById(id) : null;
     // A series-level entry must not inherit a date bound by an earlier
     // calendar block. Only a caller that just bound an occurrence asks to keep it.
@@ -664,6 +690,7 @@
     render();
   };
   Proto.openEvent = (id) => {
+    if (Proto.recordRecent) Proto.recordRecent('event', id);
     baseGo('cal-day');
     state.drawer = { type: 'event', id };
     render();

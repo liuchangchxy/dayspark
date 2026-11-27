@@ -143,7 +143,7 @@
   function confirmClearTrash(where) {
     modal({
       title: '清空回收站？',
-      body: '<div class="proto-note">回收站里的所有项目会被永久删除，不能撤销。待办与日程本身也会从本地存储移除。</div>',
+      body: '<div class="proto-note">回收站里的 ' + allTrashItems().length + ' 项会被永久删除，不能撤销。待办、日程连同它们的计划、提醒、子任务与附件记录都会从本机移除。</div>',
       actions: [
         { label: '取消' },
         { label: '清空', primary: true, danger: true, onClick: () => {
@@ -166,9 +166,19 @@
     const id = el && el.dataset ? el.dataset.id : '';
     if (!id) return;
     const item = allTrashItems().find((x) => x.id === id) || { title: '这一项' };
+    const snap = item.snap || null;
+    const bits = [];
+    if (snap) {
+      if (snap.repeat) bits.push('重复规则');
+      if (snap.remind || (snap.reminders || []).length) bits.push('提醒');
+      if ((snap.subtasks || []).length) bits.push((snap.subtasks || []).length + ' 个子任务');
+      if (snap.attach) bits.push('附件');
+      const planCount = snap.plans ? snap.plans.filter((x) => x && x.state === 'active').length : (snap.plan ? 1 : 0);
+      if (planCount) bits.push(planCount + ' 段计划');
+    }
     modal({
-      title: '永久删除？',
-      body: '<div class="proto-note">不会进回收站，也不能撤销。</div>',
+      title: '永久删除「' + (item.title || '这一项') + '」？',
+      body: '<div class="proto-note">' + (bits.length ? '会一并移除：' + bits.join('、') + '。' : '这一项没有更多关联内容。') + ' 不会进回收站，也不能撤销。</div>',
       actions: [
         { label: '取消' },
         { label: '永久删除', primary: true, danger: true, onClick: () => {
@@ -239,12 +249,22 @@
           { label: '取消' },
           { label: '仍然恢复为纯标题', onClick: () => {
             const row = el.closest('.trash-row, .m-settings-row');
-            const title = ((q('.trash-main > div', row) || q('span', row) || {}).textContent || '恢复的待办').trim();
+            const titleEl = row ? (q('.trash-main > div', row) || q('.m-settings-row > span', row) || q('span', row)) : null;
+            const title = ((titleEl && titleEl.textContent) || '恢复的待办').trim();
+            const kind = (el.dataset && el.dataset.kind) || 'todo';
             state.trashExtra = (state.trashExtra || []).filter((x) => x.id !== id);
             if (String(id).indexOf('trash-') === 0) markTrashRemoved([id]);
-            TODOS.unshift({ id: 'restored-' + Date.now(), title, cal: state.defaultCal || 'personal', priority: 0, tags: [], status: 'open' });
-            render();
-            toast('已恢复为纯标题 · ' + calOf(state.defaultCal || 'personal').name);
+            if (kind === 'event') {
+              const ev = { id: 'restored-' + Date.now(), title, cal: state.defaultCal || 'personal', date: TODAY, start: '09:00', end: '10:00' };
+              EVENTS.push(ev);
+              P.baseGo('cal-day'); state.selectedDate = TODAY; state.drawer = { type: 'event', id: ev.id };
+              render(); toast('已恢复为仅有标题的日程 · ' + calOf(ev.cal).name);
+            } else {
+              const todo = { id: 'restored-' + Date.now(), title, cal: state.defaultCal || 'personal', priority: 0, tags: [], status: 'open' };
+              TODOS.unshift(todo);
+              P.baseGo('today'); state.drawer = { type: 'todo', id: todo.id };
+              render(); toast('已恢复为纯标题 · ' + calOf(todo.cal).name);
+            }
           } },
         ],
       });
@@ -272,9 +292,17 @@
       TODOS.unshift(copy);
     }
     const backTo = snap.cal && typeof calOf === 'function' ? calOf(snap.cal).name : '原日历';
-    state.drawer = isEvent ? { type: 'event', id: snap.id } : { type: 'todo', id: snap.id };
+    // Locate the restored object instead of staying on the trash page: the
+    // user needs to see it back in its real day and calendar.
+    state.trashId = snap.id; state.trashName = snap.title || '';
     state.drawerEdit = false;
-    render();
+    if (isEvent) {
+      state.selectedDate = snap.date || snap.startDate || TODAY;
+      P.baseGo('cal-day'); state.drawer = { type: 'event', id: snap.id }; render();
+    } else {
+      state.selectedDate = snap.due || TODAY;
+      P.baseGo('today'); state.drawer = { type: 'todo', id: snap.id }; render();
+    }
     toast('已恢复 · 回到「' + backTo + '」· 原字段保留');
   });
 
@@ -510,7 +538,9 @@
     });
     const v = row && q('.v', row);
     if (!v) return;
-    const text = '时间 · ' + d.date + ' ' + d.start + '–' + (d.end < d.start ? '次日 ' : '') + d.end;
+    // The row already carries the 时间 label; printing it again produced
+    // "时间 时间 · 2026-11-20 …" with a raw ISO date.
+    const text = (mdShort ? mdShort(d.date) : d.date) + ' ' + d.start + '–' + (d.end < d.start ? '次日 ' : '') + d.end;
     if (v.textContent !== text) v.textContent = text;
   });
 
@@ -676,6 +706,26 @@
 
   // Transactional: every next* value is built first, then committed in one
   // pass. A throw while normalising leaves local data untouched.
+  // planBackupMerge returns the impact of the same pipeline without committing.
+  function planBackupMerge(payload) {
+    const incTodos = Array.isArray(payload.todos) ? payload.todos : [];
+    const incEvents = Array.isArray(payload.events) ? payload.events : [];
+    const incLocal = Array.isArray(payload.state && payload.state.localTodos) ? payload.state.localTodos : [];
+    const purged = new Set([].concat(state.purgedIds || [], payload.state && payload.state.purgedIds || []));
+    let add = 0, overwrite = 0, skip = 0;
+    incTodos.concat(incLocal).forEach((t) => {
+      if (!t || typeof t !== 'object' || !t.id) return;
+      if (purged.has(t.id)) { skip++; return; }
+      const exists = TODOS.some((x) => x && x.id === t.id) || (state.localTodos || []).some((x) => x && x.id === t.id);
+      if (exists) overwrite++; else add++;
+    });
+    incEvents.forEach((e) => {
+      if (!e || typeof e !== 'object' || !e.id) return;
+      if (purged.has(e.id)) { skip++; return; }
+      if (EVENTS.some((x) => x && x.id === e.id)) overwrite++; else add++;
+    });
+    return { add, overwrite, skip };
+  }
   function applyBackupMerge(payload) {
     const incTodos = Array.isArray(payload.todos) ? payload.todos : [];
     const incEvents = Array.isArray(payload.events) ? payload.events : [];
@@ -699,12 +749,22 @@
       if (typeof safeAi.key === 'string' && safeAi.key.indexOf('•') >= 0) nextAi.key = safeAi.key;
     }
     let added = 0, updated = 0;
+    const purgedNow = new Set([].concat(state.purgedIds || [], incState.purgedIds || []));
     incTodos.forEach((t) => {
       if (!t || typeof t !== 'object' || !t.id) return;
+      // A permanent delete is a tombstone: an older backup must not bring it back.
+      if (purgedNow.has(t.id)) return;
       const existing = nextTodos.find((x) => x && x.id === t.id);
       const existingLocal = nextLocal.find((x) => x && x.id === t.id);
       if (existing || existingLocal) {
-        mergeTodoRow(existing || existingLocal, t);
+        // Merge into a deep clone, never the live row. A later failure then
+        // leaves TODOS/localTodos exactly as they were.
+        const target = existing || existingLocal;
+        const list = existing ? nextTodos : nextLocal;
+        const at = list.indexOf(target);
+        const clone = plainClone(target);
+        if (at >= 0) list[at] = clone;
+        mergeTodoRow(clone, t);
         updated++;
         return;
       }
@@ -714,9 +774,13 @@
     });
     incEvents.forEach((e) => {
       if (!e || typeof e !== 'object' || !e.id) return;
+      if (purgedNow.has(e.id)) return;
       const existing = nextEvents.find((x) => x && x.id === e.id);
       if (existing) {
-        Object.assign(existing, plainClone(e));
+        const at = nextEvents.indexOf(existing);
+        const clone = plainClone(existing);
+        if (at >= 0) nextEvents[at] = clone;
+        Object.assign(clone, plainClone(e));
         updated++;
         return;
       }
@@ -724,7 +788,11 @@
     });
     Object.keys(incCal).forEach((k) => {
       if (!nextCal[k]) nextCal[k] = plainClone(incCal[k]);
-      else if (incCal[k] && typeof incCal[k] === 'object') Object.assign(nextCal[k], plainClone(incCal[k]));
+      else if (incCal[k] && typeof incCal[k] === 'object') {
+        const clone = plainClone(nextCal[k]);
+        nextCal[k] = clone;
+        Object.assign(clone, plainClone(incCal[k]));
+      }
     });
     incTags.forEach((tag) => {
       if (!tag || !tag.name) return;
@@ -733,8 +801,15 @@
     // state.localTodos may carry rows that are not in todos[].
     incLocal.forEach((t) => {
       if (!t || typeof t !== 'object' || !t.id) return;
+      if (purgedNow.has(t.id)) return;
       const existing = nextTodos.find((x) => x && x.id === t.id) || nextLocal.find((x) => x && x.id === t.id);
-      if (existing) { mergeTodoRow(existing, t); updated++; return; }
+      if (existing) {
+        const list = nextTodos.includes(existing) ? nextTodos : nextLocal;
+        const clone = plainClone(existing);
+        const at = list.indexOf(existing);
+        if (at >= 0) list[at] = clone;
+        mergeTodoRow(clone, t); updated++; return;
+      }
       nextLocal.push(plainClone(t)); added++;
     });
 
@@ -752,6 +827,10 @@
     const nextLocalNo = Math.max(Number(state.localNo) || 0, Number(incState.localNo) || 0);
     const nextTrashExtra = (state.trashExtra || []).slice();
     pushUniqueById(nextTrashExtra, incState.trashExtra);
+    state.trashExtra = nextTrashExtra;
+    {
+      const live = new Set([].concat([].slice.call(nextTodos), [].slice.call(nextLocal), [].slice.call(nextEvents)).map((x) => x && x.id));
+      state.trashExtra = nextTrashExtra.filter((x) => !(x && live.has(x.id)));
 
     // ---- commit ----
     TODOS.splice(0, TODOS.length, ...nextTodos);
@@ -766,17 +845,22 @@
     state.done = nextDone;
     state.planSeq = nextPlanSeq;
     state.localNo = nextLocalNo;
-    state.deletedTodos = mergeUniqueArray(state.deletedTodos, incState.deletedTodos);
-    state.deletedEvents = mergeUniqueArray(state.deletedEvents, incState.deletedEvents);
+    // A backup taken before a restore still lists the id as deleted. Keep the
+    // live rows visible: a tombstone only survives if the row is not present.
+    const liveTodoIds = new Set(nextTodos.map((x) => x && x.id).concat(nextLocal.map((x) => x && x.id)));
+    const liveEventIds = new Set(nextEvents.map((x) => x && x.id));
+    state.deletedTodos = mergeUniqueArray(state.deletedTodos, incState.deletedTodos).filter((id) => !liveTodoIds.has(id));
+    state.deletedEvents = mergeUniqueArray(state.deletedEvents, incState.deletedEvents).filter((id) => !liveEventIds.has(id));
     state.hiddenCals = mergeUniqueArray(state.hiddenCals, incState.hiddenCals);
     state.deletedCals = mergeUniqueArray(state.deletedCals, incState.deletedCals);
     state.purgedIds = mergeUniqueArray(state.purgedIds, incState.purgedIds);
     state.trashRemoved = mergeUniqueArray(state.trashRemoved, incState.trashRemoved);
-    state.trashExtra = nextTrashExtra;
+    }
     return { added, updated };
   }
   // Exposed for verification only; the UI always goes through a real file.
   P.applyBackupMerge = applyBackupMerge;
+  P.planBackupMerge = planBackupMerge;
 
   registerAction('backup-merge', () => {
     if (state.screen !== 'settings-backup') P.baseGo('settings-backup');
@@ -792,6 +876,7 @@
     input.addEventListener('change', () => {
       const file = input.files && input.files[0];
       if (!file) { cleanup(); return; }
+      P.data.lastBackupName = file.name || '备份文件';
       const reader = new FileReader();
       reader.onerror = () => {
         cleanup();
@@ -803,27 +888,45 @@
         let payload = null;
         try { payload = JSON.parse(String(reader.result || '')); }
         catch (_) { payload = null; }
-        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+        const looksLikeBackup = payload && typeof payload === 'object' && !Array.isArray(payload) &&
+          (Array.isArray(payload.todos) || Array.isArray(payload.events) || (payload.state && Array.isArray(payload.state.localTodos)));
+        if (!looksLikeBackup) {
           cleanup();
           state.variant = 'merge-error';
           render();
-          toast('备份文件无法解析 · 没有写入任何内容');
+          toast('这不是 DaySpark 备份文件 · 没有写入任何内容');
           return;
         }
-        let counts;
-        try { counts = applyBackupMerge(payload); }
-        catch (err) {
-          cleanup();
-          state.variant = 'merge-error';
-          render();
-          toast('合并失败 · 没有写入任何内容');
-          return;
-        }
+        const plan = planBackupMerge(payload);
         cleanup();
-        state.variant = 'merge-success';
-        render();
-        if (typeof P.persistNow === 'function') P.persistNow();
-        toast('备份已合并 · ' + (counts.added + counts.updated) + ' 项已补齐 · 计划序号 ' + state.planSeq);
+        // Show the real impact before writing. "合并" overwrites the same id;
+        // it never silently deletes local-only rows.
+        modal({
+          title: '合并这份备份？',
+          body: `<div class="proto-list">
+              <div class="proto-list-row"><span class="grow">本机没有 · 将新增<small>按 id 判断，不与现有条目合并</small></span><span class="proto-badge">${plan.add} 项</span></div>
+              <div class="proto-list-row"><span class="grow">同一条目 · 用备份内容覆盖<small>计划、提醒、子任务等字段以备份为准</small></span><span class="proto-badge">${plan.overwrite} 项</span></div>
+              ${plan.skip ? `<div class="proto-list-row"><span class="grow">已永久删除 · 跳过<small>不会从旧备份里复活</small></span><span class="proto-badge">${plan.skip} 项</span></div>` : ''}
+            </div><div class="proto-note">本机独有的条目不会被删除；已恢复的条目不因旧备份重新进入回收站。</div>`,
+          actions: [
+            { label: '取消' },
+            { label: '合并', primary: true, onClick: () => {
+              let counts;
+              try { counts = applyBackupMerge(payload); }
+              catch (err) {
+                state.variant = 'merge-error'; render();
+                toast('合并失败 · 没有写入任何内容');
+                return false;
+              }
+              P.data.lastMerge = { added: counts.added, updated: counts.updated, skip: plan.skip };
+              state.variant = 'merge-success';
+              render();
+              if (typeof P.persistNow === 'function') P.persistNow();
+              toast('已合并 · 新增 ' + counts.added + ' 项 · 覆盖 ' + counts.updated + ' 项');
+              return false;
+            } },
+          ],
+        });
       };
       reader.readAsText(file);
     }, false);

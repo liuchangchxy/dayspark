@@ -231,17 +231,15 @@
     modal({
       title: '键盘快捷键',
       body: `<div class="proto-kbd-list">
-        <div><span class="grow">搜索 / 命令框</span><span class="proto-kbd">⌘ K</span></div>
+        <div><span class="grow">搜索 / 命令框</span><span class="proto-kbd">${MODKEY} K</span><span class="proto-kbd">/</span></div>
         <div><span class="grow">新建待办</span><span class="proto-kbd">N</span></div>
         <div><span class="grow">新建日程</span><span class="proto-kbd">E</span></div>
         <div><span class="grow">回到今天</span><span class="proto-kbd">T</span></div>
-        <div><span class="grow">周 / 月 / 日</span><span class="proto-kbd">W</span><span class="proto-kbd">M</span><span class="proto-kbd">D</span></div>
-        <div><span class="grow">打开选中项</span><span class="proto-kbd">Enter</span></div>
-        <div><span class="grow">完成 / 取消完成</span><span class="proto-kbd">X</span></div>
-        <div><span class="grow">删除选中项</span><span class="proto-kbd">Delete</span></div>
-        <div><span class="grow">关闭弹层</span><span class="proto-kbd">Esc</span></div>
+        <div><span class="grow">周 / 月 / 日视图</span><span class="proto-kbd">W</span><span class="proto-kbd">M</span><span class="proto-kbd">D</span></div>
+        <div><span class="grow">在捕获条 / 搜索框保存</span><span class="proto-kbd">Enter</span></div>
+        <div><span class="grow">关闭弹层或菜单</span><span class="proto-kbd">Esc</span></div>
         <div><span class="grow">快捷键一览</span><span class="proto-kbd">?</span></div>
-      </div>`,
+      </div><div class="proto-note">当前系统：${MODKEY} 修饰键；另一平台自动显示对应按键。列表只包含实际可用的快捷键。</div>`,
       actions: [{ label: '知道了', primary: true }],
     });
   };
@@ -348,7 +346,7 @@
   });
 
   /* ---------------- task context menu ---------------- */
-  function closeMenus() { qa('.proto-menu').forEach((m) => m.remove()); }
+  function closeMenus() { qa('.proto-menu:not(.proto-bar-menu)').forEach((m) => m.remove()); }
   document.addEventListener('click', (e) => { if (!e.target.closest('.proto-menu')) closeMenus(); }, true);
   window.addEventListener('scroll', closeMenus, true);
 
@@ -373,11 +371,12 @@
     const m = document.createElement('div');
     m.className = 'proto-menu';
     const done = isDone(t);
+    const planned = !!(window.DS3 && DS3.activeAllocations(t) && (DS3.activeAllocations(t) || []).length);
     m.innerHTML = `
       <button type="button" data-m="open">打开详情</button>
-      <button type="button" data-m="done">${done ? '取消完成' : '标记完成'}</button>
-      <button type="button" data-m="plan">安排时间…</button>
-      <button type="button" data-m="tomorrow">顺延到明天</button>
+      <button type="button" data-m="done">${done ? '撤销完成' : (t.repeat ? '完成这一次' : '标记完成')}</button>
+      <button type="button" data-m="plan">${planned ? '再安排一段…' : '安排时间…'}</button>
+      <button type="button" data-m="tomorrow">改到明天</button>
       <button type="button" data-m="cal">移到日历…</button>
       <button type="button" data-m="tag">加标签…</button>
       <div class="sep"></div>
@@ -423,8 +422,14 @@
       }
       if (act === 'copy') {
         const text = t.title;
-        if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
-        toast('已复制标题');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(
+            () => toast('已复制标题'),
+            () => toast('没能写入剪贴板；可以手动选择标题')
+          );
+        } else {
+          toast('当前浏览器不支持剪贴板；可以手动选择标题');
+        }
         return;
       }
       if (act === 'delete') {
@@ -455,12 +460,104 @@
     });
   }
 
+  /* Calendar objects, not only tasks: the row selector used to omit the
+     week/day plan blocks, so right-click opened the browser menu instead. */
+  const CTX_SEL = '.task-row, .todo-row, .m-task, .tl-block.plan, .cal-block.is-plan, .cal-row-item[data-id], .cal-row.plan .cal-row-item, .m-block.is-plan, .m-cal-item.plan';
+  function calRefFor(row) {
+    if (!row) return null;
+    const id = row.dataset.id || (row.closest('[data-id]') || {}).dataset?.id || '';
+    if (!id) return null;
+    const alloc = row.dataset.alloc || (row.closest('[data-alloc]') || {}).dataset?.alloc || '';
+    const date = row.dataset.date || state.selectedDate || TODAY;
+    if (todoById(id)) return { type: 'todo', id, alloc, date };
+    if (eventById(id)) return { type: 'event', id, date };
+    return null;
+  }
+  function calMenu(row, x, y) {
+    const ref = calRefFor(row);
+    if (!ref) return;
+    const isPlan = !!ref.alloc || /is-plan|plan/.test(row.className || '');
+    closeMenus();
+    const m = document.createElement('div');
+    m.className = 'proto-menu';
+    const t = ref.type === 'todo' ? todoById(ref.id) : null;
+    const e = ref.type === 'event' ? eventById(ref.id) : null;
+    const done = t ? isDone(t) : false;
+    if (isPlan) {
+      const seg = t ? (window.DS3 ? (DS3.activeAllocations(t) || []) : []).find((p) => p.id === ref.alloc) : null;
+      m.innerHTML = `
+        <div class="proto-menu-head">${esc(seg ? seg.date + ' ' + seg.start + '–' + seg.end : (t ? t.title : '计划执行'))}<small>计划执行段${seg && seg.occurrenceDate ? ' · 实例 ' + esc(seg.occurrenceDate) : ''}</small></div>
+        <button type="button" data-m="open-alloc">打开这一段的详情</button>
+        <button type="button" data-m="plan">再安排一段…</button>
+        <button type="button" data-m="open">打开待办详情</button>
+        <div class="sep"></div>
+        <button type="button" data-m="copy">复制待办标题</button>
+        ${ref.alloc ? '<button type="button" data-m="cancel-alloc" class="danger">取消这一段计划</button>' : ''}`;
+    } else if (t) {
+      m.innerHTML = `
+        <button type="button" data-m="open">打开详情</button>
+        <button type="button" data-m="done">${done ? '撤销完成' : (t.repeat ? '完成这一次' : '标记完成')}</button>
+        <button type="button" data-m="plan">${(window.DS3 && DS3.activeAllocations(t) || []).length ? '再安排一段…' : '安排时间…'}</button>
+        <button type="button" data-m="copy">复制标题</button>`;
+    } else if (e) {
+      m.innerHTML = `
+        <div class="proto-menu-head">${esc(e.title)}<small>${esc(e.allDay || (e.startDate && e.endDate) ? '全天 / 跨天' : (e.start || '') + '–' + (e.end || ''))}${e.repeat ? ' · ' + esc(e.repeat) : ''}</small></div>
+        <button type="button" data-m="open">打开详情</button>
+        <button type="button" data-m="copy">复制标题</button>
+        <button type="button" data-m="edit">编辑名称与时间…</button>`;
+    }
+    document.body.appendChild(m);
+    const rect = m.getBoundingClientRect();
+    m.style.left = Math.min(x, innerWidth - rect.width - 8) + 'px';
+    m.style.top = Math.min(y, innerHeight - rect.height - 8) + 'px';
+    m.addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-m]'); if (!b) return;
+      const act = b.dataset.m;
+      closeMenus();
+      if (act === 'open' || act === 'edit') {
+        if (ref.type === 'todo') P.openTodo(ref.id, ref.date);
+        else P.openEvent(ref.id, ref.date);
+        if (act === 'edit') setTimeout(() => { state.drawerEdit = true; render(); }, 0);
+        return;
+      }
+      if (act === 'open-alloc') { P.actions['alloc-open']({ dataset: { id: ref.id } }); return; }
+      if (act === 'cancel-alloc') {
+        if (!ref.alloc) { toast('这一段没有记录编号，无法取消'); return; }
+        modal({
+          title: '取消这一段计划？',
+          body: '<div class="proto-note">只取消这一段计划执行；待办和截止日期都不变。历史里会保留这次取消。</div>',
+          actions: [{ label: '取消' }, { label: '取消这一段', primary: true, danger: true, onClick: () => {
+            if (window.DS3) window.DS3.cancelAllocation(todoById(ref.id), ref.alloc);
+            render(); toast('已取消这一段计划 · 待办保留');
+          } }],
+        });
+        return;
+      }
+      if (act === 'done' && t) {
+        if (window.__v3ToggleDone) window.__v3ToggleDone(t.id, ref.date || null);
+        else { state.done = state.done || new Set(); state.done.has(t.id) ? state.done.delete(t.id) : state.done.add(t.id); }
+        render(); return;
+      }
+      if (act === 'plan') { openPlanFor(t || todoById(ref.id)); return; }
+      if (act === 'copy') {
+        const text = (t || e || {}).title || '';
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => toast('已复制标题'), () => toast('没能写入剪贴板；可以手动选择标题'));
+        else toast('当前浏览器不支持剪贴板；可以手动选择标题');
+      }
+    });
+  }
   document.addEventListener('contextmenu', (e) => {
-    const row = e.target.closest('.task-row, .tl-block.plan, .cal-block.is-plan');
+    const row = e.target.closest(CTX_SEL);
     if (!row) return;
+    if (e.target.closest('.check, .row-act, button[data-action="toggle-done"]')) return;
+    if (row.closest('.proto-bar, .proto-menu')) return;
+    // Host preview chrome sits above the product; never hijack its menu.
+    if (row.closest('.proto-bar')) return;
     e.preventDefault();
-    taskMenu(row, e.clientX, e.clientY);
-  });
+    e.stopImmediatePropagation();
+    if (row.matches('.task-row, .todo-row, .m-task')) taskMenu(row, e.clientX, e.clientY);
+    else calMenu(row, e.clientX, e.clientY);
+  }, true);
 
   // Phone: long-press a task row opens the same menu (a visible secondary
   // entry, not a hidden gesture that replaces the row's tap action).
@@ -468,14 +565,18 @@
   let suppressLongPressClick = 0;
   document.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' || e.button !== 0) return;
-    const row = e.target.closest('.task-row');
+    const row = e.target.closest(CTX_SEL);
     if (!row) return;
+    if (e.target.closest('.check, .row-act, button[data-action="toggle-done"]')) return;
+    // Calendar blocks are buttons themselves; only their inner controls opt out.
+    if (e.target.closest('button') && !row.matches('.tl-block.plan, .cal-block, .m-block')) return;
     const x = e.clientX, y = e.clientY;
     longPress = { row, x, y, fired: false, timer: setTimeout(() => {
       if (!longPress) return;
       longPress.fired = true;
       suppressLongPressClick = Date.now() + 500;
-      taskMenu(row, x, y);
+      if (row.matches('.task-row, .todo-row, .m-task')) taskMenu(row, x, y);
+      else calMenu(row, x, y);
     }, 500) };
   }, true);
   document.addEventListener('pointermove', (e) => {
@@ -490,7 +591,7 @@
     longPress = null;
   }, true));
   document.addEventListener('click', (e) => {
-    if (Date.now() < suppressLongPressClick && e.target.closest('.task-row')) {
+    if (Date.now() < suppressLongPressClick && e.target.closest(CTX_SEL)) {
       e.preventDefault(); e.stopPropagation();
     }
   }, true);

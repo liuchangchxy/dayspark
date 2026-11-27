@@ -25,6 +25,13 @@
 .sync-version span{min-width:0;overflow-wrap:anywhere;color:var(--ink-2);white-space:pre-line}
 .sync-conflict-card{margin:8px 0}
 .sync-conflict-card h3{margin:0 0 4px}
+.sync-conflict-card .cf-head,.sync-conflict-card .cf-row{display:grid;grid-template-columns:52px 1fr 1fr 1fr;gap:8px;align-items:start;padding:3px 0;font-size:11.5px}
+.sync-conflict-card .cf-head{color:var(--faint);font-size:10px;letter-spacing:.04em;border-bottom:1px solid var(--hair-soft);padding-bottom:5px;margin-bottom:3px}
+.sync-conflict-card .cf-k{color:var(--muted)}
+.sync-conflict-card .cf-v{min-width:0;overflow-wrap:anywhere;color:var(--ink-2)}
+.sync-conflict-card .cf-v.is-diff{color:var(--ink);font-weight:600}
+.sync-conflict-card .cf-v.is-merged{border-left:2px solid var(--work);padding-left:8px;margin-left:-2px}
+.sync-conflict-card h3{font-size:13px}
 .proto-unimplemented{opacity:.55;cursor:not-allowed!important;outline:1px dashed #c4794a;outline-offset:1px}
 .proto-unimplemented-tag{display:inline-block;margin-left:6px;padding:0 4px;border-radius:3px;background:#f7dcc8;color:#7c3a14;font-size:8px;line-height:14px;letter-spacing:.04em;vertical-align:middle}
 .proto-unimplemented-note{margin:4px 0 0;font-size:9px;color:#7c3a14}
@@ -52,9 +59,8 @@
   }
 
   function paintAiChips(root) {
-    /* R6: the master now renders one contextual proposal card for the latest
-       reply. Older replies keep no action row, so the generic chip painter is
-       deliberately disabled here. */
+    /* One card per reply is rendered by the master's aiProposal(). The generic
+       chip painter is disabled so no second action row can appear. */
     return;
     if (state.screen !== 'ai-chat') return;
     // Desktop uses .ai-wrap; the phone shell keeps the same bubbles inside
@@ -103,38 +109,57 @@
       .trim();
   }
 
-  /* The master and v2 bound every chip to the last act payload. Read the
-     message index from the chip and use that message's own payload. */
-  registerAction('ai-insert-proto', (el) => {
-    const idx = Number(el.dataset.msg);
+  /* Every proposal is bound to the message that produced it. Confirming writes
+     through the same canonical path as the rest of the product, then records
+     the result on that message so the card shows 已执行 instead of lingering. */
+  function proposalTarget(idx) {
     const arr = thread();
-    const msg = Number.isFinite(idx) && arr[idx] ? arr[idx] : null;
-    const act = msg && msg.act ? msg.act : null;
-    const label = (el.textContent || '').trim();
-
-    if (label.includes('安排')) {
+    const m = Number.isFinite(idx) && arr[idx] ? arr[idx] : null;
+    return { arr, m };
+  }
+  function setProposalState(idx, st, extra) {
+    const { arr, m } = proposalTarget(idx);
+    if (!m) return;
+    m.proposalState = st;
+    if (extra && typeof extra === 'object') Object.assign(m, extra);
+    if (typeof saveThread === 'function') saveThread();
+  }
+  registerAction('ai-cancel-proposal', (el) => {
+    const idx = Number(el.dataset.msg);
+    setProposalState(idx, 'cancelled');
+    render();
+  });
+  registerAction('ai-apply', (el) => {
+    const idx = Number(el.dataset.msg);
+    const { m } = proposalTarget(idx);
+    if (!m) { toast('这条提案已经不在了'); return; }
+    if (m.proposalState && m.proposalState !== 'pending') {
+      toast(m.proposalState === 'done' ? '这条提案已经执行过' : '这条提案已取消');
+      return;
+    }
+    const act = m.act || {};
+    if (act.kind === 'plan') {
       if (typeof P.aiOpenPlan !== 'function') { toast('安排器没有加载'); return; }
-      P.aiOpenPlan(act && act.kind === 'plan' ? act : null);
+      P.aiOpenPlan(act);
       return;
     }
-    if (label.includes('子任务')) {
+    if (act.kind === 'subtasks') {
       if (typeof P.aiOpenSubtasks !== 'function') { toast('子任务编辑器没有加载'); return; }
-      P.aiOpenSubtasks(act && act.kind === 'subtasks' ? act : { kind: 'subtasks', todoId: null, items: [] });
+      P.aiOpenSubtasks(act);
       return;
     }
-
-    const suggested = act && act.kind === 'create' ? act.title : textForMessage(idx);
-    if (label.includes('日程')) {
-      P.data.newDraft = null;
-      P.baseGo('new-event'); P.syncHash(true);
-      setTimeout(() => {
-        const input = q('#new-title') || q('.new-page .form-input') || q('.m-detail-scroll .m-form-input');
-        if (input && suggested) { input.value = suggested; input.dispatchEvent(new Event('input', { bubbles: true })); }
-      }, 40);
-      return;
-    }
+    // Create todo / event go through the product's own editor with the
+    // proposal's values prefilled. The write happens on save, never here, so
+    // a confirmed card cannot create a second item.
+    const suggested = act.title || textForMessage(idx);
     P.data.newDraft = null;
-    P.baseGo('new-todo'); P.syncHash(true);
+    if (act.kind === 'event') {
+      P.data.aiPrefill = { kind: 'event', title: suggested, date: act.date || TODAY, start: act.start || '15:00', end: act.end || '16:00', cal: act.cal || null };
+      P.baseGo('new-event'); P.syncHash(true);
+    } else {
+      P.data.aiPrefill = { kind: 'todo', title: suggested, due: act.due || '', dueTime: act.dueTime || '', cal: act.cal || null };
+      P.baseGo('new-todo'); P.syncHash(true);
+    }
     setTimeout(() => {
       const input = q('#new-title') || q('.new-page .form-input') || q('.m-detail-scroll .m-form-input');
       if (input && suggested) { input.value = suggested; input.dispatchEvent(new Event('input', { bubbles: true })); }
@@ -578,18 +603,28 @@
     batch.resolved = applied;
     P.data.sync.lastResolution = { at: Date.now(), picks: choices, applied };
     render();
-    toast('已应用 ' + applied.length + ' 项冲突：' + applied.map((r) => r.id + '=' + r.choice).join('、'));
+    const choiceName = (c) => ({ local: '保留本地', server: '用服务器', merge: '合并' })[c] || c;
+    toast('已应用 ' + applied.length + ' 项冲突：' + applied.map((r) => (todoById(r.id) || {}).title + ' ' + choiceName(r.choice)).join('、'));
     return applied;
   }
   P.applySyncConflict = applyConflictSelection;
 
+  function priName(v) {
+    return ({ 0: '无', 1: '高', 5: '中', 9: '低' })[Number(v)] || '中';
+  }
   function conflictCard(item, picked) {
     const local = item.local;
     const server = item.server;
+    const merged = mergeConflict(local, server);
+    const diff = (a, b) => (String(a == null ? '' : a) !== String(b == null ? '' : b));
+    const row = (label, l, s, m) => `<div class="cf-row"><span class="cf-k">${label}</span><span class="cf-v ${diff(l, s) ? 'is-diff' : ''}">${esc(l || '（空）')}</span><span class="cf-v ${diff(l, s) ? 'is-diff' : ''}">${esc(s || '（空）')}</span><span class="cf-v is-merged">${esc(m || '（空）')}</span></div>`;
+    const name = (local.title || server.title || '这一项');
     return `<div class="io-card sync-conflict-card" data-cid="${esc(item.id)}">
-      <h3>${esc(item.local.title || item.server.title || item.id)}</h3>
-      <div class="sync-version"><b>本地</b><span>标题：${esc(local.title || '（空）')}<br>备注：${esc(local.note || '（空）')}<br>优先级：${esc(local.priority)}</span></div>
-      <div class="sync-version"><b>服务器</b><span>标题：${esc(server.title || '（空）')}<br>备注：${esc(server.note || '（空）')}<br>优先级：${esc(server.priority)}</span></div>
+      <h3>${esc(name)}</h3>
+      <div class="cf-head"><span class="cf-k"></span><span class="cf-v">本地</span><span class="cf-v">服务器</span><span class="cf-v is-merged">合并后</span></div>
+      ${row('标题', local.title, server.title, merged.title)}
+      ${row('备注', local.note, server.note, merged.note)}
+      ${row('优先级', priName(local.priority), priName(server.priority), priName(merged.priority))}
       <div class="proto-seg" data-conflict="${esc(item.id)}">
         <button type="button" data-v="local" class="${picked === 'local' ? 'is-on' : ''}">保留本地</button>
         <button type="button" data-v="server" class="${picked === 'server' ? 'is-on' : ''}">用服务器</button>
@@ -653,15 +688,16 @@
     const resolved = !!batch.resolvedAt && (!P.data.sync || !P.data.sync.conflicts);
     const current = batch.items.map((it) => {
       const f = todoFields(it.id);
-      return f ? `<div class="sync-version"><b>${esc(f.title || it.id)}</b><span>标题：${esc(f.title)}<br>备注：${esc(f.note || '（空）')}<br>优先级：${esc(f.priority)}</span></div>` : '';
+      return f ? `<div class="sync-version"><b>${esc(f.title || '这一项')}</b><span>标题：${esc(f.title)}<br>备注：${esc(f.note || '（空）')}<br>优先级：${esc(priName(f.priority))}</span></div>` : '';
     }).join('');
     const cards = batch.items.map((it) => conflictCard(it, picks[it.id])).join('')
       // The modal card uses its own delegated picker; the full page needs
       // each option to be a real proto action so it can update state.syncPicks.
       .replace(/<button type="button" data-v=/g, '<button type="button" data-proto-action="sync-pick" data-v=');
-    content.innerHTML = `<h2 class="set-h">同步冲突</h2>
+    const mobile = !!q('.m-scroll', root) && !q('.set-content', root);
+    content.innerHTML = `${mobile ? '' : '<h2 class="set-h">同步冲突</h2>'}
       <p class="set-desc">同一个条目在本地和服务器都改过；逐项选择。应用后写入本机并保存。</p>
-      ${resolved ? `<div class="inline-alert"><b>这组冲突已经应用。</b><br>最近一次结果：${esc((batch.resolved || []).map((r) => r.id + '=' + r.choice).join('、'))}。下面显示当前保存的值。</div>` : ''}
+      ${resolved ? `<div class="inline-alert"><b>这组冲突已经应用。</b><br>${esc((batch.resolved || []).map((r) => '「' + ((todoById(r.id) || {}).title || '这一项') + '」' + ({ local: '保留本地', server: '用服务器', merge: '合并' }[r.choice] || r.choice)).join('、'))}。下面显示当前保存的值。</div>` : ''}
       ${cards}
       <div class="io-card"><h3>当前保存的值</h3>${current}</div>
       <div class="filter-actions"><button type="button" class="primary" data-proto-action="sync-apply">应用选择</button></div>`;

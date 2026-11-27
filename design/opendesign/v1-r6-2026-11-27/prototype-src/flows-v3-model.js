@@ -455,12 +455,20 @@
         if (!t.repeat && isDone(t)) return;
         activeAllocations(t).forEach((p) => {
           if (!p || p.date !== day) return;
+          // A completed or skipped instance must disappear from every view,
+          // including when the allocation was already running at completion.
+          if (t.repeat) {
+            const occ = p.occurrenceDate || p.date;
+            if (state.skipped.includes(key(t.id, occ)) || state.doneInstances.includes(key(t.id, occ))) return;
+          }
           out.push({
             todo: Object.assign({}, t, { plan: p }),
             start: mins(p.start),
             end: mins(p.end),
             allocId: p.id,
             __alloc: p.id,
+            occurrenceDate: t.repeat ? (p.occurrenceDate || null) : null,
+            date: p.date,
           });
         });
         return;

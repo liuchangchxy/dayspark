@@ -18,7 +18,7 @@
 
 | 顺序 | 文件 | 用途 |
 |---|---|---|
-| 1 | `DAYS_PARK_ACCEPTANCE_ROUND6.md` | 本轮真实验收：23 条连续操作、51 张截图、12 组前后对比、逐项结论与未执行项 |
+| 1 | `DAYS_PARK_ACCEPTANCE_ROUND6.md` | 本轮真实验收：23 条连续操作、51 张截图、12 组前后对比、第二轮日历审计 11 项与新增能力操作结论 |
 | 2 | `DAYS_PARK_UI_R6_SPEC.md` | R6 视觉契约：令牌、字阶、间距、断点、组件语法、页面规则、主题、文案原则 |
 | 3 | `CHANGES_R6.md` | 实际改了什么、为什么改、真实遗留问题 |
 | 4 | `dayspark-coverage-map.md` | 13 个功能域的覆盖映射（沿用 R4 结论，R6 只做界面层增补） |
@@ -40,9 +40,9 @@ python3 prototype-src/build.py /tmp/dayspark-r6
 # 产物 /tmp/dayspark-r6/dayspark-prototype.html
 ```
 
-- 原型 SHA-256：`a247275161f6c0a280e46b2c896ad3e9c6f95bbb52ec61cf80e8de289b64d940`
-- 母版 SHA-256：`dadaf6af297270d9e0d14c3c3923462c0b464e13480badaa74829bf1a3405515`
-- 原型由 15 个脚本构建；产物 1,054,260 bytes（UTF-8；构建器报告 957,377 字符）。
+- 原型 SHA-256：`03ced8696914789dcaf22af6450fcdf6aad3f82c02924bddd024c37d87ff3bce`
+- 母版 SHA-256：`849b46a617f2d98bee1604206789e0e00ef258569b9085e35e945505e5fa76ae`
+- 原型由 15 个脚本构建；产物 1,043,594 bytes（UTF-8）。
 - 重复执行 `build.py` 到不同目录得到同一 SHA，可复现。
 - 基线（R4，PR #117）：`fe3aa531…9333`；前后对比均以该产物为「前」。
 
@@ -50,5 +50,5 @@ python3 prototype-src/build.py /tmp/dayspark-r6
 
 - 截图与操作均在 **Chrome（headless + CDP）** 上完成；1440×1000、1024×768、768×900、390×844 四档，浅色/暖灰/深色三种主题。Safari / Firefox 未验证。
 - 同步、通知投递、原生小组件仍是原型模拟（既定边界）；AI 对话为内置示例，不请求真实模型。
-- 本轮复验了 23 条跨页连续操作（`DAYS_PARK_ACCEPTANCE_ROUND6.md`），没有重跑第四轮 36 条全量功能回归；功能语义以 R4 验收为准。
+- 本轮复跑 `smoke_r6.py`（桌面 13 条 + 手机 10 条）与 R4 语义的 17 项代表断言（计划多段、实例完成/撤销、提醒锚点、备份文件名、AI Key 掩码、ICS/RRULE 解析）；未逐条重跑第四轮全部 36 条，其余以 R4 验收为准。
 - `dayspark-spec.html` 中 R6 覆盖层集中在样式末尾（`R6 · 成熟度精修`），便于逐条对照与回退。

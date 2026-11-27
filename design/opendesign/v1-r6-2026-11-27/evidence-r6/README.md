@@ -57,6 +57,7 @@ python3 scripts/make_compare.py
 
 ## 说明
 
-- 51 张截图与 12 组对比均由最终产物（`a2472751…d940`）重新渲染，未使用旧构建的缓存图。
+- 51 张截图与 12 组对比由第一轮产物 `a2472751…d940` 渲染；第二轮的日历与表单修正另以 `r3-*.png` 与刷新后的 `polish-*.png` 定点重拍（最终产物 `3528bfb3…eaa0`）。
+- `r3-tags-list.png`、`r3-tag-edit-light/dark.png`、`r3-tags-after.png`、`r3-detail-attach.png`、`r3-m-detail-edit.png`、`r3-m-detail-bottom.png`、`r3-attach-failed.png`、`r3-cal-deadlines.png`、`r3-crossday-edit.png`、`r3-ctx-plan.png`、`r3-shortcuts.png`、`r3-m-tags.png`、`r3-vp-*.png` 是本轮新增的证据图。
 - 截图前隐藏右下角「预览」胶囊，避免调试控件进入证据；实际体验时它默认可见。
 - 每张截图前都校验 `innerWidth` 与 `document.body.dataset.protoTheme`，避免设备模拟残留或主题未生效。

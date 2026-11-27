@@ -32,7 +32,8 @@
       s.addEventListener('click', () => {
         swatches.forEach((x) => x.classList.remove('is-on'));
         s.classList.add('is-on');
-        P.data.calColorDraft = s.dataset.color;
+        const token = section === 'calendar-new' ? 'new' : (state.calendarId || '');
+        setColorDraft('cal', token, s.dataset.color);
       });
     });
   });
@@ -42,13 +43,14 @@
     const input = q('.io-card .form-input') || q('.m-form .m-form-input');
     const name = (input && input.value || '').trim();
     if (!name) { toast('先写日历名称'); input && input.focus(); return; }
-    const color = P.data.calColorDraft || '#4f7bbf';
+    const token = section === 'calendar-new' ? 'new' : (state.calendarId || '');
+    const color = colorDraft('cal', token) || '#4f7bbf';
     if (section === 'calendar-new') {
       let id = name.toLowerCase().replace(/[^a-z0-9一-龥]+/g, '-').replace(/^-|-$/g, '') || 'calendar';
       const base = id; let n = 2; while (CAL[id]) id = base + '-' + n++;
       const t = tint(color);
       CAL[id] = { name, color, bg: t.bg, ink: t.ink };
-      P.data.calColorDraft = '';
+      clearColorDraft();
       P.baseGo('settings-calendars'); P.syncHash(true);
       toast('已创建日历 · ' + name);
       return;
@@ -56,13 +58,13 @@
     const id = state.calendarId;
     if (!id || !CAL[id]) return;
     CAL[id].name = name;
-    if (P.data.calColorDraft) {
-      const t = tint(P.data.calColorDraft);
-      CAL[id].color = P.data.calColorDraft;
+    if (colorDraft('cal', id)) {
+      const t = tint(colorDraft('cal', id));
+      CAL[id].color = colorDraft('cal', id);
       CAL[id].bg = t.bg;
       CAL[id].ink = t.ink;
     }
-    P.data.calColorDraft = '';
+    clearColorDraft();
     P.baseGo('settings-calendars'); P.syncHash(true);
     toast('日历已保存');
   });
@@ -79,10 +81,25 @@
       s.addEventListener('click', () => {
         swatches.forEach((x) => x.classList.remove('is-on'));
         s.classList.add('is-on');
-        P.data.tagColorDraft = s.dataset.color;
+        const token = state.screen === 'settings-tag-new' ? 'new' : (state.tagId || '');
+        setColorDraft('tag', token, s.dataset.color);
       });
     });
   });
+
+  function colorDraft(kind, token) {
+    const d = P.data;
+    if (!d || d.colorFor !== kind + '|' + token || !d.colorDraft) return '';
+    return d.colorDraft;
+  }
+  P.colorDraft = colorDraft;
+  function setColorDraft(kind, token, color) {
+    P.data.colorFor = kind + '|' + token;
+    P.data.colorDraft = color;
+  }
+  function clearColorDraft() { P.data.colorFor = ''; P.data.colorDraft = ''; }
+  registerAction('tag-cancel', () => { clearColorDraft(); P.baseGo('settings-tags'); P.syncHash(true); });
+  registerAction('cal-cancel', () => { clearColorDraft(); P.baseGo('settings-calendars'); P.syncHash(true); });
 
   registerAction('tag-save', () => {
     const section = state.screen.replace('settings-', '');
@@ -93,8 +110,8 @@
       TODOS.concat(state.localTodos || []).some((t) => (t.tags || []).includes(name));
     if (section === 'tag-new') {
       if (inUse) { state.variant = 'duplicate'; render(); toast('标签名已存在'); return; }
-      P.data.tags.push({ name, color: P.data.tagColorDraft || '#4f7bbf' });
-      P.data.tagColorDraft = '';
+      P.data.tags.push({ name, color: colorDraft('tag', 'new') || '#4f7bbf' });
+      clearColorDraft();
       P.baseGo('settings-tags'); P.syncHash(true);
       toast('已创建标签 · ' + name);
       return;
@@ -102,14 +119,35 @@
     const old = state.tagId || '周报';
     if (name !== old && inUse) { toast('标签名已存在'); return; }
     const tag = P.data.tags.find((t) => t.name === old);
-    if (tag) { tag.name = name; if (P.data.tagColorDraft) tag.color = P.data.tagColorDraft; }
+    const picked = colorDraft('tag', old);
+    if (tag) { tag.name = name; if (picked) tag.color = picked; }
     TODOS.concat(state.localTodos || []).forEach((t) => {
       if (Array.isArray(t.tags)) t.tags = t.tags.map((x) => x === old ? name : x);
     });
     state.tagId = name;
-    P.data.tagColorDraft = '';
+    clearColorDraft();
     P.baseGo('settings-tags'); P.syncHash(true);
     toast('标签已保存');
+  });
+
+  registerAction('tag-delete', () => {
+    const old = state.tagId || '周报';
+    const used = TODOS.concat(state.localTodos || []).filter((t) => (t.tags || []).includes(old)).length + allTodos().filter((t) => (t.tags || []).includes(old)).length;
+    modal({
+      title: '删除标签',
+      body: `<div class="proto-note">「${esc(old)}」会从 ${used} 条待办上移除，但不会删除待办本身。这个操作不能撤销。</div>`,
+      actions: [
+        { label: '取消' },
+        { label: '删除标签', primary: true, danger: true, onClick: () => {
+          P.data.tags = P.data.tags.filter((t) => t.name !== old);
+          const strip = (t) => { if (Array.isArray(t.tags)) t.tags = t.tags.filter((x) => x !== old); };
+          TODOS.forEach(strip); (state.localTodos || []).forEach(strip); allTodos().forEach(strip);
+          clearColorDraft();
+          P.baseGo('settings-tags'); P.syncHash(true);
+          toast('已删除标签 · ' + old + ' · 条目本身保留');
+        } },
+      ],
+    });
   });
 
   /* ---------------- trash: confirm and real restore ---------------- */
@@ -261,8 +299,8 @@
           const start = cur.DTSTART || cur.DUE || '';
           const day = dateOf(start);
           if (!summary || !day) skipped.push({ line: startLine, reason: !summary ? '缺少标题（SUMMARY 为空）' : '日期无法识别', raw: summary ? line.replace(/\s+/g, ' ').trim() : 'BEGIN:' + (kind === 'event' ? 'VEVENT' : 'VTODO') });
-          else if (kind === 'event') events.push({ line: idx + 1, title: summary, date: day, endDate: dateOf(cur.DTEND), start: timeOf(start), end: timeOf(cur.DTEND), allDay: !timeOf(start), loc: cur.LOCATION || '', note: cur.DESCRIPTION || '', repeat: '', rrule: cur.RRULE || '' });
-          else todos.push({ line: idx + 1, title: summary, due: day, dueTime: timeOf(start), note: cur.DESCRIPTION || '', rrule: cur.RRULE || '' });
+          else if (kind === 'event') events.push({ line: idx + 1, uid: (cur.UID || '').trim(), title: summary, date: day, endDate: dateOf(cur.DTEND), start: timeOf(start), end: timeOf(cur.DTEND), allDay: !timeOf(start), loc: cur.LOCATION || '', note: cur.DESCRIPTION || '', repeat: '', rrule: cur.RRULE || '' });
+          else todos.push({ line: idx + 1, uid: (cur.UID || '').trim(), title: summary, due: day, dueTime: timeOf(start), note: cur.DESCRIPTION || '', rrule: cur.RRULE || '' });
         }
         cur = null; kind = null; return;
       }
@@ -378,12 +416,19 @@ END:VCALENDAR`);
     state.variant = 'importing'; render();
     setTimeout(() => {
       const warnings = [];
+      // The same file imported twice must not duplicate rows: match by UID
+      // (stored on import) plus title+day as a fallback for files without UID.
+      const known = {};
+      EVENTS.concat(TODOS).forEach((x) => { if (x && x.icsUid) known[x.icsUid] = x.id; });
+      let duplicates = 0;
       parsed.events.forEach((e, i) => {
+        if (e.uid && known[e.uid]) { duplicates++; return; }
+        if (!e.uid && EVENTS.some((x) => x.title === e.title && (x.date === e.date || x.startDate === e.date))) { duplicates++; return; }
         const rr = parseRRule(e.rrule);
         if (rr.warning) warnings.push({ line: e.line, text: e.title + '：' + rr.warning });
         const ev = {
           id: 'import-' + Date.now() + '-' + i, title: e.title, cal,
-          loc: e.loc || '', note: e.note || '',
+          loc: e.loc || '', note: e.note || '', icsUid: e.uid || '',
           repeat: rr.repeat, repeatEnd: rr.repeatEnd, repeatUntil: rr.repeatUntil, repeatCount: rr.repeatCount,
         };
         const endDate = e.allDay && e.endDate ? addDays(e.endDate, -1) : e.endDate;
@@ -410,15 +455,19 @@ END:VCALENDAR`);
         EVENTS.push(ev);
       });
       parsed.todos.forEach((t, i) => {
+        if (t.uid && known[t.uid]) { duplicates++; return; }
+        if (!t.uid && TODOS.some((x) => x.title === t.title && x.due === t.due)) { duplicates++; return; }
         const rr = parseRRule(t.rrule);
         if (rr.warning) warnings.push({ line: t.line, text: t.title + '：' + rr.warning });
-        TODOS.unshift({ id: 'import-todo-' + Date.now() + '-' + i, title: t.title, cal, priority: 0, tags: [], note: t.note || '', status: 'open', due: t.due, dueTime: t.dueTime || '',
+        TODOS.unshift({ id: 'import-todo-' + Date.now() + '-' + i, title: t.title, cal, priority: 0, tags: [], note: t.note || '', status: 'open', due: t.due, dueTime: t.dueTime || '', icsUid: t.uid || '',
           repeat: rr.repeat, repeatEnd: rr.repeatEnd, repeatUntil: rr.repeatUntil, repeatCount: rr.repeatCount });
       });
+      P.data.importDuplicates = duplicates;
       P.data.importWarnings = warnings;
       state.variant = 'success';
       render();
-      toast('导入完成 · ' + (parsed.events.length + parsed.todos.length) + ' 项写入' + (parsed.skipped.length ? ' · ' + parsed.skipped.length + ' 行跳过' : ''));
+      const written = parsed.events.length + parsed.todos.length - duplicates;
+      toast('导入完成 · ' + written + ' 项写入' + (duplicates ? ' · ' + duplicates + ' 项已存在跳过' : '') + (parsed.skipped.length ? ' · ' + parsed.skipped.length + ' 行跳过' : ''));
     }, 800);
   });
 

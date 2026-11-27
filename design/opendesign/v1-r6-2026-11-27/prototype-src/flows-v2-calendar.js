@@ -5,7 +5,7 @@
   const q = (s, r) => (r || document).querySelector(s);
   const qa = (s, r) => Array.from((r || document).querySelectorAll(s));
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-  const DAY_MIN = 720, AXIS_START = 480;
+  const DAY_MIN = 1440, AXIS_START = 0;
   const WD = ['日', '一', '二', '三', '四', '五', '六'];
 
   function dayOf(isoStr) { const [y, m, d] = String(isoStr).split('-').map(Number); return new Date(y, m - 1, d); }
@@ -21,9 +21,12 @@
   function repeatDays(repeat) {
     const m = /^(每\s?2\s?周|每周)/.exec(repeat || '');
     if (!m) return [];
+    // "每 2 周" has no weekday names after the prefix; the empty token used to
+    // read as 周日 because ''.indexOf gives 0.
     return repeat.slice(m[0].length).split(/[、,，]/)
-      .map((t) => t.trim().slice(-1))
-      .map((ch) => '日一二三四五六'.indexOf(ch))
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .map((ch) => '日一二三四五六'.indexOf(ch.slice(-1)))
       .filter((n) => n >= 0);
   }
   // A repeat rule matches a day on its own terms (no count/until).
@@ -49,8 +52,37 @@
     if (!pureMatch(anchor, day, repeat)) return 0;
     const a = dayOf(anchor), d = dayOf(day);
     if (/^每天/.test(repeat)) return Math.round((d - a) / 86400000) + 1;
-    if (/^每月/.test(repeat)) return (d.getFullYear() - a.getFullYear()) * 12 + d.getMonth() - a.getMonth() + 1;
-    if (/^每年/.test(repeat)) return d.getFullYear() - a.getFullYear() + 1;
+    // Monthly and yearly counts are real occurrences: 1/31 每月 skips
+    // February, so 31 Mar is the 2nd occurrence, not the 3rd. Counting
+    // elapsed months made "结束于 3 次" end one occurrence early.
+    if (/^每月/.test(repeat)) {
+      // Construct each month from day 1 so JS never normalises 31 Feb into
+      // 3 Mar and silently shifts every later occurrence.
+      let n = 0;
+      for (let k = 0; k < 6000; k++) {
+        const y = a.getFullYear(), mo = a.getMonth() + k;
+        const x = new Date(y, mo, 1);
+        x.setDate(a.getDate());
+        if (x.getMonth() !== ((mo % 12) + 12) % 12) continue; // month has no such day
+        if (x > d) break;
+        n++;
+        if (cap && n > cap) return n;
+      }
+      return n;
+    }
+    if (/^每年/.test(repeat)) {
+      let n = 0;
+      for (let k = 0; k < 400; k++) {
+        const x = new Date(a.getFullYear() + k, 1, 1);
+        x.setMonth(a.getMonth());
+        x.setDate(a.getDate());
+        if (x.getMonth() !== a.getMonth()) continue; // 29 Feb in a common year
+        if (x > d) break;
+        n++;
+        if (cap && n > cap) return n;
+      }
+      return n;
+    }
     const two = /^每 2 周/.test(repeat);
     const names = repeatDays(repeat);
     let n = 0;
@@ -142,7 +174,7 @@
   window.deadlinesOn = function (day) {
     const out = baseDeadlinesOn(day);
     allTodos().forEach((t) => {
-      if (!t.repeat || !t.due || t.due === day || isDone(t) || calHidden(t.cal)) return;
+      if (!t.repeat || !t.due || t.due === day || isDoneOn(t, day) || calHidden(t.cal)) return;
       if (skipped(t.id, day)) return;
       if (!repeatMatch(t.due, day, t.repeat, t)) return;
       if (out.some((x) => x.id === t.id)) return;
@@ -190,7 +222,20 @@
       };
     }
     const e = eventById(id); if (!e) return null;
-    if (e.allDay || (e.startDate && e.endDate)) return null;
+    if (e.allDay) return null;
+    // A cross-midnight timed event is draggable on its own two days; the
+    // block already carries the clipped per-day times.
+    if (e.startDate && e.endDate && !e.start) return null;
+    const day = col && col.dataset.date;
+    if (e.startDate && e.endDate) {
+      const first = e.startDate === day, last = e.endDate === day;
+      return {
+        type: 'event', item: e,
+        start: first ? mins(e.start) : 0,
+        end: last ? (e.end && e.end > '00:00' ? mins(e.end) : 1440) : 1440,
+        day, repeat: e.repeat, crossDay: true,
+      };
+    }
     return { type: 'event', item: e, start: mins(e.start), end: mins(e.end), day: e.date, repeat: e.repeat };
   }
 
@@ -295,7 +340,28 @@
       return;
     }
     const ev = d.data.item;
-    if (ev.startDate && ev.endDate) { render(); return; }
+    if (ev.startDate && ev.endDate) {
+      // Move/resize a cross-midnight span by shifting the day the drag began
+      // (or, for a move, following the block to its target column) and keep
+      // the clock times that define the span.
+      const target = d.targetDay || d.originDay;
+      if (!d.resize && target && target !== d.data.day) {
+        const shift = Math.round((new Date(target + 'T00:00:00') - new Date(d.data.day + 'T00:00:00')) / 86400000);
+        const fromS = addDays(ev.startDate, shift), fromE = addDays(ev.endDate, shift);
+        ev.startDate = fromS; ev.endDate = fromE;
+        render();
+        toast('已移动 · ' + mdShort(fromS) + ' ' + (ev.start || '') + '–' + mdShort(fromE) + ' ' + (ev.end || ''));
+        return;
+      }
+      if (d.resize && d.data.day === ev.startDate) {
+        ev.start = fmt(start); render(); toast('已改开始时间 · ' + fmt(start)); return;
+      }
+      if (d.resize && d.data.day === ev.endDate) {
+        ev.end = fmt(end); render(); toast('已改结束时间 · ' + fmt(end)); return;
+      }
+      render();
+      return;
+    }
     ev.date = d.targetDay;
     ev.start = fmt(start);
     ev.end = fmt(end);

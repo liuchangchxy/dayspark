@@ -280,6 +280,13 @@
     if (!ref) return null;
     return { obj: ref.type === 'event' ? eventById(ref.id) : todoById(ref.id), kind: ref.type, newForm: false };
   }
+  function triggerText(obj, kind, label) {
+    return P.reminderTriggerText ? P.reminderTriggerText(obj, kind, label) : '';
+  }
+  function reminderLabel(obj, kind, r) {
+    const when = triggerText(obj, kind, r);
+    return esc(r) + (when ? '<small class="rm-when">触发于 ' + esc(when) + '</small>' : '');
+  }
   function addReminderTo(slot) {
     if (!slot || !slot.obj) return;
     const obj = slot.obj;
@@ -288,10 +295,30 @@
       hasAnchor: hasAnchorFor(obj, slot.kind),
       onPick: (r) => {
         if (!r) return;
+        // An absolute reminder can fire without a relative anchor; keep it
+        // reachable even when the todo has no due time yet.
         if (remindersOf(obj).includes(r)) { toast('这个提醒已经有了'); return; }
         if (!obj.remind || obj.remind === '不提醒') obj.remind = r;
         else { obj.reminders = obj.reminders || []; obj.reminders.push(r); }
         render(); toast('已添加提醒 · ' + r);
+      },
+    });
+  }
+  function editReminderFrom(slot, r) {
+    const obj = slot && slot.obj;
+    if (!obj) return;
+    P.openReminderPicker({
+      value: r,
+      hasAnchor: hasAnchorFor(obj, slot.kind),
+      onPick: (next) => {
+        if (next === r) return;
+        if (obj.remind === r) obj.remind = next || (obj.reminders || [])[0] || '';
+        else obj.reminders = (obj.reminders || []).filter((x) => x !== r).concat(next ? [next] : []);
+        if (obj.remind === r) obj.remind = '';
+        const all = remindersOf(obj);
+        obj.remind = all[0] || '';
+        obj.reminders = all.slice(1);
+        render(); toast(next ? '提醒已改为 · ' + next : '已移除提醒');
       },
     });
   }
@@ -319,13 +346,13 @@
       const row = qa('.cp-field', root).find((r) => ((q('.k', r) || {}).textContent || '').trim() === '提醒');
       if (!row) return;
       const v = q('.v', row);
-      if (v) v.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';
+      if (v) v.innerHTML = (list[0] ? reminderLabel(slot.obj, slot.kind, list[0]) : esc('不提醒')) + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';
       qa('.cp-remind-extra', root).forEach((n) => n.remove());
       const host = row.parentElement;
       list.slice(1).forEach((r) => {
         const extra = document.createElement('div');
         extra.className = 'cp-field cp-remind-extra';
-        extra.innerHTML = '<span class="k">提醒</span><span class="v">' + esc(r) + ' <button type="button" class="mini" data-proto-action="remind-remove" data-remind="' + esc(r) + '">移除</button></span>';
+        extra.innerHTML = '<span class="k">提醒</span><span class="v">' + reminderLabel(slot.obj, slot.kind, r) + ' <button type="button" class="mini" data-proto-action="remind-edit" data-remind="' + esc(r) + '">修改</button> <button type="button" class="mini" data-proto-action="remind-remove" data-remind="' + esc(r) + '">移除</button></span>';
         if (host) host.insertBefore(extra, row.nextSibling);
       });
       return;
@@ -349,7 +376,7 @@
         select.insertAdjacentElement('afterend', b);
       }
     } else if (valueEl) {
-      valueEl.innerHTML = esc(list[0] || '不提醒') + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';
+      valueEl.innerHTML = (list[0] ? reminderLabel(slot.obj, slot.kind, list[0]) : esc('不提醒')) + ' <button type="button" class="mini" data-proto-action="remind-add" title="' + esc(addTitle) + '">' + esc(addLabel) + '</button>';
     }
     qa('[data-remind-extra]', root).forEach((n) => n.remove());
     const host = q(mobile ? '.m-form' : '.field-list, .form-grid', root) || remindRow.parentElement;
@@ -358,11 +385,12 @@
       const formRow = !mobile && remindRow.classList.contains('form-row');
       row.className = mobile ? 'm-form-row' : (formRow ? 'form-row' : 'field-row');
       row.dataset.remindExtra = '1';
+      const acts = '<span class="rm-acts"><button type="button" class="mini" data-proto-action="remind-edit" data-remind="' + esc(r) + '">修改</button><button type="button" class="mini" data-proto-action="remind-remove" data-remind="' + esc(r) + '">移除</button></span>';
       row.innerHTML = mobile
-        ? '<span class="m-form-label">提醒</span><span class="m-form-value">' + esc(r) + ' <button type="button" class="mini" data-proto-action="remind-remove" data-remind="' + esc(r) + '">移除</button></span>'
+        ? '<span class="m-form-label">提醒</span><span class="m-form-value">' + reminderLabel(slot.obj, slot.kind, r) + acts + '</span>'
         : (formRow
-          ? '<label class="form-label">提醒</label><div class="form-input" style="display:flex;align-items:center;justify-content:space-between">' + esc(r) + ' <button type="button" class="mini" data-proto-action="remind-remove" data-remind="' + esc(r) + '">移除</button></div>'
-          : '<span class="f-label">提醒</span><span class="f-value">' + esc(r) + ' <button type="button" class="mini" data-proto-action="remind-remove" data-remind="' + esc(r) + '">移除</button></span>');
+          ? '<label class="form-label">提醒</label><div class="form-input" style="display:flex;align-items:center;justify-content:space-between">' + reminderLabel(slot.obj, slot.kind, r) + acts + '</div>'
+          : '<span class="f-label">提醒</span><span class="f-value">' + reminderLabel(slot.obj, slot.kind, r) + acts + '</span>');
       if (host) host.insertBefore(row, remindRow.nextSibling);
     });
   }
@@ -375,6 +403,7 @@
 
   registerAction('remind-add', () => { addReminderTo(reminderSlot()); });
   registerAction('remind-remove', (el) => { removeReminderFrom(reminderSlot(), el.dataset.remind); });
+  registerAction('remind-edit', (el) => { editReminderFrom(reminderSlot(), el.dataset.remind); });
 
   // The boot render ran before this file loaded, so derived missed counts were
   // not in the first DOM. Re-render once so the initial screen tells the truth.

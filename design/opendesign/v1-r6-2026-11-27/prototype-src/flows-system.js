@@ -289,9 +289,28 @@
   /* ---------------- widgets entry ---------------- */
   registerAction('widget-open', (el) => {
     const target = el.dataset.widgetTarget || 'today';
-    if (target === 'todo') { go('todos/inbox'); return; }
-    if (target === 'calendar') { go('calendar/month'); return; }
-    go('today');
+    if (target === 'todo') { P.baseGo('todo-inbox'); P.syncHash(true); return; }
+    if (target === 'calendar') { P.baseGo('cal-month'); P.syncHash(true); return; }
+    P.baseGo('today'); P.syncHash(true);
+  });
+  registerAction('widget-add', (el) => {
+    // The same quick-add card as the widget deep link: one parser, one writer.
+    if (P.quickAdd) P.quickAdd();
+    else { P.baseGo(el.dataset.kind === 'event' ? 'new-event' : 'new-todo'); P.syncHash(true); }
+  });
+  registerAction('widget-done', (el) => {
+    const id = el.dataset.id;
+    if (!id || !window.__v3ToggleDone) { toast('这一项已经不在'); return; }
+    window.__v3ToggleDone(id);
+    toast('已完成这一次');
+    render();
+  });
+  registerAction('widget-day', (el) => {
+    const day = el.dataset.date;
+    if (!day) return;
+    state.selectedDate = day;
+    P.baseGo('cal-day');
+    P.syncHash(true);
   });
 
   /* ---------------- enhancer ---------------- */
@@ -372,8 +391,10 @@
           });
         }
       }
+      // flows-v2-search.js owns the result list; this legacy writer would
+      // overwrite it with title-only matches and a fake recent set.
       const body = q('.cmd-body, .m-cmd-body', root);
-      if (body) body.innerHTML = searchBody(state.cmdQuery);
+      if (body && !body.dataset.v2) body.innerHTML = searchBody(state.cmdQuery);
     }
 
     // AI composer and chips.
@@ -385,8 +406,7 @@
       qa('.wd-ios, .wd-and', root).forEach((w) => {
         if (w.dataset.protoAction) return;
         w.dataset.protoAction = 'widget-open';
-        w.dataset.widgetTarget = (w.textContent || '').includes('待办') ? 'todo'
-          : (w.textContent || '').includes('月') ? 'calendar' : 'today';
+        if (!w.dataset.widgetTarget) w.dataset.widgetTarget = 'today';
         w.style.cursor = 'pointer';
       });
     }
@@ -421,8 +441,14 @@
     return out;
   }
 
-  registerAction('search-open-todo', (el) => P.openTodo(el.dataset.id));
-  registerAction('search-open-event', (el) => P.openEvent(el.dataset.id));
+  registerAction('search-open-todo', (el) => {
+    if (window.__v2SearchOpen) return;
+    P.openTodo(el.dataset.id);
+  });
+  registerAction('search-open-event', (el) => {
+    if (window.__v2SearchOpen) return;
+    P.openEvent(el.dataset.id);
+  });
   registerAction('search-new-todo', () => {
     P.baseGo('new-todo');
     P.syncHash(true);

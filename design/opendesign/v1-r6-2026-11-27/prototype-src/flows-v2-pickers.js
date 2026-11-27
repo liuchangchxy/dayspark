@@ -339,23 +339,57 @@
     });
   });
 
-  registerAction('detail-attach', () => {
-    syncDraftFromDom();
-    const d = activeDraft(); if (!d) return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.className = 'proto-hidden-input';
-    document.body.appendChild(input);
-    input.addEventListener('change', () => {
-      const f = input.files && input.files[0];
-      if (f) {
-        d.attach = f.name;
-        d.attachSize = f.size;
-        render(); toast('已添加附件 · ' + f.name + '（模拟上传）');
+  registerAction('detail-attach', () => { P.actions['attach-add'](); });
+  /* Compare only user-edited fields, so derived projections (missed, plan)
+     never make an unchanged form look dirty. */
+  function draftDirty() {
+    const ref = activeEditRef();
+    if (!ref || !state.draft || state.draftKey !== ref.type + ':' + ref.id) return false;
+    const src = ref.type === 'event' ? eventById(ref.id) : todoById(ref.id);
+    if (!src) return false;
+    const keys = ['title','note','due','dueTime','start','end','date','startDate','endDate','allDay','cal','priority','tags','subtasks','reminders','remind','repeat','repeatEnd','repeatUntil','repeatCount','loc','attach','attachments','plans'];
+    const pick = (o) => { const out = {}; keys.forEach((k) => { if (o[k] !== undefined) out[k] = o[k]; }); return out; };
+    return JSON.stringify(pick(state.draft)) !== JSON.stringify(pick(src));
+  }
+  /* Phone editor back arrow: leave edit, not the app. Unsaved changes are
+     protected by the same confirm the Cancel button uses. */
+  registerAction('m-close-edit', () => {
+    const ref = activeEditRef();
+    const item = ref ? (ref.type === 'event' ? eventById(ref.id) : todoById(ref.id)) : null;
+    const dirty = !!(state.draft && state.draftKey === (ref ? ref.type + ':' + ref.id : '') && item && typeof draftDirty === 'function' && draftDirty());
+    const leave = () => {
+      clearDraft();
+      // On the phone the drawer IS the detail page; hiding the edit flag is
+      // not enough — the back arrow must return to the list it came from.
+      state.drawer = null;
+      state.drawerEdit = false;
+      state.variant = 'normal';
+      state.confirmDelete = false;
+      if (state.screen === 'detail-todo') state.screen = 'today';
+      if (state.screen === 'detail-event') state.screen = 'cal-day';
+      const back = state.drawerReturn;
+      if (back && back.screen) {
+        if (back.screen !== state.screen) state.screen = back.screen;
+        if (back.selectedDate) state.selectedDate = back.selectedDate;
+        if (back.todoMode) state.todoMode = back.todoMode;
+        state.filterApplied = !!back.filterApplied;
+        state.filterCal = back.filterCal || '';
+        state.filterTag = back.filterTag || '';
+        state.filterPriority = back.filterPriority || '';
+        state.filterOverdue = !!back.filterOverdue;
       }
-      input.remove();
-    });
-    input.click();
+      state.drawerReturn = null;
+      render();
+    };
+    if (dirty) {
+      modal({
+        title: '放弃未保存的修改？',
+        body: '<div class="proto-note">这次编辑的内容还没有保存；离开后表单会回到修改前的状态。</div>',
+        actions: [{ label: '继续编辑' }, { label: '放弃修改', primary: true, danger: true, onClick: leave }],
+      });
+      return;
+    }
+    leave();
   });
 
   registerAction('detail-attach-remove', () => {
@@ -479,13 +513,20 @@
     if (!ref) return;
     const d = draftFor(ref);
     if (!d) return;
-    d[f.dataset.mfield] = f.value;
+    // A select stores its raw string; allDay must be a real boolean or every
+    // downstream check ("否" is truthy) treats a timed event as all-day.
+    d[f.dataset.mfield] = f.dataset.mfield === 'allDay' ? f.value === '1' : f.value;
+    // Changing the anchor invalidates relative reminders; drop them here so a
+    // saved reminder always has somewhere to fire from.
+    if ((f.dataset.mfield === 'dueTime' || f.dataset.mfield === 'due' || f.dataset.mfield === 'start' || f.dataset.mfield === 'allDay' || f.dataset.mfield === 'date') && P.normaliseReminders) {
+      P.normaliseReminders(d, ref.type === 'event' ? 'event' : 'todo');
+    }
   });
   function syncDraftFromDom() {
     const ref = activeEditRef(); if (!ref) return;
     const d = draftFor(ref); if (!d) return;
     const title = q('#detail-title'); if (title) d.title = title.value;
-    qa('[data-mfield]').forEach((f) => { if (f.id === 'detail-title') return; d[f.dataset.mfield] = f.value; });
+    qa('[data-mfield]').forEach((f) => { if (f.id === 'detail-title') return; d[f.dataset.mfield] = f.dataset.mfield === 'allDay' ? f.value === '1' : f.value; });
   }
 
   /* ---------------- plan selector: same designed calendar ---------------- */
@@ -562,13 +603,15 @@
         btn.dataset.reason = '先在详情里点“编辑”，再添加。';
       }
     });
-    // Show the real attachment name, size and a remove control.
+    // Attachment rows are rendered from the real list (name, state, size) by
+    // the master; only the upload entry needs wiring to the shared picker.
     if (editing) {
       const attachSec = qa('.d-sec', root).find((s) => s.textContent.includes('附件'));
       if (attachSec) {
-        const at = q('.attach', attachSec);
-        if (at) {
-          at.innerHTML = `${ico('folder', 13)} ${d && d.attach ? esc(d.attach) + (d.attachSize ? ' · ' + Math.round(d.attachSize / 1024) + ' KB' : '') : '没有附件'}${d && d.attach ? '<button type="button" class="del" data-proto-action="detail-attach-remove" aria-label="移除附件">×</button>' : ''}`;
+        const up = q('.d-sec-head button', attachSec);
+        if (up) {
+          up.dataset.protoAction = 'attach-add';
+          delete up.dataset.action;
         }
       }
       // Date fields open the designed calendar (desktop and phone share it),
@@ -851,7 +894,9 @@
         }
         if (e.target.closest('[data-proto-action="composer-plan-occ"]')) {
           read();
-          P.openDatePicker({ value: occ || d.date || TODAY, onPick: (v) => { if (!v) return; occ = v; date = v; paint(); } });
+          // The occurrence is the instance identity; the plan date is when the work is
+          // actually done and may deliberately differ from it.
+          P.openDatePicker({ value: occ || d.date || TODAY, onPick: (v) => { if (!v) return; occ = v; paint(); } });
         }
       });
       return;
@@ -921,8 +966,8 @@
 
   registerAction('new-cancel', () => {
     const d = P.data.newDraft;
-    const title = (q('#new-title') || q('.new-page .form-input') || {}).value || '';
-    const dirty = !!title.trim() || !!(d && (d.due || d.plan || (d.plans || []).length || d.repeat || d.loc || d.allDay || (d.tags || []).length || (d.reminders || []).length || d.cal !== (state.defaultCal || 'personal') || d.priority !== '中' || d.remind !== (state.screen === 'new-event' ? '15 分钟前' : '不提醒')));
+    const title = (q('#new-title') || q('.new-page .form-input') || q('.m-detail-scroll .m-form-input') || {}).value || '';
+    const dirty = !!title.trim() || !!(d && ((d.title || '').trim() || d.note || d.due || d.plan || (d.plans || []).length || d.repeat || d.loc || d.allDay || (d.tags || []).length || (d.reminders || []).length || d.cal !== (state.defaultCal || 'personal') || d.priority !== '中' || d.remind !== (state.screen === 'new-event' ? '15 分钟前' : '不提醒')));
     if (!dirty) { goBackFromNew(); return; }
     modal({
       title: '离开这张表单？',
