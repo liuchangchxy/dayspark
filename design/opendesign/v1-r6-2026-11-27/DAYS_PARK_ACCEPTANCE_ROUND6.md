@@ -9,7 +9,7 @@
 | 产物 | `dayspark-prototype.html`（单文件，无外部依赖） |
 | 产物 SHA-256 | `4dd2f92f2f80e6b076fa9e3588325c3b24a767dee9de6b7d2ff438c7b8244351` |
 | 母版 SHA-256 | `b44043df82f1efde1ca40673bef5cc458b294810d876048dc3e13058a588dd51` |
-| 构建 | `python3 prototype-src/build.py <dir>`，15 个脚本；重复构建 SHA 一致；产物 1,160,733 bytes |
+| 构建 | `python3 prototype-src/build.py <dir>`，15 个脚本；从源码重构建到 `/tmp/rebuild-check` 得到同一 SHA；产物 1,160,733 bytes |
 | 浏览器 | Google Chrome（headless=new + CDP，真实 DOM 点击/键盘事件） |
 | 视口 | 1440×1000（桌面）、1024×768（平板）、768×900（窄桌面）、390×844（手机，`mobile:true`；原型在 ≤720 自动切手机外壳） |
 | 主题 | light / warm / dark，逐张截图前写入 `Proto.data.prefs.theme` 并校验 `document.body.dataset.protoTheme` |
