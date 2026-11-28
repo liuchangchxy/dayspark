@@ -1,0 +1,5 @@
+apply {"added":3,"updated":0}
+data {"doneInstances":["recurring@2026-11-06"],"skipped":["weekly@2026-11-13"],"local":["local-9"],"seq":7,"done":["plant"],"del":["gone"],"hid":["life"],"todo":[{"id":"alloc-7","date":"2026-11-20","start":"10:00","end":"11:00","state":"active","occurrenceDate":null}],"ev":true,"tag":true,"ai":{"model":"m","key":"sk-••••4f2a","base":"https://x"}}
+snapstr False
+persist True local False
+errs []

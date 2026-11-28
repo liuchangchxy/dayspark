@@ -1,0 +1,9 @@
+draft {"r":"15 分钟前","rs":["30 分钟前"]}
+btns [["取消","new-cancel","new-cancel","tool"],["创建日程","new-save","new-save","tool primary"],["待办",null,"new-type-todo","new-type-btn "],["日程",null,"new-type-event","new-type-btn is-on"],["＋ 添加",null,"remind-add","mini"],["修改",null,"remind-edit","mini"],["移除",null,"remind-remove","mini"]]
+event {"id":"local-event-1","title":"多提醒日程","cal":"personal","allDay":false,"loc":"","remind":"15 分钟前","note":"","repeat":"","repeatEnd":"永不结束","repeatUntil":"","repeatCount":0,"reminders":["30 分钟前"],"date":"2026-11-20","start":"11:00","end":"12:00"}
+no anchor picker false,true,true,true,true,true,true
+due {"due":"2026-11-20","time":"18:00"}
+anchor now false,false,false,false,false,false,false
+draft2 {"r":"30 分钟前","rs":[]}
+todo {"id":"local-2","title":"多提醒待办","cal":"personal","priority":5,"tags":[],"note":"","subtasks":[],"status":"open","repeat":"","repeatEnd":"永不结束","repeatUntil":"","repeatCount":0,"due":"2026-11-20","dueTime":"18:00","remind":"30 分钟前"}
+errs []

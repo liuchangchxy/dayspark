@@ -1,0 +1,5 @@
+seed second alloc-2
+blocks [["alloc-2","report","提交周报给林总计"],["alloc-1","report","提交周报给林总计"]]
+info {'x': 93, 'y': 448, 'ch': 648}
+after [["alloc-1","15:15","16:00","2026-11-20"],["alloc-2","11:45","12:45","2026-11-20"]]
+errs []

@@ -1,0 +1,673 @@
+/* DaySpark prototype host: full-app shell built on the frozen master's own CSS. */
+html, body { overflow: hidden; background: #e8e8e1; }
+body.proto-running .spec { display: block; height: 100dvh; }
+body.proto-running .spec-nav,
+body.proto-running .spec-bar,
+body.proto-running .spec-variants { display: none !important; }
+body.proto-running .spec-main { display: block; height: 100dvh; }
+body.proto-running .spec-canvas {
+  display: block; height: 100dvh; padding: 0; overflow: hidden; background: #e8e8e1;
+}
+body.proto-running .frame-wrap { width: 100% !important; height: 100% !important; }
+body.proto-running #frame.product {
+  width: 100vw !important; height: 100dvh !important; border-radius: 0 !important;
+  transform: none !important; box-shadow: none;
+}
+body.proto-running #frame.product .m-app { border-radius: 0; }
+body.proto-running #frame.product.mobile {
+  width: 100vw !important; height: 100dvh !important; padding: 0 !important;
+  background: #fff; border-radius: 0 !important;
+}
+body.proto-running #frame.product.mobile .m-app {
+  width: 100% !important; height: 100% !important; border-radius: 0 !important;
+}
+
+/* Desktop browser previewing the phone: show the device, not a stretched phone. */
+@media (min-width: 721px) {
+  body.proto-running.proto-phone-preview .spec-canvas {
+    display: grid; place-items: center; background: #e8e8e1;
+  }
+  body.proto-running.proto-phone-preview .frame-wrap {
+    width: 410px !important; height: 864px !important; flex: none;
+  }
+  body.proto-running.proto-phone-preview #frame.product.mobile {
+    width: 410px !important; height: 864px !important; padding: 10px !important;
+    background: #202226; border-radius: 54px !important;
+    box-shadow: 0 24px 70px rgba(24,24,22,.18);
+  }
+  body.proto-running.proto-phone-preview #frame.product.mobile .m-app {
+    width: 390px !important; height: 844px !important; border-radius: 45px !important;
+  }
+}
+
+/* Prototype-only chrome, visually separated from the product. */
+.proto-bar {
+  position: fixed; left: 14px; bottom: 14px; z-index: 9999;
+  display: flex; align-items: center; gap: 6px; padding: 5px;
+  border: 1px solid #d3d3ca; border-radius: 10px;
+  background: rgba(250,250,246,.94); backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(24,24,22,.12);
+  font: 11px/1.2 var(--font); color: #55554d;
+  transition: opacity .18s ease;
+}
+.proto-bar.is-quiet { opacity: .42; }
+.proto-bar:hover, .proto-bar:focus-within { opacity: 1; }
+.proto-bar button {
+  height: 25px; padding: 0 9px; border-radius: 6px; color: #55554d;
+}
+.proto-bar button:hover { background: #ecece5; color: var(--ink); }
+.proto-bar button.is-on { background: var(--ink); color: #fff; }
+.proto-bar .proto-label {
+  padding: 0 5px; font-size: 9px; letter-spacing: .08em; color: #98988e;
+}
+.proto-bar .proto-sep { width: 1px; height: 16px; background: #deded6; }
+.proto-bar .proto-status { font-size: 9.5px; color: #8b8b82; padding: 0 4px; }
+
+@media (max-width: 720px) {
+  .proto-bar { display: none; }
+  body.proto-running #frame.product { width: 100vw !important; height: 100dvh !important; }
+}
+
+/* Keep the product's own scroll areas inside the viewport. */
+body.proto-running .p-main { min-height: 0; }
+body.proto-running .page { min-height: 0; }
+
+/* Prototype dialogs reuse the master's paper language. */
+.proto-modal-scrim {
+  position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center;
+  background: rgba(25,25,24,.22); padding: 20px;
+}
+.proto-modal {
+  width: min(420px, 100%); max-height: min(640px, 86dvh); overflow: auto;
+  background: var(--paper); border: 1px solid var(--hair-2); border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+.proto-modal-head {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+  border-bottom: 1px solid var(--hair); font-size: 13px; font-weight: 650;
+}
+.proto-modal-body { padding: 14px 16px; display: grid; gap: 10px; }
+.proto-modal-foot {
+  display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+  border-top: 1px solid var(--hair); justify-content: flex-end;
+}
+.proto-modal-foot .danger { color: var(--red); margin-right: auto; }
+.proto-field { display: grid; gap: 4px; }
+.proto-field label { font-size: 10px; color: var(--faint); letter-spacing: .04em; }
+.proto-input {
+  height: 34px; padding: 0 10px; border: 1px solid var(--hair-2); border-radius: 6px;
+  background: #fff; font: inherit; outline: none;
+}
+.proto-input:focus { border-color: var(--ink); }
+.proto-check { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.proto-btn {
+  height: 31px; padding: 0 12px; border: 1px solid var(--hair-2);
+  border-radius: 6px; background: #fff; font-size: 12px;
+}
+.proto-btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+.proto-btn:disabled { opacity: .45; cursor: default; }
+.proto-note { font-size: 10.5px; color: var(--faint); line-height: 1.5; }
+.proto-list { display: grid; gap: 6px; }
+.proto-list-row {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 9px 10px; border: 1px solid var(--hair); border-radius: 7px;
+  background: #fff; text-align: left; font-size: 12px;
+}
+.proto-list-row:hover { border-color: var(--hair-2); background: #fdfdfa; }
+.proto-list-row .grow { flex: 1; min-width: 0; }
+.proto-list-row small { display: block; color: var(--faint); font-size: 10px; margin-top: 2px; }
+.proto-badge {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 6px;
+  border-radius: 4px; background: var(--wash); color: var(--muted); font-size: 9.5px;
+}
+
+/* ---------------- v2: themes, sheets, real controls ---------------- */
+body[data-proto-theme="warm"] { --paper:#fffef9; --wash:#f7f5ee; --hair:#eae6db; --hair-2:#dbd6c8; background:#e8e5db; }
+body[data-proto-theme="dark"] {
+  --paper:#1e1f1c; --surface:#252622; --surface-2:#242520; --ink:#f2f1ea; --ink-2:#d4d2c8;
+  --muted:#b5b3a8; --faint:#9c9a8f; --hair:#33342f; --hair-2:#45463f; --hair-soft:#2b2c27;
+  --wash:#252622; --red:#ff7a6e; --red-soft:#3a2320; --amber:#e0b062; --amber-soft:#3a3020;
+  --work:#9bb7c8; --work-soft:#243039; --plan-bg:#2a2b24;
+  --shadow:0 18px 50px rgba(0,0,0,.38);
+  background:#121310; color-scheme:dark;
+}
+body[data-proto-theme="dark"] .p-top,
+body[data-proto-theme="dark"] .p-side,
+body[data-proto-theme="dark"] .m-app,
+body[data-proto-theme="dark"] .m-top,
+body[data-proto-theme="dark"] .m-dock,
+body[data-proto-theme="dark"] .drawer,
+body[data-proto-theme="dark"] .proto-modal,
+body[data-proto-theme="dark"] .proto-bar,
+body[data-proto-theme="dark"] .plan-card,
+body[data-proto-theme="dark"] .io-card,
+body[data-proto-theme="dark"] .new-wrap,
+body[data-proto-theme="dark"] .edit-page,
+body[data-proto-theme="dark"] .m-cmd,
+body[data-proto-theme="dark"] .m-sheet,
+body[data-proto-theme="dark"] .cmdk,
+body[data-proto-theme="dark"] .cal-block { background:var(--paper); color:var(--ink); }
+body[data-proto-theme="dark"] .spec-canvas,
+body[data-proto-theme="dark"] .frame-wrap { background:#121310 !important; }
+body[data-proto-theme="dark"] input,
+body[data-proto-theme="dark"] textarea,
+body[data-proto-theme="dark"] select { background:#242520; color:var(--ink); border-color:var(--hair-2); }
+body[data-proto-theme="dark"] .proto-list-row,
+body[data-proto-theme="dark"] .proto-btn,
+body[data-proto-theme="dark"] .proto-input { background:#242520; color:var(--ink); }
+body[data-proto-theme="dark"] .proto-btn.primary { background:var(--ink); color:#171815; }
+body[data-proto-theme="dark"] .toast { background:#f2f1ea; color:#171815; }
+
+body[data-proto-accent="blue"] { --proto-accent:#3f6fa8; --proto-accent-soft:#e8eef7; }
+body[data-proto-accent="green"] { --proto-accent:#4f7a58; --proto-accent-soft:#e9f0e9; }
+body[data-proto-accent="warm"] { --proto-accent:#191918; --proto-accent-soft:#f0eee7; }
+body[data-proto-accent] .tool.primary,
+body[data-proto-accent] .proto-btn.primary,
+body[data-proto-accent] .mini-btn.primary,
+body[data-proto-accent] .btn.primary { background:var(--proto-accent); border-color:var(--proto-accent); }
+body[data-proto-accent] .check.is-on { background:var(--proto-accent); border-color:var(--proto-accent); }
+body[data-proto-accent] .p-nav button.is-on { color:var(--proto-accent); }
+body[data-proto-accent] .m-dock button.is-on { color:var(--proto-accent); }
+body[data-proto-accent] .new-type-btn.is-on { background:var(--proto-accent); border-color:var(--proto-accent); color:#fff; }
+
+.proto-modal.is-wide { width:min(540px,100%); }
+.proto-modal-scrim.is-sheet { place-items:end center; padding:0; }
+.proto-modal.is-sheet { width:100%; max-width:none; border-radius:14px 14px 0 0; max-height:88dvh; }
+.proto-modal.is-sheet .proto-modal-head { padding-top:12px; }
+.proto-modal.is-sheet .proto-modal-foot { padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
+@media (max-width:720px) {
+  .proto-modal-scrim { place-items:end center; padding:0; }
+  .proto-modal { width:100%; max-width:none; border-radius:14px 14px 0 0; max-height:88dvh; }
+  .proto-modal-foot { padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
+}
+
+.proto-banner {
+  display:flex; align-items:center; gap:10px; margin:8px 12px 0; padding:8px 11px;
+  border:1px solid var(--hair-2); border-radius:7px; background:var(--wash);
+  font-size:11px; color:var(--ink-2); position:relative; z-index:5;
+}
+.proto-banner b { color:var(--ink); font-weight:650; }
+.proto-banner.is-red { background:var(--red-soft); border-color:color-mix(in srgb,var(--red) 30%,transparent); color:var(--red); }
+.proto-banner.is-amber { background:var(--amber-soft); border-color:color-mix(in srgb,var(--amber) 30%,transparent); color:var(--amber); }
+.proto-banner .grow { flex:1; min-width:0; }
+.proto-banner button { flex:none; height:24px; padding:0 8px; border:1px solid currentColor; border-radius:5px; font-size:10.5px; }
+body.proto-running .p-main > .proto-banner:first-child { margin-top:10px; }
+
+.proto-cal-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.proto-cal-head b { font-size:12.5px; }
+.proto-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+.proto-cal-dow { text-align:center; font-size:9px; color:var(--faint); padding:2px 0 4px; }
+.proto-cal-day {
+  height:32px; border-radius:6px; font-size:11px; display:grid; place-items:center;
+  border:1px solid transparent;
+}
+.proto-cal-day:hover { background:var(--wash); }
+.proto-cal-day.is-out { color:var(--faint); opacity:.45; }
+.proto-cal-day.is-today { border-color:var(--hair-2); }
+.proto-cal-day.is-on { background:var(--ink); color:var(--paper); }
+.proto-cal-day:disabled { opacity:.25; text-decoration:line-through; }
+.proto-quick-row { display:flex; gap:6px; flex-wrap:wrap; }
+.proto-quick-row button { height:26px; padding:0 9px; border:1px solid var(--hair-2); border-radius:5px; font-size:10.5px; background:#fff; }
+body[data-proto-theme="dark"] .proto-quick-row button { background:#242520; }
+.proto-inline-row { display:flex; gap:6px; align-items:center; }
+.proto-inline-row .proto-input { flex:1; min-width:0; }
+.proto-seg { display:flex; gap:4px; padding:3px; background:var(--wash); border-radius:7px; }
+.proto-seg button { flex:1; height:27px; border-radius:5px; font-size:11px; color:var(--muted); }
+.proto-seg button.is-on { background:var(--paper); color:var(--ink); box-shadow:0 1px 2px rgba(0,0,0,.08); font-weight:600; }
+.proto-tag-pick { display:flex; flex-wrap:wrap; gap:6px; }
+.proto-tag-pick button { height:27px; padding:0 9px; border:1px solid var(--hair-2); border-radius:14px; font-size:11px; }
+.proto-tag-pick button.is-on { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.proto-picked-time { font-size:26px; font-weight:600; letter-spacing:.01em; color:var(--ink); margin:0 0 10px; font-variant-numeric:tabular-nums; }
+.proto-picked-time + .proto-field { margin-top:0; }
+.v2-date-field, .v2-time-field { background-repeat:no-repeat; background-position:right 9px center; background-size:13px 13px; padding-right:28px; cursor:pointer; }
+.v2-date-field { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a09a90' stroke-width='1.7' stroke-linecap='round'><rect x='3.5' y='5' width='17' height='15.5' rx='2.5'/><path d='M8 3v4M16 3v4M3.5 10h17'/></svg>"); }
+.v2-time-field { background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a09a90' stroke-width='1.7' stroke-linecap='round'><circle cx='12' cy='12' r='8.6'/><path d='M12 7.2v5.2l3.2 1.9'/></svg>"); }
+.proto-tag-pick button { min-width:34px; text-align:center; font-variant-numeric:tabular-nums; }
+
+.proto-drag-ghost { position:fixed; z-index:9500; pointer-events:none; opacity:.72; border-radius:5px; box-shadow:0 8px 24px rgba(0,0,0,.18); }
+.proto-resize {
+  position:absolute; left:0; right:0; bottom:-3px; height:7px; cursor:ns-resize; z-index:3;
+}
+.proto-resize::after { content:""; position:absolute; left:50%; bottom:2px; width:18px; height:2px; margin-left:-9px; border-radius:2px; background:currentColor; opacity:.25; }
+.cal-block { position:relative; }
+.cal-block.is-dragging { opacity:.25; }
+.proto-slot-hint {
+  position:absolute; left:4px; right:4px; height:2px; background:var(--red); z-index:4; pointer-events:none;
+}
+
+.proto-menu {
+  position:fixed; z-index:9400; min-width:168px; padding:5px; background:var(--paper);
+  border:1px solid var(--hair-2); border-radius:8px; box-shadow:var(--shadow);
+}
+.proto-menu button { display:flex; width:100%; align-items:center; gap:8px; height:29px; padding:0 9px; border-radius:5px; font-size:11.5px; text-align:left; }
+.proto-menu button:hover { background:var(--wash); }
+.proto-menu button.danger { color:var(--red); }
+.proto-menu .sep { height:1px; margin:4px 2px; background:var(--hair); }
+
+.proto-batchbar {
+  position:fixed; left:50%; bottom:66px; transform:translateX(-50%); z-index:9300;
+  display:flex; align-items:center; gap:8px; padding:7px 9px; background:var(--paper);
+  border:1px solid var(--hair-2); border-radius:10px; box-shadow:var(--shadow); font-size:11px;
+}
+.proto-batchbar button { height:27px; padding:0 9px; border-radius:5px; border:1px solid var(--hair-2); }
+.proto-batchbar button.primary { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.proto-select-box { position:absolute; left:6px; top:50%; transform:translateY(-50%); width:14px; height:14px; border:1px solid var(--hair-2); border-radius:4px; background:var(--paper); z-index:2; }
+.proto-select-box.is-on { background:var(--ink); border-color:var(--ink); }
+
+.proto-search mark { background:var(--amber-soft); color:inherit; border-radius:2px; padding:0 1px; }
+.proto-search-empty { padding:30px 14px; text-align:center; color:var(--faint); font-size:11.5px; }
+.proto-kbd { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 4px; border:1px solid var(--hair-2); border-radius:4px; font-size:9px; color:var(--muted); background:var(--wash); }
+.proto-kbd-list { display:grid; gap:7px; }
+.proto-kbd-list div { display:flex; align-items:center; gap:8px; font-size:11.5px; }
+.proto-kbd-list .grow { flex:1; }
+
+.proto-demo-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.proto-demo-grid button { min-height:32px; padding:5px 8px; border:1px solid var(--hair-2); border-radius:6px; font-size:11px; text-align:left; }
+.proto-demo-grid button.is-on { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.proto-demo-note { font-size:10px; color:var(--faint); line-height:1.5; }
+
+.proto-subtask-row { display:flex; align-items:center; gap:7px; padding:4px 0; }
+.proto-subtask-row .del { margin-left:auto; color:var(--faint); font-size:14px; line-height:1; padding:0 4px; }
+.proto-subtask-row .del:hover { color:var(--red); }
+.proto-attach-row { display:flex; align-items:center; gap:8px; }
+.proto-attach-row .del { margin-left:auto; color:var(--faint); }
+.proto-attach-row .del:hover { color:var(--red); }
+.proto-hidden-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.proto-disabled { opacity:.45; cursor:not-allowed; }
+.proto-readonly { cursor:default; }
+
+/* Dark theme: neutralize light inline event tints and hardcoded hairlines. */
+body[data-proto-theme="dark"][data-proto-accent="warm"] { --proto-accent:#f2f1ea; --proto-accent-soft:#33342f; }
+body[data-proto-theme="dark"][data-proto-accent="blue"] { --proto-accent:#8fb4e0; --proto-accent-soft:#26303b; }
+body[data-proto-theme="dark"][data-proto-accent="green"] { --proto-accent:#9dc0a4; --proto-accent-soft:#273229; }
+body[data-proto-theme="dark"] .task-row { border-bottom-color: var(--hair); }
+body[data-proto-theme="dark"] .tl-block { background: color-mix(in srgb, var(--bg) 18%, #1e1f1c) !important; color: var(--ink); }
+body[data-proto-theme="dark"] .tl-block.plan { background:#2a2b24 !important; }
+body[data-proto-theme="dark"] .product .tl-dot { box-shadow: 0 0 0 3px var(--bg); }
+body[data-proto-theme="dark"] .cal-block { background: color-mix(in srgb, var(--bg) 18%, #1e1f1c) !important; color: var(--ink); }
+body[data-proto-theme="dark"] .cal-block.is-plan { background:#2a2b24 !important; }
+body[data-proto-theme="dark"] .allday-chip { background: color-mix(in srgb, var(--ev-bg) 18%, #1e1f1c) !important; color: var(--ink) !important; }
+body[data-proto-theme="dark"] .dl-chip,
+body[data-proto-theme="dark"] .dl-marker,
+body[data-proto-theme="dark"] .mcell,
+body[data-proto-theme="dark"] .mcell.is-out { color: var(--ink); }
+body[data-proto-theme="dark"] .cap-input { background: transparent; }
+body[data-proto-theme="dark"] .cap-box,
+body[data-proto-theme="dark"] .capture-bar { background: var(--paper); border-color: var(--hair-2); }
+body[data-proto-theme="dark"] .tag { background:#2a2b25; color: var(--ink-2); }
+body[data-proto-theme="dark"] .filter-option,
+body[data-proto-theme="dark"] .cal-list-row,
+body[data-proto-theme="dark"] .tag-row,
+body[data-proto-theme="dark"] .trash-row,
+body[data-proto-theme="dark"] .set-row { border-color: var(--hair); }
+body[data-proto-theme="dark"] .proto-cal-day:hover,
+body[data-proto-theme="dark"] .proto-list-row:hover { background:#2a2b25; }
+body[data-proto-theme="dark"] .proto-modal,
+body[data-proto-theme="dark"] .proto-menu,
+body[data-proto-theme="dark"] .proto-batchbar { background: var(--paper); color: var(--ink); }
+body[data-proto-theme="dark"] .proto-modal-foot,
+body[data-proto-theme="dark"] .proto-modal-head { border-color: var(--hair); }
+body[data-proto-theme="dark"] .proto-seg { background:#26271f; }
+body[data-proto-theme="dark"] .proto-seg button.is-on { background:#3a3b33; color: var(--ink); }
+body[data-proto-theme="dark"] .proto-quick-row button { background:#26271f; }
+body[data-proto-theme="dark"] .proto-kbd { background:#26271f; }
+body[data-proto-theme="dark"] .proto-search mark { background:#5a4a22; color:#f2f1ea; }
+
+body[data-proto-accent] .d-act.primary { color: var(--proto-accent); background: none; border: 0; }
+body[data-proto-theme="dark"] .capture,
+body[data-proto-theme="dark"] .capture-panel { background: var(--paper); border-color: var(--hair-2); }
+body[data-proto-theme="dark"] .cap-kbd { background:#26271f; border-color:var(--hair-2); color:var(--faint); }
+body[data-proto-theme="dark"] .cap-send { background: var(--ink); color:#171815; }
+body[data-proto-theme="dark"] .drawer > .d-foot,
+body[data-proto-theme="dark"] .m-app > .d-foot,
+body[data-proto-theme="dark"] .detail-full .d-foot { background: var(--paper); }
+body[data-proto-theme="dark"] .proto-bar { background: rgba(30,31,28,.94); border-color:#44453e; color:var(--ink-2); }
+body[data-proto-theme="dark"] .proto-bar button { color: var(--ink-2); }
+body[data-proto-theme="dark"] .proto-bar button:hover { background:#2a2b25; color:var(--ink); }
+body[data-proto-theme="dark"] .proto-bar .proto-label,
+body[data-proto-theme="dark"] .proto-bar .proto-status { color: var(--faint); }
+body[data-proto-theme="dark"] .proto-bar .proto-sep { background:#44453e; }
+
+.v2-select-row { display:flex; align-items:center; gap:8px; min-width:0; }
+.v2-select-row select { flex:1; min-width:0; }
+.v2-select-row .mini { flex:none; font-size:10px; color:var(--muted); white-space:nowrap; }
+.v2-select-row .mini:hover { color:var(--ink); text-decoration:underline; }
+
+
+/* ---------------- R6 dark theme corrections ---------------- */
+body[data-proto-theme="dark"] .product.mobile .m-app,
+body[data-proto-theme="dark"] .product.mobile .m-scroll { background: var(--paper); color: var(--ink); }
+body[data-proto-theme="dark"].proto-running #frame.product.mobile { background: var(--paper); }
+body[data-proto-theme="dark"] .product .p-top,
+body[data-proto-theme="dark"] .product .page-head,
+body[data-proto-theme="dark"] .product .tool,
+body[data-proto-theme="dark"] .product .p-avatar,
+body[data-proto-theme="dark"] .product .ds-month,
+body[data-proto-theme="dark"] .product .f-chip,
+body[data-proto-theme="dark"] .product .bg-chip,
+body[data-proto-theme="dark"] .product .mcell,
+body[data-proto-theme="dark"] .product .day-head,
+body[data-proto-theme="dark"] .product .allday-grid,
+body[data-proto-theme="dark"] .product .deadline-grid,
+body[data-proto-theme="dark"] .product .cal-skel-cell,
+body[data-proto-theme="dark"] .product .m-capture,
+body[data-proto-theme="dark"] .product .m-sheet,
+body[data-proto-theme="dark"] .product .m-month-cell,
+body[data-proto-theme="dark"] .product .capture,
+body[data-proto-theme="dark"] .product .capture-panel,
+body[data-proto-theme="dark"] .product .cp-foot,
+body[data-proto-theme="dark"] .product .cmd,
+body[data-proto-theme="dark"] .product .plan-card,
+body[data-proto-theme="dark"] .product .confirm-modal,
+body[data-proto-theme="dark"] .product .m-cmd,
+body[data-proto-theme="dark"] .product .edit-wrap,
+body[data-proto-theme="dark"] .product .edit-page,
+body[data-proto-theme="dark"] .product .new-wrap { background: var(--paper); color: var(--ink); border-color: var(--hair); }
+body[data-proto-theme="dark"] .product .mode-switch button.is-on,
+body[data-proto-theme="dark"] .product .view-switch button.is-on { background: var(--surface-2); color: var(--ink); }
+body[data-proto-theme="dark"] .product .day-col:hover { background-color: #232420; }
+body[data-proto-theme="dark"] .product .field-row,
+body[data-proto-theme="dark"] .product .task-row,
+body[data-proto-theme="dark"] .product .todo-row,
+body[data-proto-theme="dark"] .product .m-task,
+body[data-proto-theme="dark"] .product .set-row,
+body[data-proto-theme="dark"] .product .m-settings-row { border-color: var(--hair-soft); }
+body[data-proto-theme="dark"] .product .check { background: transparent; border-color: #5b5c53; color: var(--paper); }
+body[data-proto-theme="dark"] .product .check.is-on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+/* Priority badges and priority chips are real state, not decoration: on dark
+   paper a light chip must carry dark ink, and the selected chip must read as
+   selected (dark ink block with pale text), same as priority 中 in light. */
+/* Row priority badge. 高 = 高优先级 in ink, 低 = 低优先级 outline; both read as
+   metadata chips beside the due pill, not a second warning colour. */
+.product .prio-badge { border: 1px solid var(--hair-2); color: var(--muted); background: transparent; }
+.product .prio-badge.is-high { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+body[data-proto-theme="dark"] .prio-badge { border-color: var(--hair-2); color: var(--ink-2); background: transparent; }
+body[data-proto-theme="dark"] .prio-badge.is-high { border-color: var(--ink); background: var(--ink); color: #171815; }
+body[data-proto-theme="dark"] .f-chip.is-on { background: var(--ink); color: #171815; border-color: var(--ink); }
+
+body[data-proto-theme="dark"] .product .tool.primary,
+body[data-proto-theme="dark"] .product .save-bar .btn.primary,
+body[data-proto-theme="dark"] .product .cp-actions .btn.primary,
+body[data-proto-theme="dark"] .product .filter-actions .primary,
+body[data-proto-theme="dark"] .product .mini-btn.primary,
+body[data-proto-theme="dark"] .product .m-fab,
+body[data-proto-theme="dark"] .product .ds-day.is-on,
+body[data-proto-theme="dark"] .product .m-month-cell.is-today,
+body[data-proto-theme="dark"] .product .m-cal-day.is-on { color: var(--paper); }
+body[data-proto-theme="dark"] .product .plan-tag { background:#2e3942; color:#a9c2d6; }
+body[data-proto-theme="dark"] .product .tl-block.plan { --bg:var(--plan-bg); }
+body[data-proto-theme="dark"] .product .mchip em { color: var(--muted); }
+body[data-proto-theme="dark"] .product .mnum.is-today { color:#fff; }
+body[data-proto-theme="dark"] .product .toast { background:var(--ink); color:var(--paper); }
+body[data-proto-theme="dark"] .product .m-now { background: var(--paper); border-color: var(--hair-2); }
+
+/* ---------------- R6 quiet preview control ---------------- */
+.proto-bar { left:auto; right:14px; bottom:14px; padding:4px; gap:0; background:rgba(250,250,246,.9); }
+.proto-bar .proto-pill { height:26px; padding:0 10px; border-radius:7px; font-size:11px; color:#63635a; }
+.proto-bar .proto-pill:hover { background:#ecece5; color:#191918; }
+.proto-bar.is-open .proto-pill { background:#191918; color:#fff; }
+.proto-bar .proto-menu { display:flex; align-items:center; gap:6px; padding:0 6px 0 4px; }
+.proto-bar .proto-menu[hidden] { display:none; }
+body[data-proto-theme="dark"] .proto-bar { background:rgba(32,33,29,.92); border-color:#3b3c36; }
+body[data-proto-theme="dark"] .proto-bar .proto-pill { color:#cfcec4; }
+body[data-proto-theme="dark"] .proto-bar.is-open .proto-pill { background:#f2f1ea; color:#1e1f1c; }
+
+
+/* dark: complete visibility of the capture bar and the completion toggle */
+body[data-proto-theme="dark"] .product.mobile .m-capture {
+  background: var(--surface); border-color: var(--hair-2);
+  box-shadow: 0 8px 26px rgba(0,0,0,.35);
+}
+body[data-proto-theme="dark"] .product .d-complete { background: var(--surface-2); color: var(--ink-2); border-color: var(--hair); }
+body[data-proto-theme="dark"] .product .d-complete .check { border-color: #6a6b61; }
+
+body[data-proto-theme="dark"] .product.mobile .m-block,
+body[data-proto-theme="dark"] .product.mobile .m-overlap-lane {
+  background: color-mix(in srgb, var(--bg) 22%, #1e1f1c);
+  color: var(--ink);
+}
+body[data-proto-theme="dark"] .product.mobile .m-block .m-block-meta,
+body[data-proto-theme="dark"] .product.mobile .m-overlap-lane small { color: var(--muted); }
+
+/* Dark: controls that were ink-filled with hardcoded white glyphs, plus the
+   last light-only hairlines. Category bars carry the calendar identity. */
+body[data-proto-theme="dark"] .m-cal-day.is-on,
+body[data-proto-theme="dark"] .view-switch button.is-on,
+body[data-proto-theme="dark"] .mode-switch button.is-on,
+body[data-proto-theme="dark"] .ds-day.is-on,
+body[data-proto-theme="dark"] .day-head.is-today b { color: var(--paper); }
+/* The chip blanket below sets paper background for every chip; a selected
+   chip must win it back, otherwise ink-on-ink text disappears. */
+body[data-proto-theme="dark"] .product .f-chip.is-on {
+  background: var(--ink); border-color: var(--ink); color: var(--paper);
+}
+body[data-proto-theme="dark"] .m-today { background: var(--paper); color: var(--ink-2); }
+/* All-day chips and deadline pills get their tint from the light token sheet;
+   in dark they were paper-on-paper with unreadable glyphs. */
+body[data-proto-theme="dark"] .product .allday-chip,
+body[data-proto-theme="dark"] .product .bg-chip {
+  background: color-mix(in srgb, var(--ev-bg, #e8e7e0) 22%, #232420);
+  color: var(--ink);
+  border-left-color: var(--ev-bar, var(--hair-2));
+}
+body[data-proto-theme="dark"] .product .allday-chip span,
+body[data-proto-theme="dark"] .product .bg-chip { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .due-pill { background: color-mix(in srgb, var(--amber) 16%, #232420); color: var(--amber); }
+body[data-proto-theme="dark"] .product .due-pill.is-red { background: color-mix(in srgb, var(--red) 16%, #232420); color: var(--red); }
+body[data-proto-theme="dark"] .product .cal-dot { box-shadow: 0 0 0 1px rgba(255,255,255,.14); }
+body[data-proto-theme="dark"] .dl-marker .dl-label,
+body[data-proto-theme="dark"] .m-deadline-marker span { background: var(--paper); }
+body[data-proto-theme="dark"] .m-form-row { border-bottom-color: var(--hair-soft); }
+body[data-proto-theme="dark"] .tl-block,
+body[data-proto-theme="dark"] .cal-block { background: color-mix(in srgb, var(--bg) 30%, #1e1f1c) !important; }
+body[data-proto-theme="dark"] .cal-block { border-left-width: 3px; }
+body[data-proto-theme="dark"] .m-block { background: color-mix(in srgb, var(--bg) 30%, #1e1f1c); }
+body[data-proto-theme="dark"] .m-block.is-plan,
+body[data-proto-theme="dark"] .cal-block.is-plan { background: #2a2b24 !important; border-left-color: var(--work); }
+body[data-proto-theme="dark"] .now-line-cal { border-top-color: var(--red); }
+
+/* Simulated system notification: a real object, with a real tap target. */
+.proto-notify{position:fixed;right:18px;bottom:74px;z-index:8000;width:320px;max-width:calc(100vw - 36px);background:#fbfaf5;border:1px solid #ddd8ca;border-radius:14px;box-shadow:0 16px 44px rgba(20,20,18,.22);padding:11px 14px;color:#181816;font:13px/1.45 -apple-system,BlinkMacSystemFont,sans-serif}
+.proto-notify .pn-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#7d7a70;letter-spacing:.04em}
+.proto-notify .pn-title{font-weight:650;margin-top:5px;font-size:14px}
+.proto-notify .pn-sub{font-size:11px;color:#5c5a52;margin-top:2px}
+.proto-notify .pn-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:9px}
+.proto-notify .pn-acts button{height:30px;padding:0 12px;border-radius:7px;border:1px solid #ddd8ca;background:#fff;font:inherit;font-size:12px;cursor:pointer}
+.proto-notify .pn-acts [data-pn="open"]{background:#181816;color:#faf9f4;border-color:#181816}
+body[data-proto-theme="dark"] .proto-notify{background:#252622;border-color:#3c3d36;color:#f2f1ea}
+body[data-proto-theme="dark"] .proto-notify .pn-head,body[data-proto-theme="dark"] .proto-notify .pn-sub{color:#a9a79c}
+body[data-proto-theme="dark"] .proto-notify .pn-acts button{background:#1e1f1c;border-color:#3c3d36;color:#e8e6de}
+body[data-proto-theme="dark"] .proto-notify .pn-acts [data-pn="open"]{background:#f2f1ea;color:#181816;border-color:#f2f1ea}
+
+/* Tag search + real rows (round 3). */
+.tag-search{margin:0 0 8px}
+.tag-search .form-input{width:100%}
+.tag-row .tag-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.tag-row[hidden]{display:none}
+.tag-none{padding:10px 0 2px}
+
+/* Subtask rows are real controls: check toggles, title renames, x removes. */
+.product .subtask{display:flex;align-items:center;gap:7px}
+.product .subtask .check{border:0;background:transparent;padding:0;cursor:pointer;flex:none}
+.product .subtask-title,.product .subtask-title-static{flex:1;min-width:0;text-align:left;border:0;background:none;padding:2px 0;color:inherit;font:inherit;line-height:1.35;overflow-wrap:anywhere}
+.product .subtask-title{cursor:text}
+.product .subtask-title:hover{text-decoration:underline;text-decoration-color:var(--hair-2);text-underline-offset:3px}
+.product .subtask-del{margin-left:auto;flex:none;border:0;background:none;color:var(--faint);width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:5px;cursor:pointer;opacity:0;transition:opacity .12s}
+.product .subtask:hover .subtask-del,.product .subtask:focus-within .subtask-del{opacity:1}
+.product .subtask-del:hover{background:var(--hair-soft);color:var(--ink)}
+@media (hover:none){.product .subtask-del{opacity:.65}}
+.product.mobile .subtask-del{width:34px;height:34px;opacity:.7}
+.product.mobile .subtask .check{width:22px;height:22px}
+.product.mobile .subtask .check .od-icon{--od-icon-size:11px}
+
+/* Multi-attachment rows. */
+.attach{flex-wrap:wrap}
+.attach-open{display:inline-flex;align-items:center;gap:6px;min-width:0;flex:1;text-align:left;border:0;background:none;padding:0;color:inherit;font:inherit;cursor:pointer}
+.attach-open span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.attach-open:hover span{text-decoration:underline;text-underline-offset:3px}
+.attach-meta{font-size:10px;color:var(--faint);white-space:nowrap}
+.attach-meta.is-red{color:var(--red)}
+.attach-del{flex:none}
+.attach-empty{color:var(--faint)}
+body[data-proto-theme="dark"] .attach-open:hover span{text-decoration-color:var(--hair-2)}
+
+/* Deadline rows on the phone are real links; overdue reads red like the list. */
+.product.mobile .m-deadline-marker,.product.mobile .m-deadline-focus{border:0;border-top:1px dashed #d8b77b;background:none;padding:4px 0 6px;font:inherit;text-align:left;width:auto;cursor:pointer;color:var(--amber)}
+.product.mobile .m-deadline-marker.is-red,.product.mobile .m-deadline-focus.is-red{border-top-color:#d99a8f;color:var(--red)}
+.product.mobile .m-deadline-marker.is-red i,.product.mobile .m-deadline-focus.is-red i{background:var(--red);box-shadow:none}
+.product.mobile .m-deadline-marker span{background:transparent;padding:0;color:inherit}
+.product.mobile .m-deadline-marker:hover,.product.mobile .m-deadline-focus:hover{filter:brightness(.97)}
+
+/* Selected colour swatch: the ring must not vanish on dark paper. */
+.product .swatch.is-on,body[data-proto-theme="dark"] .product .swatch.is-on{box-shadow:0 0 0 2px var(--paper),0 0 0 3.5px var(--ink)}
+
+/* 360px Today: one recent schedule, one overdue and today's deadline must
+   coexist above the capture bar. Compress chrome, never the facts. */
+.product.mobile .m-date{font-size:28px}
+.product.mobile .m-sub{margin-top:2px}
+.product.mobile .m-sum{margin-top:2px}
+.product.mobile .m-now{margin:10px 0 0}
+.product.mobile .m-now-head{padding:8px 12px;font-size:12px}
+.product.mobile .m-now-item{padding:6px 12px}
+.product.mobile .m-now-foot{padding:6px 12px;font-size:11px}
+.product.mobile .m-group{margin-top:9px;min-height:29px}
+.product.mobile .m-capture{gap:6px}
+.product.mobile .m-capture .cap-date{display:block;max-width:88px;overflow:hidden;text-overflow:ellipsis}
+.product.mobile .m-capture .cap-input{min-width:0}
+
+/* Mobile detail secondary actions read as one system: a 30px pill, not
+   loose 10px text stacked beside long values. */
+.product.mobile .m-form-row .mini{flex:none;min-height:30px;padding:0 9px;border:1px solid var(--hair-2);border-radius:7px;background:var(--paper);color:var(--ink-2);font-size:11.5px;line-height:28px;white-space:nowrap}
+.product.mobile .m-form-row .mini:hover{background:var(--wash);color:var(--ink);text-decoration:none}
+.product.mobile .m-form-row .m-form-value{gap:8px}
+.product.mobile .v2-select-row .mini{min-height:30px;padding:0 8px;border:1px solid var(--hair-2);border-radius:7px;background:var(--paper);font-size:11px;line-height:28px}
+
+/* Week blocks: a 15-minute event keeps its true 13px height, but its hit
+   area grows 4px above/below so it can still be opened without lying about
+   geometry. Side-by-side lanes get a 2px seam instead of touching. */
+.product .cal-block.is-short{overflow:visible}
+.product .cal-block.is-short::after{content:'';position:absolute;left:0;right:0;top:-4px;bottom:-4px}
+.product .cal-block.is-short .cb-title{overflow:hidden;text-overflow:ellipsis}
+.product .cal-block.is-narrow{padding-left:3px;padding-right:2px}
+
+/* Plan blocks carry a local --ink for the light theme. In dark that local
+   value made the title dark-on-dark; reset it on the same element. */
+body[data-proto-theme="dark"] .product .cal-block.is-plan,
+body[data-proto-theme="dark"] .product .tl-block.plan,
+body[data-proto-theme="dark"] .product .m-block.is-plan,
+body[data-proto-theme="dark"] .product .m-overlap-lane.is-plan {
+  --ink:#f2f1ea;
+  color:#f2f1ea;
+}
+body[data-proto-theme="dark"] .product .cal-block.is-plan .cb-meta,
+body[data-proto-theme="dark"] .product .m-block.is-plan .m-block-meta { color:#c9c8bf; }
+
+/* Phone day blocks: the plan deadline and time range are facts, not
+   decoration. Let them wrap instead of clipping the end of “截止 …”. */
+.product.mobile .m-block-title{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.product.mobile .m-block-meta{white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+
+/* Hardcoded white surfaces inside the calendar axis. */
+body[data-proto-theme="dark"] .product .time-axis{background:var(--paper);border-right-color:var(--hair)}
+
+/* 768px desktop: keep all seven days visible instead of clipping Sunday
+   behind a horizontal scroll. Below 700px the phone week list takes over. */
+@media (max-width:900px){
+  .product .cal-main{padding:0 12px}
+  .product .week{min-width:744px}
+}
+
+/* ============================================================
+   R7 · 共享交互层
+   与 R6 同一套令牌与字阶；这里只补规则需要的控件形态。
+   ============================================================ */
+.product .p-quick{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);font-size:12px;font-weight:600}
+.product .p-quick:hover{opacity:.88}
+.product .p-quick .od-icon{--od-icon-size:12px}
+
+/* 日期导航：上一段 / 下一段 / 回到今天常驻，当前日期由左侧月份与选中日说明 */
+.date-strip{gap:10px}
+.ds-nav{flex:none;display:flex;align-items:center;gap:5px;margin-left:auto}
+.ds-today{height:28px;padding:0 10px;border:1px solid var(--hair-2);border-radius:6px;background:var(--paper);font-size:11px;color:var(--ink-2)}
+.ds-today.is-on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.ds-step{width:28px;height:28px;border:1px solid var(--hair-2);border-radius:6px;display:grid;place-items:center;background:var(--paper);color:var(--ink-2)}
+.ds-step:hover,.ds-today:hover{background:var(--wash)}
+.ds-step .od-icon{--od-icon-size:11px}
+.product.mobile .ds-nav{gap:4px}
+.product.mobile .ds-today{height:26px;font-size:10.5px;padding:0 8px}
+.product.mobile .ds-step{width:26px;height:26px}
+
+/* 详情里的只读行：改成可直接修改的入口，右边给出明确的可点提示 */
+.product .field-row.is-direct{cursor:pointer;border-radius:7px}
+.product .field-row.is-direct:hover{background:var(--wash)}
+.product .field-row.is-direct .f-label::after{content:""}
+.r7-chev{color:var(--faint);font-size:11px;margin-left:2px}
+.prio-static{height:24px;font-size:11px}
+
+/* 节气 / 节假日 / 调休 */
+.r7-term{font-size:9.5px;color:var(--muted);letter-spacing:.02em;margin-left:5px;font-weight:500}
+.r7-hol{display:inline-grid;place-items:center;min-width:15px;height:15px;padding:0 3px;margin-left:4px;border-radius:3px;font-size:9px;line-height:1;font-weight:600;vertical-align:middle}
+.r7-hol.is-rest{background:#f3e5c8;color:#7a4f0c}
+.r7-hol.is-work{background:#e8e6df;color:var(--ink-2)}
+body[data-proto-theme="dark"] .r7-hol.is-rest{background:#4a3b1d;color:#f0d9a8}
+body[data-proto-theme="dark"] .r7-hol.is-work{background:#3a3a34;color:#d9d7cd}
+body[data-proto-theme="dark"] .r7-term{color:#a9a79c}
+.r7-mark{display:inline-flex;align-items:center}
+
+/* 设置首页：从分区链接改成真实概览 */
+.set-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0 18px}
+.set-stat{padding:12px 13px;border:1px solid var(--hair);border-radius:9px;background:var(--surface-2)}
+.set-stat b{display:block;font-size:20px;font-weight:650;line-height:1.15;font-variant-numeric:tabular-nums}
+.set-stat span{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+.set-stat.is-red b{color:var(--red)}
+.product.mobile .set-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin:10px 0 14px}
+.product.mobile .set-stat b{font-size:18px}
+
+/* 手机今天的新建入口：与搜索图标同尺寸，但读作主要动作 */
+.product.mobile .m-new-entry{background:var(--ink);color:var(--paper);width:32px;height:32px;border-radius:50%}
+.product.mobile .m-new-entry .od-icon{--od-icon-size:16px}
+body[data-proto-theme="dark"] .product.mobile .m-new-entry{background:var(--ink);color:#171815}
+
+/* 墨底主按钮在深色里必须是「浅墨底 + 深字」：R6 的 .tool.primary 在深色下
+   被写成纸色字压在墨色底上，等于隐形。这里按主按钮的真实对比修正。 */
+body[data-proto-theme="dark"] .product .tool.primary,
+body[data-proto-theme="dark"] .product .mini-btn.primary,
+body[data-proto-theme="dark"] .product .filter-actions .primary,
+body[data-proto-theme="dark"] .product .cp-actions .btn.primary,
+body[data-proto-theme="dark"] .product .plan-foot .tool.is-on { background: var(--ink); color: #171815; border-color: var(--ink); }
+body[data-proto-theme="dark"] .product .p-quick { background: var(--ink); color: #171815; border-color: var(--ink); }
+
+/* 深色里的筛选浮层：桌面 .filter-pop 与手机 .m-filter-sheet 都还写死 #fff，
+   导致深色主题下这两块是整片白、文字仍是深色 token（等于反色的一块）。
+   这里只补这两处表面，不改它们的结构。 */
+body[data-proto-theme="dark"] .product .filter-pop,
+body[data-proto-theme="dark"] .product .cal-filter-pop,
+body[data-proto-theme="dark"] .product .m-filter-sheet { background: var(--paper); color: var(--ink); border-color: var(--hair-2); }
+body[data-proto-theme="dark"] .product .filter-pop .popover-head,
+body[data-proto-theme="dark"] .product .m-filter-sheet .popover-head { border-bottom-color: var(--hair); }
+body[data-proto-theme="dark"] .product .filter-sec { border-top-color: var(--hair-soft); }
+body[data-proto-theme="dark"] .product .filter-label,
+body[data-proto-theme="dark"] .product .filter-hint,
+body[data-proto-theme="dark"] .product .m-filter-sheet h3 { color: var(--faint); }
+body[data-proto-theme="dark"] .product .filter-option,
+body[data-proto-theme="dark"] .product .m-filter-option,
+body[data-proto-theme="dark"] .product .filter-box { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .filter-box { border-color: var(--hair-2); }
+body[data-proto-theme="dark"] .product .filter-box.is-on { background: var(--ink); border-color: var(--ink); color: #171815; }
+
+/* Native widget showcase: the copy says the widgets follow the app's light /
+   dark theme, so the mock cards must too — a hard-coded #fff card on a dark
+   page contradicted the sentence right above it. */
+body[data-proto-theme="dark"] .product .wd-sheet { background: var(--paper); color: var(--ink); }
+body[data-proto-theme="dark"] .product .wd-focus-note { background: var(--wash); border-color: var(--hair); color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-ios,
+body[data-proto-theme="dark"] .product .wd-and { background: var(--surface); color: var(--ink); box-shadow: 0 10px 28px rgba(0,0,0,.45); }
+body[data-proto-theme="dark"] .product .wd-row { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-row .ck { background: transparent; border-color: var(--hair-2); color: var(--ink); }
+body[data-proto-theme="dark"] .product .wd-month span,
+body[data-proto-theme="dark"] .product .wd-month button { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-month span.out,
+body[data-proto-theme="dark"] .product .wd-month button.out { color: var(--faint); }
+body[data-proto-theme="dark"] .product .wd-month span.on,
+body[data-proto-theme="dark"] .product .wd-month button.on { background: var(--ink); color: #171815; }
+body[data-proto-theme="dark"] .product .wd-chip { background: var(--wash); color: var(--ink-2); }

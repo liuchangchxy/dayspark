@@ -1,0 +1,4 @@
+seed raw {"hasPlans":true,"raw":["15:15","16:00"]}
+apply {"added":0,"updated":1}
+after {"plans":[["alloc-1","09:00","10:00","active"]],"plan":["alloc-1","09:00"]}
+errs []

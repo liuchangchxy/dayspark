@@ -1,0 +1,4 @@
+plan modal after cancel:  写入计划？ 写入哪条待办整理周会纪要并群发 这一次实例选择这一次实例 开始09:00结束10:00 只写计划执行，不改截止；确认后日历和今天的时间轴才会出现。 计划只属于选中的这一次实例。 取消写入 
+plans before/after blocked write: 0 0 toast 重复待办要先选这一次实例
+errors []
+TEST8 PASS

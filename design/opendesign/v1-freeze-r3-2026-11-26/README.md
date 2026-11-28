@@ -1,0 +1,52 @@
+# DaySpark v1 第三轮评审包（2026-11-26）
+
+本目录是第三轮验收的评审快照：**只新增文档与静态原型，不修改 Flutter 代码，不合并 PR #113**。
+本轮只做两件事：恢复被 v1 误删的真实产品能力；修复 17 项已确认的数据语义缺陷。没有重新调查竞品，没有重新设计成熟页面。
+
+## 评审入口
+
+| 顺序 | 文件 | 用途 |
+|---|---|---|
+| 1 | `DAYS_PARK_ACCEPTANCE_ROUND3.md` | 第三轮验收记录：13 条连续操作的数据结果、恢复能力专项、17 项缺陷逐条处理 |
+| 2 | `DAYS_PARK_RESTORED_CAPABILITIES.md` | 被误删能力的恢复清单（旧写法 / 新写法 / 契约来源 / 设计表面） |
+| 3 | `DAYS_PARK_PRODUCT_SPEC.md` | 产品规格 v1.0 **rev.3**（计划执行 0..n、实例级完成、遗漏实例、旧规则迁移、多提醒、时间槽双入口） |
+| 4 | `DAYS_PARK_209_DECISIONS.md` | 209 项裁定 **rev.2**（#12/#28/#29/#95/#96 升为必须具备；必须具备 123 / 值得具备 34 / 暂不需要 27 / 原型模拟 25） |
+| 5 | `dayspark-prototype.html` | 单文件可交互原型，双击打开；无外部依赖、无需构建 |
+| 6 | `dayspark-spec.html` | 设计母版：88 屏 / 360 变体 / 39 个表面 |
+| 7 | `dayspark-coverage-map.md` | 覆盖映射表（13 个功能域 + 第三轮 13 条连续操作验收） |
+| 8 | `prototype-src/` | 原型源码（15 个脚本；在本目录运行 `python3 prototype-src/build.py` 可复现产物） |
+
+## 在线试用
+
+- 原型 <https://htmlpreview.github.io/?https://raw.githubusercontent.com/liuchangchxy/dayspark/80ea16e2/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-prototype.html>
+- 母版 <https://htmlpreview.github.io/?https://raw.githubusercontent.com/liuchangchxy/dayspark/80ea16e2/design/opendesign/v1-freeze-r3-2026-11-26/dayspark-spec.html>
+
+> 说明：raw.githack 当前对本仓库会返回“One more step”的人机校验页，不能直接运行；上面两用 GitHub 的 HTML 预览服务打开真实页面。若你本机直接下载评审包，双击 `dayspark-prototype.html` 即可，无需任何网络。
+
+## 这轮真正改变的产品语义
+
+- **完成/撤销按实例**：重复待办只写 `doneInstances[id@date]`，父系列与兄弟实例不受影响；撤销条只撤这一次。
+- **计划执行 0..n**：再次“安排”是新增一段；详情列出多段，可单独改期、取消；取消保留历史，不删除待办。
+- **分配绑定实例**：重复待办先选这一次实例；计划带 `occurrenceDate`，只出现在该实例日期，不向后续实例扩散。
+- **完成失效**：待办完成后，开始时间晚于完成时刻的段变为 `invalidatedByCompletion` 并保留；撤销完成不自动恢复。
+- **遗漏实例**：按系列锚点 + 完成/跳过记录推导最近 30 天遗漏；仍可补完成；行内“已遗漏 N”打开实例历史。
+- **旧重复规则**：出现说明横幅；确认前不改写；可“保留为旧规则”或显式“写入新规则”。
+- **多提醒**：详情可加多个提醒并逐个移除；无时间锚点时相对提醒禁用，只允许绝对时间。
+- **时间槽双入口**：“新建日程”与“安排已有待办”并列；安排只写计划执行，不创建 Event、不改截止。
+
+## 这轮修掉的数据语义缺陷（摘要）
+
+回收站物理清空 / 真实恢复（保留跳过记录）；同步冲突三选真正写字段；优先级统一为母版尺度（无0/高1/中5/低9）；只写日期不再带 18:00；嵌套选择器取消后回滚；快速添加解析中文时间；跨午夜日程保存与 ICS 往返；ICS 事件/待办完整字段；提醒锚点；AI 消息级动作与掩码 Key；搜索“显示更多”；localStorage 失败横幅；未接线控件不再伪装成只读事实。
+
+## 已知边界
+
+- 跨设备同步、真实通知投递、原生小组件仍为**原型模拟**（既定边界，不是能力删除）。
+- 计划执行随 Todo 进快照/备份；冲突弹层在原型里模拟 `title/note/priority` 三类字段。
+- 重复待办的实例级“跳过 / 仅此次删除”按真实领域契约不提供；已提供实例完成、遗漏补完成、计划取消与失效。
+- 演示数据固定为 2026-11-20。
+
+## 校验
+
+- 原型 `dayspark-prototype.html` SHA-256：`bb9e78e15a6225ee17e435c171ec4b429393e533cb00d82d6a7e42726b1d924f`
+- 母版 `dayspark-spec.html` SHA-256：`a04260e7e985eac7010d726a8f8fc3f173fce80cfff0cda19c374974ce349820`
+- 母版：88 屏 / 360 变体 / 39 个表面；原型由 15 个脚本构建

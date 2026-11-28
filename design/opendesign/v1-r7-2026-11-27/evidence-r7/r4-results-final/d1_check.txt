@@ -1,0 +1,2 @@
+before {"btn":["选择这一次实例"],"undo":false}
+after {"done":["recurring@2026-11-27"],"btn":["本次已完成"],"undo":true,"seriesDone":false}

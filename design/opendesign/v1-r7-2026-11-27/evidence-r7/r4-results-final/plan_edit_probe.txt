@@ -1,0 +1,8 @@
+add ["alloc-3",["alloc-1","alloc-3"]]
+allocbtn ["查看全部"]
+open list ok
+rows ["alloc-1","alloc-3"]
+edit second ok
+picker alloc-3 False
+plans [["alloc-1","15:15","16:00","active"],["alloc-3","11:00","12:00","active"]]
+errs []

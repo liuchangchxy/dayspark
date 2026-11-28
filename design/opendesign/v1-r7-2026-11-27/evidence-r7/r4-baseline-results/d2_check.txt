@@ -1,0 +1,1 @@
+{"modal":false,"modalText":"","screen":"today","plans":[["alloc-2","2026-11-27","09:00","2026-11-27"]]}

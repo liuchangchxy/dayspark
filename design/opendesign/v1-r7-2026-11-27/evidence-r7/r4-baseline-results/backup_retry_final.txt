@@ -1,0 +1,4 @@
+before error
+click ok
+after success files ['/tmp/ds-downloads2/2026-11-20.dayspark.json']
+errs []

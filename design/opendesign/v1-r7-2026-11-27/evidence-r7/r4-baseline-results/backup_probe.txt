@@ -1,0 +1,9 @@
+dlb {'id': 3, 'result': {}}
+goto ok
+screen settings-backup normal
+actions [["backup-export",null,"导出完整备份"],["backup-merge",null,"选择备份文件"]]
+click ok
+variant success
+files ['/tmp/ds-downloads/2026-11-20.dayspark.json']
+keys dict_keys(['v', 'todos', 'events', 'cal', 'state', 'data', 'screen']) statekeys ['calView', 'completedOpen', 'earlyOpen', 'localTodos', 'localNo', 'planDate', 'planStart', 'planEnd', 'hiddenCals', 'filterApplied', 'filterCal', 'filterTag', 'filterPriority', 'filterOverdue', 'defaultCal', 'inboxNoDate', 'deletedTodos', 'deletedEvents', 'trashExtra', 'trashRemoved'] ai {'model': 'gpt-4o-mini', 'key': 'sk-••••4f2a', 'base': 'https://api.openai.com/v1'}
+errs []

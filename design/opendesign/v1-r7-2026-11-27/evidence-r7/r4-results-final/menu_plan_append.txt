@@ -1,0 +1,7 @@
+rows [["rent","open-todo","给房东转房租 ¥3,80"],["internet","open-todo","续签宽带合同\n     "],["recurring","open-todo","整理周会纪要并群发\n  "],["proposal","open-todo","写 Q4 提案初稿\n  "]]
+menu ok
+click plan ok
+state {"screen":"plan-picker","todo":"rent","alloc":null,"occ":null,"ret":"today","edit":false}
+submit ok
+plans [["alloc-3","09:00","10:00"]]
+errs []
