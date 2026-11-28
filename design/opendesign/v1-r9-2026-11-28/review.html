@@ -1,0 +1,67 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>DaySpark R9 · 视觉验收看板</title><style>
+html,body{margin:0;background:#e8e8e1;font:13px/1.6 -apple-system,"PingFang SC",sans-serif;color:#33332d}
+.wrap{width:max-content;min-width:100%;padding:24px 20px 60px}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:#6e7167;font-size:12px;margin-bottom:20px;max-width:1200px;line-height:1.7}
+h2.sec{font-size:13px;letter-spacing:.06em;color:#6e7167;margin:26px 0 10px;text-transform:uppercase}
+.grid{display:grid;grid-template-columns:1440px 1440px;gap:16px}
+.card{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.10);width:1440px}
+.card h3{margin:0;padding:7px 12px;font:600 12px/1.5 -apple-system,"PingFang SC",sans-serif;background:#f4f4ee;border-bottom:1px solid #ddd;display:flex;justify-content:space-between}
+.card h3 span{color:#8a8d83;font-weight:400}
+.card iframe{border:0;display:block;width:1440px;height:900px}
+.mrow{display:grid;grid-template-columns:390px 390px 390px;gap:16px;margin-top:8px}
+.mrow .card{width:390px}
+.mrow iframe{width:390px;height:844px}
+.mrow h3{font-size:11px}
+</style></head><body><div class="wrap">
+<h1>DaySpark R9 视觉验收看板</h1>
+<div class="sub">每张卡片都是 <code>dayspark-prototype.html</code> 的同一次渲染（iframe 直出，非截图）。单独打开原型可以完整操作：拖拽、拉伸、创建、AI 提案与应用。截图文件见 <code>shots/</code>，验收结论见 <code>R9_ACCEPTANCE.md</code>。</div>
+
+<h2 class="sec">桌面 · 三个一级页</h2>
+<div class="grid">
+  <div class="card"><h3>今天<span>左侧处理、右侧时间；无日期库存只留一行弱入口</span></h3><iframe src="dayspark-prototype.html?device=desktop"></iframe></div>
+  <div class="card"><h3>待办 · 未安排<span>定义是「没有有效计划执行」</span></h3><iframe src="dayspark-prototype.html?device=desktop&screen=todo&tab=unsched"></iframe></div>
+  <div class="card"><h3>待办 · 全部<span>逾期 / 今天截止 / 之后 / 无截止</span></h3><iframe src="dayspark-prototype.html?device=desktop&screen=todo&tab=all"></iframe></div>
+  <div class="card"><h3>待办 · 截止<span>连续日期窗 + 日期标题，不是自然周</span></h3><iframe src="dayspark-prototype.html?device=desktop&screen=todo&tab=due"></iframe></div>
+</div>
+
+<h2 class="sec">桌面 · 日历三视图与规划</h2>
+<div class="grid">
+  <div class="card"><h3>日历 · 月<span>扫描视图；点日期只换右侧 Agenda</span></h3><iframe src="dayspark-prototype.html?device=desktop&screen=calendar&view=month"></iframe></div>
+  <div class="card"><h3>日历 · 周<span>规划侧栏可拖入时间轴</span></h3><iframe src="dayspark-prototype.html?device=desktop&screen=calendar&view=week"></iframe></div>
+  <div class="card"><h3>日历 · 日 + 日程详情<span>对象视图，没有「编辑全部」</span></h3><iframe src="dayspark-prototype.html?device=desktop&screen=calendar&view=day&event=dentist"></iframe></div>
+  <div class="card"><h3>待办详情<span>就地编辑、优先级四段一击</span></h3><iframe src="dayspark-prototype.html?device=desktop&screen=todo&tab=unsched&drawer=paper"></iframe></div>
+</div>
+
+<h2 class="sec">桌面 · 创建器 / 搜索 / AI / 深色</h2>
+<div class="grid">
+  <div class="card"><h3>创建器 · 展开<span>待办 / 日程并排；NLP 只给建议</span></h3><iframe src="dayspark-prototype.html?device=desktop&composer=1&q=明天下午三点交报告"></iframe></div>
+  <div class="card"><h3>搜索 · 无结果<span>用这句话新建，不跳页</span></h3><iframe src="dayspark-prototype.html?device=desktop&search=1&q=物业费"></iframe></div>
+  <div class="card"><h3>AI 助手 · 提案<span>具体变更清单 + 取消 / 应用 2 项</span></h3><iframe src="dayspark-prototype.html?device=desktop&ai=1"></iframe></div>
+  <div class="card"><h3>设置 · 通用<span>AI 是可关掉的可选工具</span></h3><iframe src="dayspark-prototype.html?device=desktop&settings=general"></iframe></div>
+  <div class="card"><h3>深色 · 今天<span>独立色板，不是浅色加墨</span></h3><iframe src="dayspark-prototype.html?device=desktop&theme=dark"></iframe></div>
+  <div class="card"><h3>深色 · 日历周<span>夜间层级：底 < 面 < 块</span></h3><iframe src="dayspark-prototype.html?device=desktop&screen=calendar&view=week&theme=dark"></iframe></div>
+</div>
+
+<h2 class="sec">手机 · 390×844</h2>
+<div class="mrow">
+  <div class="card"><h3>今天</h3><iframe src="dayspark-prototype.html?device=mobile"></iframe></div>
+  <div class="card"><h3>待办 · 未安排</h3><iframe src="dayspark-prototype.html?device=mobile&screen=todo&tab=unsched"></iframe></div>
+  <div class="card"><h3>日历 · 月 + Agenda</h3><iframe src="dayspark-prototype.html?device=mobile&screen=calendar&view=month"></iframe></div>
+</div>
+<div class="mrow">
+  <div class="card"><h3>日历 · 3 日（无七列周）</h3><iframe src="dayspark-prototype.html?device=mobile&screen=calendar&view=3day"></iframe></div>
+  <div class="card"><h3>日历 · 日</h3><iframe src="dayspark-prototype.html?device=mobile&screen=calendar&view=day"></iframe></div>
+  <div class="card"><h3>待办详情</h3><iframe src="dayspark-prototype.html?device=mobile&mdetail=paper&mtype=todo"></iframe></div>
+</div>
+<div class="mrow">
+  <div class="card"><h3>日程详情</h3><iframe src="dayspark-prototype.html?device=mobile&mevent=dentist"></iframe></div>
+  <div class="card"><h3>创建器 · Sheet</h3><iframe src="dayspark-prototype.html?device=mobile&composer=1&q=明天下午三点交报告"></iframe></div>
+  <div class="card"><h3>AI 助手</h3><iframe src="dayspark-prototype.html?device=mobile&ai=1"></iframe></div>
+</div>
+<div class="mrow">
+  <div class="card"><h3>搜索</h3><iframe src="dayspark-prototype.html?device=mobile&search=1&q=物业费"></iframe></div>
+  <div class="card"><h3>我的（AI 入口在工具组）</h3><iframe src="dayspark-prototype.html?device=mobile&screen=me"></iframe></div>
+  <div class="card"><h3>深色 · 今天</h3><iframe src="dayspark-prototype.html?device=mobile&theme=dark"></iframe></div>
+</div>
+</div></body></html>
