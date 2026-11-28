@@ -317,6 +317,15 @@
     state.protoError = null;
     if ((screen === 'new-todo' || screen === 'new-event') && state.screen !== screen) {
       Proto.data.newDraft = null;
+      Proto.data.newContext = null;
+    }
+    // Leaving a create form must also drop what it seeded: a clean (never-
+    // touched) new page has no unsaved-change guard, so navigating away used
+    // to leave the browsed date / slot range behind for the next create
+    // entry (keyboard n/e, legacy AI insert) to inherit silently.
+    if ((state.screen === 'new-todo' || state.screen === 'new-event') && screen !== state.screen) {
+      Proto.data.newDraft = null;
+      Proto.data.newContext = null;
     }
     baseGo(screen);
     syncHash(true);

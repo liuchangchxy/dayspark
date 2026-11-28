@@ -13,7 +13,8 @@
 
 | 顺序 | 文件 | 用途 |
 |---|---|---|
-| 1 | `DAYS_PARK_ACCEPTANCE_ROUND7.md` | 本轮真实验收：28 条规则断言、R6 回归复跑、截图与对比 |
+| 1 | `DAYS_PARK_ACCEPTANCE_ROUND7.md` | 本轮真实验收：28 条规则断言、R7 剩余缺陷修复（48 条）、事件标签/附件（18 条）、R4 36 条 + R6 回归复跑、截图与对比 |
+| 1.1 | `DAYS_PARK_R7_COVERAGE_AUDIT.md` | 逐项功能覆盖结论（已完整覆盖 / 缺口已修复 / 合理的原型模拟边界），含 Flutter 依据 |
 | 2 | `CHANGES_R7.md` | 改了什么、解决什么问题、相比 R6 的实际改善、真实剩余问题 |
 | 3 | `dayspark-coverage-map.md` | 功能覆盖映射（沿用 R4/R6 结论，R7 补功能项） |
 | 4 | `DAYS_PARK_PRODUCT_SPEC.md` | 产品规格（自 R6 原样收录，未改） |
@@ -31,8 +32,8 @@ cd design/opendesign/v1-r7-2026-11-27
 python3 prototype-src/build.py .
 ```
 
-- 产物 SHA-256：`c9c3711ee9c55fe6d80c3f8a81922720eb3a865349cea43038822d73453ae957`
-- 产物大小：1,196,450 bytes，16 个脚本
+- 产物 SHA-256：`671e7ca1f91840d2f07f6210320bd235c4353553d7f44bcb82bfe7fa74f58e30`
+- 产物大小：1,221,056 bytes，16 个脚本
 - R6 基线产物：`4dd2f92f2f80e6b076fa9e3588325c3b24a767dee9de6b7d2ff438c7b8244351`
 
 ## 边界

@@ -352,16 +352,21 @@
     const repeat = String(item.repeat || '');
     if (!repeat) return '';
     let rule = '';
-    const prefix = /^(每\s?2\s?周|每周)/.exec(repeat);
+    // Same grammar the picker writes and the projection reads: an explicit
+    // "每 N 天/周/月/年" becomes INTERVAL=N. A 每周 rule keeps its BYDAY list.
+    const iv = /^每\s?(\d+)\s?(天|周|月|年)/.exec(repeat);
+    const unit = iv ? { 天: 'day', 周: 'week', 月: 'month', 年: 'year' }[iv[2]] : /天/.test(repeat) ? 'day' : /周/.test(repeat) ? 'week' : /月/.test(repeat) ? 'month' : /年/.test(repeat) ? 'year' : '';
+    const n = iv ? Math.max(1, Math.min(99, Number(iv[1]))) : 1;
+    const prefix = /^(每\s?\d+\s?周|每周)/.exec(repeat);
     const dayCodes = () => {
       if (!prefix) return '';
       return repeat.slice(prefix[0].length).split(/[、,，]/).map((t) => BYDAY[t.trim().slice(-1)]).filter(Boolean).join(',');
     };
-    if (/^每天/.test(repeat)) rule = 'FREQ=DAILY';
-    else if (/^每\s?2\s?周/.test(repeat)) rule = 'FREQ=WEEKLY;INTERVAL=2' + (dayCodes() ? ';BYDAY=' + dayCodes() : '');
-    else if (/^每周/.test(repeat)) rule = 'FREQ=WEEKLY' + (dayCodes() ? ';BYDAY=' + dayCodes() : '');
-    else if (/^每月/.test(repeat)) rule = 'FREQ=MONTHLY';
-    else if (/^每年/.test(repeat)) rule = 'FREQ=YEARLY';
+    if (unit) {
+      rule = { day: 'FREQ=DAILY', week: 'FREQ=WEEKLY', month: 'FREQ=MONTHLY', year: 'FREQ=YEARLY' }[unit];
+      if (n > 1) rule += ';INTERVAL=' + n;
+      if (unit === 'week' && dayCodes()) rule += ';BYDAY=' + dayCodes();
+    }
     if (!rule) return '';
     if (item.repeatUntil) rule += ';UNTIL=' + compactDate(item.repeatUntil);
     else if (item.repeatCount) rule += ';COUNT=' + Number(item.repeatCount);
@@ -369,7 +374,12 @@
   }
 
   function eventLines(e) {
-    const lines = ['BEGIN:VEVENT', 'UID:' + String(e.id || 'event'), 'SUMMARY:' + escapeIcs(e.title)];
+    // Keep an imported identity when there is one so a re-import can be
+    // matched; locally created rows get a synthesised UID in the same shape
+    // Flutter uses. (The import matches on UID only for rows that already
+    // carry one; a duplicate UID is skipped, not merged — same as Flutter.)
+    const uid = e.icsUid || String(e.id || 'event') + '@dayspark';
+    const lines = ['BEGIN:VEVENT', 'UID:' + uid, 'SUMMARY:' + escapeIcs(e.title)];
     const timedCross = !!e.crossMidnight || !!(e.startDate && e.endDate && e.start && e.end && !e.allDay);
     const allDayish = !timedCross && (e.allDay || (!e.start && !e.end));
     const startDay = e.startDate || e.date || TODAY_ISO();
@@ -394,12 +404,19 @@
   }
 
   function todoLines(t) {
-    const lines = ['BEGIN:VTODO', 'UID:' + String(t.id || 'todo'), 'SUMMARY:' + escapeIcs(t.title)];
+    const uid = t.icsUid || String(t.id || 'todo') + '@dayspark';
+    const lines = ['BEGIN:VTODO', 'UID:' + uid, 'SUMMARY:' + escapeIcs(t.title)];
     if (t.due) {
       if (t.dueTime) lines.push('DUE:' + stamp(t.due, t.dueTime));
       else lines.push('DUE;VALUE=DATE:' + compactDate(t.due));
     }
     if (t.note) lines.push('DESCRIPTION:' + escapeIcs(t.note));
+    // Flutter writes PRIORITY and STATUS on export (it does not read them on
+    // import, and neither do we). They are export parity, not a round-trip
+    // guarantee.
+    const prio = Number(t.priority);
+    if (prio > 0) lines.push('PRIORITY:' + prio);
+    lines.push('STATUS:' + (isDone(t) ? 'COMPLETED' : 'NEEDS-ACTION'));
     const rr = rruleFor(t);
     if (rr) lines.push(rr);
     lines.push('END:VTODO');

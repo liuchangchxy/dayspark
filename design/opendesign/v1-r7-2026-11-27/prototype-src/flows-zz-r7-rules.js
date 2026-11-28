@@ -19,11 +19,34 @@
   function todoForSchedule() {
     return allTodos().filter((t) => !isDone(t));
   }
-  P.openNewPicker = function () {
+  // The entry is the same control on every page: a header ＋ that opens one
+  // two-choice sheet. What changes is only the context it carries — the page
+  // you are on and the date you are browsing — never the grammar.
+  function createContext() {
+    const browse = state.screen.startsWith('cal-') || state.screen === 'todo-date'
+      ? (state.selectedDate || TODAY)
+      : TODAY;
+    return { date: browse, from: state.screen };
+  }
+  function defaultEventWindow(day) {
+    // Same rule Flutter's slot sheet applies: a concrete range, not an
+    // invented free-slot search. Today starts at the next round hour, and the
+    // last possible one-hour window on any day is 22:00–23:00 so a window is
+    // never offered partly in the past (22:30 → 22:00 would be).
+    if (day === TODAY) {
+      const h = Math.floor(NOW / 60);
+      const next = Math.min(22, h + 1);
+      return { start: String(next).padStart(2, '0') + ':00', end: String(Math.min(23, next + 1)).padStart(2, '0') + ':00' };
+    }
+    return { start: '09:00', end: '10:00' };
+  }
+  P.openNewPicker = function (ctx) {
+    ctx = ctx || createContext();
+    const win = defaultEventWindow(ctx.date);
     const body = document.createElement('div');
     body.innerHTML = `<div class="proto-list">
       <button type="button" class="proto-list-row" data-new="todo"><span class="grow">待办<small>记一件事；默认无截止、无计划，先落到未安排</small></span></button>
-      <button type="button" class="proto-list-row" data-new="event"><span class="grow">日程<small>有明确时间段的安排；从今天的下一段开始预填</small></span></button>
+      <button type="button" class="proto-list-row" data-new="event"><span class="grow">日程<small>${esc(mdShort(ctx.date))} ${win.start}–${win.end}；有明确时间段的安排</small></span></button>
     </div>`;
     const scrim = P.modal({ title: '新建', body, actions: [{ label: '取消' }] });
     body.addEventListener('click', (e) => {
@@ -32,12 +55,15 @@
       scrim.remove();
       P.data.newDraft = null;
       P.data.aiPrefill = null;
+      P.data.newContext = b.dataset.new === 'event'
+        ? { date: ctx.date, start: win.start, end: win.end }
+        : null;
       P.baseGo(b.dataset.new === 'event' ? 'new-event' : 'new-todo');
       P.syncHash(true);
     });
     return scrim;
   };
-  registerAction('new-pick', () => { P.openNewPicker(); });
+  registerAction('new-pick', (el) => { P.openNewPicker(el && el.dataset && el.dataset.date ? { date: el.dataset.date } : createContext()); });
 
   /* ---------------- 2. date navigation ---------------- */
   function navDate(next) {
@@ -137,13 +163,52 @@
     P.actions['start-edit'] && P.actions['start-edit']();
   });
   registerAction('direct-repeat', (el) => {
+    // Repeat is not an ordinary field: changing it rewrites the series anchor,
+    // its instances and its range. The picker used to write `item.repeat` in
+    // place, which skipped every one of those constraints and left the
+    // projection inconsistent with the stored rule. It now enters the real
+    // edit flow — draft, series-level save confirmation, anchor/instance
+    // handling — exactly as the 编辑 button does, and opens the same picker
+    // inside it. Nothing else about the drawer changes.
     const ref = state.drawer;
-    const kind = ref && ref.type === 'event' ? 'event' : 'todo';
-    const item = kind === 'event' ? eventById(ref.id) : todoById(el.dataset.id);
-    if (!item) return;
-    P.openRepeatPicker({ repeat: item.repeat, repeatEnd: item.repeatEnd, repeatUntil: item.repeatUntil, repeatCount: item.repeatCount, onPick: (r, end, extra) => {
-      writeTodo(item, { repeat: r, repeatEnd: end, repeatUntil: extra && extra.until || '', repeatCount: extra && extra.count || 0 }, r ? '重复 · ' + r : '已设为不重复');
-    } });
+    if (!ref) return;
+    clearDraft();
+    state.drawerEdit = true;
+    render();
+    // The editor's own 重复 row owns the picker (select + 自定义…); clicking the
+    // read-only row simply lands the user there with focus on that row.
+    // The desktop editor draws `.form-row` + `.form-label`; the phone drawer
+    // has `.m-form-row` + `.m-form-label`. Both label classes are checked so
+    // the row is actually found and focused rather than silently skipped.
+    const control = q('.drawer select[data-mfield="repeat"]', document);
+    // The row that owns the control — not the control itself. The previous
+    // selector could return the <select> (it matches [data-mfield=repeat]),
+    // then looked for a select *inside* it and focused nothing.
+    const row = (control && control.closest('.form-row, .m-form-row')) || qa('.drawer .m-form-row, .drawer .form-row', document).find((r) => {
+      const label = q('.m-form-label', r) || q('.form-label', r) || q('.f-label', r);
+      return label && (label.textContent || '').trim() === '重复';
+    });
+    if (row) {
+      row.classList.add('is-focus');
+      row.scrollIntoView({ block: 'nearest' });
+    }
+    // Focus after this render cycle finishes: the shared enhancer pass still
+    // runs in a following frame and moves focus back to the document, so
+    // focusing synchronously here looked correct for one frame and then lost
+    // the caret. The row highlight is re-applied in case that pass rebuilt it.
+    // Focus now, and once more after the shared enhancer pass and any closing
+    // toast have re-rendered the frame: both can replace the node, and a
+    // caret that disappears one frame later is not "landed on the field".
+    if (control) control.focus();
+    const refocus = () => {
+      if (!state.drawerEdit) return;
+      const c = q('.drawer select[data-mfield="repeat"]', document) || q('select[data-mfield="repeat"]', document);
+      if (!c) return;
+      const r = c.closest('.form-row, .m-form-row');
+      if (r) r.classList.add('is-focus');
+      c.focus();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(refocus));
   });
   registerAction('plan-row', (el) => {
     // Reuse the master's one real entry so the occurrence picker, planReturn
@@ -184,6 +249,21 @@
     const item = kind === 'event' ? eventById(ref.id) : todoById(el.dataset.id);
     if (!item) return;
     P.openTagPicker(item.tags || [], (tags) => { writeTodo(item, { tags }, tags.length ? '标签已更新' : '已清除标签'); });
+  });
+
+  /* The phone editor has no .d-sec sections; its tag row is a real form row
+     with an 编辑 button, so it writes through the draft like every other field
+     (commitDraft copies tags along with the rest). */
+  registerAction('m-tags', (el) => {
+    const ref = state.drawer || (state.screen.startsWith('detail-') ? activeDetailRef() : null);
+    if (!ref) { toast('先打开一项待办或日程'); return; }
+    const d = state.draft || (typeof draftFor === 'function' ? draftFor(ref) : null);
+    if (!d) return;
+    P.openTagPicker(d.tags || [], (tags) => {
+      d.tags = tags;
+      render();
+      toast(tags.length ? '标签已更新 · 保存后生效' : '已清除标签 · 保存后生效');
+    });
   });
 
   /* ---------------- 4. exit layering ---------------- */
@@ -239,29 +319,42 @@
   }, true);
 
   /* ---------------- 5. calendar: schedule an existing todo ---------------- */
-  registerAction('cal-schedule-todo', () => {
+  // One planner for every entry that has a concrete range: the toolbar
+  // 安排待办 button, an empty calendar slot, and the slot ghost. The range is
+  // the caller's (slot date + time) or, for the toolbar, the day being
+  // browsed + the same default window the create sheet uses.
+  P.scheduleTodo = function (opts) {
+    opts = opts || {};
     const list = todoForSchedule();
     if (!list.length) { toast('没有可安排的待办'); return; }
+    const day = opts.date || state.selectedDate || TODAY;
+    const win = opts.start ? { start: opts.start, end: opts.end || opts.start } : defaultEventWindow(day);
     const body = document.createElement('div');
     body.innerHTML = `<div class="proto-list">${list.map((t) => `<button type="button" class="proto-list-row" data-sched="${esc(t.id)}"><span class="grow">${esc(t.title)}<small>${calOf(t.cal).name}${t.due ? ' · 截止 ' + dueText(t) : ''}${t.repeat ? ' · ' + esc(t.repeat) : ''}</small></span></button>`).join('')}</div>
-      <div class="proto-note">安排只写入一段计划执行；截止和提醒都不改。</div>`;
+      <div class="proto-note">安排只写入一段计划执行，落在 ${esc(mdShort(day))} ${win.start}–${win.end}；截止和提醒都不改。时间可以在下一步改。</div>`;
     const scrim = P.modal({ title: '安排已有待办', body, actions: [{ label: '取消' }] });
     body.addEventListener('click', (e) => {
       const b = e.target.closest('[data-sched]');
       if (!b) return;
       const t = todoById(b.dataset.sched);
+      const fromScreen = state.screen;
+      const fromVariant = state.variant;
+      const fromDrawer = state.drawer;
       scrim.remove();
       if (!t) return;
       const open = (occ) => {
+        // The picker's own defaults (planReturn='today', planDate=TODAY,
+        // 15:15) are overwritten one by one here: the slot the user clicked
+        // wins over "today" for both the instance and the block written.
         state.planTodoId = t.id;
         state.planAllocId = null;
         state.planOccurrence = occ || null;
-        state.planDate = occ || (state.selectedDate || TODAY);
-        state.planStart = '11:00';
-        state.planEnd = '12:00';
-        state.planReturn = state.screen;
-        state.planReturnVariant = state.variant;
-        state.planReturnDrawer = state.drawer;
+        state.planDate = opts.occurrenceDate || occ || day;
+        state.planStart = win.start;
+        state.planEnd = win.end;
+        state.planReturn = opts.returnScreen || fromScreen;
+        state.planReturnVariant = opts.returnVariant || fromVariant;
+        state.planReturnDrawer = opts.returnDrawer !== undefined ? opts.returnDrawer : fromDrawer;
         state.planReturnEdit = false;
         state.screen = 'plan-picker';
         state.variant = 'normal';
@@ -274,9 +367,17 @@
       }
       open(null);
     });
+    return scrim;
+  };
+  registerAction('cal-schedule-todo', () => {
+    P.scheduleTodo({ date: state.selectedDate || TODAY, returnScreen: state.screen, returnVariant: state.variant, returnDrawer: state.drawer });
   });
 
   /* ---------------- 6. hide-completed preference ---------------- */
+  // CORE_UX_SPEC §7: "隐藏已完成 belongs to the Todo page's display/filter
+  // menu, not global Settings." The switch therefore lives in the 待办 filter
+  // sheet (desktop popover and phone sheet), and the Settings row R7 added is
+  // removed rather than kept as a second entry.
   function setHideCompleted(on) {
     P.data.prefs.hideCompleted = !!on;
     if (on) state.completedOpen = false;
@@ -294,6 +395,15 @@
   registerAction('pref-hide-completed', (el) => {
     setHideCompleted(!P.data.prefs.hideCompleted);
   });
+  // The row is drawn, not actioned: it is inserted into whichever filter sheet
+  // the current screen has open, so both devices share one preference.
+  function hideCompletedRow(mobile) {
+    const on = !!P.data.prefs.hideCompleted;
+    if (mobile) {
+      return `<button type="button" class="m-filter-option" data-proto-action="pref-hide-completed" role="switch" aria-checked="${on}"><span class="filter-box ${on ? 'is-on' : ''}">${on ? (typeof ico === 'function' ? ico('check', 8) : '✓') : ''}</span>隐藏已完成</button>`;
+    }
+    return `<div class="filter-sec"><div class="filter-label">显示</div><button type="button" class="filter-option" data-proto-action="pref-hide-completed" role="switch" aria-checked="${on}"><span class="filter-box ${on ? 'is-on' : ''}">${on ? (typeof ico === 'function' ? ico('check', 8) : '✓') : ''}</span>隐藏已完成 <span class="r7-faint">${on ? '列表里不显示' : '列表里照常显示'}</span></button></div>`;
+  }
 
   /* ---------------- 7. Chinese calendar marks ---------------- */
   // Terms and statutory holiday marks are the same facts Flutter's
@@ -363,16 +473,22 @@
     const id = el.dataset.id || 'report';
     const t = todoById(id);
     if (!t) { toast('这一项已经不在了'); return; }
-    const base = t.due && t.dueTime ? new Date(t.due + 'T' + t.dueTime + ':00') : new Date(TODAY + 'T15:00:00');
-    const when = new Date(base.getTime() + 60 * 60000);
-    const pad = (n) => String(n).padStart(2, '0');
-    const label = '绝对 · ' + when.getFullYear() + '-' + pad(when.getMonth() + 1) + '-' + pad(when.getDate()) + ' ' + pad(when.getHours()) + ':' + pad(when.getMinutes());
-    t.remind = label;
+    // Flutter snoozes the REMINDER from the current clock (home_page.dart:
+    // newTime = DateTime.now().add(1 hour)), never from the due time; the due
+    // date and time are not part of snoozing at all. The demo clock is
+    // 15:00 on 11/20, so the re-armed reminder lands at 16:00 the same day.
+    const clock = (n) => String(n).padStart(2, '0');
+    const when = new Date(TODAY + 'T' + clock(Math.floor(NOW / 60)) + ':' + clock(NOW % 60) + ':00');
+    when.setHours(when.getHours() + 1);
+    const label = '绝对 · ' + when.getFullYear() + '-' + clock(when.getMonth() + 1) + '-' + clock(when.getDate()) + ' ' + clock(when.getHours()) + ':' + clock(when.getMinutes());
+    // Snoozing re-arms the reminder; the due fields stay byte-identical.
+    t.snoozedRemind = label;
+    t.snoozeUntil = label.replace('绝对 · ', '');
     const host = q('#proto-notify-demo');
     if (host) host.remove();
     render();
     save();
-    toast('提醒已延后 1 小时 · 截止不变');
+    toast('提醒延后到 ' + clock(when.getHours()) + ':' + clock(when.getMinutes()) + ' · 截止不变');
   });
 
   /* The drawer is decorated as soon as it exists, not only on the next
@@ -486,8 +602,23 @@
     });
     if (q('#proto-notify-demo', document)) addSnoozeButton();
 
-    /* The preference switch in 通用 needs the bridge too. */
-    qa('.r7-hide-row .set-switch', root).forEach((sw) => { sw.dataset.protoAction = 'pref-hide-completed'; });
+    /* 隐藏已完成 lives in the 待办 filter/display menu (desktop popover and
+       phone sheet). Insert it before the sheet's hint/actions so it reads as
+       part of "显示", and keep it out of Settings entirely.
+       The phone calendar's 显示日历 sheet shares the `.m-filter-sheet` class
+       but is a calendar-visibility control, not the Todo display menu, so the
+       row is scoped to the Todo screens. */
+    const todoScope = /^(today|todo-|detail-todo)/.test(state.screen);
+    const filterPanel = q('.filter-pop', root);
+    if (todoScope && filterPanel && !q('[data-proto-action="pref-hide-completed"]', filterPanel)) {
+      const host = q('.filter-hint', filterPanel) || q('.filter-actions', filterPanel);
+      if (host) host.insertAdjacentHTML('beforebegin', hideCompletedRow(false));
+    }
+    const mFilter = todoScope ? q('.m-filter-sheet', root) : null;
+    if (mFilter && !q('[data-proto-action="pref-hide-completed"]', mFilter)) {
+      const host = q('.filter-hint', mFilter) || q('.filter-actions', mFilter);
+      if (host) host.insertAdjacentHTML('beforebegin', '<h3>显示</h3>' + hideCompletedRow(true));
+    }
 
     /* Month cells are drawn as one big button; the mark must not swallow the
        click that opens the day. */
@@ -526,8 +657,14 @@
       }
     }
 
-    /* Phone 今天 needs a create entry for both types, not only the capture bar. */
-    if (state.device === 'mobile' && state.screen === 'today') {
+    /* One create entry on the three core pages (and their sub-views), phone
+       included. 日历 used a floating ＋ at a different place with a hard-wired
+       "new event" meaning; 今天/待办 keep their capture bar for quick typing,
+       which is a different, allowed affordance. The header ＋ is now the same
+       control everywhere and asks the same two-choice question, so "where do I
+       create things" has one answer; the floating ＋ is hidden rather than
+       kept as a second entry. */
+    if (state.device === 'mobile' && (/^(today|todo-(all|inbox|date)|cal-(week|month|day))$/.test(state.screen))) {
       const actions = q('.m-app .m-top .m-actions', root);
       if (actions && !q('[data-proto-action="new-pick"]', actions)) {
         const b = document.createElement('button');
@@ -538,6 +675,8 @@
         b.innerHTML = typeof ico === 'function' ? ico('plus', 16) : '+';
         actions.insertBefore(b, actions.firstChild);
       }
+      // The screen-local floating ＋ is the same action at a second place.
+      qa('.m-fab', root).forEach((f) => { f.style.display = 'none'; });
     }
 
     /* Completed sections honour the preference. */
@@ -549,18 +688,9 @@
       });
     }
 
-    /* Settings: real hide-completed switch, and no designer-facing copy. */
+    /* Settings: no designer-facing copy, real overview. The hide-completed
+       switch is NOT here — it belongs to the Todo filter menu. */
     const section = state.screen.startsWith('settings-') ? state.screen.replace('settings-', '') : '';
-    if (section === 'general') {
-      const content = q('.set-content', root);
-      if (content && !q('.r7-hide-row', content)) {
-        const row = document.createElement('div');
-        row.className = 'set-row r7-hide-row';
-        row.innerHTML = `<div class="set-label">隐藏已完成<small>列表默认不显示已完成项；需要时可随时关闭。</small></div><button type="button" class="set-switch ${P.data.prefs.hideCompleted ? 'is-on' : ''}" data-proto-action="pref-hide-completed" role="switch" aria-checked="${P.data.prefs.hideCompleted}" aria-label="隐藏已完成"></button>`;
-        const anchor = q('.set-row', content);
-        if (anchor) content.insertBefore(row, anchor.nextSibling); else content.appendChild(row);
-      }
-    }
     if (section === 'home') {
       const content = q('.set-content', root);
       if (content && !content.dataset.r7Overview) {

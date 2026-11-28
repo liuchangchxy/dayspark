@@ -1,0 +1,3 @@
+add ["alloc-3","alloc-4"]
+plansOn [["alloc-1",915,960],["alloc-3",780,810],["alloc-4",780,810]]
+blocks [["alloc-3","report"],["alloc-4","report"],["alloc-1","report"]]

@@ -122,9 +122,12 @@
   });
 
   /* ---------------- calendar slot: create event OR arrange a todo ---------------- */
-  // The slot click already opens the "新建日程" modal (flows-v2-calendar.js).
-  // We add the second explicit action next to it, as the domain contract
-  // requires (CalendarSlotSheet onCreateEvent + onScheduleTodo).
+  // R7 removed this third footer button. The slot already asks the two-choice
+  // question before the dialog opens (新建日程 / 安排已有待办), so appending
+  // "安排已有待办" to the event form's footer put the same decision inside a
+  // form the user had already chosen. The hook stays in case a future surface
+  // opens the event dialog directly without the slot question; it now does
+  // nothing while the slot pair exists.
   new MutationObserver((muts) => {
     muts.forEach((m) => Array.from(m.addedNodes || []).forEach((n) => {
       if (!n || n.nodeType !== 1) return;
@@ -134,26 +137,13 @@
       if (!head || head.textContent.trim() !== '新建日程') return;
       const foot = q('.proto-modal-foot', scrim);
       if (!foot) return;
-      if (scrim.__v3arr) {
-        if (!q('[data-arrange]', foot)) foot.insertBefore(scrim.__v3arr, q('.proto-btn.primary', foot) || null);
-        return;
-      }
-      const note = q('.proto-note', scrim);
-      const day = ((note && note.textContent.match(/\d{4}-\d{2}-\d{2}/)) || [])[0] || state.selectedDate || TODAY;
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'proto-btn'; b.textContent = '安排已有待办'; b.dataset.arrange = '1';
-      b.addEventListener('click', () => {
-        const start = (q('#qe-start', scrim) || {}).value || '09:00';
-        const end = (q('#qe-end', scrim) || {}).value || '10:00';
-        if (scrim._close) scrim._close(); else scrim.remove();
-        openArrange(day, start, end);
-      });
-      scrim.__v3arr = b;
-      const primary = q('.proto-btn.primary', foot);
-      foot.insertBefore(b, primary || null);
+      const stale = q('[data-arrange]', foot);
+      if (stale) stale.remove();
     }));
   }).observe(document.body, { childList: true });
 
+  // Kept for the direct-dialog case above; the slot pair is the normal entry.
+  // eslint-disable-next-line no-unused-vars
   function openArrange(day, start, end) {
     const todos = allTodos().filter((t) => !isDone(t) && !state.deletedTodos.includes(t.id));
     if (!todos.length) { toast('没有可安排的待办'); return; }

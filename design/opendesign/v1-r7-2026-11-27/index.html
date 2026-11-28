@@ -2311,6 +2311,41 @@ body[data-proto-theme="dark"] .product .cp-actions .btn.primary,
 body[data-proto-theme="dark"] .product .plan-foot .tool.is-on { background: var(--ink); color: #171815; border-color: var(--ink); }
 body[data-proto-theme="dark"] .product .p-quick { background: var(--ink); color: #171815; border-color: var(--ink); }
 
+/* 深色里的筛选浮层：桌面 .filter-pop 与手机 .m-filter-sheet 都还写死 #fff，
+   导致深色主题下这两块是整片白、文字仍是深色 token（等于反色的一块）。
+   这里只补这两处表面，不改它们的结构。 */
+body[data-proto-theme="dark"] .product .filter-pop,
+body[data-proto-theme="dark"] .product .cal-filter-pop,
+body[data-proto-theme="dark"] .product .m-filter-sheet { background: var(--paper); color: var(--ink); border-color: var(--hair-2); }
+body[data-proto-theme="dark"] .product .filter-pop .popover-head,
+body[data-proto-theme="dark"] .product .m-filter-sheet .popover-head { border-bottom-color: var(--hair); }
+body[data-proto-theme="dark"] .product .filter-sec { border-top-color: var(--hair-soft); }
+body[data-proto-theme="dark"] .product .filter-label,
+body[data-proto-theme="dark"] .product .filter-hint,
+body[data-proto-theme="dark"] .product .m-filter-sheet h3 { color: var(--faint); }
+body[data-proto-theme="dark"] .product .filter-option,
+body[data-proto-theme="dark"] .product .m-filter-option,
+body[data-proto-theme="dark"] .product .filter-box { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .filter-box { border-color: var(--hair-2); }
+body[data-proto-theme="dark"] .product .filter-box.is-on { background: var(--ink); border-color: var(--ink); color: #171815; }
+
+/* Native widget showcase: the copy says the widgets follow the app's light /
+   dark theme, so the mock cards must too — a hard-coded #fff card on a dark
+   page contradicted the sentence right above it. */
+body[data-proto-theme="dark"] .product .wd-sheet { background: var(--paper); color: var(--ink); }
+body[data-proto-theme="dark"] .product .wd-focus-note { background: var(--wash); border-color: var(--hair); color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-ios,
+body[data-proto-theme="dark"] .product .wd-and { background: var(--surface); color: var(--ink); box-shadow: 0 10px 28px rgba(0,0,0,.45); }
+body[data-proto-theme="dark"] .product .wd-row { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-row .ck { background: transparent; border-color: var(--hair-2); color: var(--ink); }
+body[data-proto-theme="dark"] .product .wd-month span,
+body[data-proto-theme="dark"] .product .wd-month button { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-month span.out,
+body[data-proto-theme="dark"] .product .wd-month button.out { color: var(--faint); }
+body[data-proto-theme="dark"] .product .wd-month span.on,
+body[data-proto-theme="dark"] .product .wd-month button.on { background: var(--ink); color: #171815; }
+body[data-proto-theme="dark"] .product .wd-chip { background: var(--wash); color: var(--ink-2); }
+
 </style>
 </head>
 <body>
@@ -3661,7 +3696,8 @@ function detailDrawer(ref,inline=false){
           <div class="field-row"><span class="f-label">重复</span><span class="f-value">${item.repeat?esc(repeatSummary(item)):'不重复'}</span></div>
           <div class="field-row"><span class="f-label">提醒</span><span class="f-value">${item.remind?esc(item.remind):'不提醒'}</span></div>
         </div>
-        <div class="d-sec"><div class="d-sec-head"><span>标签</span><span style="font-size:8.5px;color:var(--faint)">日程标签在待办侧维护</span></div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag"><i style="background:${c.color}"></i>${c.name}</span></div></div>
+        <div class="d-sec"><div class="d-sec-head"><span>标签</span><button type="button" data-action="noop">添加</button></div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</div></div>
+        ${attachmentList(item).length?`<div class="d-sec"><div class="d-sec-head"><span>附件</span></div>${attachmentList(item).map(a=>attachmentRow(a,false)).join('')}</div>`:''}
         <div class="d-sec"><div class="d-sec-head"><span>备注</span></div><div class="d-note">${item.note?esc(item.note):'—'}</div></div>
       </div>
       <div class="d-foot"><button type="button" class="d-act primary" data-action="edit-detail">编辑</button><button type="button" class="d-act danger" data-action="delete">删除</button></div>
@@ -3743,7 +3779,7 @@ function detailEditor(ref,inline=false){
       ${!isEvent&&item.repeat&&item.missed&&!done?`<div class="state-note" style="margin:2px 0 8px">${state.occurId===item.id&&state.occurDate?'当前实例 '+md(state.occurDate)+' · ':''}已遗漏 ${item.missed} 次。</div>`:''}
       <div class="d-sec" style="margin-top:14px;padding-top:0;border-top:0">${fields}</div>
       ${!isEvent?`<div class="d-sec"><div class="d-sec-head"><span>优先级</span></div><div class="filter-chip-row" style="margin-top:6px">${priorityChips(item,true)}</div></div>`:''}
-      <div class="d-sec"><div class="d-sec-head"><span>标签</span>${isEvent?'<span style="font-size:8.5px;color:var(--faint)">日程标签只读</span>':'<button type="button" data-action="noop">添加</button>'}</div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</div></div>
+      <div class="d-sec"><div class="d-sec-head"><span>标签</span><button type="button" data-action="noop">添加</button></div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</div></div>
       <div class="d-sec"><div class="d-sec-head"><span>备注</span></div><textarea class="form-textarea" data-mfield="note" style="margin-top:7px">${esc(item.note||'')}</textarea></div>
       ${!isEvent?`<div class="d-sec"><div class="d-sec-head"><span>子任务 ${(item.subtasks||[]).filter(s=>s.done).length}/${(item.subtasks||[]).length}</span><button type="button" data-action="noop">添加</button></div>${(item.subtasks||[]).map((s,i)=>`<div class="subtask ${s.done?'is-done':''}" data-sub-i="${i}"><button type="button" class="check ${s.done?'is-on':''}" data-proto-action="subtask-toggle" data-i="${i}" aria-label="${s.done?'标记未完成':'完成子任务'}">${s.done?ico('check',7):''}</button><button type="button" class="subtask-title" data-proto-action="subtask-rename" data-i="${i}" title="重命名">${esc(s.title)}</button><button type="button" class="subtask-del" data-proto-action="subtask-remove" data-i="${i}" aria-label="删除子任务">${ico('x',9)}</button></div>`).join('')||'<div class="subtask">还没有子任务</div>'}</div>`:''}
       <div class="d-sec"><div class="d-sec-head"><span>附件</span><button type="button" data-proto-action="attach-add">上传</button></div>${attachmentList(item).length?attachmentList(item).map(a=>attachmentRow(a,true)).join(''):'<div class="attach attach-empty"><span>没有附件</span></div>'}</div>
@@ -4274,7 +4310,7 @@ function settingsContent(section){
   if(section==='io')return `<h2 class="set-h">导入与备份</h2><p class="set-desc">ICS 用于和别的日历交换；备份用于搬回 DaySpark。</p>
     <div class="io-card"><h3>导入 .ics</h3><p>选择目标日历；事件和带日期的待办会按 ICS 字段读入。</p><div class="io-actions"><button type="button" class="btn primary" data-action="noop">选择文件</button><button type="button" class="btn" data-action="noop">选择日历</button></div></div>
     <div class="io-card"><h3>导出 .ics</h3><p>导出全部日历；不静默漏掉任何一个。</p><div class="io-actions"><button type="button" class="btn" data-action="noop">导出全部</button></div></div>
-    <div class="io-card"><h3>DaySpark 完整备份</h3><p>包含所有日历、待办、日程、标签、提醒与附件索引。</p><div class="io-actions"><button type="button" class="btn primary" data-action="noop">导出备份</button><button type="button" class="btn" data-action="noop">合并备份</button></div></div>`;
+    <div class="io-card"><h3>DaySpark 完整备份</h3><p>包含所有日历、待办、日程、标签、提醒与附件索引（文件本体不打包；正式版本导出 ZIP 时才会带上文件内容）。</p><div class="io-actions"><button type="button" class="btn primary" data-action="noop">导出备份</button><button type="button" class="btn" data-action="noop">合并备份</button></div></div>`;
   if(section==='notify')return `<h2 class="set-h">通知与提醒</h2><p class="set-desc">提醒是每个条目自己的事实；这里只管系统权限。</p>
     ${setRow('系统闹钟','允许 DaySpark 使用系统闹钟。','已允许','noop')}
     ${setRow('通知权限','到点提醒需要系统通知权限。','已允许','noop')}
@@ -4353,13 +4389,13 @@ function settingsContent(section){
   }
   if(section==='backup'){
     const lastMerge=(window.Proto&&Proto.data.lastMerge)||null;
-    if(state.variant==='progress')return `<h2 class="set-h">正在备份</h2><p class="set-desc">打包日历、待办、日程、标签与附件索引。</p><div class="io-card"><h3>62%</h3><p>正在写入 ${esc((window.Proto&&Proto.backupFilename?Proto.backupFilename():TODAY+'.dayspark.json'))}</p><div style="height:4px;background:#ecece6;border-radius:2px;overflow:hidden"><div style="width:62%;height:4px;background:var(--ink)"></div></div></div>`;
+    if(state.variant==='progress')return `<h2 class="set-h">正在备份</h2><p class="set-desc">打包日历、待办、日程、标签与附件索引（原型不打包文件本体）。</p><div class="io-card"><h3>62%</h3><p>正在写入 ${esc((window.Proto&&Proto.backupFilename?Proto.backupFilename():TODAY+'.dayspark.json'))}</p><div style="height:4px;background:#ecece6;border-radius:2px;overflow:hidden"><div style="width:62%;height:4px;background:var(--ink)"></div></div></div>`;
     if(state.variant==='success')return `<h2 class="set-h">备份完成</h2><p class="set-desc">${esc((window.Proto&&Proto.backupFilename?Proto.backupFilename():TODAY+'.dayspark.json'))}</p><div class="io-card"><h3>包含</h3><p>${calIds().length} 个日历 · ${allTodos().length} 个待办 · ${EVENTS.filter(e=>!state.deletedEvents.includes(e.id)).length} 个日程</p><div class="mini-banner is-ink">文件已保存到你选择的位置。</div></div>`;
     if(state.variant==='error')return `<h2 class="set-h">备份失败</h2><p class="set-desc">没有生成半成品文件。</p><div class="inline-alert is-red"><b>目标位置不可写。</b><br>换一个文件夹，或检查磁盘空间。</div><div class="filter-actions"><button type="button" class="primary" data-action="backup-export">重试</button></div>`;
     if(state.variant==='merging')return `<h2 class="set-h">正在恢复</h2><p class="set-desc">读取备份、扫描影响；这一步没有进度条，也不能取消。</p><div class="inline-alert"><div style="display:flex;align-items:center;gap:8px"><span class="ai-spin"></span>正在读取备份…</div></div><div class="io-card"><h3>${esc((window.Proto&&Proto.data.lastBackupName)||'备份文件')}</h3><p>读完会先列出新增与覆盖项，确认后才写入本机。</p></div>`;
-    if(state.variant==='merge-success'){const lm=lastMerge;return `<h2 class="set-h">备份已合并</h2><p class="set-desc">合并完成；本机独有的条目没有被删除。</p><div class="inline-alert"><b>已合并备份。</b><br>${lm?'新增 '+lm.added+' 项 · 覆盖 '+lm.updated+' 项'+(lm.skip?' · 跳过 '+lm.skip+' 项已永久删除的条目':''):'本机数据已按备份补齐。'}</div><div class="filter-actions"><button type="button" class="primary" data-action="settings" data-section="calendars">回到日历</button></div>`;}
+    if(state.variant==='merge-success'){const lm=lastMerge;return `<h2 class="set-h">备份已合并</h2><p class="set-desc">合并完成；本机独有的条目没有被删除。</p><div class="inline-alert"><b>已合并备份。</b><br>${lm?'新增 '+lm.added+' 项 · 覆盖 '+lm.updated+' 项'+(lm.skip?' · 跳过 '+lm.skip+' 项已永久删除的条目':''):'本机数据已按备份补齐（附件只有索引，没有文件本体）。'}</div><div class="filter-actions"><button type="button" class="primary" data-action="settings" data-section="calendars">回到日历</button></div>`;}
     if(state.variant==='merge-error')return `<h2 class="set-h">合并失败</h2><p class="set-desc">没有写入任何内容；本机数据保持原样。</p><div class="inline-alert is-red"><b>合并失败。</b><br>可能是文件损坏、版本不符或存储空间不足。</div><div class="filter-actions"><button type="button" class="primary" data-action="backup-merge">重新选择备份</button></div>`;
-    return `<h2 class="set-h">备份</h2><p class="set-desc">完整备份用于搬回 DaySpark；合并备份用于合并两份数据。</p><div class="io-card"><h3>完整备份</h3><p>导出全部内容为一个 JSON 文件。</p><button type="button" class="mini-btn primary" data-action="backup-export">导出完整备份</button></div><div class="io-card"><h3>合并备份</h3><p>同一条目的字段用备份内容覆盖；合并前先列出影响。</p><button type="button" class="mini-btn" data-action="backup-merge">选择备份文件</button></div>`;
+    return `<h2 class="set-h">备份</h2><p class="set-desc">完整备份用于搬回 DaySpark；合并备份用于合并两份数据。原型导出 JSON，附件只写索引。</p><div class="io-card"><h3>完整备份</h3><p>导出全部内容为一个 JSON 文件（附件只写索引；文件本体不打包）。</p><button type="button" class="mini-btn primary" data-action="backup-export">导出完整备份</button></div><div class="io-card"><h3>合并备份</h3><p>同一条目的字段用备份内容覆盖；合并前先列出影响。</p><button type="button" class="mini-btn" data-action="backup-merge">选择备份文件</button></div>`;
   }
   if(section==='notify-denied')return `<h2 class="set-h">通知被拒绝</h2><p class="set-desc">DaySpark 不能在系统层面弹出提醒。</p><div class="inline-alert is-red"><b>系统通知权限已关闭。</b><br>条目里的提醒仍然保存；打开系统设置后才能到点提醒。</div>${setRow('系统通知','去系统设置重新允许。','打开设置','noop')}${setRow('精确提醒','允许精确到分钟。','未生效','noop')}${setRow('应用内提醒','前台仍可显示。','可用','noop')}`;
   if(section==='sync-logged-out')return `<h2 class="set-h">同步未登录</h2><p class="set-desc">本地仍可用；登录后才会多设备同步。</p><div class="inline-alert"><b>还没有登录。</b><br>本地修改不会上传；不影响今天、待办和日历。</div>${setRow('服务器','自托管地址。','sync.dayspark.local','noop')}${setRow('账号','登录后启用同步。','登录','noop')}`;
@@ -4762,7 +4798,7 @@ function widgetsSheet(){
   };
   const note=only?`<div class="wd-focus-note">正在单独查看「${only==='android'?'Android':only==='today'?'今日行动':only==='todo'?'待办':'月历'}」；其余小组件在对应的状态里。</div>`:'';
   return `<div class="wd-sheet">
-    <div class="wd-head"><div><h1>原生小组件</h1><p>内容模型跟随今天 / 待办 / 日历的行语义；颜色只取 SpecTokens，不再有第二套旧调色板。浅色锁定，不跟随系统变暗。</p></div><span class="badge-default">P12 · iOS / macOS / Android</span></div>
+    <div class="wd-head"><div><h1>原生小组件</h1><p>内容模型跟随今天 / 待办 / 日历的行语义；颜色只取 SpecTokens，不再有第二套旧调色板。跟随应用的明暗主题，深色系统下用深色纸面。</p></div><span class="badge-default">P12 · iOS / macOS / Android</span></div>
     ${stateV?`<section class="wd-card"><div class="wd-label">iOS / macOS · ${stateV==='stale'?'快照过期':'今天已完成'}<span>158 / 338</span></div><div class="wd-stack">
         <div style="width:158px">${stateV==='stale'?wdStaleCard('sm'):wdDoneCard('sm')}</div>
         <div style="width:338px">${stateV==='stale'?wdStaleCard('md'):wdDoneCard('md')}</div>
@@ -5204,7 +5240,7 @@ function mobileDetail(ref){
       ${!isEvent?`<button type="button" class="d-complete" data-action="toggle-done" data-id="${item.id}"><span class="check ${done?'is-on':''}">${done?ico('check',9):''}</span>${done?'本次已完成':item.repeat?'完成这一次':'标记完成'}</button>`:''}
       ${item.repeat&&item.missed?`<div class="state-note" style="margin:2px 0 8px">${state.occurId===item.id&&state.occurDate?'当前实例 '+md(state.occurDate)+' · ':''}已遗漏 ${item.missed} 次。</div>`:''}
       <div class="m-form">${rows}</div>
-      <div class="m-form-row"><span class="m-form-label">标签</span><div class="filter-chip-row" style="margin-top:5px">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</div></div>
+      <div class="m-form-row"><span class="m-form-label">标签</span><span class="m-form-value" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;min-width:0"><span class="filter-chip-row" style="margin:0;min-width:0;justify-content:flex-end;flex-wrap:wrap">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</span><button type="button" class="mini" data-proto-action="m-tags" data-id="${item.id}">编辑</button></span></div>
       <div class="m-form-row"><span class="m-form-label">备注</span><textarea class="m-form-input" data-mfield="note" style="min-height:72px;margin-top:4px">${esc(item.note||'')}</textarea></div>
       ${!isEvent?`<div class="m-form-row"><span class="m-form-label">子任务</span>${(item.subtasks||[]).map((s,i)=>`<div class="subtask ${s.done?'is-done':''}" data-sub-i="${i}"><button type="button" class="check ${s.done?'is-on':''}" data-proto-action="subtask-toggle" data-i="${i}" aria-label="${s.done?'标记未完成':'完成子任务'}">${s.done?ico('check',7):''}</button><button type="button" class="subtask-title" data-proto-action="subtask-rename" data-i="${i}">${esc(s.title)}</button><button type="button" class="subtask-del" data-proto-action="subtask-remove" data-i="${i}" aria-label="删除子任务">${ico('x',9)}</button></div>`).join('')||'<span class="m-form-value">还没有子任务</span>'}</div>`:''}
       <div class="m-form-row"><span class="m-form-label">附件</span><div class="m-form-value" style="display:block;min-width:0">${attachmentList(item).length?attachmentList(item).map(a=>attachmentRow(a,true)).join(''):'<span style="color:var(--muted)">没有附件</span>'}<button type="button" class="mini" data-proto-action="attach-add" style="margin-top:6px">${ico('plus',11)} 上传附件</button></div></div>
@@ -5420,7 +5456,7 @@ function mobileWidgets(){
     ${show('todo')?sec.todo:''}
     ${show('calendar')?sec.calendar:''}
     ${show('android')?sec.android:''}
-    <section class="m-state-card"><h3>共用规则</h3><div class="mini-ui"><div class="mini-banner is-ink">只读快照 · 浅色锁定 · 过期提示「打开 DaySpark 以更新」</div></div><div class="state-note">不在小组件里编辑；空态说明下一步；暗色系统下仍按浅色纸面绘制。</div></section>
+    <section class="m-state-card"><h3>共用规则</h3><div class="mini-ui"><div class="mini-banner is-ink">只读快照 · 跟随应用主题 · 过期提示「打开 DaySpark 以更新」</div></div><div class="state-note">不在小组件里编辑；空态说明下一步；深色系统下使用深色纸面与深色 token。</div></section>
   </div>`,{back:true});
 }
 function mobileSpec(){
@@ -5834,7 +5870,14 @@ document.addEventListener('click',(e)=>{
   }
   if(act==='cal-day'){state.selectedDate=a.dataset.date||TODAY;state.screen='cal-day';state.variant='normal';state.drawer=null;render();return;}
   if(act==='cal-today'){state.selectedDate=TODAY;state.variant='normal';state.drawer=null;render();return;}
-  if(act==='cal-new'){go('new-event');return;}
+  if(act==='cal-new'){
+    // The calendar's create entry is the same two-choice sheet every page has.
+    // Setting a context then calling go('new-event') lost the date (the go
+    // wrapper clears newContext on entry) and referenced Proto, which the
+    // standalone spec board does not define.
+    if(window.Proto&&Proto.openNewPicker){Proto.openNewPicker({date:state.selectedDate||TODAY});return;}
+    go('new-event');return;
+  }
   if(act==='open-search'){go('command');return;}
   if(act==='open-slot'){state.variant='slot';render();return;}
   if(act==='capture-discard'){state.screen='capture';state.capture='discard';state.variant='discard';render();return;}
@@ -7170,6 +7213,15 @@ render();
     state.protoError = null;
     if ((screen === 'new-todo' || screen === 'new-event') && state.screen !== screen) {
       Proto.data.newDraft = null;
+      Proto.data.newContext = null;
+    }
+    // Leaving a create form must also drop what it seeded: a clean (never-
+    // touched) new page has no unsaved-change guard, so navigating away used
+    // to leave the browsed date / slot range behind for the next create
+    // entry (keyboard n/e, legacy AI insert) to inherit silently.
+    if ((state.screen === 'new-todo' || state.screen === 'new-event') && screen !== state.screen) {
+      Proto.data.newDraft = null;
+      Proto.data.newContext = null;
     }
     baseGo(screen);
     syncHash(true);
@@ -7587,14 +7639,26 @@ render();
   /* ---------------- new item ---------------- */
   // new-save is owned by flows-v3-capture.js (the last registered handler).
   registerAction('new-cancel', () => {
+    // An empty form leaves too: the draft object carries the create context
+    // (browsed date / slot), and keeping it would leak that context into the
+    // next "new item" opened from somewhere else.
     window.Proto.data.newDraft = null;
+    window.Proto.data.newContext = null;
     window.Proto.baseGo(isEventScreen() ? 'cal-week' : 'today');
     window.Proto.syncHash(true);
   });
   registerAction('cal-new-proto', () => {
-    window.Proto.data.newDraft = null;
-    window.Proto.baseGo('new-event');
-    window.Proto.syncHash(true);
+    // The calendar's page-head ＋ is a scenario quick create, not a second
+    // "todo or event?" entry: the shared main entry is the top-nav ＋, and two
+    // buttons opening the same sheet a few pixels apart is the inconsistency
+    // this round removes. This one goes straight to the event form with the
+    // day being browsed (and that day's default window), which is what a
+    // calendar page's shortcut should do.
+    const P = window.Proto;
+    P.data.newDraft = null;
+    P.data.newContext = { date: state.selectedDate || TODAY };
+    P.baseGo('new-event');
+    P.syncHash(true);
   });
   registerAction('new-type-event', () => { window.Proto.baseGo('new-event'); window.Proto.syncHash(true); });
   registerAction('new-type-todo', () => { window.Proto.baseGo('new-todo'); window.Proto.syncHash(true); });
@@ -9205,9 +9269,22 @@ render();
   state.skipped = state.skipped || [];
 
   /* ---------------- recurrence ---------------- */
+  // One grammar for every interval: "每 3 周", "每 2 天", "每 3 月", "每 2 年".
+  // Flutter's repeat editor accepts any INTERVAL, so the prototype must read
+  // and project the same strings instead of only knowing 每 2 周.
+  function intervalOf(repeat) {
+    const s = String(repeat || '');
+    const n = /^每(\s?\d+\s?)(天|周|月|年)/.exec(s);
+    const m = n ? Number(n[1].replace(/\s/g, '')) : 1;
+    return {
+      n: Number.isFinite(m) && m > 0 ? m : 1,
+      unit: n ? n[2] : /天/.test(s) ? '天' : /周/.test(s) ? '周' : /月/.test(s) ? '月' : /年/.test(s) ? '年' : '',
+      prefix: n ? n[0] : '',
+    };
+  }
   // "每周一、三、五" only prefixes 周 once; read the day characters that follow.
   function repeatDays(repeat) {
-    const m = /^(每\s?2\s?周|每周)/.exec(repeat || '');
+    const m = /^(每\s?\d+\s?周|每周)/.exec(repeat || '');
     if (!m) return [];
     // "每 2 周" has no weekday names after the prefix; the empty token used to
     // read as 周日 because ''.indexOf gives 0.
@@ -9217,17 +9294,34 @@ render();
       .map((ch) => '日一二三四五六'.indexOf(ch.slice(-1)))
       .filter((n) => n >= 0);
   }
+  // Interval weeks count in calendar weeks (Monday-first), not in 7-day
+  // slices from the anchor's weekday. With a Friday anchor, a Monday three
+  // weeks later belongs to week 3; slicing from Friday would call it week 4
+  // and silently skip or add an occurrence.
+  function weekIndexOf(anchor, day) {
+    const a = dayOf(anchor), d = dayOf(day);
+    const aw = new Date(a.getFullYear(), a.getMonth(), a.getDate() - ((a.getDay() + 6) % 7));
+    const dw = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+    return Math.round((dw - aw) / (7 * 86400000));
+  }
+  function weekOffsetOk(anchor, day, n) { return weekIndexOf(anchor, day) % n === 0; }
   // A repeat rule matches a day on its own terms (no count/until).
   function pureMatch(anchor, day, repeat) {
     const a = dayOf(anchor), d = dayOf(day);
     if (!(d >= a)) return false;
-    if (repeat === '每天') return true;
-    if (repeat === '每月') return d.getDate() === a.getDate();
-    if (repeat === '每年') return d.getMonth() === a.getMonth() && d.getDate() === a.getDate();
-    const two = /^每 2 周/.test(repeat);
-    if (/^每周/.test(repeat) || two) {
-      const diff = Math.round((d - a) / 86400000);
-      if (two && Math.floor(diff / 7) % 2 !== 0) return false;
+    const iv = intervalOf(repeat);
+    const diff = Math.round((d - a) / 86400000);
+    if (iv.unit === '天') return diff % iv.n === 0;
+    if (iv.unit === '月') {
+      if (d.getDate() !== a.getDate()) return false;
+      return ((d.getFullYear() - a.getFullYear()) * 12 + d.getMonth() - a.getMonth()) % iv.n === 0;
+    }
+    if (iv.unit === '年') {
+      if (d.getMonth() !== a.getMonth() || d.getDate() !== a.getDate()) return false;
+      return (d.getFullYear() - a.getFullYear()) % iv.n === 0;
+    }
+    if (iv.unit === '周') {
+      if (!weekOffsetOk(anchor, day, iv.n)) return false;
       const names = repeatDays(repeat);
       if (names.length) return names.includes(d.getDay());
       return d.getDay() === a.getDay();
@@ -9239,15 +9333,21 @@ render();
   function occurrenceIndex(anchor, day, repeat, cap) {
     if (!pureMatch(anchor, day, repeat)) return 0;
     const a = dayOf(anchor), d = dayOf(day);
-    if (/^每天/.test(repeat)) return Math.round((d - a) / 86400000) + 1;
+    const iv = intervalOf(repeat);
+    if (iv.unit === '天') return Math.floor(Math.round((d - a) / 86400000) / iv.n) + 1;
     // Monthly and yearly counts are real occurrences: 1/31 每月 skips
     // February, so 31 Mar is the 2nd occurrence, not the 3rd. Counting
     // elapsed months made "结束于 3 次" end one occurrence early.
-    if (/^每月/.test(repeat)) {
+    // The unit comes from intervalOf, so 每 3 月 counts the same way 每月 does;
+    // a text prefix test only matched the n=1 form and silently fell through
+    // to the weekly loop for 每 N 月 / 每 N 年.
+    if (iv.unit === '月') {
       // Construct each month from day 1 so JS never normalises 31 Feb into
       // 3 Mar and silently shifts every later occurrence.
       let n = 0;
       for (let k = 0; k < 6000; k++) {
+        // Only the months the rule actually fires in: 每 3 月 counts k=0,3,6…
+        if (k % iv.n !== 0) continue;
         const y = a.getFullYear(), mo = a.getMonth() + k;
         const x = new Date(y, mo, 1);
         x.setDate(a.getDate());
@@ -9258,9 +9358,10 @@ render();
       }
       return n;
     }
-    if (/^每年/.test(repeat)) {
+    if (iv.unit === '年') {
       let n = 0;
       for (let k = 0; k < 400; k++) {
+        if (k % iv.n !== 0) continue; // 每 2 年 fires in k=0,2,4…
         const x = new Date(a.getFullYear() + k, 1, 1);
         x.setMonth(a.getMonth());
         x.setDate(a.getDate());
@@ -9271,13 +9372,12 @@ render();
       }
       return n;
     }
-    const two = /^每 2 周/.test(repeat);
     const names = repeatDays(repeat);
     let n = 0;
     const x = new Date(a.getFullYear(), a.getMonth(), a.getDate());
     while (x <= d) {
       const dayOk = names.length ? names.includes(x.getDay()) : x.getDay() === a.getDay();
-      const weekOk = !two || Math.floor(Math.round((x - a) / 86400000) / 7) % 2 === 0;
+      const weekOk = weekOffsetOk(anchor, iso(x), iv.n);
       if (dayOk && weekOk) {
         n++;
         if (cap && n > cap) return n;
@@ -9340,6 +9440,16 @@ render();
     state.occurId = b.dataset.id;
   }, true);
 
+  // The series anchor is the date the rule counts from. A repeating series can
+  // store its own 重复开始 (repeatAnchor, editable in the repeat picker); when
+  // it does, the projection must count from it — otherwise the instance picker
+  // and the calendar would show two different instance sets for one series.
+  function seriesAnchor(t) {
+    if (!t) return null;
+    // Order matches DS3.anchorOf (flows-v3-model.js) so the two never disagree.
+    return t.repeatAnchor || t.seriesStart || t.due || t.startDate || t.date || null;
+  }
+
   const baseEventsOn = window.eventsOn;
   window.eventsOn = function (day) {
     const out = baseEventsOn(day).filter((e) => !skipped(e.id, day));
@@ -9347,7 +9457,8 @@ render();
     EVENTS.filter((e) => !state.deletedEvents.includes(e.id) && !calHidden(e.cal) && e.repeat && e.date && e.date !== day && !state.skipped.includes(e.id + '@' + day))
       .forEach((e) => {
         if (out.some((x) => x.id === e.id && x.date === day)) return;
-        if (repeatMatch(e.date, day, e.repeat, e)) out.push(Object.assign({}, e, { date: day, seriesDate: e.date, occurrence: true }));
+        const anchor = seriesAnchor(e);
+        if (anchor && repeatMatch(anchor, day, e.repeat, e)) out.push(Object.assign({}, e, { date: day, seriesDate: e.date, occurrence: true }));
       });
     return out;
   };
@@ -9364,7 +9475,8 @@ render();
     allTodos().forEach((t) => {
       if (!t.repeat || !t.due || t.due === day || isDoneOn(t, day) || calHidden(t.cal)) return;
       if (skipped(t.id, day)) return;
-      if (!repeatMatch(t.due, day, t.repeat, t)) return;
+      const anchor = seriesAnchor(t);
+      if (!anchor || !repeatMatch(anchor, day, t.repeat, t)) return;
       if (out.some((x) => x.id === t.id)) return;
       out.push(Object.assign({}, t, { due: day, occurrence: true }));
     });
@@ -9576,6 +9688,10 @@ render();
   });
 
   /* ---------------- empty slot create ---------------- */
+  // An empty slot is a create entry for BOTH kinds of planning: a new event in
+  // that exact date/segment, or an existing todo scheduled into it. Clicking a
+  // column used to jump straight into the event form, which left "安排已有
+  // 待办" reachable only from the toolbar — the slot itself lost its half.
   document.addEventListener('click', (e) => {
     if (Date.now() < suppressClick) return;
     const col = e.target.closest('.day-col');
@@ -9584,18 +9700,37 @@ render();
     // Only a click on the column itself / its empty background creates.
     if (e.target !== col) return;
     e.preventDefault(); e.stopPropagation();
-    const day = col.dataset.date;
+    const day = col.dataset.date || state.selectedDate || TODAY;
     const m = snap(yToMin(col, e.clientY));
     const start = Math.max(0, Math.min(1439 - 60, m));
-    openQuickEvent(day, fmt(start), fmt(Math.min(1439, start + 60)));
+    const end = Math.min(1439, start + 60);
+    openSlotPair(day, fmt(start), fmt(end));
   }, true);
+
+  function openSlotPair(day, start, end) {
+    const body = document.createElement('div');
+    body.innerHTML = `<div class="proto-list">
+      <button type="button" class="proto-list-row" data-slot="event"><span class="grow">新建日程<small>${esc(mdShort(day))} ${start}–${end} · 只写日程</small></span></button>
+      <button type="button" class="proto-list-row" data-slot="plan"><span class="grow">安排已有待办<small>把一条待办放进 ${esc(mdShort(day))} ${start}–${end}</small></span></button>
+    </div>
+    <div class="proto-note">这个时间段来自你点的那一格；两件事都只写各自的时间，不会互相覆盖，也不会顺手改截止。</div>`;
+    const scrim = modal({ title: '这段时间', body, actions: [{ label: '取消' }] });
+    body.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-slot]');
+      if (!b) return;
+      scrim.remove();
+      if (b.dataset.slot === 'event') { openQuickEvent(day, start, end); return; }
+      P.scheduleTodo({ date: day, start, end, returnScreen: state.screen, returnVariant: state.variant, returnDrawer: state.drawer });
+    });
+    return scrim;
+  }
 
   function openQuickEvent(day, start, end) {
     const body = document.createElement('div');
     body.innerHTML = `<div class="proto-field"><label>标题</label><input class="proto-input" id="qe-title" placeholder="这段时间做什么？" autofocus></div>
       <div class="proto-inline-row"><div class="proto-field" style="flex:1"><label>开始</label><input type="time" class="proto-input" id="qe-start" value="${start}"></div><div class="proto-field" style="flex:1"><label>结束</label><input type="time" class="proto-input" id="qe-end" value="${end}"></div></div>
       <div class="proto-field"><label>日历</label><select class="proto-input" id="qe-cal">${calIds().map((id) => `<option value="${id}" ${id === (state.defaultCal || 'personal') ? 'selected' : ''}>${esc(calOf(id).name)}</option>`).join('')}</select></div>
-      <div class="proto-note">${day} · 只写日程，不会顺带创建待办。结束早于开始表示次日结束（跨午夜）。</div>`;
+      <div class="proto-note">${esc(mdShort(day))} ${start}–${end} · 只写日程，不会顺带创建待办。结束早于开始表示次日结束（跨午夜）。</div>`;
     modal({
       title: '新建日程', body,
       actions: [
@@ -10306,8 +10441,10 @@ render();
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === '?') { e.preventDefault(); P.openShortcuts(); return; }
-    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); P.baseGo('new-todo'); P.syncHash(true); return; }
-    if (e.key === 'e' || e.key === 'E') { e.preventDefault(); P.baseGo('new-event'); P.syncHash(true); return; }
+    // A shortcut opens a fresh form, not the draft left by an abandoned create
+    // page: same rule as the header ＋ (no inherited date/slot context).
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); P.data.newDraft = null; P.data.newContext = null; P.baseGo('new-todo'); P.syncHash(true); return; }
+    if (e.key === 'e' || e.key === 'E') { e.preventDefault(); P.data.newDraft = null; P.data.newContext = null; P.baseGo('new-event'); P.syncHash(true); return; }
     if (e.key === 't' || e.key === 'T') { e.preventDefault(); state.selectedDate = TODAY; P.baseGo('today'); P.syncHash(true); return; }
     if (['w', 'm', 'd'].includes(e.key.toLowerCase()) && state.screen.startsWith('cal-')) {
       e.preventDefault();
@@ -10554,22 +10691,63 @@ render();
   };
 
   /* ---------------- repeat picker ---------------- */
+  // One grammar with the projection (flows-v2-calendar.js): 每 N 天 / 每 N 周 /
+  // 每 N 月 / 每 N 年. Flutter's repeat editor accepts any INTERVAL, so this
+  // picker has to produce the same strings, not only "每 2 周".
+  function baseUnit(rule) {
+    const s = String(rule || '');
+    if (/天/.test(s) && !/周/.test(s)) return 'day';
+    if (/周/.test(s)) return 'week';
+    if (/月/.test(s) && !/年/.test(s)) return 'month';
+    if (/年/.test(s)) return 'year';
+    return '';
+  }
+  function unitNoun(unit) {
+    return { day: '天', week: '周', month: '月', year: '年' }[unit] || '';
+  }
+  function intervalRule(unit, n) {
+    if (!unit) return '';
+    const noun = unitNoun(unit);
+    const base = unit === 'day' ? '每天' : unit === 'week' ? '每周' : unit === 'month' ? '每月' : '每年';
+    return n === 1 ? base : '每 ' + n + ' ' + noun;
+  }
   P.openRepeatPicker = function (opts) {
     opts = opts || {};
     let current = opts.repeat || '';
     let days = [];
-    const m = /^每周(.+)$/.exec(current);
-    if (m) days = m[1].split('、').filter(Boolean);
-    let interval = /^每 2 周/.test(current) ? 2 : 1;
+    const m = /^(每\s?\d+\s?周|每周)(.+)$/.exec(current);
+    // An imported BYDAY list arrives in file order (TH,MO). Normalise it to the
+    // calendar order once, on open, so the chips and the applied rule agree
+    // without the reader having to click one to trigger a sort.
+    if (m) days = WD.filter((x) => m[2].split('、').filter(Boolean).includes(x));
+    const im = /^每\s?(\d+)\s?(天|周|月|年)/.exec(current);
+    let unit = baseUnit(current);
+    let interval = im ? Math.max(1, Math.min(99, Number(im[1]))) : 1;
+    // 重复开始 exists only for a series that already has an anchor — the same
+    // rule Flutter's repeat sheet applies (it hides this row when startDate is
+    // null). A brand-new todo takes its anchor from the deadline at save and
+    // must not be asked twice. Declared outside paint() so the 应用 button
+    // reads the value the user picked, not a per-paint local.
+    let anchor = opts.anchor || '';
     let end = opts.repeatEnd || '永不结束';
     let until = opts.repeatUntil || '';
     let count = opts.repeatCount || 10;
     const body = document.createElement('div');
     function paint() {
       const base = ['不重复', '每天', '每周', '每 2 周', '每月', '每年'];
+      const presetMatch = current && base.indexOf(current) >= 0;
       body.innerHTML = `
-        <div class="proto-list">${base.map((o) => `<button type="button" class="proto-list-row${(current === o || (o === '每周' && m && interval === 1)) ? ' is-on' : ''}" data-repeat="${o}"><span class="grow">${o}</span>${(current === o) ? '<span class="proto-badge">当前</span>' : ''}</button>`).join('')}</div>
-        <div class="proto-field" style="margin-top:8px"><label>自定义 · 每周的哪几天</label>
+        <div class="proto-list">${base.map((o) => `<button type="button" class="proto-list-row${(presetMatch && current === o) ? ' is-on' : ''}" data-repeat="${o}"><span class="grow">${o}</span>${(presetMatch && current === o) ? '<span class="proto-badge">当前</span>' : ''}</button>`).join('')}</div>
+        ${anchor ? `<div class="proto-field" style="margin-top:8px"><label>重复开始</label><button type="button" class="proto-input" data-proto-action="rp-anchor" style="text-align:left">${esc(anchor)}</button></div>` : ''}
+        <div class="proto-field" style="margin-top:8px"><label>自定义 · 每几次</label>
+          <div class="proto-inline-row" style="align-items:center">
+            <input class="proto-input" id="rp-interval" aria-label="间隔" type="number" min="1" max="99" value="${interval}" style="flex:0 0 72px">
+            <div class="proto-seg" data-unit style="flex:1">
+              ${[['day', '天'], ['week', '周'], ['month', '月'], ['year', '年']].map(([u, n]) => `<button type="button" class="${unit === u ? 'is-on' : ''}" data-tunit="${u}" aria-pressed="${unit === u}">${n}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="proto-field" data-days-wrap style="${unit === 'week' ? '' : 'display:none'}"><label>重复的星期</label>
           <div class="proto-tag-pick" data-days>${WD.map((w, i) => `<button type="button" class="${days.includes(w) ? 'is-on' : ''}" data-day="${w}">周${w}</button>`).join('')}</div>
         </div>
         <div class="proto-field"><label>结束</label>
@@ -10582,10 +10760,16 @@ render();
         <div class="proto-note" data-summary>${repeatText()}</div>`;
     }
     function repeatText() {
-      if (!current || current === '不重复') return '不重复；保存后不写重复规则。';
+      if (!unit) return '不重复；保存后不写重复规则。';
       const tail = end === '在日期' && until ? '到 ' + until : end === '重复次数' ? '共 ' + count + ' 次' : end;
-      if (days.length) return '每' + (interval === 2 ? ' 2 周' : '周') + ' · 周' + days.join('、周') + ' · ' + tail;
-      return current + ' · ' + tail;
+      const rule = intervalRule(unit, interval);
+      if (unit === 'week' && days.length) return rule + ' · 周' + days.join('、周') + ' · ' + tail;
+      return rule + ' · ' + tail;
+    }
+    // Whatever the picker shows in its summary is exactly what onPick writes.
+    function ruleText() {
+      if (!unit) return '';
+      return intervalRule(unit, interval) + (unit === 'week' && days.length ? days.join('、') : '');
     }
     paint();
     const scrim = modal({
@@ -10593,35 +10777,66 @@ render();
       actions: [
         { label: '取消' },
         { label: '应用', primary: true, onClick: () => {
-          let r = current;
-          if (days.length) r = (interval === 2 ? '每 2 周' : '每周') + days.join('、');
-          opts.onPick(r === '不重复' ? '' : r, end, { until, count: Number(count) || 10 });
+          opts.onPick(ruleText(), end, { until, count: Number(count) || 10, anchor });
         } },
       ],
     });
     body.addEventListener('change', (e) => {
-      if (e.target.id === 'rp-count') { count = Number(e.target.value) || 10; const sm = q('[data-summary]', body); if (sm) sm.textContent = repeatText(); }
+      if (e.target.id === 'rp-count') { count = Number(e.target.value) || 10; const sm = q('[data-summary]', body); if (sm) sm.textContent = repeatText(); return; }
+      if (e.target.id === 'rp-interval') {
+        const v = Math.max(1, Math.min(99, Number(e.target.value) || 1));
+        interval = v;
+        // Repaint on the next task, not inside the blur that the next control's
+        // mousedown caused: replacing the body synchronously here could swallow
+        // the click the reader just made on a day chip or unit.
+        setTimeout(paint, 0);
+      }
+    });
+    body.addEventListener('input', (e) => {
+      if (e.target.id !== 'rp-interval') return;
+      const sm = q('[data-summary]', body);
+      if (sm) sm.textContent = repeatText();
     });
     body.addEventListener('click', (e) => {
       const r = e.target.closest('[data-repeat]');
       if (r) {
         const v = r.dataset.repeat;
         current = v === '不重复' ? '' : v;
-        days = v === '每周' ? days : [];
-        interval = v === '每 2 周' ? 2 : 1;
+        unit = baseUnit(current);
+        days = baseUnit(v) === 'week' ? (days.length ? days : []) : [];
+        interval = /^每 2 周/.test(v) ? 2 : 1;
+        if (days.length) current = intervalRule(unit, interval);
+        paint(); return;
+      }
+      const tu = e.target.closest('[data-tunit]');
+      if (tu) {
+        unit = tu.dataset.tunit;
+        if (unit !== 'week') days = [];
+        current = intervalRule(unit, interval);
         paint(); return;
       }
       const d = e.target.closest('[data-day]');
       if (d) {
         const w = d.dataset.day;
         days = days.includes(w) ? days.filter((x) => x !== w) : days.concat([w]);
-        if (days.length) current = '每周';
+        // Day order must follow the calendar (WD, Monday-first: 一二三四五六日),
+        // not click order: "周一、周四" and "周四、周一" are the same rule to the reader.
+        days = WD.filter((x) => days.includes(x));
+        if (days.length && !unit) unit = 'week';
+        if (days.length) current = intervalRule('week', interval);
         paint(); return;
       }
       const ev = e.target.closest('[data-endv]');
       if (ev) { end = ev.dataset.endv; paint(); return; }
       if (e.target.closest('[data-proto-action="rp-until"]')) {
         P.openDatePicker({ value: until || TODAY, onPick: (v) => { until = v || TODAY; paint(); } });
+      }
+      if (e.target.closest('[data-proto-action="rp-anchor"]')) {
+        // Preserving the other rows while the date picker opens: the repeat
+        // fields are local state, so only `anchor` needs to survive here.
+        P.openDatePicker({ value: anchor || TODAY, onPick: (v) => {
+          if (v) { anchor = v; paint(); }
+        } });
       }
     });
     return scrim;
@@ -10806,8 +11021,12 @@ render();
   registerAction('detail-repeat-custom', () => {
     syncDraftFromDom();
     const d = activeDraft(); if (!d) return;
-    P.openRepeatPicker({ repeat: d.repeat, repeatEnd: d.repeatEnd, repeatUntil: d.repeatUntil, repeatCount: d.repeatCount, onPick: (r, end, extra) => {
+    // 重复开始 rides along only when the series already owns one — the same
+    // gate Flutter's repeat sheet uses (startDate == null hides the row).
+    const anchor = d.repeat ? (d.repeatAnchor || d.due || d.date || '') : '';
+    P.openRepeatPicker({ repeat: d.repeat, repeatEnd: d.repeatEnd, repeatUntil: d.repeatUntil, repeatCount: d.repeatCount, anchor, onPick: (r, end, extra) => {
       d.repeat = r; d.repeatEnd = end; d.repeatUntil = extra && extra.until || ''; d.repeatCount = extra && extra.count || 0;
+      if (r && extra && extra.anchor && extra.anchor !== anchor) d.repeatAnchor = extra.anchor;
       render(); toast(r ? '重复 · ' + r : '已设为不重复');
     } });
   });
@@ -11003,6 +11222,9 @@ render();
       if (!head) return;
       const label = (head.querySelector('span') || {}).textContent || '';
       const btn = q('button', head);
+      // The event detail keeps the same tag section as a todo's: Flutter's
+      // event form has an editable TagChips row (event_form_page.dart), so the
+      // prototype must not print "只读" and then show the calendar name.
       if (btn && (head.textContent.includes('子任务') || head.textContent.includes('标签'))) {
         btn.dataset.protoAction = editing ? (head.textContent.includes('子任务') ? 'detail-subtask-add' : 'detail-add-tag') : 'start-edit';
         btn.dataset.reason = '先在详情里点“编辑”，再添加。';
@@ -11412,13 +11634,15 @@ render();
     confirmLeaveNew(() => { state.cmdReturn = state.screen; state.cmdReturnDate = state.selectedDate; state.screen = 'command'; state.variant = 'result'; state.cmdQuery = '周报'; render(); });
   }, true);
   registerAction('new-cancel', () => {
-    if (!newDraftDirty()) { goBackFromNew(); return; }
+    // An empty form still owns the create context (browsed date, slot). Leaving
+    // it in place would leak that context into the next create opened elsewhere.
+    if (!newDraftDirty()) { P.data.newDraft = null; P.data.newContext = null; goBackFromNew(); return; }
     modal({
       title: '离开这张表单？',
       body: '<div class="proto-note">标题和已填的字段还没有保存；离开会丢弃这次输入。</div>',
       actions: [
         { label: '留下', primary: true },
-        { label: '丢弃', danger: true, onClick: () => { P.data.newDraft = null; goBackFromNew(); } },
+        { label: '丢弃', danger: true, onClick: () => { P.data.newDraft = null; P.data.newContext = null; goBackFromNew(); } },
       ],
     });
   });
@@ -11988,13 +12212,19 @@ render();
     const kv = {};
     String(v).split(';').forEach((p) => { const i = p.indexOf('='); if (i > 0) kv[p.slice(0, i).toUpperCase()] = p.slice(i + 1); });
     const freq = kv.FREQ || '';
-    const interval = Number(kv.INTERVAL || 1);
-    if (freq === 'DAILY' && interval === 1) out.repeat = '每天';
-    else if (freq === 'WEEKLY' && interval <= 2) {
-      const days = (kv.BYDAY || '').split(',').map((x) => WD_CODE[x.replace(/^\d+/, '')]).filter(Boolean);
-      out.repeat = (interval === 2 ? '每 2 周' : '每周') + (days.length ? days.join('、') : '');
-    } else if (freq === 'MONTHLY' && interval === 1) out.repeat = '每月';
-    else if (freq === 'YEARLY' && interval === 1) out.repeat = '每年';
+    const interval = Math.max(1, Math.min(99, Number(kv.INTERVAL || 1)));
+    // Any INTERVAL is representable: 每 N 天 / 每 N 周 / 每 N 月 / 每 N 年.
+    // Flutter's repeat editor accepts arbitrary INTERVAL, so an imported
+    // "每 3 周" must not fall back to 不重复.
+    const WD_LIST = (kv.BYDAY || '').split(',').map((x) => WD_CODE[x.replace(/^\d+/, '')]).filter(Boolean);
+    const rule = (unit) => {
+      const base = { day: '每天', week: '每周', month: '每月', year: '每年' }[unit];
+      return interval === 1 ? base : '每 ' + interval + ' ' + { day: '天', week: '周', month: '月', year: '年' }[unit];
+    };
+    if (freq === 'DAILY') out.repeat = rule('day');
+    else if (freq === 'WEEKLY') out.repeat = rule('week') + (WD_LIST.length ? WD_LIST.join('、') : '');
+    else if (freq === 'MONTHLY') out.repeat = rule('month');
+    else if (freq === 'YEARLY') out.repeat = rule('year');
     if (!out.repeat) out.warning = '不支持的重复规则（' + v + '），按不重复导入';
     const um = /^(\d{4})(\d{2})(\d{2})/.exec(kv.UNTIL || '');
     if (um) out.repeatUntil = um[1] + '-' + um[2] + '-' + um[3];
@@ -13078,13 +13308,23 @@ END:VCALENDAR`);
   P.priorityLabel = priorityLabel;
 
   function draft() {
+    // A create draft belongs to the form that created it. A todo draft left
+    // behind by navigation must not be reopened as an event (or vice versa);
+    // the screen binding makes that mismatch drop it instead of inheriting
+    // its date, reminder default and slot range.
+    if (P.data.newDraft && P.data.newDraft.__screen && P.data.newDraft.__screen !== state.screen) P.data.newDraft = null;
     if (!P.data.newDraft) {
       const pre = P.data.aiPrefill && P.data.aiPrefill.kind === (state.screen === 'new-event' ? 'event' : 'todo') ? P.data.aiPrefill : null;
+      // A create entry carries the page's context: the day being browsed and,
+      // for an event, the range the sheet promised. It is not an AI prefill —
+      // it just seeds the same fields, and is consumed once so a later plain
+      // "new todo" does not inherit a stale calendar date.
+      const ctx = !pre && P.data.newContext ? P.data.newContext : null;
       P.data.newDraft = {
         cal: (pre && pre.cal) || state.defaultCal || 'personal',
-        date: (pre && pre.date) || TODAY,
-        start: (pre && pre.start) || '11:00',
-        end: (pre && pre.end) || '12:00',
+        date: (pre && pre.date) || (ctx && ctx.date) || TODAY,
+        start: (pre && pre.start) || (ctx && ctx.start) || '11:00',
+        end: (pre && pre.end) || (ctx && ctx.end) || '12:00',
         allDay: false, endDate: '', loc: '', repeat: '', repeatEnd: '永不结束',
         remind: state.screen === 'new-event' ? '15 分钟前' : '不提醒',
         reminders: [],
@@ -13096,8 +13336,10 @@ END:VCALENDAR`);
         // only then marks that AI card 已执行; cancel drops the draft, so a
         // cancelled proposal can never be completed by an unrelated save.
         aiProposal: pre && Number.isFinite(pre.proposalIdx) ? { idx: pre.proposalIdx, kind: pre.kind } : null,
+        __screen: state.screen.startsWith('new-') ? state.screen : '',
       };
       if (pre) delete P.data.aiPrefill;
+      delete P.data.newContext;
     }
     return P.data.newDraft;
   }
@@ -13968,16 +14210,21 @@ END:VCALENDAR`);
     const repeat = String(item.repeat || '');
     if (!repeat) return '';
     let rule = '';
-    const prefix = /^(每\s?2\s?周|每周)/.exec(repeat);
+    // Same grammar the picker writes and the projection reads: an explicit
+    // "每 N 天/周/月/年" becomes INTERVAL=N. A 每周 rule keeps its BYDAY list.
+    const iv = /^每\s?(\d+)\s?(天|周|月|年)/.exec(repeat);
+    const unit = iv ? { 天: 'day', 周: 'week', 月: 'month', 年: 'year' }[iv[2]] : /天/.test(repeat) ? 'day' : /周/.test(repeat) ? 'week' : /月/.test(repeat) ? 'month' : /年/.test(repeat) ? 'year' : '';
+    const n = iv ? Math.max(1, Math.min(99, Number(iv[1]))) : 1;
+    const prefix = /^(每\s?\d+\s?周|每周)/.exec(repeat);
     const dayCodes = () => {
       if (!prefix) return '';
       return repeat.slice(prefix[0].length).split(/[、,，]/).map((t) => BYDAY[t.trim().slice(-1)]).filter(Boolean).join(',');
     };
-    if (/^每天/.test(repeat)) rule = 'FREQ=DAILY';
-    else if (/^每\s?2\s?周/.test(repeat)) rule = 'FREQ=WEEKLY;INTERVAL=2' + (dayCodes() ? ';BYDAY=' + dayCodes() : '');
-    else if (/^每周/.test(repeat)) rule = 'FREQ=WEEKLY' + (dayCodes() ? ';BYDAY=' + dayCodes() : '');
-    else if (/^每月/.test(repeat)) rule = 'FREQ=MONTHLY';
-    else if (/^每年/.test(repeat)) rule = 'FREQ=YEARLY';
+    if (unit) {
+      rule = { day: 'FREQ=DAILY', week: 'FREQ=WEEKLY', month: 'FREQ=MONTHLY', year: 'FREQ=YEARLY' }[unit];
+      if (n > 1) rule += ';INTERVAL=' + n;
+      if (unit === 'week' && dayCodes()) rule += ';BYDAY=' + dayCodes();
+    }
     if (!rule) return '';
     if (item.repeatUntil) rule += ';UNTIL=' + compactDate(item.repeatUntil);
     else if (item.repeatCount) rule += ';COUNT=' + Number(item.repeatCount);
@@ -13985,7 +14232,12 @@ END:VCALENDAR`);
   }
 
   function eventLines(e) {
-    const lines = ['BEGIN:VEVENT', 'UID:' + String(e.id || 'event'), 'SUMMARY:' + escapeIcs(e.title)];
+    // Keep an imported identity when there is one so a re-import can be
+    // matched; locally created rows get a synthesised UID in the same shape
+    // Flutter uses. (The import matches on UID only for rows that already
+    // carry one; a duplicate UID is skipped, not merged — same as Flutter.)
+    const uid = e.icsUid || String(e.id || 'event') + '@dayspark';
+    const lines = ['BEGIN:VEVENT', 'UID:' + uid, 'SUMMARY:' + escapeIcs(e.title)];
     const timedCross = !!e.crossMidnight || !!(e.startDate && e.endDate && e.start && e.end && !e.allDay);
     const allDayish = !timedCross && (e.allDay || (!e.start && !e.end));
     const startDay = e.startDate || e.date || TODAY_ISO();
@@ -14010,12 +14262,19 @@ END:VCALENDAR`);
   }
 
   function todoLines(t) {
-    const lines = ['BEGIN:VTODO', 'UID:' + String(t.id || 'todo'), 'SUMMARY:' + escapeIcs(t.title)];
+    const uid = t.icsUid || String(t.id || 'todo') + '@dayspark';
+    const lines = ['BEGIN:VTODO', 'UID:' + uid, 'SUMMARY:' + escapeIcs(t.title)];
     if (t.due) {
       if (t.dueTime) lines.push('DUE:' + stamp(t.due, t.dueTime));
       else lines.push('DUE;VALUE=DATE:' + compactDate(t.due));
     }
     if (t.note) lines.push('DESCRIPTION:' + escapeIcs(t.note));
+    // Flutter writes PRIORITY and STATUS on export (it does not read them on
+    // import, and neither do we). They are export parity, not a round-trip
+    // guarantee.
+    const prio = Number(t.priority);
+    if (prio > 0) lines.push('PRIORITY:' + prio);
+    lines.push('STATUS:' + (isDone(t) ? 'COMPLETED' : 'NEEDS-ACTION'));
     const rr = rruleFor(t);
     if (rr) lines.push(rr);
     lines.push('END:VTODO');
@@ -15787,9 +16046,12 @@ END:VCALENDAR`);
   });
 
   /* ---------------- calendar slot: create event OR arrange a todo ---------------- */
-  // The slot click already opens the "新建日程" modal (flows-v2-calendar.js).
-  // We add the second explicit action next to it, as the domain contract
-  // requires (CalendarSlotSheet onCreateEvent + onScheduleTodo).
+  // R7 removed this third footer button. The slot already asks the two-choice
+  // question before the dialog opens (新建日程 / 安排已有待办), so appending
+  // "安排已有待办" to the event form's footer put the same decision inside a
+  // form the user had already chosen. The hook stays in case a future surface
+  // opens the event dialog directly without the slot question; it now does
+  // nothing while the slot pair exists.
   new MutationObserver((muts) => {
     muts.forEach((m) => Array.from(m.addedNodes || []).forEach((n) => {
       if (!n || n.nodeType !== 1) return;
@@ -15799,26 +16061,13 @@ END:VCALENDAR`);
       if (!head || head.textContent.trim() !== '新建日程') return;
       const foot = q('.proto-modal-foot', scrim);
       if (!foot) return;
-      if (scrim.__v3arr) {
-        if (!q('[data-arrange]', foot)) foot.insertBefore(scrim.__v3arr, q('.proto-btn.primary', foot) || null);
-        return;
-      }
-      const note = q('.proto-note', scrim);
-      const day = ((note && note.textContent.match(/\d{4}-\d{2}-\d{2}/)) || [])[0] || state.selectedDate || TODAY;
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'proto-btn'; b.textContent = '安排已有待办'; b.dataset.arrange = '1';
-      b.addEventListener('click', () => {
-        const start = (q('#qe-start', scrim) || {}).value || '09:00';
-        const end = (q('#qe-end', scrim) || {}).value || '10:00';
-        if (scrim._close) scrim._close(); else scrim.remove();
-        openArrange(day, start, end);
-      });
-      scrim.__v3arr = b;
-      const primary = q('.proto-btn.primary', foot);
-      foot.insertBefore(b, primary || null);
+      const stale = q('[data-arrange]', foot);
+      if (stale) stale.remove();
     }));
   }).observe(document.body, { childList: true });
 
+  // Kept for the direct-dialog case above; the slot pair is the normal entry.
+  // eslint-disable-next-line no-unused-vars
   function openArrange(day, start, end) {
     const todos = allTodos().filter((t) => !isDone(t) && !state.deletedTodos.includes(t.id));
     if (!todos.length) { toast('没有可安排的待办'); return; }
@@ -16106,11 +16355,34 @@ END:VCALENDAR`);
   function todoForSchedule() {
     return allTodos().filter((t) => !isDone(t));
   }
-  P.openNewPicker = function () {
+  // The entry is the same control on every page: a header ＋ that opens one
+  // two-choice sheet. What changes is only the context it carries — the page
+  // you are on and the date you are browsing — never the grammar.
+  function createContext() {
+    const browse = state.screen.startsWith('cal-') || state.screen === 'todo-date'
+      ? (state.selectedDate || TODAY)
+      : TODAY;
+    return { date: browse, from: state.screen };
+  }
+  function defaultEventWindow(day) {
+    // Same rule Flutter's slot sheet applies: a concrete range, not an
+    // invented free-slot search. Today starts at the next round hour, and the
+    // last possible one-hour window on any day is 22:00–23:00 so a window is
+    // never offered partly in the past (22:30 → 22:00 would be).
+    if (day === TODAY) {
+      const h = Math.floor(NOW / 60);
+      const next = Math.min(22, h + 1);
+      return { start: String(next).padStart(2, '0') + ':00', end: String(Math.min(23, next + 1)).padStart(2, '0') + ':00' };
+    }
+    return { start: '09:00', end: '10:00' };
+  }
+  P.openNewPicker = function (ctx) {
+    ctx = ctx || createContext();
+    const win = defaultEventWindow(ctx.date);
     const body = document.createElement('div');
     body.innerHTML = `<div class="proto-list">
       <button type="button" class="proto-list-row" data-new="todo"><span class="grow">待办<small>记一件事；默认无截止、无计划，先落到未安排</small></span></button>
-      <button type="button" class="proto-list-row" data-new="event"><span class="grow">日程<small>有明确时间段的安排；从今天的下一段开始预填</small></span></button>
+      <button type="button" class="proto-list-row" data-new="event"><span class="grow">日程<small>${esc(mdShort(ctx.date))} ${win.start}–${win.end}；有明确时间段的安排</small></span></button>
     </div>`;
     const scrim = P.modal({ title: '新建', body, actions: [{ label: '取消' }] });
     body.addEventListener('click', (e) => {
@@ -16119,12 +16391,15 @@ END:VCALENDAR`);
       scrim.remove();
       P.data.newDraft = null;
       P.data.aiPrefill = null;
+      P.data.newContext = b.dataset.new === 'event'
+        ? { date: ctx.date, start: win.start, end: win.end }
+        : null;
       P.baseGo(b.dataset.new === 'event' ? 'new-event' : 'new-todo');
       P.syncHash(true);
     });
     return scrim;
   };
-  registerAction('new-pick', () => { P.openNewPicker(); });
+  registerAction('new-pick', (el) => { P.openNewPicker(el && el.dataset && el.dataset.date ? { date: el.dataset.date } : createContext()); });
 
   /* ---------------- 2. date navigation ---------------- */
   function navDate(next) {
@@ -16224,13 +16499,52 @@ END:VCALENDAR`);
     P.actions['start-edit'] && P.actions['start-edit']();
   });
   registerAction('direct-repeat', (el) => {
+    // Repeat is not an ordinary field: changing it rewrites the series anchor,
+    // its instances and its range. The picker used to write `item.repeat` in
+    // place, which skipped every one of those constraints and left the
+    // projection inconsistent with the stored rule. It now enters the real
+    // edit flow — draft, series-level save confirmation, anchor/instance
+    // handling — exactly as the 编辑 button does, and opens the same picker
+    // inside it. Nothing else about the drawer changes.
     const ref = state.drawer;
-    const kind = ref && ref.type === 'event' ? 'event' : 'todo';
-    const item = kind === 'event' ? eventById(ref.id) : todoById(el.dataset.id);
-    if (!item) return;
-    P.openRepeatPicker({ repeat: item.repeat, repeatEnd: item.repeatEnd, repeatUntil: item.repeatUntil, repeatCount: item.repeatCount, onPick: (r, end, extra) => {
-      writeTodo(item, { repeat: r, repeatEnd: end, repeatUntil: extra && extra.until || '', repeatCount: extra && extra.count || 0 }, r ? '重复 · ' + r : '已设为不重复');
-    } });
+    if (!ref) return;
+    clearDraft();
+    state.drawerEdit = true;
+    render();
+    // The editor's own 重复 row owns the picker (select + 自定义…); clicking the
+    // read-only row simply lands the user there with focus on that row.
+    // The desktop editor draws `.form-row` + `.form-label`; the phone drawer
+    // has `.m-form-row` + `.m-form-label`. Both label classes are checked so
+    // the row is actually found and focused rather than silently skipped.
+    const control = q('.drawer select[data-mfield="repeat"]', document);
+    // The row that owns the control — not the control itself. The previous
+    // selector could return the <select> (it matches [data-mfield=repeat]),
+    // then looked for a select *inside* it and focused nothing.
+    const row = (control && control.closest('.form-row, .m-form-row')) || qa('.drawer .m-form-row, .drawer .form-row', document).find((r) => {
+      const label = q('.m-form-label', r) || q('.form-label', r) || q('.f-label', r);
+      return label && (label.textContent || '').trim() === '重复';
+    });
+    if (row) {
+      row.classList.add('is-focus');
+      row.scrollIntoView({ block: 'nearest' });
+    }
+    // Focus after this render cycle finishes: the shared enhancer pass still
+    // runs in a following frame and moves focus back to the document, so
+    // focusing synchronously here looked correct for one frame and then lost
+    // the caret. The row highlight is re-applied in case that pass rebuilt it.
+    // Focus now, and once more after the shared enhancer pass and any closing
+    // toast have re-rendered the frame: both can replace the node, and a
+    // caret that disappears one frame later is not "landed on the field".
+    if (control) control.focus();
+    const refocus = () => {
+      if (!state.drawerEdit) return;
+      const c = q('.drawer select[data-mfield="repeat"]', document) || q('select[data-mfield="repeat"]', document);
+      if (!c) return;
+      const r = c.closest('.form-row, .m-form-row');
+      if (r) r.classList.add('is-focus');
+      c.focus();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(refocus));
   });
   registerAction('plan-row', (el) => {
     // Reuse the master's one real entry so the occurrence picker, planReturn
@@ -16271,6 +16585,21 @@ END:VCALENDAR`);
     const item = kind === 'event' ? eventById(ref.id) : todoById(el.dataset.id);
     if (!item) return;
     P.openTagPicker(item.tags || [], (tags) => { writeTodo(item, { tags }, tags.length ? '标签已更新' : '已清除标签'); });
+  });
+
+  /* The phone editor has no .d-sec sections; its tag row is a real form row
+     with an 编辑 button, so it writes through the draft like every other field
+     (commitDraft copies tags along with the rest). */
+  registerAction('m-tags', (el) => {
+    const ref = state.drawer || (state.screen.startsWith('detail-') ? activeDetailRef() : null);
+    if (!ref) { toast('先打开一项待办或日程'); return; }
+    const d = state.draft || (typeof draftFor === 'function' ? draftFor(ref) : null);
+    if (!d) return;
+    P.openTagPicker(d.tags || [], (tags) => {
+      d.tags = tags;
+      render();
+      toast(tags.length ? '标签已更新 · 保存后生效' : '已清除标签 · 保存后生效');
+    });
   });
 
   /* ---------------- 4. exit layering ---------------- */
@@ -16326,29 +16655,42 @@ END:VCALENDAR`);
   }, true);
 
   /* ---------------- 5. calendar: schedule an existing todo ---------------- */
-  registerAction('cal-schedule-todo', () => {
+  // One planner for every entry that has a concrete range: the toolbar
+  // 安排待办 button, an empty calendar slot, and the slot ghost. The range is
+  // the caller's (slot date + time) or, for the toolbar, the day being
+  // browsed + the same default window the create sheet uses.
+  P.scheduleTodo = function (opts) {
+    opts = opts || {};
     const list = todoForSchedule();
     if (!list.length) { toast('没有可安排的待办'); return; }
+    const day = opts.date || state.selectedDate || TODAY;
+    const win = opts.start ? { start: opts.start, end: opts.end || opts.start } : defaultEventWindow(day);
     const body = document.createElement('div');
     body.innerHTML = `<div class="proto-list">${list.map((t) => `<button type="button" class="proto-list-row" data-sched="${esc(t.id)}"><span class="grow">${esc(t.title)}<small>${calOf(t.cal).name}${t.due ? ' · 截止 ' + dueText(t) : ''}${t.repeat ? ' · ' + esc(t.repeat) : ''}</small></span></button>`).join('')}</div>
-      <div class="proto-note">安排只写入一段计划执行；截止和提醒都不改。</div>`;
+      <div class="proto-note">安排只写入一段计划执行，落在 ${esc(mdShort(day))} ${win.start}–${win.end}；截止和提醒都不改。时间可以在下一步改。</div>`;
     const scrim = P.modal({ title: '安排已有待办', body, actions: [{ label: '取消' }] });
     body.addEventListener('click', (e) => {
       const b = e.target.closest('[data-sched]');
       if (!b) return;
       const t = todoById(b.dataset.sched);
+      const fromScreen = state.screen;
+      const fromVariant = state.variant;
+      const fromDrawer = state.drawer;
       scrim.remove();
       if (!t) return;
       const open = (occ) => {
+        // The picker's own defaults (planReturn='today', planDate=TODAY,
+        // 15:15) are overwritten one by one here: the slot the user clicked
+        // wins over "today" for both the instance and the block written.
         state.planTodoId = t.id;
         state.planAllocId = null;
         state.planOccurrence = occ || null;
-        state.planDate = occ || (state.selectedDate || TODAY);
-        state.planStart = '11:00';
-        state.planEnd = '12:00';
-        state.planReturn = state.screen;
-        state.planReturnVariant = state.variant;
-        state.planReturnDrawer = state.drawer;
+        state.planDate = opts.occurrenceDate || occ || day;
+        state.planStart = win.start;
+        state.planEnd = win.end;
+        state.planReturn = opts.returnScreen || fromScreen;
+        state.planReturnVariant = opts.returnVariant || fromVariant;
+        state.planReturnDrawer = opts.returnDrawer !== undefined ? opts.returnDrawer : fromDrawer;
         state.planReturnEdit = false;
         state.screen = 'plan-picker';
         state.variant = 'normal';
@@ -16361,9 +16703,17 @@ END:VCALENDAR`);
       }
       open(null);
     });
+    return scrim;
+  };
+  registerAction('cal-schedule-todo', () => {
+    P.scheduleTodo({ date: state.selectedDate || TODAY, returnScreen: state.screen, returnVariant: state.variant, returnDrawer: state.drawer });
   });
 
   /* ---------------- 6. hide-completed preference ---------------- */
+  // CORE_UX_SPEC §7: "隐藏已完成 belongs to the Todo page's display/filter
+  // menu, not global Settings." The switch therefore lives in the 待办 filter
+  // sheet (desktop popover and phone sheet), and the Settings row R7 added is
+  // removed rather than kept as a second entry.
   function setHideCompleted(on) {
     P.data.prefs.hideCompleted = !!on;
     if (on) state.completedOpen = false;
@@ -16381,6 +16731,15 @@ END:VCALENDAR`);
   registerAction('pref-hide-completed', (el) => {
     setHideCompleted(!P.data.prefs.hideCompleted);
   });
+  // The row is drawn, not actioned: it is inserted into whichever filter sheet
+  // the current screen has open, so both devices share one preference.
+  function hideCompletedRow(mobile) {
+    const on = !!P.data.prefs.hideCompleted;
+    if (mobile) {
+      return `<button type="button" class="m-filter-option" data-proto-action="pref-hide-completed" role="switch" aria-checked="${on}"><span class="filter-box ${on ? 'is-on' : ''}">${on ? (typeof ico === 'function' ? ico('check', 8) : '✓') : ''}</span>隐藏已完成</button>`;
+    }
+    return `<div class="filter-sec"><div class="filter-label">显示</div><button type="button" class="filter-option" data-proto-action="pref-hide-completed" role="switch" aria-checked="${on}"><span class="filter-box ${on ? 'is-on' : ''}">${on ? (typeof ico === 'function' ? ico('check', 8) : '✓') : ''}</span>隐藏已完成 <span class="r7-faint">${on ? '列表里不显示' : '列表里照常显示'}</span></button></div>`;
+  }
 
   /* ---------------- 7. Chinese calendar marks ---------------- */
   // Terms and statutory holiday marks are the same facts Flutter's
@@ -16450,16 +16809,22 @@ END:VCALENDAR`);
     const id = el.dataset.id || 'report';
     const t = todoById(id);
     if (!t) { toast('这一项已经不在了'); return; }
-    const base = t.due && t.dueTime ? new Date(t.due + 'T' + t.dueTime + ':00') : new Date(TODAY + 'T15:00:00');
-    const when = new Date(base.getTime() + 60 * 60000);
-    const pad = (n) => String(n).padStart(2, '0');
-    const label = '绝对 · ' + when.getFullYear() + '-' + pad(when.getMonth() + 1) + '-' + pad(when.getDate()) + ' ' + pad(when.getHours()) + ':' + pad(when.getMinutes());
-    t.remind = label;
+    // Flutter snoozes the REMINDER from the current clock (home_page.dart:
+    // newTime = DateTime.now().add(1 hour)), never from the due time; the due
+    // date and time are not part of snoozing at all. The demo clock is
+    // 15:00 on 11/20, so the re-armed reminder lands at 16:00 the same day.
+    const clock = (n) => String(n).padStart(2, '0');
+    const when = new Date(TODAY + 'T' + clock(Math.floor(NOW / 60)) + ':' + clock(NOW % 60) + ':00');
+    when.setHours(when.getHours() + 1);
+    const label = '绝对 · ' + when.getFullYear() + '-' + clock(when.getMonth() + 1) + '-' + clock(when.getDate()) + ' ' + clock(when.getHours()) + ':' + clock(when.getMinutes());
+    // Snoozing re-arms the reminder; the due fields stay byte-identical.
+    t.snoozedRemind = label;
+    t.snoozeUntil = label.replace('绝对 · ', '');
     const host = q('#proto-notify-demo');
     if (host) host.remove();
     render();
     save();
-    toast('提醒已延后 1 小时 · 截止不变');
+    toast('提醒延后到 ' + clock(when.getHours()) + ':' + clock(when.getMinutes()) + ' · 截止不变');
   });
 
   /* The drawer is decorated as soon as it exists, not only on the next
@@ -16573,8 +16938,23 @@ END:VCALENDAR`);
     });
     if (q('#proto-notify-demo', document)) addSnoozeButton();
 
-    /* The preference switch in 通用 needs the bridge too. */
-    qa('.r7-hide-row .set-switch', root).forEach((sw) => { sw.dataset.protoAction = 'pref-hide-completed'; });
+    /* 隐藏已完成 lives in the 待办 filter/display menu (desktop popover and
+       phone sheet). Insert it before the sheet's hint/actions so it reads as
+       part of "显示", and keep it out of Settings entirely.
+       The phone calendar's 显示日历 sheet shares the `.m-filter-sheet` class
+       but is a calendar-visibility control, not the Todo display menu, so the
+       row is scoped to the Todo screens. */
+    const todoScope = /^(today|todo-|detail-todo)/.test(state.screen);
+    const filterPanel = q('.filter-pop', root);
+    if (todoScope && filterPanel && !q('[data-proto-action="pref-hide-completed"]', filterPanel)) {
+      const host = q('.filter-hint', filterPanel) || q('.filter-actions', filterPanel);
+      if (host) host.insertAdjacentHTML('beforebegin', hideCompletedRow(false));
+    }
+    const mFilter = todoScope ? q('.m-filter-sheet', root) : null;
+    if (mFilter && !q('[data-proto-action="pref-hide-completed"]', mFilter)) {
+      const host = q('.filter-hint', mFilter) || q('.filter-actions', mFilter);
+      if (host) host.insertAdjacentHTML('beforebegin', '<h3>显示</h3>' + hideCompletedRow(true));
+    }
 
     /* Month cells are drawn as one big button; the mark must not swallow the
        click that opens the day. */
@@ -16613,8 +16993,14 @@ END:VCALENDAR`);
       }
     }
 
-    /* Phone 今天 needs a create entry for both types, not only the capture bar. */
-    if (state.device === 'mobile' && state.screen === 'today') {
+    /* One create entry on the three core pages (and their sub-views), phone
+       included. 日历 used a floating ＋ at a different place with a hard-wired
+       "new event" meaning; 今天/待办 keep their capture bar for quick typing,
+       which is a different, allowed affordance. The header ＋ is now the same
+       control everywhere and asks the same two-choice question, so "where do I
+       create things" has one answer; the floating ＋ is hidden rather than
+       kept as a second entry. */
+    if (state.device === 'mobile' && (/^(today|todo-(all|inbox|date)|cal-(week|month|day))$/.test(state.screen))) {
       const actions = q('.m-app .m-top .m-actions', root);
       if (actions && !q('[data-proto-action="new-pick"]', actions)) {
         const b = document.createElement('button');
@@ -16625,6 +17011,8 @@ END:VCALENDAR`);
         b.innerHTML = typeof ico === 'function' ? ico('plus', 16) : '+';
         actions.insertBefore(b, actions.firstChild);
       }
+      // The screen-local floating ＋ is the same action at a second place.
+      qa('.m-fab', root).forEach((f) => { f.style.display = 'none'; });
     }
 
     /* Completed sections honour the preference. */
@@ -16636,18 +17024,9 @@ END:VCALENDAR`);
       });
     }
 
-    /* Settings: real hide-completed switch, and no designer-facing copy. */
+    /* Settings: no designer-facing copy, real overview. The hide-completed
+       switch is NOT here — it belongs to the Todo filter menu. */
     const section = state.screen.startsWith('settings-') ? state.screen.replace('settings-', '') : '';
-    if (section === 'general') {
-      const content = q('.set-content', root);
-      if (content && !q('.r7-hide-row', content)) {
-        const row = document.createElement('div');
-        row.className = 'set-row r7-hide-row';
-        row.innerHTML = `<div class="set-label">隐藏已完成<small>列表默认不显示已完成项；需要时可随时关闭。</small></div><button type="button" class="set-switch ${P.data.prefs.hideCompleted ? 'is-on' : ''}" data-proto-action="pref-hide-completed" role="switch" aria-checked="${P.data.prefs.hideCompleted}" aria-label="隐藏已完成"></button>`;
-        const anchor = q('.set-row', content);
-        if (anchor) content.insertBefore(row, anchor.nextSibling); else content.appendChild(row);
-      }
-    }
     if (section === 'home') {
       const content = q('.set-content', root);
       if (content && !content.dataset.r7Overview) {

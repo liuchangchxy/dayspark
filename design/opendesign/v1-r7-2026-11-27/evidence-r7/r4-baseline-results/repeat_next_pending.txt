@@ -1,0 +1,4 @@
+instances [["2026-11-20",false],["2026-11-27",false],["2026-12-04",false]]
+done today ["recurring@2026-11-20"]
+after [["2026-11-20",true],["2026-11-27",false],["2026-12-04",false]]
+isDone 20/27 [True, False]

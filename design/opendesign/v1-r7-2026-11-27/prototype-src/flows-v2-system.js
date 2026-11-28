@@ -318,13 +318,19 @@
     const kv = {};
     String(v).split(';').forEach((p) => { const i = p.indexOf('='); if (i > 0) kv[p.slice(0, i).toUpperCase()] = p.slice(i + 1); });
     const freq = kv.FREQ || '';
-    const interval = Number(kv.INTERVAL || 1);
-    if (freq === 'DAILY' && interval === 1) out.repeat = '每天';
-    else if (freq === 'WEEKLY' && interval <= 2) {
-      const days = (kv.BYDAY || '').split(',').map((x) => WD_CODE[x.replace(/^\d+/, '')]).filter(Boolean);
-      out.repeat = (interval === 2 ? '每 2 周' : '每周') + (days.length ? days.join('、') : '');
-    } else if (freq === 'MONTHLY' && interval === 1) out.repeat = '每月';
-    else if (freq === 'YEARLY' && interval === 1) out.repeat = '每年';
+    const interval = Math.max(1, Math.min(99, Number(kv.INTERVAL || 1)));
+    // Any INTERVAL is representable: 每 N 天 / 每 N 周 / 每 N 月 / 每 N 年.
+    // Flutter's repeat editor accepts arbitrary INTERVAL, so an imported
+    // "每 3 周" must not fall back to 不重复.
+    const WD_LIST = (kv.BYDAY || '').split(',').map((x) => WD_CODE[x.replace(/^\d+/, '')]).filter(Boolean);
+    const rule = (unit) => {
+      const base = { day: '每天', week: '每周', month: '每月', year: '每年' }[unit];
+      return interval === 1 ? base : '每 ' + interval + ' ' + { day: '天', week: '周', month: '月', year: '年' }[unit];
+    };
+    if (freq === 'DAILY') out.repeat = rule('day');
+    else if (freq === 'WEEKLY') out.repeat = rule('week') + (WD_LIST.length ? WD_LIST.join('、') : '');
+    else if (freq === 'MONTHLY') out.repeat = rule('month');
+    else if (freq === 'YEARLY') out.repeat = rule('year');
     if (!out.repeat) out.warning = '不支持的重复规则（' + v + '），按不重复导入';
     const um = /^(\d{4})(\d{2})(\d{2})/.exec(kv.UNTIL || '');
     if (um) out.repeatUntil = um[1] + '-' + um[2] + '-' + um[3];

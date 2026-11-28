@@ -3020,7 +3020,8 @@ function detailDrawer(ref,inline=false){
           <div class="field-row"><span class="f-label">重复</span><span class="f-value">${item.repeat?esc(repeatSummary(item)):'不重复'}</span></div>
           <div class="field-row"><span class="f-label">提醒</span><span class="f-value">${item.remind?esc(item.remind):'不提醒'}</span></div>
         </div>
-        <div class="d-sec"><div class="d-sec-head"><span>标签</span><span style="font-size:8.5px;color:var(--faint)">日程标签在待办侧维护</span></div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap"><span class="tag"><i style="background:${c.color}"></i>${c.name}</span></div></div>
+        <div class="d-sec"><div class="d-sec-head"><span>标签</span><button type="button" data-action="noop">添加</button></div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</div></div>
+        ${attachmentList(item).length?`<div class="d-sec"><div class="d-sec-head"><span>附件</span></div>${attachmentList(item).map(a=>attachmentRow(a,false)).join('')}</div>`:''}
         <div class="d-sec"><div class="d-sec-head"><span>备注</span></div><div class="d-note">${item.note?esc(item.note):'—'}</div></div>
       </div>
       <div class="d-foot"><button type="button" class="d-act primary" data-action="edit-detail">编辑</button><button type="button" class="d-act danger" data-action="delete">删除</button></div>
@@ -3102,7 +3103,7 @@ function detailEditor(ref,inline=false){
       ${!isEvent&&item.repeat&&item.missed&&!done?`<div class="state-note" style="margin:2px 0 8px">${state.occurId===item.id&&state.occurDate?'当前实例 '+md(state.occurDate)+' · ':''}已遗漏 ${item.missed} 次。</div>`:''}
       <div class="d-sec" style="margin-top:14px;padding-top:0;border-top:0">${fields}</div>
       ${!isEvent?`<div class="d-sec"><div class="d-sec-head"><span>优先级</span></div><div class="filter-chip-row" style="margin-top:6px">${priorityChips(item,true)}</div></div>`:''}
-      <div class="d-sec"><div class="d-sec-head"><span>标签</span>${isEvent?'<span style="font-size:8.5px;color:var(--faint)">日程标签只读</span>':'<button type="button" data-action="noop">添加</button>'}</div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</div></div>
+      <div class="d-sec"><div class="d-sec-head"><span>标签</span><button type="button" data-action="noop">添加</button></div><div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</div></div>
       <div class="d-sec"><div class="d-sec-head"><span>备注</span></div><textarea class="form-textarea" data-mfield="note" style="margin-top:7px">${esc(item.note||'')}</textarea></div>
       ${!isEvent?`<div class="d-sec"><div class="d-sec-head"><span>子任务 ${(item.subtasks||[]).filter(s=>s.done).length}/${(item.subtasks||[]).length}</span><button type="button" data-action="noop">添加</button></div>${(item.subtasks||[]).map((s,i)=>`<div class="subtask ${s.done?'is-done':''}" data-sub-i="${i}"><button type="button" class="check ${s.done?'is-on':''}" data-proto-action="subtask-toggle" data-i="${i}" aria-label="${s.done?'标记未完成':'完成子任务'}">${s.done?ico('check',7):''}</button><button type="button" class="subtask-title" data-proto-action="subtask-rename" data-i="${i}" title="重命名">${esc(s.title)}</button><button type="button" class="subtask-del" data-proto-action="subtask-remove" data-i="${i}" aria-label="删除子任务">${ico('x',9)}</button></div>`).join('')||'<div class="subtask">还没有子任务</div>'}</div>`:''}
       <div class="d-sec"><div class="d-sec-head"><span>附件</span><button type="button" data-proto-action="attach-add">上传</button></div>${attachmentList(item).length?attachmentList(item).map(a=>attachmentRow(a,true)).join(''):'<div class="attach attach-empty"><span>没有附件</span></div>'}</div>
@@ -3633,7 +3634,7 @@ function settingsContent(section){
   if(section==='io')return `<h2 class="set-h">导入与备份</h2><p class="set-desc">ICS 用于和别的日历交换；备份用于搬回 DaySpark。</p>
     <div class="io-card"><h3>导入 .ics</h3><p>选择目标日历；事件和带日期的待办会按 ICS 字段读入。</p><div class="io-actions"><button type="button" class="btn primary" data-action="noop">选择文件</button><button type="button" class="btn" data-action="noop">选择日历</button></div></div>
     <div class="io-card"><h3>导出 .ics</h3><p>导出全部日历；不静默漏掉任何一个。</p><div class="io-actions"><button type="button" class="btn" data-action="noop">导出全部</button></div></div>
-    <div class="io-card"><h3>DaySpark 完整备份</h3><p>包含所有日历、待办、日程、标签、提醒与附件索引。</p><div class="io-actions"><button type="button" class="btn primary" data-action="noop">导出备份</button><button type="button" class="btn" data-action="noop">合并备份</button></div></div>`;
+    <div class="io-card"><h3>DaySpark 完整备份</h3><p>包含所有日历、待办、日程、标签、提醒与附件索引（文件本体不打包；正式版本导出 ZIP 时才会带上文件内容）。</p><div class="io-actions"><button type="button" class="btn primary" data-action="noop">导出备份</button><button type="button" class="btn" data-action="noop">合并备份</button></div></div>`;
   if(section==='notify')return `<h2 class="set-h">通知与提醒</h2><p class="set-desc">提醒是每个条目自己的事实；这里只管系统权限。</p>
     ${setRow('系统闹钟','允许 DaySpark 使用系统闹钟。','已允许','noop')}
     ${setRow('通知权限','到点提醒需要系统通知权限。','已允许','noop')}
@@ -3712,13 +3713,13 @@ function settingsContent(section){
   }
   if(section==='backup'){
     const lastMerge=(window.Proto&&Proto.data.lastMerge)||null;
-    if(state.variant==='progress')return `<h2 class="set-h">正在备份</h2><p class="set-desc">打包日历、待办、日程、标签与附件索引。</p><div class="io-card"><h3>62%</h3><p>正在写入 ${esc((window.Proto&&Proto.backupFilename?Proto.backupFilename():TODAY+'.dayspark.json'))}</p><div style="height:4px;background:#ecece6;border-radius:2px;overflow:hidden"><div style="width:62%;height:4px;background:var(--ink)"></div></div></div>`;
+    if(state.variant==='progress')return `<h2 class="set-h">正在备份</h2><p class="set-desc">打包日历、待办、日程、标签与附件索引（原型不打包文件本体）。</p><div class="io-card"><h3>62%</h3><p>正在写入 ${esc((window.Proto&&Proto.backupFilename?Proto.backupFilename():TODAY+'.dayspark.json'))}</p><div style="height:4px;background:#ecece6;border-radius:2px;overflow:hidden"><div style="width:62%;height:4px;background:var(--ink)"></div></div></div>`;
     if(state.variant==='success')return `<h2 class="set-h">备份完成</h2><p class="set-desc">${esc((window.Proto&&Proto.backupFilename?Proto.backupFilename():TODAY+'.dayspark.json'))}</p><div class="io-card"><h3>包含</h3><p>${calIds().length} 个日历 · ${allTodos().length} 个待办 · ${EVENTS.filter(e=>!state.deletedEvents.includes(e.id)).length} 个日程</p><div class="mini-banner is-ink">文件已保存到你选择的位置。</div></div>`;
     if(state.variant==='error')return `<h2 class="set-h">备份失败</h2><p class="set-desc">没有生成半成品文件。</p><div class="inline-alert is-red"><b>目标位置不可写。</b><br>换一个文件夹，或检查磁盘空间。</div><div class="filter-actions"><button type="button" class="primary" data-action="backup-export">重试</button></div>`;
     if(state.variant==='merging')return `<h2 class="set-h">正在恢复</h2><p class="set-desc">读取备份、扫描影响；这一步没有进度条，也不能取消。</p><div class="inline-alert"><div style="display:flex;align-items:center;gap:8px"><span class="ai-spin"></span>正在读取备份…</div></div><div class="io-card"><h3>${esc((window.Proto&&Proto.data.lastBackupName)||'备份文件')}</h3><p>读完会先列出新增与覆盖项，确认后才写入本机。</p></div>`;
-    if(state.variant==='merge-success'){const lm=lastMerge;return `<h2 class="set-h">备份已合并</h2><p class="set-desc">合并完成；本机独有的条目没有被删除。</p><div class="inline-alert"><b>已合并备份。</b><br>${lm?'新增 '+lm.added+' 项 · 覆盖 '+lm.updated+' 项'+(lm.skip?' · 跳过 '+lm.skip+' 项已永久删除的条目':''):'本机数据已按备份补齐。'}</div><div class="filter-actions"><button type="button" class="primary" data-action="settings" data-section="calendars">回到日历</button></div>`;}
+    if(state.variant==='merge-success'){const lm=lastMerge;return `<h2 class="set-h">备份已合并</h2><p class="set-desc">合并完成；本机独有的条目没有被删除。</p><div class="inline-alert"><b>已合并备份。</b><br>${lm?'新增 '+lm.added+' 项 · 覆盖 '+lm.updated+' 项'+(lm.skip?' · 跳过 '+lm.skip+' 项已永久删除的条目':''):'本机数据已按备份补齐（附件只有索引，没有文件本体）。'}</div><div class="filter-actions"><button type="button" class="primary" data-action="settings" data-section="calendars">回到日历</button></div>`;}
     if(state.variant==='merge-error')return `<h2 class="set-h">合并失败</h2><p class="set-desc">没有写入任何内容；本机数据保持原样。</p><div class="inline-alert is-red"><b>合并失败。</b><br>可能是文件损坏、版本不符或存储空间不足。</div><div class="filter-actions"><button type="button" class="primary" data-action="backup-merge">重新选择备份</button></div>`;
-    return `<h2 class="set-h">备份</h2><p class="set-desc">完整备份用于搬回 DaySpark；合并备份用于合并两份数据。</p><div class="io-card"><h3>完整备份</h3><p>导出全部内容为一个 JSON 文件。</p><button type="button" class="mini-btn primary" data-action="backup-export">导出完整备份</button></div><div class="io-card"><h3>合并备份</h3><p>同一条目的字段用备份内容覆盖；合并前先列出影响。</p><button type="button" class="mini-btn" data-action="backup-merge">选择备份文件</button></div>`;
+    return `<h2 class="set-h">备份</h2><p class="set-desc">完整备份用于搬回 DaySpark；合并备份用于合并两份数据。原型导出 JSON，附件只写索引。</p><div class="io-card"><h3>完整备份</h3><p>导出全部内容为一个 JSON 文件（附件只写索引；文件本体不打包）。</p><button type="button" class="mini-btn primary" data-action="backup-export">导出完整备份</button></div><div class="io-card"><h3>合并备份</h3><p>同一条目的字段用备份内容覆盖；合并前先列出影响。</p><button type="button" class="mini-btn" data-action="backup-merge">选择备份文件</button></div>`;
   }
   if(section==='notify-denied')return `<h2 class="set-h">通知被拒绝</h2><p class="set-desc">DaySpark 不能在系统层面弹出提醒。</p><div class="inline-alert is-red"><b>系统通知权限已关闭。</b><br>条目里的提醒仍然保存；打开系统设置后才能到点提醒。</div>${setRow('系统通知','去系统设置重新允许。','打开设置','noop')}${setRow('精确提醒','允许精确到分钟。','未生效','noop')}${setRow('应用内提醒','前台仍可显示。','可用','noop')}`;
   if(section==='sync-logged-out')return `<h2 class="set-h">同步未登录</h2><p class="set-desc">本地仍可用；登录后才会多设备同步。</p><div class="inline-alert"><b>还没有登录。</b><br>本地修改不会上传；不影响今天、待办和日历。</div>${setRow('服务器','自托管地址。','sync.dayspark.local','noop')}${setRow('账号','登录后启用同步。','登录','noop')}`;
@@ -4121,7 +4122,7 @@ function widgetsSheet(){
   };
   const note=only?`<div class="wd-focus-note">正在单独查看「${only==='android'?'Android':only==='today'?'今日行动':only==='todo'?'待办':'月历'}」；其余小组件在对应的状态里。</div>`:'';
   return `<div class="wd-sheet">
-    <div class="wd-head"><div><h1>原生小组件</h1><p>内容模型跟随今天 / 待办 / 日历的行语义；颜色只取 SpecTokens，不再有第二套旧调色板。浅色锁定，不跟随系统变暗。</p></div><span class="badge-default">P12 · iOS / macOS / Android</span></div>
+    <div class="wd-head"><div><h1>原生小组件</h1><p>内容模型跟随今天 / 待办 / 日历的行语义；颜色只取 SpecTokens，不再有第二套旧调色板。跟随应用的明暗主题，深色系统下用深色纸面。</p></div><span class="badge-default">P12 · iOS / macOS / Android</span></div>
     ${stateV?`<section class="wd-card"><div class="wd-label">iOS / macOS · ${stateV==='stale'?'快照过期':'今天已完成'}<span>158 / 338</span></div><div class="wd-stack">
         <div style="width:158px">${stateV==='stale'?wdStaleCard('sm'):wdDoneCard('sm')}</div>
         <div style="width:338px">${stateV==='stale'?wdStaleCard('md'):wdDoneCard('md')}</div>
@@ -4563,7 +4564,7 @@ function mobileDetail(ref){
       ${!isEvent?`<button type="button" class="d-complete" data-action="toggle-done" data-id="${item.id}"><span class="check ${done?'is-on':''}">${done?ico('check',9):''}</span>${done?'本次已完成':item.repeat?'完成这一次':'标记完成'}</button>`:''}
       ${item.repeat&&item.missed?`<div class="state-note" style="margin:2px 0 8px">${state.occurId===item.id&&state.occurDate?'当前实例 '+md(state.occurDate)+' · ':''}已遗漏 ${item.missed} 次。</div>`:''}
       <div class="m-form">${rows}</div>
-      <div class="m-form-row"><span class="m-form-label">标签</span><div class="filter-chip-row" style="margin-top:5px">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</div></div>
+      <div class="m-form-row"><span class="m-form-label">标签</span><span class="m-form-value" style="display:flex;align-items:center;gap:8px;justify-content:flex-end;min-width:0"><span class="filter-chip-row" style="margin:0;min-width:0;justify-content:flex-end;flex-wrap:wrap">${(item.tags||[]).map(t=>`<span class="tag"><i></i>${esc(t)}</span>`).join('')||'<span class="tag">无标签</span>'}</span><button type="button" class="mini" data-proto-action="m-tags" data-id="${item.id}">编辑</button></span></div>
       <div class="m-form-row"><span class="m-form-label">备注</span><textarea class="m-form-input" data-mfield="note" style="min-height:72px;margin-top:4px">${esc(item.note||'')}</textarea></div>
       ${!isEvent?`<div class="m-form-row"><span class="m-form-label">子任务</span>${(item.subtasks||[]).map((s,i)=>`<div class="subtask ${s.done?'is-done':''}" data-sub-i="${i}"><button type="button" class="check ${s.done?'is-on':''}" data-proto-action="subtask-toggle" data-i="${i}" aria-label="${s.done?'标记未完成':'完成子任务'}">${s.done?ico('check',7):''}</button><button type="button" class="subtask-title" data-proto-action="subtask-rename" data-i="${i}">${esc(s.title)}</button><button type="button" class="subtask-del" data-proto-action="subtask-remove" data-i="${i}" aria-label="删除子任务">${ico('x',9)}</button></div>`).join('')||'<span class="m-form-value">还没有子任务</span>'}</div>`:''}
       <div class="m-form-row"><span class="m-form-label">附件</span><div class="m-form-value" style="display:block;min-width:0">${attachmentList(item).length?attachmentList(item).map(a=>attachmentRow(a,true)).join(''):'<span style="color:var(--muted)">没有附件</span>'}<button type="button" class="mini" data-proto-action="attach-add" style="margin-top:6px">${ico('plus',11)} 上传附件</button></div></div>
@@ -4779,7 +4780,7 @@ function mobileWidgets(){
     ${show('todo')?sec.todo:''}
     ${show('calendar')?sec.calendar:''}
     ${show('android')?sec.android:''}
-    <section class="m-state-card"><h3>共用规则</h3><div class="mini-ui"><div class="mini-banner is-ink">只读快照 · 浅色锁定 · 过期提示「打开 DaySpark 以更新」</div></div><div class="state-note">不在小组件里编辑；空态说明下一步；暗色系统下仍按浅色纸面绘制。</div></section>
+    <section class="m-state-card"><h3>共用规则</h3><div class="mini-ui"><div class="mini-banner is-ink">只读快照 · 跟随应用主题 · 过期提示「打开 DaySpark 以更新」</div></div><div class="state-note">不在小组件里编辑；空态说明下一步；深色系统下使用深色纸面与深色 token。</div></section>
   </div>`,{back:true});
 }
 function mobileSpec(){
@@ -5193,7 +5194,14 @@ document.addEventListener('click',(e)=>{
   }
   if(act==='cal-day'){state.selectedDate=a.dataset.date||TODAY;state.screen='cal-day';state.variant='normal';state.drawer=null;render();return;}
   if(act==='cal-today'){state.selectedDate=TODAY;state.variant='normal';state.drawer=null;render();return;}
-  if(act==='cal-new'){go('new-event');return;}
+  if(act==='cal-new'){
+    // The calendar's create entry is the same two-choice sheet every page has.
+    // Setting a context then calling go('new-event') lost the date (the go
+    // wrapper clears newContext on entry) and referenced Proto, which the
+    // standalone spec board does not define.
+    if(window.Proto&&Proto.openNewPicker){Proto.openNewPicker({date:state.selectedDate||TODAY});return;}
+    go('new-event');return;
+  }
   if(act==='open-search'){go('command');return;}
   if(act==='open-slot'){state.variant='slot';render();return;}
   if(act==='capture-discard'){state.screen='capture';state.capture='discard';state.variant='discard';render();return;}

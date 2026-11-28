@@ -29,13 +29,23 @@
   P.priorityLabel = priorityLabel;
 
   function draft() {
+    // A create draft belongs to the form that created it. A todo draft left
+    // behind by navigation must not be reopened as an event (or vice versa);
+    // the screen binding makes that mismatch drop it instead of inheriting
+    // its date, reminder default and slot range.
+    if (P.data.newDraft && P.data.newDraft.__screen && P.data.newDraft.__screen !== state.screen) P.data.newDraft = null;
     if (!P.data.newDraft) {
       const pre = P.data.aiPrefill && P.data.aiPrefill.kind === (state.screen === 'new-event' ? 'event' : 'todo') ? P.data.aiPrefill : null;
+      // A create entry carries the page's context: the day being browsed and,
+      // for an event, the range the sheet promised. It is not an AI prefill —
+      // it just seeds the same fields, and is consumed once so a later plain
+      // "new todo" does not inherit a stale calendar date.
+      const ctx = !pre && P.data.newContext ? P.data.newContext : null;
       P.data.newDraft = {
         cal: (pre && pre.cal) || state.defaultCal || 'personal',
-        date: (pre && pre.date) || TODAY,
-        start: (pre && pre.start) || '11:00',
-        end: (pre && pre.end) || '12:00',
+        date: (pre && pre.date) || (ctx && ctx.date) || TODAY,
+        start: (pre && pre.start) || (ctx && ctx.start) || '11:00',
+        end: (pre && pre.end) || (ctx && ctx.end) || '12:00',
         allDay: false, endDate: '', loc: '', repeat: '', repeatEnd: '永不结束',
         remind: state.screen === 'new-event' ? '15 分钟前' : '不提醒',
         reminders: [],
@@ -47,8 +57,10 @@
         // only then marks that AI card 已执行; cancel drops the draft, so a
         // cancelled proposal can never be completed by an unrelated save.
         aiProposal: pre && Number.isFinite(pre.proposalIdx) ? { idx: pre.proposalIdx, kind: pre.kind } : null,
+        __screen: state.screen.startsWith('new-') ? state.screen : '',
       };
       if (pre) delete P.data.aiPrefill;
+      delete P.data.newContext;
     }
     return P.data.newDraft;
   }

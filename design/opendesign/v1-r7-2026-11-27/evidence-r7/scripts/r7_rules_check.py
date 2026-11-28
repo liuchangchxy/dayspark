@@ -114,8 +114,10 @@ async def main():
     await ev("(function(){document.querySelector('[data-proto-action=\"notify-demo-open\"]').click();})()"); await asyncio.sleep(.6)
     d0=await ev("JSON.stringify({remind:(todoById('report')||{}).remind,due:(todoById('report')||{}).due,dueTime:(todoById('report')||{}).dueTime})")
     await ev("document.querySelector('[data-proto-action=\"notify-snooze\"]').click();'ok'"); await asyncio.sleep(.6)
-    d1=await ev("JSON.stringify({remind:(todoById('report')||{}).remind,due:(todoById('report')||{}).due,dueTime:(todoById('report')||{}).dueTime})")
-    rec('snooze moves the reminder and keeps the due', d0!=d1 and '19:00' in str(d1) and '"due":"2026-11-20"' in str(d1) and '"dueTime":"18:00"' in str(d1), d0+' -> '+d1)
+    d1=await ev("JSON.stringify({remind:(todoById('report')||{}).remind,due:(todoById('report')||{}).due,dueTime:(todoById('report')||{}).dueTime,snoozed:(todoById('report')||{}).snoozedRemind})")
+    # Flutter snoozes from the clock (now + 1 hour), not from the due time, and
+    # leaves the due date/time and the reminder label alone.
+    rec('snooze re-arms from now + 1h and keeps the due', d0==d1.split(',"snoozed"')[0]+'}' and '"due":"2026-11-20"' in d1 and '"dueTime":"18:00"' in d1 and '16:00' in d1, d0+' -> '+d1)
 
     # 9 settings overview has no duplicate section links
     await ev("state.screen='settings-home';render();Proto.enhance();'ok'"); await asyncio.sleep(.6)

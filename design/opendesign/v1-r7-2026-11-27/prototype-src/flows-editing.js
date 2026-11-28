@@ -12,14 +12,26 @@
   /* ---------------- new item ---------------- */
   // new-save is owned by flows-v3-capture.js (the last registered handler).
   registerAction('new-cancel', () => {
+    // An empty form leaves too: the draft object carries the create context
+    // (browsed date / slot), and keeping it would leak that context into the
+    // next "new item" opened from somewhere else.
     window.Proto.data.newDraft = null;
+    window.Proto.data.newContext = null;
     window.Proto.baseGo(isEventScreen() ? 'cal-week' : 'today');
     window.Proto.syncHash(true);
   });
   registerAction('cal-new-proto', () => {
-    window.Proto.data.newDraft = null;
-    window.Proto.baseGo('new-event');
-    window.Proto.syncHash(true);
+    // The calendar's page-head ＋ is a scenario quick create, not a second
+    // "todo or event?" entry: the shared main entry is the top-nav ＋, and two
+    // buttons opening the same sheet a few pixels apart is the inconsistency
+    // this round removes. This one goes straight to the event form with the
+    // day being browsed (and that day's default window), which is what a
+    // calendar page's shortcut should do.
+    const P = window.Proto;
+    P.data.newDraft = null;
+    P.data.newContext = { date: state.selectedDate || TODAY };
+    P.baseGo('new-event');
+    P.syncHash(true);
   });
   registerAction('new-type-event', () => { window.Proto.baseGo('new-event'); window.Proto.syncHash(true); });
   registerAction('new-type-todo', () => { window.Proto.baseGo('new-todo'); window.Proto.syncHash(true); });

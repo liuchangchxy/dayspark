@@ -1,0 +1,2 @@
+delete route {"action":"delete","text":"删除到回收站"}
+after {"confirm":true,"occPicker":false,"text":"删除「整理周会纪要并群发」？\n\n这是重复任务，会删除整个系列并进回收站。\n\n取消\n删除"}

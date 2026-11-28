@@ -636,3 +636,38 @@ body[data-proto-theme="dark"] .product .filter-actions .primary,
 body[data-proto-theme="dark"] .product .cp-actions .btn.primary,
 body[data-proto-theme="dark"] .product .plan-foot .tool.is-on { background: var(--ink); color: #171815; border-color: var(--ink); }
 body[data-proto-theme="dark"] .product .p-quick { background: var(--ink); color: #171815; border-color: var(--ink); }
+
+/* 深色里的筛选浮层：桌面 .filter-pop 与手机 .m-filter-sheet 都还写死 #fff，
+   导致深色主题下这两块是整片白、文字仍是深色 token（等于反色的一块）。
+   这里只补这两处表面，不改它们的结构。 */
+body[data-proto-theme="dark"] .product .filter-pop,
+body[data-proto-theme="dark"] .product .cal-filter-pop,
+body[data-proto-theme="dark"] .product .m-filter-sheet { background: var(--paper); color: var(--ink); border-color: var(--hair-2); }
+body[data-proto-theme="dark"] .product .filter-pop .popover-head,
+body[data-proto-theme="dark"] .product .m-filter-sheet .popover-head { border-bottom-color: var(--hair); }
+body[data-proto-theme="dark"] .product .filter-sec { border-top-color: var(--hair-soft); }
+body[data-proto-theme="dark"] .product .filter-label,
+body[data-proto-theme="dark"] .product .filter-hint,
+body[data-proto-theme="dark"] .product .m-filter-sheet h3 { color: var(--faint); }
+body[data-proto-theme="dark"] .product .filter-option,
+body[data-proto-theme="dark"] .product .m-filter-option,
+body[data-proto-theme="dark"] .product .filter-box { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .filter-box { border-color: var(--hair-2); }
+body[data-proto-theme="dark"] .product .filter-box.is-on { background: var(--ink); border-color: var(--ink); color: #171815; }
+
+/* Native widget showcase: the copy says the widgets follow the app's light /
+   dark theme, so the mock cards must too — a hard-coded #fff card on a dark
+   page contradicted the sentence right above it. */
+body[data-proto-theme="dark"] .product .wd-sheet { background: var(--paper); color: var(--ink); }
+body[data-proto-theme="dark"] .product .wd-focus-note { background: var(--wash); border-color: var(--hair); color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-ios,
+body[data-proto-theme="dark"] .product .wd-and { background: var(--surface); color: var(--ink); box-shadow: 0 10px 28px rgba(0,0,0,.45); }
+body[data-proto-theme="dark"] .product .wd-row { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-row .ck { background: transparent; border-color: var(--hair-2); color: var(--ink); }
+body[data-proto-theme="dark"] .product .wd-month span,
+body[data-proto-theme="dark"] .product .wd-month button { color: var(--ink-2); }
+body[data-proto-theme="dark"] .product .wd-month span.out,
+body[data-proto-theme="dark"] .product .wd-month button.out { color: var(--faint); }
+body[data-proto-theme="dark"] .product .wd-month span.on,
+body[data-proto-theme="dark"] .product .wd-month button.on { background: var(--ink); color: #171815; }
+body[data-proto-theme="dark"] .product .wd-chip { background: var(--wash); color: var(--ink-2); }

@@ -149,22 +149,63 @@
   };
 
   /* ---------------- repeat picker ---------------- */
+  // One grammar with the projection (flows-v2-calendar.js): 每 N 天 / 每 N 周 /
+  // 每 N 月 / 每 N 年. Flutter's repeat editor accepts any INTERVAL, so this
+  // picker has to produce the same strings, not only "每 2 周".
+  function baseUnit(rule) {
+    const s = String(rule || '');
+    if (/天/.test(s) && !/周/.test(s)) return 'day';
+    if (/周/.test(s)) return 'week';
+    if (/月/.test(s) && !/年/.test(s)) return 'month';
+    if (/年/.test(s)) return 'year';
+    return '';
+  }
+  function unitNoun(unit) {
+    return { day: '天', week: '周', month: '月', year: '年' }[unit] || '';
+  }
+  function intervalRule(unit, n) {
+    if (!unit) return '';
+    const noun = unitNoun(unit);
+    const base = unit === 'day' ? '每天' : unit === 'week' ? '每周' : unit === 'month' ? '每月' : '每年';
+    return n === 1 ? base : '每 ' + n + ' ' + noun;
+  }
   P.openRepeatPicker = function (opts) {
     opts = opts || {};
     let current = opts.repeat || '';
     let days = [];
-    const m = /^每周(.+)$/.exec(current);
-    if (m) days = m[1].split('、').filter(Boolean);
-    let interval = /^每 2 周/.test(current) ? 2 : 1;
+    const m = /^(每\s?\d+\s?周|每周)(.+)$/.exec(current);
+    // An imported BYDAY list arrives in file order (TH,MO). Normalise it to the
+    // calendar order once, on open, so the chips and the applied rule agree
+    // without the reader having to click one to trigger a sort.
+    if (m) days = WD.filter((x) => m[2].split('、').filter(Boolean).includes(x));
+    const im = /^每\s?(\d+)\s?(天|周|月|年)/.exec(current);
+    let unit = baseUnit(current);
+    let interval = im ? Math.max(1, Math.min(99, Number(im[1]))) : 1;
+    // 重复开始 exists only for a series that already has an anchor — the same
+    // rule Flutter's repeat sheet applies (it hides this row when startDate is
+    // null). A brand-new todo takes its anchor from the deadline at save and
+    // must not be asked twice. Declared outside paint() so the 应用 button
+    // reads the value the user picked, not a per-paint local.
+    let anchor = opts.anchor || '';
     let end = opts.repeatEnd || '永不结束';
     let until = opts.repeatUntil || '';
     let count = opts.repeatCount || 10;
     const body = document.createElement('div');
     function paint() {
       const base = ['不重复', '每天', '每周', '每 2 周', '每月', '每年'];
+      const presetMatch = current && base.indexOf(current) >= 0;
       body.innerHTML = `
-        <div class="proto-list">${base.map((o) => `<button type="button" class="proto-list-row${(current === o || (o === '每周' && m && interval === 1)) ? ' is-on' : ''}" data-repeat="${o}"><span class="grow">${o}</span>${(current === o) ? '<span class="proto-badge">当前</span>' : ''}</button>`).join('')}</div>
-        <div class="proto-field" style="margin-top:8px"><label>自定义 · 每周的哪几天</label>
+        <div class="proto-list">${base.map((o) => `<button type="button" class="proto-list-row${(presetMatch && current === o) ? ' is-on' : ''}" data-repeat="${o}"><span class="grow">${o}</span>${(presetMatch && current === o) ? '<span class="proto-badge">当前</span>' : ''}</button>`).join('')}</div>
+        ${anchor ? `<div class="proto-field" style="margin-top:8px"><label>重复开始</label><button type="button" class="proto-input" data-proto-action="rp-anchor" style="text-align:left">${esc(anchor)}</button></div>` : ''}
+        <div class="proto-field" style="margin-top:8px"><label>自定义 · 每几次</label>
+          <div class="proto-inline-row" style="align-items:center">
+            <input class="proto-input" id="rp-interval" aria-label="间隔" type="number" min="1" max="99" value="${interval}" style="flex:0 0 72px">
+            <div class="proto-seg" data-unit style="flex:1">
+              ${[['day', '天'], ['week', '周'], ['month', '月'], ['year', '年']].map(([u, n]) => `<button type="button" class="${unit === u ? 'is-on' : ''}" data-tunit="${u}" aria-pressed="${unit === u}">${n}</button>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="proto-field" data-days-wrap style="${unit === 'week' ? '' : 'display:none'}"><label>重复的星期</label>
           <div class="proto-tag-pick" data-days>${WD.map((w, i) => `<button type="button" class="${days.includes(w) ? 'is-on' : ''}" data-day="${w}">周${w}</button>`).join('')}</div>
         </div>
         <div class="proto-field"><label>结束</label>
@@ -177,10 +218,16 @@
         <div class="proto-note" data-summary>${repeatText()}</div>`;
     }
     function repeatText() {
-      if (!current || current === '不重复') return '不重复；保存后不写重复规则。';
+      if (!unit) return '不重复；保存后不写重复规则。';
       const tail = end === '在日期' && until ? '到 ' + until : end === '重复次数' ? '共 ' + count + ' 次' : end;
-      if (days.length) return '每' + (interval === 2 ? ' 2 周' : '周') + ' · 周' + days.join('、周') + ' · ' + tail;
-      return current + ' · ' + tail;
+      const rule = intervalRule(unit, interval);
+      if (unit === 'week' && days.length) return rule + ' · 周' + days.join('、周') + ' · ' + tail;
+      return rule + ' · ' + tail;
+    }
+    // Whatever the picker shows in its summary is exactly what onPick writes.
+    function ruleText() {
+      if (!unit) return '';
+      return intervalRule(unit, interval) + (unit === 'week' && days.length ? days.join('、') : '');
     }
     paint();
     const scrim = modal({
@@ -188,35 +235,66 @@
       actions: [
         { label: '取消' },
         { label: '应用', primary: true, onClick: () => {
-          let r = current;
-          if (days.length) r = (interval === 2 ? '每 2 周' : '每周') + days.join('、');
-          opts.onPick(r === '不重复' ? '' : r, end, { until, count: Number(count) || 10 });
+          opts.onPick(ruleText(), end, { until, count: Number(count) || 10, anchor });
         } },
       ],
     });
     body.addEventListener('change', (e) => {
-      if (e.target.id === 'rp-count') { count = Number(e.target.value) || 10; const sm = q('[data-summary]', body); if (sm) sm.textContent = repeatText(); }
+      if (e.target.id === 'rp-count') { count = Number(e.target.value) || 10; const sm = q('[data-summary]', body); if (sm) sm.textContent = repeatText(); return; }
+      if (e.target.id === 'rp-interval') {
+        const v = Math.max(1, Math.min(99, Number(e.target.value) || 1));
+        interval = v;
+        // Repaint on the next task, not inside the blur that the next control's
+        // mousedown caused: replacing the body synchronously here could swallow
+        // the click the reader just made on a day chip or unit.
+        setTimeout(paint, 0);
+      }
+    });
+    body.addEventListener('input', (e) => {
+      if (e.target.id !== 'rp-interval') return;
+      const sm = q('[data-summary]', body);
+      if (sm) sm.textContent = repeatText();
     });
     body.addEventListener('click', (e) => {
       const r = e.target.closest('[data-repeat]');
       if (r) {
         const v = r.dataset.repeat;
         current = v === '不重复' ? '' : v;
-        days = v === '每周' ? days : [];
-        interval = v === '每 2 周' ? 2 : 1;
+        unit = baseUnit(current);
+        days = baseUnit(v) === 'week' ? (days.length ? days : []) : [];
+        interval = /^每 2 周/.test(v) ? 2 : 1;
+        if (days.length) current = intervalRule(unit, interval);
+        paint(); return;
+      }
+      const tu = e.target.closest('[data-tunit]');
+      if (tu) {
+        unit = tu.dataset.tunit;
+        if (unit !== 'week') days = [];
+        current = intervalRule(unit, interval);
         paint(); return;
       }
       const d = e.target.closest('[data-day]');
       if (d) {
         const w = d.dataset.day;
         days = days.includes(w) ? days.filter((x) => x !== w) : days.concat([w]);
-        if (days.length) current = '每周';
+        // Day order must follow the calendar (WD, Monday-first: 一二三四五六日),
+        // not click order: "周一、周四" and "周四、周一" are the same rule to the reader.
+        days = WD.filter((x) => days.includes(x));
+        if (days.length && !unit) unit = 'week';
+        if (days.length) current = intervalRule('week', interval);
         paint(); return;
       }
       const ev = e.target.closest('[data-endv]');
       if (ev) { end = ev.dataset.endv; paint(); return; }
       if (e.target.closest('[data-proto-action="rp-until"]')) {
         P.openDatePicker({ value: until || TODAY, onPick: (v) => { until = v || TODAY; paint(); } });
+      }
+      if (e.target.closest('[data-proto-action="rp-anchor"]')) {
+        // Preserving the other rows while the date picker opens: the repeat
+        // fields are local state, so only `anchor` needs to survive here.
+        P.openDatePicker({ value: anchor || TODAY, onPick: (v) => {
+          if (v) { anchor = v; paint(); }
+        } });
       }
     });
     return scrim;
@@ -401,8 +479,12 @@
   registerAction('detail-repeat-custom', () => {
     syncDraftFromDom();
     const d = activeDraft(); if (!d) return;
-    P.openRepeatPicker({ repeat: d.repeat, repeatEnd: d.repeatEnd, repeatUntil: d.repeatUntil, repeatCount: d.repeatCount, onPick: (r, end, extra) => {
+    // 重复开始 rides along only when the series already owns one — the same
+    // gate Flutter's repeat sheet uses (startDate == null hides the row).
+    const anchor = d.repeat ? (d.repeatAnchor || d.due || d.date || '') : '';
+    P.openRepeatPicker({ repeat: d.repeat, repeatEnd: d.repeatEnd, repeatUntil: d.repeatUntil, repeatCount: d.repeatCount, anchor, onPick: (r, end, extra) => {
       d.repeat = r; d.repeatEnd = end; d.repeatUntil = extra && extra.until || ''; d.repeatCount = extra && extra.count || 0;
+      if (r && extra && extra.anchor && extra.anchor !== anchor) d.repeatAnchor = extra.anchor;
       render(); toast(r ? '重复 · ' + r : '已设为不重复');
     } });
   });
@@ -598,6 +680,9 @@
       if (!head) return;
       const label = (head.querySelector('span') || {}).textContent || '';
       const btn = q('button', head);
+      // The event detail keeps the same tag section as a todo's: Flutter's
+      // event form has an editable TagChips row (event_form_page.dart), so the
+      // prototype must not print "只读" and then show the calendar name.
       if (btn && (head.textContent.includes('子任务') || head.textContent.includes('标签'))) {
         btn.dataset.protoAction = editing ? (head.textContent.includes('子任务') ? 'detail-subtask-add' : 'detail-add-tag') : 'start-edit';
         btn.dataset.reason = '先在详情里点“编辑”，再添加。';
@@ -1007,13 +1092,15 @@
     confirmLeaveNew(() => { state.cmdReturn = state.screen; state.cmdReturnDate = state.selectedDate; state.screen = 'command'; state.variant = 'result'; state.cmdQuery = '周报'; render(); });
   }, true);
   registerAction('new-cancel', () => {
-    if (!newDraftDirty()) { goBackFromNew(); return; }
+    // An empty form still owns the create context (browsed date, slot). Leaving
+    // it in place would leak that context into the next create opened elsewhere.
+    if (!newDraftDirty()) { P.data.newDraft = null; P.data.newContext = null; goBackFromNew(); return; }
     modal({
       title: '离开这张表单？',
       body: '<div class="proto-note">标题和已填的字段还没有保存；离开会丢弃这次输入。</div>',
       actions: [
         { label: '留下', primary: true },
-        { label: '丢弃', danger: true, onClick: () => { P.data.newDraft = null; goBackFromNew(); } },
+        { label: '丢弃', danger: true, onClick: () => { P.data.newDraft = null; P.data.newContext = null; goBackFromNew(); } },
       ],
     });
   });

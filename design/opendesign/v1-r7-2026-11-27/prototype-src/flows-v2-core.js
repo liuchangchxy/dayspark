@@ -607,8 +607,10 @@
     }
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === '?') { e.preventDefault(); P.openShortcuts(); return; }
-    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); P.baseGo('new-todo'); P.syncHash(true); return; }
-    if (e.key === 'e' || e.key === 'E') { e.preventDefault(); P.baseGo('new-event'); P.syncHash(true); return; }
+    // A shortcut opens a fresh form, not the draft left by an abandoned create
+    // page: same rule as the header ＋ (no inherited date/slot context).
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); P.data.newDraft = null; P.data.newContext = null; P.baseGo('new-todo'); P.syncHash(true); return; }
+    if (e.key === 'e' || e.key === 'E') { e.preventDefault(); P.data.newDraft = null; P.data.newContext = null; P.baseGo('new-event'); P.syncHash(true); return; }
     if (e.key === 't' || e.key === 'T') { e.preventDefault(); state.selectedDate = TODAY; P.baseGo('today'); P.syncHash(true); return; }
     if (['w', 'm', 'd'].includes(e.key.toLowerCase()) && state.screen.startsWith('cal-')) {
       e.preventDefault();

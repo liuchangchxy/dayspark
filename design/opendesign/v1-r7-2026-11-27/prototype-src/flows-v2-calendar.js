@@ -17,9 +17,22 @@
   state.skipped = state.skipped || [];
 
   /* ---------------- recurrence ---------------- */
+  // One grammar for every interval: "每 3 周", "每 2 天", "每 3 月", "每 2 年".
+  // Flutter's repeat editor accepts any INTERVAL, so the prototype must read
+  // and project the same strings instead of only knowing 每 2 周.
+  function intervalOf(repeat) {
+    const s = String(repeat || '');
+    const n = /^每(\s?\d+\s?)(天|周|月|年)/.exec(s);
+    const m = n ? Number(n[1].replace(/\s/g, '')) : 1;
+    return {
+      n: Number.isFinite(m) && m > 0 ? m : 1,
+      unit: n ? n[2] : /天/.test(s) ? '天' : /周/.test(s) ? '周' : /月/.test(s) ? '月' : /年/.test(s) ? '年' : '',
+      prefix: n ? n[0] : '',
+    };
+  }
   // "每周一、三、五" only prefixes 周 once; read the day characters that follow.
   function repeatDays(repeat) {
-    const m = /^(每\s?2\s?周|每周)/.exec(repeat || '');
+    const m = /^(每\s?\d+\s?周|每周)/.exec(repeat || '');
     if (!m) return [];
     // "每 2 周" has no weekday names after the prefix; the empty token used to
     // read as 周日 because ''.indexOf gives 0.
@@ -29,17 +42,34 @@
       .map((ch) => '日一二三四五六'.indexOf(ch.slice(-1)))
       .filter((n) => n >= 0);
   }
+  // Interval weeks count in calendar weeks (Monday-first), not in 7-day
+  // slices from the anchor's weekday. With a Friday anchor, a Monday three
+  // weeks later belongs to week 3; slicing from Friday would call it week 4
+  // and silently skip or add an occurrence.
+  function weekIndexOf(anchor, day) {
+    const a = dayOf(anchor), d = dayOf(day);
+    const aw = new Date(a.getFullYear(), a.getMonth(), a.getDate() - ((a.getDay() + 6) % 7));
+    const dw = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+    return Math.round((dw - aw) / (7 * 86400000));
+  }
+  function weekOffsetOk(anchor, day, n) { return weekIndexOf(anchor, day) % n === 0; }
   // A repeat rule matches a day on its own terms (no count/until).
   function pureMatch(anchor, day, repeat) {
     const a = dayOf(anchor), d = dayOf(day);
     if (!(d >= a)) return false;
-    if (repeat === '每天') return true;
-    if (repeat === '每月') return d.getDate() === a.getDate();
-    if (repeat === '每年') return d.getMonth() === a.getMonth() && d.getDate() === a.getDate();
-    const two = /^每 2 周/.test(repeat);
-    if (/^每周/.test(repeat) || two) {
-      const diff = Math.round((d - a) / 86400000);
-      if (two && Math.floor(diff / 7) % 2 !== 0) return false;
+    const iv = intervalOf(repeat);
+    const diff = Math.round((d - a) / 86400000);
+    if (iv.unit === '天') return diff % iv.n === 0;
+    if (iv.unit === '月') {
+      if (d.getDate() !== a.getDate()) return false;
+      return ((d.getFullYear() - a.getFullYear()) * 12 + d.getMonth() - a.getMonth()) % iv.n === 0;
+    }
+    if (iv.unit === '年') {
+      if (d.getMonth() !== a.getMonth() || d.getDate() !== a.getDate()) return false;
+      return (d.getFullYear() - a.getFullYear()) % iv.n === 0;
+    }
+    if (iv.unit === '周') {
+      if (!weekOffsetOk(anchor, day, iv.n)) return false;
       const names = repeatDays(repeat);
       if (names.length) return names.includes(d.getDay());
       return d.getDay() === a.getDay();
@@ -51,15 +81,21 @@
   function occurrenceIndex(anchor, day, repeat, cap) {
     if (!pureMatch(anchor, day, repeat)) return 0;
     const a = dayOf(anchor), d = dayOf(day);
-    if (/^每天/.test(repeat)) return Math.round((d - a) / 86400000) + 1;
+    const iv = intervalOf(repeat);
+    if (iv.unit === '天') return Math.floor(Math.round((d - a) / 86400000) / iv.n) + 1;
     // Monthly and yearly counts are real occurrences: 1/31 每月 skips
     // February, so 31 Mar is the 2nd occurrence, not the 3rd. Counting
     // elapsed months made "结束于 3 次" end one occurrence early.
-    if (/^每月/.test(repeat)) {
+    // The unit comes from intervalOf, so 每 3 月 counts the same way 每月 does;
+    // a text prefix test only matched the n=1 form and silently fell through
+    // to the weekly loop for 每 N 月 / 每 N 年.
+    if (iv.unit === '月') {
       // Construct each month from day 1 so JS never normalises 31 Feb into
       // 3 Mar and silently shifts every later occurrence.
       let n = 0;
       for (let k = 0; k < 6000; k++) {
+        // Only the months the rule actually fires in: 每 3 月 counts k=0,3,6…
+        if (k % iv.n !== 0) continue;
         const y = a.getFullYear(), mo = a.getMonth() + k;
         const x = new Date(y, mo, 1);
         x.setDate(a.getDate());
@@ -70,9 +106,10 @@
       }
       return n;
     }
-    if (/^每年/.test(repeat)) {
+    if (iv.unit === '年') {
       let n = 0;
       for (let k = 0; k < 400; k++) {
+        if (k % iv.n !== 0) continue; // 每 2 年 fires in k=0,2,4…
         const x = new Date(a.getFullYear() + k, 1, 1);
         x.setMonth(a.getMonth());
         x.setDate(a.getDate());
@@ -83,13 +120,12 @@
       }
       return n;
     }
-    const two = /^每 2 周/.test(repeat);
     const names = repeatDays(repeat);
     let n = 0;
     const x = new Date(a.getFullYear(), a.getMonth(), a.getDate());
     while (x <= d) {
       const dayOk = names.length ? names.includes(x.getDay()) : x.getDay() === a.getDay();
-      const weekOk = !two || Math.floor(Math.round((x - a) / 86400000) / 7) % 2 === 0;
+      const weekOk = weekOffsetOk(anchor, iso(x), iv.n);
       if (dayOk && weekOk) {
         n++;
         if (cap && n > cap) return n;
@@ -152,6 +188,16 @@
     state.occurId = b.dataset.id;
   }, true);
 
+  // The series anchor is the date the rule counts from. A repeating series can
+  // store its own 重复开始 (repeatAnchor, editable in the repeat picker); when
+  // it does, the projection must count from it — otherwise the instance picker
+  // and the calendar would show two different instance sets for one series.
+  function seriesAnchor(t) {
+    if (!t) return null;
+    // Order matches DS3.anchorOf (flows-v3-model.js) so the two never disagree.
+    return t.repeatAnchor || t.seriesStart || t.due || t.startDate || t.date || null;
+  }
+
   const baseEventsOn = window.eventsOn;
   window.eventsOn = function (day) {
     const out = baseEventsOn(day).filter((e) => !skipped(e.id, day));
@@ -159,7 +205,8 @@
     EVENTS.filter((e) => !state.deletedEvents.includes(e.id) && !calHidden(e.cal) && e.repeat && e.date && e.date !== day && !state.skipped.includes(e.id + '@' + day))
       .forEach((e) => {
         if (out.some((x) => x.id === e.id && x.date === day)) return;
-        if (repeatMatch(e.date, day, e.repeat, e)) out.push(Object.assign({}, e, { date: day, seriesDate: e.date, occurrence: true }));
+        const anchor = seriesAnchor(e);
+        if (anchor && repeatMatch(anchor, day, e.repeat, e)) out.push(Object.assign({}, e, { date: day, seriesDate: e.date, occurrence: true }));
       });
     return out;
   };
@@ -176,7 +223,8 @@
     allTodos().forEach((t) => {
       if (!t.repeat || !t.due || t.due === day || isDoneOn(t, day) || calHidden(t.cal)) return;
       if (skipped(t.id, day)) return;
-      if (!repeatMatch(t.due, day, t.repeat, t)) return;
+      const anchor = seriesAnchor(t);
+      if (!anchor || !repeatMatch(anchor, day, t.repeat, t)) return;
       if (out.some((x) => x.id === t.id)) return;
       out.push(Object.assign({}, t, { due: day, occurrence: true }));
     });
@@ -388,6 +436,10 @@
   });
 
   /* ---------------- empty slot create ---------------- */
+  // An empty slot is a create entry for BOTH kinds of planning: a new event in
+  // that exact date/segment, or an existing todo scheduled into it. Clicking a
+  // column used to jump straight into the event form, which left "安排已有
+  // 待办" reachable only from the toolbar — the slot itself lost its half.
   document.addEventListener('click', (e) => {
     if (Date.now() < suppressClick) return;
     const col = e.target.closest('.day-col');
@@ -396,18 +448,37 @@
     // Only a click on the column itself / its empty background creates.
     if (e.target !== col) return;
     e.preventDefault(); e.stopPropagation();
-    const day = col.dataset.date;
+    const day = col.dataset.date || state.selectedDate || TODAY;
     const m = snap(yToMin(col, e.clientY));
     const start = Math.max(0, Math.min(1439 - 60, m));
-    openQuickEvent(day, fmt(start), fmt(Math.min(1439, start + 60)));
+    const end = Math.min(1439, start + 60);
+    openSlotPair(day, fmt(start), fmt(end));
   }, true);
+
+  function openSlotPair(day, start, end) {
+    const body = document.createElement('div');
+    body.innerHTML = `<div class="proto-list">
+      <button type="button" class="proto-list-row" data-slot="event"><span class="grow">新建日程<small>${esc(mdShort(day))} ${start}–${end} · 只写日程</small></span></button>
+      <button type="button" class="proto-list-row" data-slot="plan"><span class="grow">安排已有待办<small>把一条待办放进 ${esc(mdShort(day))} ${start}–${end}</small></span></button>
+    </div>
+    <div class="proto-note">这个时间段来自你点的那一格；两件事都只写各自的时间，不会互相覆盖，也不会顺手改截止。</div>`;
+    const scrim = modal({ title: '这段时间', body, actions: [{ label: '取消' }] });
+    body.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-slot]');
+      if (!b) return;
+      scrim.remove();
+      if (b.dataset.slot === 'event') { openQuickEvent(day, start, end); return; }
+      P.scheduleTodo({ date: day, start, end, returnScreen: state.screen, returnVariant: state.variant, returnDrawer: state.drawer });
+    });
+    return scrim;
+  }
 
   function openQuickEvent(day, start, end) {
     const body = document.createElement('div');
     body.innerHTML = `<div class="proto-field"><label>标题</label><input class="proto-input" id="qe-title" placeholder="这段时间做什么？" autofocus></div>
       <div class="proto-inline-row"><div class="proto-field" style="flex:1"><label>开始</label><input type="time" class="proto-input" id="qe-start" value="${start}"></div><div class="proto-field" style="flex:1"><label>结束</label><input type="time" class="proto-input" id="qe-end" value="${end}"></div></div>
       <div class="proto-field"><label>日历</label><select class="proto-input" id="qe-cal">${calIds().map((id) => `<option value="${id}" ${id === (state.defaultCal || 'personal') ? 'selected' : ''}>${esc(calOf(id).name)}</option>`).join('')}</select></div>
-      <div class="proto-note">${day} · 只写日程，不会顺带创建待办。结束早于开始表示次日结束（跨午夜）。</div>`;
+      <div class="proto-note">${esc(mdShort(day))} ${start}–${end} · 只写日程，不会顺带创建待办。结束早于开始表示次日结束（跨午夜）。</div>`;
     modal({
       title: '新建日程', body,
       actions: [
