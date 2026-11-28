@@ -19,9 +19,8 @@
   --warn:#7D5416; --warn-soft:#F4ECDD; --err:#A8481E; --err-soft:#FBF1EB;
   --ok:#5E7A64; --ok-soft:#F1F5F1; --work:#5F7183; --work-soft:#F3F5F6;
   --scrim:rgba(25,26,23,.42); --shadow:0 14px 40px rgba(25,26,23,.13); --shadow-sm:0 2px 8px rgba(25,26,23,.06);
-  --t1:26px; --t2:15px; --t3:13px; --t4:11.5px;
   --r:6px; --r-lg:10px;
-  --dock-h:58px;
+  --dock-h:64px;
 }
 html[data-theme="dark"]{
   --bg:#131311; --surface:#1A1B18; --surf2:#1D1E1A; --surf3:#232420; --free:#20211C;
@@ -117,7 +116,7 @@ svg.i{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke
 .today-main{min-height:0;display:flex;flex-direction:column}
 .page-head{padding:22px 30px 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex:none}
 .date-head{display:flex;align-items:baseline;gap:12px;min-width:0}
-.date-head h1{margin:0;font-size:var(--t1);font-weight:650;letter-spacing:-.01em;line-height:1.15;white-space:nowrap}
+.date-head h1{margin:0;font-size:30px;font-weight:650;letter-spacing:-.01em;line-height:1.18;white-space:nowrap}
 .date-head .wd{font-size:13px;color:var(--muted);white-space:nowrap}
 .head-side{font-size:11.5px;color:var(--muted);padding-bottom:3px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .taskcol{min-height:0;overflow-y:auto;border-right:1px solid var(--line);padding:6px 24px 24px;scrollbar-width:thin}
@@ -133,17 +132,17 @@ svg.i{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke
 .grp .ct{font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
 .grp .cv{--s:11px;color:var(--faint);transition:transform .14s ease}
 .grp[aria-expanded="true"] .cv{transform:rotate(90deg)}
-.row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:11px;width:100%;min-height:58px;padding:7px 4px;border-bottom:1px solid var(--line2);border-radius:6px;position:relative;text-align:left}
+.row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:11px;width:100%;min-height:62px;padding:7px 4px;border-bottom:1px solid var(--line2);border-radius:6px;position:relative;text-align:left}
 .row .row-side{position:relative;justify-self:end}
 .row:hover .row-side > .due,.row:focus-within .row-side > .due{position:absolute;right:0;top:-4px;opacity:0;pointer-events:none}
 .row .acts{min-width:0}
 .row:hover{background:var(--free)}
-.row .ck{width:17px;height:17px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--surface);flex:none;position:relative}
+.row .ck{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--surface);flex:none;position:relative}
 .row .ck:hover{border-color:var(--faint)}
 .row .ck.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .row .ck .i{--s:9px;stroke-width:2.6}
 .row-main{min-width:0;display:flex;flex-direction:column;gap:3px}
-.row-t{font-size:14px;font-weight:520;line-height:1.36;color:var(--ink);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.row-t{font-size:14.5px;font-weight:520;line-height:1.4;color:var(--ink);overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .row-m{display:flex;align-items:center;gap:6px;min-width:0;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden}
 .row-m .sep{color:var(--faint)}
 .row-m .hiv{color:var(--ink2);font-weight:600}
@@ -372,18 +371,23 @@ svg.i{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke
 .ag-empty b{display:block;color:var(--ink);font-size:13px;margin-bottom:4px}
 .ag-empty .btn{margin-top:8px;height:28px;font-size:11.5px}
 
-/* mobile 3-day */
-.tg3{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
-.m-scroll.m-fill{overflow:hidden;display:flex;flex-direction:column}
-.tg3-head{display:grid;grid-template-columns:34px repeat(3,minmax(0,1fr));min-width:0;position:sticky;top:0;z-index:6;background:var(--bg);border-bottom:1px solid var(--line)}
-.tg3-day{min-width:0;padding:5px 3px;border-left:1px solid var(--line2);text-align:center;display:flex;flex-direction:column;align-items:center;gap:1px}
-.tg3-day .w{font-size:10px;color:var(--muted)}
-.tg3-day .d{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.4}
-.tg3-day.today .d{color:var(--accent)}
-.tg3-day.sel{background:var(--surf2)}
-.tg3-body{display:grid;grid-template-columns:34px repeat(3,minmax(0,1fr));height:1440px}
-.tg3-body .tg-col{background-size:100% 60px}
-.tg3-body .tg-gutter .tg-hour{font-size:9.5px;padding-right:4px}
+/* mobile week: seven-day context strip + selected day timeline */
+.wk{position:sticky;top:0;z-index:6;background:var(--bg);display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:1px;padding:2px 0 7px;border-bottom:1px solid var(--line)}
+.wk-d{min-width:0;min-height:60px;padding:6px 0 7px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px}
+.wk-d .w{font-size:10.5px;line-height:1.3;color:var(--muted)}
+.wk-d .n{font-size:16px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+.wk-d.today .n{color:var(--accent)}
+.wk-d.sel{background:var(--surf3)}
+.wk-d.sel .n{color:var(--ink)}
+.wk-d.sel .w{color:var(--ink2)}
+.wk-d .mks{display:flex;align-items:center;justify-content:center;gap:2px;height:6px;margin-top:1px}
+.wk-d .mk{display:block;width:4px;height:4px;border-radius:50%}
+.wk-d .mk.al{width:5px;height:5px;border-radius:1px;background:transparent;border:1px solid var(--faint)}
+.wk-d .mk.du{width:7px;height:2px;border-radius:0;background:var(--warn)}
+.wk-d .mk.none{width:3px;height:3px;background:transparent}
+.wk-dayh{display:flex;align-items:baseline;gap:8px;padding:11px 0 3px}
+.wk-dayh b{font-size:13.5px;font-weight:650;letter-spacing:0}
+.wk-dayh span{font-size:11px;color:var(--muted)}
 
 /* ---------- inspector ---------- */
 .insp{width:404px;flex:none;border-left:1px solid var(--line);background:var(--bg);display:flex;flex-direction:column;min-height:0;z-index:9}
@@ -397,7 +401,7 @@ svg.i{stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke
 .ins-title .ck{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;margin-top:5px;flex:none;color:var(--surface)}
 .ins-title .ck.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .ins-title .ck .i{--s:9px}
-.ins-title .tt{flex:1;min-width:0;border:0;background:transparent;font-size:20px;font-weight:650;line-height:1.3;padding:0;border-radius:4px;width:100%;font-family:var(--font);color:var(--ink);resize:none}
+.ins-title .tt{flex:1;min-width:0;border:0;background:transparent;font-size:24px;font-weight:650;line-height:1.28;padding:0;border-radius:4px;width:100%;font-family:var(--font);color:var(--ink);resize:none}
 .ins-title .tt:hover{background:var(--surf2)}
 .ins-title .tt:focus{background:var(--surf2);outline:none;box-shadow:inset 0 -1px 0 var(--ink)}
 .ins-facts{display:flex;flex-direction:column;gap:0;padding:2px 0 6px}
@@ -604,7 +608,7 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
 
 /* ---------- mobile ---------- */
 .m-shell{height:100dvh;display:flex;flex-direction:column;background:var(--bg);overflow:hidden;width:100%;max-width:100%}
-.m-top{flex:none;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 18px 6px;min-height:52px}
+.m-top{flex:none;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 18px 6px;min-height:56px}
 .m-top .t{font-size:13px;font-weight:600}
 .m-top .ml{margin-left:auto;display:flex;gap:4px}
 .m-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 18px 132px;-webkit-overflow-scrolling:touch}
@@ -614,12 +618,12 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
 .m-zone{display:flex;align-items:center;gap:8px;min-height:34px;font-size:10px;font-weight:650;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
 .m-zone::after{content:"";flex:1;height:1px;background:var(--line)}
 .m-zone.err{color:var(--err)}
-.m-row{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:56px;padding:6px 0;border-bottom:1px solid var(--line2)}
+.m-row{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;min-height:66px;padding:6px 0;border-bottom:1px solid var(--line2)}
 .m-row .ck{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;color:var(--surface);flex:none}
 .m-row .ck.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .m-row .ck .i{--s:10px}
-.m-row .t{font-size:14px;font-weight:520;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
-.m-row .m{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center;margin-top:2px;min-width:0;overflow:hidden;white-space:nowrap}
+.m-row .t{font-size:16px;font-weight:520;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.m-row .m{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;margin-top:2px;min-width:0;overflow:hidden;white-space:nowrap}
 .m-row .side{display:flex;align-items:center;gap:2px}
 .m-row .due{font-size:10.5px;padding:2px 5px}
 .m-iconbtn{width:44px;height:44px;display:grid;place-items:center;color:var(--muted);border-radius:6px;flex:none;margin:-9px -6px -9px 0}
@@ -664,29 +668,17 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
 .m-agenda .h .open{margin-left:auto;font-size:11.5px;color:var(--muted);display:flex;gap:4px;align-items:center}
 .m-ag{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--line2);width:100%;text-align:left}
 .m-ag .tm{width:40px;flex:none;font-size:10.5px;color:var(--muted);padding-top:3px;font-variant-numeric:tabular-nums}
-.m-ag .t{font-size:12.5px;font-weight:600;display:flex;gap:5px;align-items:center}
-.m-ag .m{font-size:10.5px;color:var(--muted);margin-top:2px}
+.m-ag .t{font-size:13.5px;font-weight:600;display:flex;gap:5px;align-items:center}
+.m-ag .m{font-size:11px;color:var(--muted);margin-top:2px}
 .m-ag .sq{width:8px;height:8px;border:1.2px solid var(--cat);border-radius:2px}
-.m-3head{display:grid;grid-template-columns:34px repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:2}
-.m-3head > div{padding:6px 4px;text-align:center}
-.m-3head .w{font-size:9.5px;color:var(--muted)}
-.m-3head .d{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
-.m-3head .today .d{color:var(--accent)}
-.m-3head .sel{background:var(--surf2)}
-.m-3cols{display:grid;grid-template-columns:34px repeat(3,minmax(0,1fr));height:900px}
-.m-3cols .tg-col{background-size:100% 60px;min-width:0}
-.m-3cols .blk .bin{padding:3px 5px}
-.m-3cols .blk .bt{font-size:11px;line-height:1.25}
-.m-3cols .blk .bm{font-size:9px}
-.m-3cols .tg-gutter .tg-hour{font-size:9px;padding-right:3px}
 .m-daylist{display:flex;flex-direction:column}
 .m-tl{display:grid;grid-template-columns:44px 12px minmax(0,1fr);gap:8px;padding:3px 0}
 .m-tl .tm{font-size:10.5px;color:var(--muted);padding-top:9px;font-variant-numeric:tabular-nums}
 .m-tl .rail{padding-top:13px;display:flex;justify-content:center}
 .m-tl .rail .dot{width:5px;height:5px;border-radius:50%;background:var(--cat)}
 .m-tl .blk2{border-radius:7px;padding:8px 10px;min-height:46px;background:var(--cat-bg);color:var(--cat-ink);border-left:3px solid var(--cat)}
-.m-tl .blk2 .bt{font-size:13px;font-weight:600;display:flex;gap:5px;align-items:center}
-.m-tl .blk2 .bm{font-size:10.5px;opacity:.85;margin-top:2px}
+.m-tl .blk2 .bt{font-size:14px;font-weight:600;display:flex;gap:5px;align-items:center}
+.m-tl .blk2 .bm{font-size:11px;opacity:.85;margin-top:2px}
 .m-tl .blk2.alloc{background:var(--surface);border:1px dashed var(--line);border-left:3px solid var(--cat);color:var(--ink)}
 .m-tl .blk2.alloc .bm{color:var(--muted);opacity:1}
 .m-tl .blk2 .sq{width:9px;height:9px;border:1.2px solid var(--cat);border-radius:2px}
@@ -697,7 +689,7 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
 .m-nowmark .tx{font-size:10.5px;color:var(--accent);font-weight:600}
 .m-due .tm{font-size:10.5px;color:var(--warn);font-weight:600;font-variant-numeric:tabular-nums}
 .m-due .line{height:1px;background:var(--warn);opacity:.5}
-.m-due .tx{font-size:11px;color:var(--warn);border-top:1px solid transparent;line-height:1.4}
+.m-due .tx{font-size:13px;color:var(--warn);border-top:1px solid transparent;line-height:1.4}
 .m-due .tx b{font-weight:600}
 .m-free{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;align-items:center;min-height:48px;border-top:1px solid var(--line2);color:var(--muted);font-size:11px;width:100%;text-align:left}
 .m-daysub{font-size:10.5px;color:var(--faint);line-height:1.6;padding:12px 0 0}
@@ -719,7 +711,7 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
 .m-detail .bar .kind{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .m-detail .bar .ml{margin-left:auto;display:flex}
 .m-detail .scroll{flex:1;min-height:0;overflow-y:auto;padding:14px 18px calc(32px + env(safe-area-inset-bottom))}
-.m-detail .tt{font-size:21px;font-weight:650;line-height:1.3;margin:2px 0 12px;width:100%;border:0;background:transparent;color:var(--ink);font-family:var(--font);resize:none}
+.m-detail .tt{font-size:24px;font-weight:650;line-height:1.28;margin:2px 0 12px;width:100%;border:0;background:transparent;color:var(--ink);font-family:var(--font);resize:none}
 .m-detail .tt:focus{outline:none}
 .m-detail .m-row2{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:50px;border-bottom:1px solid var(--line2);width:100%;font-size:13px;text-align:left}
 .m-detail .m-row2 .k{color:var(--muted);font-size:12px}
@@ -779,11 +771,6 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
 .notes{min-height:64px}
 .m-tl{padding:3px 0;width:100%;border:0;background:transparent;text-align:left}
 .m-due{border:0;background:transparent;padding:6px 0;width:100%;text-align:left}
-.tg3 .tg-col .blk{font-size:11px}
-.tg3::-webkit-scrollbar{display:none}
-.tg3{scrollbar-width:none}
-.tg3 .due-tag{display:none}
-.m-3cols .blk .bt{font-size:10.5px}
 
 /* ---- AI assistant (optional tool) ---- */
 .aibtn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink2);font:inherit;font-size:12px;cursor:pointer;transition:border-color .12s,color .12s}
@@ -1353,10 +1340,6 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
         : sp[1] + ' 月 ' + sp[2] + ' 日 – ' + ep[1] + ' 月 ' + ep[2] + ' 日';
       return range + ' · ' + (s <= TODAY && TODAY <= e ? '本周' : wd(s) + '起');
     }
-    if (S.calView === '3day') {
-      var a = S.calDate, b3 = addD(a, 2);
-      return md(a) + '–' + Number(b3.slice(-2)) + ' 日';
-    }
     return md(S.calDate) + ' · ' + wd(S.calDate);
   }
   function calHead() {
@@ -1772,50 +1755,60 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
       '<div class="rail-days" style="grid-template-columns:repeat(5,1fr)">' + cells + '</div></div>';
   }
   function mobileCalendar() {
-    var out = '<div class="m-scroll' + (S.calView === '3day' ? ' m-fill' : '') + '" data-scrollkey="m-scroll" data-od-id="mobile-calendar">' +
-      '<div class="m-calhead"><span class="t">' + (S.calView === 'month' ? calRangeTitle() : md(S.calDate)) + '</span>' +
+    var out = '<div class="m-scroll" data-scrollkey="m-scroll" data-od-id="mobile-calendar">' +
+      '<div class="m-calhead"><span class="t">' + mCalTitle() + '</span>' +
       '<div class="n"><button data-act="cal-prev" aria-label="上一段">' + ico('left', 14) + '</button>' +
       '<button data-act="cal-next" aria-label="下一段">' + ico('right', 14) + '</button></div>' +
       '<span class="ml"><button class="btn" data-act="cal-today">今天</button>' +
       '<button class="btn" data-act="open-datepicker" aria-label="选择日期">' + ico('cal', 12) + '</button></span></div>' +
-      '<div class="m-seg">' + [['month', '月'], ['3day', '3日'], ['day', '日']].map(function (v) {
+      '<div class="m-seg">' + [['month', '月'], ['week', '周'], ['day', '日']].map(function (v) {
         return '<button class="' + (S.calView === v[0] ? 'on' : '') + '" data-act="cal-view" data-view="' + v[0] + '">' + v[1] + '</button>';
       }).join('') + '</div>';
     if (S.calView === 'month') out += mobileMonth();
-    else if (S.calView === '3day') out += mobile3Day();
+    else if (S.calView === 'week') out += mobileWeek();
     else out += mobileDay();
     out += '</div>';
     return '<div class="m-shell">' + mTop('日历') + out + mComposerBar() + dock('calendar') + '</div>';
   }
+  function mCalTitle() {
+    if (S.calView === 'month') return calRangeTitle();
+    if (S.calView === 'week') {
+      var ws = weekStart(S.calDate);
+      return mds(ws) + ' – ' + mds(addD(ws, 6));
+    }
+    return md(S.calDate);
+  }
 
-
-  function mobile3Day() {
-    var days = [S.calDate, addD(S.calDate, 1), addD(S.calDate, 2)];
-    var head = '<div class="tg3-head"><div></div>' + days.map(function (d) {
-      return '<button class="tg3-day' + (d === TODAY ? ' today' : '') + (d === S.selDate ? ' sel' : '') +
-        '" data-act="mo-pick" data-date="' + d + '"><span class="w">' + wd(d) + '</span><span class="d">' + Number(d.slice(-2)) + '</span></button>';
-    }).join('') + '</div>';
-    var hours = '';
-    for (var h = 0; h <= 23; h++) hours += '<span class="tg-hour" style="top:' + (h / 24 * 100) + '%">' + pad(h) + '</span>';
-    var cols = days.map(function (d) {
-      var blocks = lanes(blocksOn(d));
-      var html = blocks.map(function (b) {
-        var c = catVars(b.cal);
-        var top = b.start / 1440 * 100, height = Math.max(1.45, (b.end - b.start) / 1440 * 100);
-        return '<div class="blk ' + b.kind + (b.end - b.start < 40 ? ' small' : '') + '"' +
-          ' data-act="' + (b.kind === 'alloc' ? 'open-todo' : 'open-event') + '" data-id="' + b.id + '"' +
-          ' data-date="' + d + '" style="top:' + top + '%;height:' + height + '%;left:calc(' + (b.lane / b.lanes * 100) + '% + 1px);' +
-          'width:calc(' + (100 / b.lanes) + '% - 2px);--cat:' + c.color + ';--cat-bg:' + c.bg + ';--cat-ink:' + c.ink + '">' +
-          '<div class="bin"><span class="bt">' + (b.kind === 'alloc' ? '<span class="sq"></span>' : '') + esc(b.title) + '</span>' +
-          '<span class="bm">' + clock(b.start) + '</span></div></div>';
+  /* seven-day context strip; the selected day's timeline renders below it */
+  function mobileWeek() {
+    var ws = weekStart(S.calDate), days = [], i;
+    for (i = 0; i < 7; i++) days.push(addD(ws, i));
+    var cells = days.map(function (d) {
+      var evs = evOnDate(d);
+      var allocs = blocksOn(d).filter(function (b) { return b.kind === 'alloc'; });
+      var dues = TODOS.filter(function (t) { return !isDone(t) && t.due === d; });
+      var n = evs.length + allocs.length + dues.length;
+      var marks = evs.slice(0, 2).map(function (e) {
+        return '<i class="mk ev" style="background:' + catVars(e.cal).color + '"></i>';
       }).join('');
-      var dues3 = TODOS.filter(function (t) { return !isDone(t) && t.due === d && t.dueTime; }).map(function (t) { var red = dueRed(t), tp = mins(t.dueTime) / 1440 * 100; return '<span class="due-mark' + (red ? ' red' : '') + '" style="top:' + tp + '%"></span><span class="due-dot' + (red ? ' red' : '') + '" style="top:calc(' + tp + '% - 2.5px)" data-act="open-todo" data-id="' + t.id + '"></span><span class="due-tag' + (red ? ' red' : '') + '" style="top:' + tp + '%">' + esc(t.dueTime) + '</span>'; }).join('');
-      var now = d === TODAY ? '<span class="nowline" style="top:' + (NOWM / 1440 * 100) + '%"></span>' : '';
-      return '<div class="tg-col' + (d === TODAY ? ' today' : '') + '" data-col="' + d + '">' + html + dues3 + now + '</div>';
+      if (allocs.length) marks += '<i class="mk al"></i>';
+      if (dues.length) marks += '<i class="mk du"></i>';
+      if (!marks) marks = '<i class="mk none"></i>';
+      return '<button class="wk-d' + (d === S.calDate ? ' sel' : '') + (d === TODAY ? ' today' : '') +
+        '" data-act="wk-pick" data-date="' + d + '" aria-pressed="' + (d === S.calDate) + '"' +
+        ' aria-label="' + md(d) + ' ' + wd(d) + '，' + n + ' 项">' +
+        '<span class="w">' + wd(d).replace('周', '') + '</span>' +
+        '<span class="n">' + Number(d.slice(-2)) + '</span>' +
+        '<span class="mks">' + marks + '</span></button>';
     }).join('');
-    return '<div class="tg3" data-grid="1">' + head +
-      '<div class="tg3-body" style="height:1440px"><div class="tg-gutter">' + hours + '</div>' + cols + '</div></div>' +
-      '';
+    var blocks = blocksOn(S.calDate);
+    var allDay = evOnDate(S.calDate).filter(function (e) { return e.allDay; });
+    var dues = TODOS.filter(function (t) { return !isDone(t) && t.due === S.calDate; });
+    var total = blocks.length + allDay.length + dues.length;
+    return '<div class="wk" role="group" aria-label="本周七天">' + cells + '</div>' +
+      '<div class="wk-dayh"><b>' + wd(S.calDate) + ' ' + Number(S.calDate.slice(-2)) + '</b>' +
+      '<span>' + (total ? total + ' 项' : '没有安排') + '</span></div>' +
+      mobileDay(S.calDate);
   }
 
   function mobileMonth() {
@@ -1868,8 +1861,8 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
     out += '</div>';
     return out;
   }
-  function mobileDay() {
-    var d = S.calDate;
+  function mobileDay(dayIso) {
+    var d = dayIso || S.calDate;
     var blocks = lanes(blocksOn(d));
     var dues = TODOS.filter(function (t) { return !isDone(t) && t.due === d; });
     var allDay = evOnDate(d).filter(function (e) { return e.allDay; });
@@ -1899,9 +1892,10 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
     if (!nowShown && d === TODAY) {
       out += '<div class="m-nowmark"><span class="tm">' + clock(NOWM) + '</span><span class="line"></span><span class="tx">现在</span></div>';
     }
-    out += '<div class="m-daysub">点任何空白时间可以新建日程，或安排一件未安排待办。</div>';
     if (!blocks.length && !dues.length && !allDay.length) {
       out += '<div class="empty"><b>' + md(d) + '没有安排</b><p>点空白时间可以新建日程，或从未安排待办挑一件。</p></div>';
+    } else {
+      out += '<div class="m-daysub">点任何空白时间可以新建日程，或安排一件未安排待办。</div>';
     }
     out += '</div>';
     return out;
@@ -3212,14 +3206,10 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
       /* navigation */
       case 'go':
         S.screen = btn.dataset.screen; S.mobileDetail = null; S.composer.open = false; S.drawer = null;
-        if (S.screen === 'calendar' && S.calView === 'week' && isMobile()) S.calView = '3day';
-        if (S.screen === 'calendar' && !isMobile() && S.calView === '3day') S.calView = 'week';
         render(); save(); break;
       case 'toggle-theme': S.dark = !S.dark; render(); break;
       case 'device-set':
         S.device = btn.dataset.device;
-        if (S.device === 'mobile' && S.calView === 'week') S.calView = '3day';
-        if (S.device === 'desktop' && S.calView === '3day') S.calView = 'week';
         S.composer.open = false; S.drawer = null; S.mobileDetail = null;
         render(); break;
       case 'open-search': S.search = { open: true, q: '' }; render(); break;
@@ -3399,6 +3389,7 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
         if (isMobile()) { S.mobileDayFrom = S.selDate; }
         render(); save(); break;
       case 'mo-pick': S.selDate = btn.dataset.date; render(); break;
+      case 'wk-pick': S.calDate = btn.dataset.date; S.selDate = btn.dataset.date; render(); save(); break;
       case 'open-calfilter': openCalFilter(); break;
 
       /* inspector fields */
@@ -3593,8 +3584,8 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
       }
       case 'trash-purge-do': S.trash = S.trash.filter(function (x) { return x.id !== id; }); closeLayer(); openSettings('trash'); break;
 
-      case 'go-cal-week': S.screen = 'calendar'; S.calView = isMobile() ? '3day' : 'week'; S.planOpen = true; S.mobileDetail = null; render(); save(); break;
-      case 'go-cal-plan': S.screen = 'calendar'; S.calView = isMobile() ? '3day' : 'week'; S.planOpen = true; S.mobileDetail = null; render(); save(); break;
+      case 'go-cal-week': S.screen = 'calendar'; S.calView = 'week'; S.planOpen = !isMobile(); S.mobileDetail = null; render(); save(); break;
+      case 'go-cal-plan': S.screen = 'calendar'; S.calView = 'week'; S.planOpen = !isMobile(); S.mobileDetail = null; render(); save(); break;
       default: break;
     }
   }
@@ -3606,7 +3597,6 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
       var d = new Date(Date.UTC(p[0], p[1] - 1 + n, 1));
       S.calDate = isoOf(d); S.selDate = S.calDate;
     } else if (S.calView === 'week') S.calDate = addD(S.calDate, n * 7);
-    else if (S.calView === '3day') S.calDate = addD(S.calDate, n * 3);
     else S.calDate = addD(S.calDate, n);
     S.selDate = S.calDate;
     render(); save();
@@ -3945,7 +3935,7 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
       if (e.target.closest('[data-act]') || e.target.closest('[data-drag-todo]') || e.target.closest('#layer') || e.target.closest('.blk')) return;
       var col = e.target.closest('[data-col]');
       if (!col) return;
-      if (!e.target.closest('[data-grid]') && !e.target.closest('.tg3') && !e.target.closest('.m-3cols')) return;
+      if (!e.target.closest('[data-grid]')) return;
       var rect = col.getBoundingClientRect();
       var m = Math.max(0, Math.min(1425, Math.floor(((e.clientY - rect.top) / rect.height) * 96) * 15));
       openSlot(col.dataset.col, clock(m), clock(m + 60), { x: e.clientX, y: e.clientY });
@@ -3987,7 +3977,7 @@ html[data-theme="dark"] .toast .undo{background:var(--surf2);color:var(--ink)}
     if (qs.get('composer') === '1') { S.composer = blankComposer(qs.get('type') || (qs.get('screen') === 'calendar' ? 'event' : 'todo')); S.composer.open = true; S.composer.title = qs.get('q') || ''; }
     if (qs.get('search') === '1') S.search = { open: true, q: qs.get('q') || '' };
   } catch (e) {}
-  if (S.screen === 'calendar' && S.calView === 'week' && isMobile()) S.calView = '3day';
+  if (S.calView !== 'month' && S.calView !== 'week' && S.calView !== 'day') S.calView = 'week';
   applyTheme();
   render();
   bindEvents();
